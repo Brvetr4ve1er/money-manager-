@@ -137,6 +137,10 @@ export function simulate(
   purchase: Purchase | null,
   horizonMonths = 12,
 ): MonthState[] {
+  // Clamp to a whole positive month count, same hardening as financedMonths
+  // below: a 0/negative horizon would return [] and crash runSimulation on
+  // scenario[0], and a fractional one would silently truncate the projection.
+  horizonMonths = Math.max(1, Math.floor(horizonMonths))
   const months: MonthState[] = []
   let liquid = profile.liquidBalance
   let debt = profile.debtBalance

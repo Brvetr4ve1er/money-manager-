@@ -75,7 +75,7 @@ describe('quest completion', () => {
 
   it('completes the sim quest when a simulation actually runs (verified, not self-reported)', () => {
     render(<App />)
-    fireEvent.change(screen.getByLabelText('Purchase amount in DA'), { target: { value: '5000' } })
+    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(xpNow()).toBe(15)
     // Done state renders on the static (never tappable) verified row.
@@ -89,7 +89,7 @@ describe('quest completion', () => {
       fireEvent.click(btn)
     }
     // The sim quest is verified (no tap target), so complete it via a run.
-    fireEvent.change(screen.getByLabelText('Purchase amount in DA'), { target: { value: '5000' } })
+    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(screen.getByText(/All complete/)).toBeTruthy()
     expect(screen.getByRole('status', { name: 'Announcements' }).textContent).toBe(
@@ -103,13 +103,13 @@ describe('logging flow', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
-    expect(screen.getByLabelText('Amount in DA').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText('Amount (DA)').getAttribute('aria-invalid')).toBe('true')
     expect(xpNow()).toBe(0)
   })
 
   it('submits on Enter via the form (no button click needed)', () => {
     render(<App />)
-    const input = screen.getByLabelText('Amount in DA')
+    const input = screen.getByLabelText('Amount (DA)')
     fireEvent.change(input, { target: { value: '1500' } })
     fireEvent.submit(input.closest('form')!)
     expect(xpNow()).toBe(5)
@@ -119,7 +119,7 @@ describe('logging flow', () => {
   it('clears the error once the user types again', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
-    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '2' } })
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
@@ -127,7 +127,7 @@ describe('logging flow', () => {
     // '1e999' → Infinity: it would grant XP, then JSON round-trip as null and
     // silently vanish from the ledger on the next reload.
     render(<App />)
-    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '1e999' } })
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '1e999' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
     expect(xpNow()).toBe(0)
@@ -143,7 +143,7 @@ describe('simulator honesty', () => {
 
   it('rejects an Infinity amount instead of projecting nonsense', () => {
     render(<App />)
-    fireEvent.change(screen.getByLabelText('Purchase amount in DA'), { target: { value: '1e999' } })
+    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '1e999' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
     expect(xpNow()).toBe(0)
@@ -154,7 +154,7 @@ describe('simulator honesty', () => {
     // Mounted empty before the run: live regions announce content CHANGES.
     const region = screen.getByRole('status', { name: 'Simulation result' })
     expect(region.textContent).toBe('')
-    fireEvent.change(screen.getByLabelText('Purchase amount in DA'), { target: { value: '5000' } })
+    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(region.textContent).not.toBe('')
   })
@@ -164,7 +164,7 @@ describe('xp gain visibility', () => {
   it('shows a transient +XP chip so muted / reduced-motion users see the gain', () => {
     vi.useFakeTimers()
     render(<App />)
-    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '500' } })
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     expect(screen.getAllByText('+5 XP').length).toBeGreaterThan(0)
     act(() => {
@@ -192,7 +192,7 @@ describe('xp gain visibility', () => {
 describe('multi-tab sync', () => {
   it('merges a peer tab write instead of letting the next save clobber it', () => {
     render(<App />)
-    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '1500' } })
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '1500' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     // A second tab — still holding the state it loaded earlier — saves a
     // payload that lacks the transaction above but carries one of its own.
@@ -232,7 +232,7 @@ describe('day rollover health smoothing', () => {
       }),
     )
     render(<App />)
-    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '5000' } })
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
 
     const txs: Transaction[] = [
@@ -300,7 +300,7 @@ describe('level-up toast lifecycle', () => {
     expect(toast().textContent).toMatch(/^Level 2/)
     // XP within the dismiss window used to cancel the timer and strand the
     // toast (and the live region content) on screen.
-    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '500' } })
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     expect(toast().textContent).toMatch(/^Level 2/)
     act(() => {

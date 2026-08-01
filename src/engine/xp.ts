@@ -66,3 +66,56 @@ export function grantXp(state: XpState, action: XpAction): { next: XpState; leve
     leveledUp,
   }
 }
+
+/**
+ * One XP grant, kept as append-only evidence. Two tabs that diverged (a
+ * frozen background tab missed a storage event, then the user acted in it)
+ * each hold grants the other never saw; a bare max(totalXp) merge would
+ * silently drop the smaller tab's grant even though the merged transactions
+ * and quest flags keep its evidence. Grant logs union by id instead — see
+ * mergeStates in the store. `action: 'legacy'` marks a pre-log total migrated
+ * by sanitizeState.
+ */
+export interface XpGrant {
+  id: string
+  action: XpAction | 'legacy'
+  /** XP paid at grant time — stored so re-pricing XP_REWARDS never rewrites history. */
+  amount: number
+  /** Local day (YYYY-MM-DD) the grant landed; '' for the migrated legacy baseline. */
+  date: string
+}
+
+/** Level and progress are a pure function of the total: rebuild them from it. */
+export function xpStateFromTotal(totalXp: number): XpState {
+  let level = 1
+  let xpIntoLevel = totalXp
+  while (xpIntoLevel >= xpForLevel(level)) {
+    xpIntoLevel -= xpForLevel(level)
+    level += 1
+  }
+  return { level, xpIntoLevel, totalXp }
+}
+
+/**
+ * Fold a grant log into an XpState. Re-applies the resist daily cap across
+ * the WHOLE log: two tabs may each have granted up to the cap on the same day
+ * before merging, and their union must not jointly overpay it. Entries fold
+ * in canonical (date, id) order, so every tab folding the same union lands on
+ * the identical result regardless of the order the grants arrived in.
+ */
+export function xpFromLog(log: XpGrant[]): XpState {
+  const sorted = [...log].sort((a, b) =>
+    a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  )
+  const resistsByDay = new Map<string, number>()
+  let total = 0
+  for (const g of sorted) {
+    if (g.action === 'resistImpulse') {
+      const n = resistsByDay.get(g.date) ?? 0
+      if (n >= RESIST_XP_DAILY_CAP) continue
+      resistsByDay.set(g.date, n + 1)
+    }
+    total += g.amount
+  }
+  return xpStateFromTotal(total)
+}

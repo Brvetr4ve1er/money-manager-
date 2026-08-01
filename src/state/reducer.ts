@@ -6,7 +6,7 @@
  * them in dev, and sounds/toasts fire from effects that watch the results.
  */
 
-import { grantXp, RESIST_XP_DAILY_CAP } from '../engine/xp.ts'
+import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
 import { mergeStates, rollQuests, type AppState, type Transaction } from './store.ts'
 
@@ -30,12 +30,26 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ).length
         : 0
       const grantsXp = !resisted || resistGrantsToday < RESIST_XP_DAILY_CAP
+      const xpAction = resisted ? 'resistImpulse' : 'logExpense'
       return {
         ...state,
         transactions: [action.tx, ...state.transactions],
-        xp: grantsXp
-          ? grantXp(state.xp, resisted ? 'resistImpulse' : 'logExpense').next
-          : state.xp,
+        xp: grantsXp ? grantXp(state.xp, xpAction).next : state.xp,
+        // Every grant also lands in the append-only grant log. The tx-derived
+        // id is deterministic: two tabs merging the same purchase dedupe to
+        // one grant, while grants the peer never saw survive the union — a
+        // bare counter would race and drop one (see mergeStates).
+        xpLog: grantsXp
+          ? [
+              ...state.xpLog,
+              {
+                id: `tx:${action.tx.id}`,
+                action: xpAction,
+                amount: XP_REWARDS[xpAction],
+                date: action.tx.date,
+              },
+            ]
+          : state.xpLog,
       }
     }
     case 'COMPLETE_QUEST': {
@@ -45,7 +59,23 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const quest = state.quests.find((q) => q.id === action.id)
       if (!quest || quest.done) return state
       const quests = state.quests.map((q) => (q.id === action.id ? { ...q, done: true } : q))
-      return { ...state, quests, xp: grantXp(state.xp, quest.xpAction).next }
+      return {
+        ...state,
+        quests,
+        xp: grantXp(state.xp, quest.xpAction).next,
+        // Grant id is deterministic per (quest, day): two tabs completing the
+        // same quest on the same day merge to a single grant — matching the
+        // done-flag union in mergeStates, which likewise pays once.
+        xpLog: [
+          ...state.xpLog,
+          {
+            id: `quest:${quest.id}:${state.questsDate}`,
+            action: quest.xpAction,
+            amount: XP_REWARDS[quest.xpAction],
+            date: state.questsDate,
+          },
+        ],
+      }
     }
     case 'ROLL_DAY': {
       // Persist a once-per-day health snapshot so asymmetric smoothing and

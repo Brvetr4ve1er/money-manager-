@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { grantXp, xpForLevel, levelTitle, XP_REWARDS, type XpState } from './xp.ts'
+import {
+  grantXp,
+  xpForLevel,
+  xpFromLog,
+  xpStateFromTotal,
+  levelTitle,
+  RESIST_XP_DAILY_CAP,
+  XP_REWARDS,
+  type XpGrant,
+  type XpState,
+} from './xp.ts'
 
 const at = (level: number, xpIntoLevel: number, totalXp = 0): XpState => ({
   level,
@@ -53,6 +63,55 @@ describe('grantXp', () => {
       const { next } = grantXp(at(1, 0), action)
       expect(next.totalXp).toBe(XP_REWARDS[action])
     }
+  })
+})
+
+describe('xpStateFromTotal', () => {
+  it('rebuilds level and progress as a pure function of the total', () => {
+    expect(xpStateFromTotal(0)).toEqual({ level: 1, xpIntoLevel: 0, totalXp: 0 })
+    expect(xpStateFromTotal(100)).toEqual({ level: 2, xpIntoLevel: 0, totalXp: 100 })
+    // Matches the incremental path: 290 = level 3 with 40 in (see grantXp test).
+    expect(xpStateFromTotal(290)).toEqual({ level: 3, xpIntoLevel: 40, totalXp: 290 })
+  })
+})
+
+describe('xpFromLog', () => {
+  const g = (id: string, action: XpGrant['action'], amount: number, date: string): XpGrant => ({
+    id,
+    action,
+    amount,
+    date,
+  })
+
+  it('folds grants into the same state grantXp would have produced', () => {
+    const log = [
+      g('a', 'logExpense', 5, '2026-08-01'),
+      g('b', 'resistImpulse', 50, '2026-08-01'),
+      g('c', 'runSimulation', 15, '2026-08-01'),
+    ]
+    expect(xpFromLog(log)).toEqual(xpStateFromTotal(70))
+  })
+
+  it('is order-independent — a merged union folds identically in any arrival order', () => {
+    const log = [
+      g('a', 'logExpense', 5, '2026-08-01'),
+      g('b', 'reviewRecent', 10, '2026-07-31'),
+      g('c', 'legacy', 100, ''),
+    ]
+    expect(xpFromLog([...log].reverse())).toEqual(xpFromLog(log))
+  })
+
+  it('re-applies the resist daily cap across the whole log', () => {
+    // Two tabs can each grant up to the cap on the same day before merging;
+    // folding their union must not pay more than the cap allows per day.
+    const log = [
+      g('r1', 'resistImpulse', 50, '2026-08-01'),
+      g('r2', 'resistImpulse', 50, '2026-08-01'),
+      g('r3', 'resistImpulse', 50, '2026-08-01'),
+      g('r4', 'resistImpulse', 50, '2026-08-02'), // fresh day, fresh cap
+    ]
+    expect(RESIST_XP_DAILY_CAP).toBe(2)
+    expect(xpFromLog(log).totalXp).toBe(150)
   })
 })
 

@@ -14,6 +14,11 @@
   --teal: #00b4b0; --teal-sh: #067e7b;
   --violet: #4b2e83; --violet-sh: #331d5c;
   --good: #2f9e44; --good-sh: #1d6b2f;
+  /* Text on accent fills (flame/gold/pink/teal/--good). Deliberately NOT
+     --ink, and it never flips in the dark theme: accent surfaces keep their
+     light-theme colors in dark mode, so the ink that passes WCAG AA on them
+     stays fixed — white fails AA on every one of them. */
+  --on-accent: #141414;
   --line: var(--ink);
   --shadow: var(--ink);
   --display: "Arial Black", "Helvetica Neue", -apple-system, "Segoe UI", sans-serif;
@@ -43,7 +48,7 @@ body {
   font-size: 16px;
 }
 
-::selection { background: var(--gold); color: #141414; }
+::selection { background: var(--gold); color: var(--on-accent); }
 /* Ink outline, not flame: flame is invisible on .btn-flame (the primary CTA)
    and only ~2.9:1 on paper — below the WCAG 3:1 non-text minimum. Ink flips
    with the theme, so the ring holds contrast on paper, accent fills, and the
@@ -90,12 +95,13 @@ h1, h2, h3 {
 }
 .btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--shadow); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-/* Accent surfaces take ink (#141414) text: white fails WCAG AA on flame/teal/pink. */
-.btn-flame { background: var(--flame); color: #141414; box-shadow: 4px 4px 0 var(--flame-sh); }
+/* Accent surfaces take --on-accent text (see its definition above): white
+   fails WCAG AA on flame/teal/pink. */
+.btn-flame { background: var(--flame); color: var(--on-accent); box-shadow: 4px 4px 0 var(--flame-sh); }
 .btn-flame:active { box-shadow: 0 0 0 var(--flame-sh); }
-.btn-gold { background: var(--gold); color: #141414; box-shadow: 4px 4px 0 var(--gold-sh); }
+.btn-gold { background: var(--gold); color: var(--on-accent); box-shadow: 4px 4px 0 var(--gold-sh); }
 .btn-gold:active { box-shadow: 0 0 0 var(--gold-sh); }
-.btn-teal { background: var(--teal); color: #141414; box-shadow: 4px 4px 0 var(--teal-sh); }
+.btn-teal { background: var(--teal); color: var(--on-accent); box-shadow: 4px 4px 0 var(--teal-sh); }
 .btn-teal:active { box-shadow: 0 0 0 var(--teal-sh); }
 
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }

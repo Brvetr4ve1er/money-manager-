@@ -87,8 +87,10 @@ export default function App() {
       {/* Permanently mounted live region: most screen readers only announce
           text CHANGES inside an existing live region, so the element must not
           mount already containing its text — otherwise the level-up is silent
-          for AT users and the fanfare sound carries it alone. Hidden via
-          .toast:empty while there is no message. */}
+          for AT users and the fanfare sound carries it alone. Faded via
+          .toast:empty (opacity, never display/visibility — those would drop
+          the empty region from the accessibility tree and mute the
+          announcement) while there is no message. */}
       <div className="toast" role="status" aria-label="Announcements">{toast}</div>
 
       {/* Visually-hidden counterpart to the +XP chip: the chip is sighted-only

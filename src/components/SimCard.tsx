@@ -42,34 +42,46 @@ export function SimCard({ profile, onRun }: { profile: UserProfile; onRun: () =>
           }}
         >
           <div className="log-row">
-            {/* type="text" + inputMode="decimal" for the same reasons as the
-                log amount field (see LogCard). */}
-            <input
-              className="field mono"
-              type="text"
-              inputMode="decimal"
-              placeholder="Purchase amount (DA)"
-              value={simAmount}
-              onChange={(e) => {
-                setSimAmount(e.target.value)
-                setError(null)
-              }}
-              aria-label="Purchase amount in DA"
-              aria-invalid={error !== null}
-              aria-describedby={error ? 'sim-error' : undefined}
-            />
+            {/* Visible caption (WCAG 3.3.2): a placeholder-as-label vanishes
+                on the first keystroke; the wrapping <label> names the field
+                for AT and sighted users alike. type="text" +
+                inputMode="decimal" for the same reasons as the log amount
+                field (see LogCard). */}
+            <label className="field-wrap">
+              <span className="field-label">Purchase amount (DA)</span>
+              <input
+                className="field mono"
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={simAmount}
+                onChange={(e) => {
+                  setSimAmount(e.target.value)
+                  setError(null)
+                }}
+                aria-invalid={error !== null}
+                aria-describedby={error ? 'sim-error' : undefined}
+              />
+            </label>
             <button type="submit" className="btn btn-teal">Run simulation</button>
           </div>
           {error && (
             <p className="field-error" id="sim-error" role="alert">{error}</p>
           )}
         </form>
-        {/* Permanently mounted live region (same pattern as the toast in App):
-            screen readers announce text CHANGES inside an existing region, so
-            the projection must land in an already-mounted element — otherwise
-            "Run simulation" is silent for AT users and the reveal sound
-            carries the moment alone. Hidden via .sim-result:empty. */}
-        <p className="sim-result" role="status" aria-label="Simulation result">{simText}</p>
+        {/* Permanently mounted sr-only live region (same pattern as the XP
+            region in App): screen readers announce text CHANGES inside an
+            existing region, so the projection must land in an already-mounted
+            element — otherwise "Run simulation" is silent for AT users and
+            the reveal sound carries the moment alone. It must stay in the
+            accessibility tree while empty (the clip pattern does; hiding the
+            visual panel with display:none would not), so the visible teal
+            panel below is a separate, aria-hidden element that mounts only
+            once a result exists. */}
+        <p className="sr-only" role="status" aria-label="Simulation result">{simText}</p>
+        {simText !== null && (
+          <p className="sim-result" aria-hidden="true">{simText}</p>
+        )}
       </div>
     </section>
   )

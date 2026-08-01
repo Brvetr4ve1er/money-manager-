@@ -42,35 +42,43 @@ export function LogCard({
         }}
       >
         <div className="log-row">
-          {/* type="text" + inputMode="decimal", not type="number": the numeric
+          {/* Visible captions (WCAG 3.3.2): the placeholder was the only
+              visual label and vanished on the first keystroke, and the select
+              never had one — its value read as a bare word. The wrapping
+              <label>s name both fields for AT and sighted users alike.
+              type="text" + inputMode="decimal", not type="number": the numeric
               keyboard still comes up on mobile, without number-input quirks
               (scroll-wheel value changes, silent clearing on non-numeric
               paste). Validation happens in submit(), where it can explain
               itself. */}
-          <input
-            className="field mono"
-            type="text"
-            inputMode="decimal"
-            placeholder="Amount (DA)"
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value)
-              setError(null)
-            }}
-            aria-label="Amount in DA"
-            aria-invalid={error !== null}
-            aria-describedby={error ? 'log-error' : undefined}
-          />
-          <select
-            className="field"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            aria-label="Category"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
+          <label className="field-wrap">
+            <span className="field-label">Amount (DA)</span>
+            <input
+              className="field mono"
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value)
+                setError(null)
+              }}
+              aria-invalid={error !== null}
+              aria-describedby={error ? 'log-error' : undefined}
+            />
+          </label>
+          <label className="field-wrap">
+            <span className="field-label">Category</span>
+            <select
+              className="field"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </label>
         </div>
         {error && (
           <p className="field-error" id="log-error" role="alert">{error}</p>

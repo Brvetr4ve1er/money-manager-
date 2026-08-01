@@ -41,7 +41,7 @@
   left: 50%;
   transform: translateX(-50%) rotate(-1deg);
   background: var(--pink);
-  color: #141414; /* ink on pink passes WCAG AA; white does not */
+  color: var(--on-accent);
   border: 3px solid var(--ink);
   border-radius: var(--r);
   box-shadow: 5px 5px 0 var(--pink-sh);
@@ -59,9 +59,12 @@
   z-index: 10;
   animation: toastin 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-/* The live region stays mounted (see App.tsx); hide it while empty. Removing
-   the animation here restarts toastin each time text lands in the region. */
-.toast:empty { visibility: hidden; animation: none; }
+/* The live region stays mounted (see App.tsx); fade it while empty with
+   opacity — NEVER display:none or visibility:hidden, which drop the empty
+   region from the accessibility tree, so its reappearance with text reads as
+   a brand-new region that VoiceOver (and sometimes NVDA) won't announce.
+   Removing the animation here restarts toastin each time text lands. */
+.toast:empty { opacity: 0; pointer-events: none; animation: none; }
 @keyframes toastin {
   0% { opacity: 0; transform: translateX(-50%) translateY(-16px) rotate(2deg); }
   100% { opacity: 1; transform: translateX(-50%) translateY(0) rotate(-1deg); }
@@ -105,7 +108,7 @@
    feeds. It appears/disappears by state swap, never by animation alone. */
 .xp-gain {
   background: var(--gold);
-  color: #141414; /* ink on gold, per the accent-surface rule */
+  color: var(--on-accent);
   border: 2px solid var(--ink);
   border-radius: var(--r);
   box-shadow: 2px 2px 0 var(--gold-sh);
@@ -135,7 +138,22 @@
    the single page h1 wordmark) styled down to card scale. */
 .card h2 { font-size: 0.95rem; margin-bottom: 0.7rem; }
 
-.log-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+/* flex-end, not stretch: a sibling button (SimCard's Run) must align with
+   the input's box, not stretch up alongside the caption above it. */
+.log-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end; }
+/* Caption-above-field wrapper (WCAG 3.3.2): placeholders vanish on the first
+   keystroke and a bare select value reads as an unlabeled word, so every
+   field carries a small persistent bold caption via a wrapping <label>. */
+.field-wrap { flex: 1; min-width: 120px; display: flex; flex-direction: column; }
+.field-label {
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.3rem;
+}
+.field-wrap > .field { flex: none; width: 100%; min-width: 0; }
 .field {
   flex: 1;
   min-width: 120px;
@@ -150,6 +168,10 @@
   background: var(--paper-hi);
   color: var(--ink);
 }
+/* Placeholders are examples, not labels (see .field-label) — pin them to
+   theme ink at reduced opacity instead of trusting the UA-default gray to
+   clear contrast on the cream and dark surfaces. */
+.field::placeholder { color: var(--ink); opacity: 0.6; }
 .log-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.7rem; }
 /* Inline validation message: ink text (contrast-safe on paper in both themes)
    with a flame accent bar — the error never relies on the denial blip alone. */
@@ -173,7 +195,7 @@
 /* Persistent all-complete marker — the arpeggio's visual counterpart. */
 .quest-alldone {
   background: var(--gold);
-  color: #141414; /* ink on gold, per the accent-surface rule */
+  color: var(--on-accent);
   border: 2px solid var(--ink);
   border-radius: var(--r);
   box-shadow: 2px 2px 0 var(--gold-sh);
@@ -227,7 +249,7 @@ button.quest-row:not([aria-disabled='true']) { cursor: pointer; }
   border-radius: 5px;
   background: var(--paper-hi);
   font-weight: 900;
-  color: #141414; /* ink on --good, per the accent-surface rule; white fails AA */
+  color: var(--on-accent); /* the checkmark sits on --good once done */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,19 +279,19 @@ button.quest-row:not([aria-disabled='true']):active .quest-box { transform: tran
 /* Honesty note: while the simulator runs on the demo profile, the card
    discloses whose numbers it projects (see SimCard). */
 .sim-note { margin: 0 0 0.7rem; font-size: 0.72rem; opacity: 0.7; }
+/* Visual panel only, rendered once a result exists and aria-hidden: the
+   announcement runs through a permanently-mounted .sr-only status region in
+   SimCard, so this box can mount/unmount freely without muting it. */
 .sim-result {
   margin: 0.8rem 0 0;
   background: var(--teal);
-  color: #141414; /* ink on teal passes WCAG AA; white does not */
+  color: var(--on-accent);
   border: 2.5px solid var(--ink);
   border-radius: var(--r);
   box-shadow: 3px 3px 0 var(--teal-sh);
   padding: 0.8rem 1rem;
   font-size: 0.88rem;
 }
-/* The result live region stays mounted (see SimCard); hide it while empty so
-   the teal panel doesn't render as an empty box before the first run. */
-.sim-result:empty { display: none; }
 
 .tx-list { list-style: none; margin: 0; padding: 0; }
 .tx {

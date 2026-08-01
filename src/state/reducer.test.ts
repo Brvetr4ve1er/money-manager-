@@ -23,6 +23,12 @@ describe('LOG_TX', () => {
     })
     expect(next.xp.totalXp).toBe(50)
   })
+  it('records each grant in the append-only XP log with a tx-derived id', () => {
+    const next = appReducer(defaultState(), { type: 'LOG_TX', tx: tx() })
+    expect(next.xpLog).toEqual([
+      { id: 'tx:t1', action: 'logExpense', amount: 5, date: '2026-08-01' },
+    ])
+  })
   it('caps resist XP per day but still logs the entry', () => {
     let s = defaultState()
     for (let i = 0; i < 3; i++) {
@@ -31,9 +37,11 @@ describe('LOG_TX', () => {
         tx: tx({ id: `r${i}`, amountDA: 0, resistedImpulse: true }),
       })
     }
-    // Third press logs the transaction but grants nothing (2 × 50 cap).
+    // Third press logs the transaction but grants nothing (2 × 50 cap) — and
+    // the ungranted press leaves no grant evidence either.
     expect(s.transactions).toHaveLength(3)
     expect(s.xp.totalXp).toBe(100)
+    expect(s.xpLog).toHaveLength(2)
     // A new local day resets the cap.
     const nextDay = appReducer(s, {
       type: 'LOG_TX',
@@ -49,6 +57,11 @@ describe('COMPLETE_QUEST', () => {
     const next = appReducer(s, { type: 'COMPLETE_QUEST', id: 'log' })
     expect(next.quests.find((q) => q.id === 'log')!.done).toBe(true)
     expect(next.xp.totalXp).toBe(5)
+    // The grant id is deterministic per (quest, day), so two tabs completing
+    // the same quest on the same day merge to a single grant.
+    expect(next.xpLog).toEqual([
+      { id: `quest:log:${s.questsDate}`, action: 'logExpense', amount: 5, date: s.questsDate },
+    ])
   })
   it('is a no-op on an already-done quest — rapid double dispatch cannot double-grant', () => {
     const s = defaultState()

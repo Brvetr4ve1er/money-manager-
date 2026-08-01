@@ -196,6 +196,20 @@ describe('finalizeHealthThrough', () => {
     expect(ancient.score).toBeCloseTo(capped.score, 10)
     expect(ancient.stage).toBe(capped.stage)
   })
+
+  it('returns promptly for a far-future five-digit-year healthDate sentinel', () => {
+    // A hand-edited '9999-12-31' rolls to '10000-01-01', which compares LESS
+    // than any real day key (five digits vs four), so a purely lexicographic
+    // loop guard would walk ~3.7M single-day steps and freeze first render.
+    // The iteration bound caps it at ROLLOVER_CATCHUP_DAYS; the test simply
+    // finishing (well inside the runner timeout) is the assertion that
+    // matters, plus a sane in-range score.
+    const start = Date.now()
+    const result = finalizeHealthThrough([], DEMO_PROFILE, '9999-12-31', TODAY, 50, 'hearth')
+    expect(Date.now() - start).toBeLessThan(2_000)
+    expect(result.score).toBeGreaterThanOrEqual(0)
+    expect(result.score).toBeLessThanOrEqual(100)
+  })
 })
 
 describe('buildSimProfile', () => {

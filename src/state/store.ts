@@ -3,7 +3,15 @@
  * fallback — the store is built around fast transaction entry.
  */
 
-import { xpForLevel, type XpAction, type XpState } from '../engine/xp.ts'
+import {
+  XP_REWARDS,
+  xpForLevel,
+  xpFromLog,
+  xpStateFromTotal,
+  type XpAction,
+  type XpGrant,
+  type XpState,
+} from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
 
 export interface Transaction {
@@ -36,6 +44,8 @@ export interface Quest {
 export interface AppState {
   transactions: Transaction[]
   xp: XpState
+  /** Append-only XP grant evidence, unioned by id across tabs (see mergeStates). */
+  xpLog: XpGrant[]
   prevHealthScore: number | null
   stage: Stage | null
   /** Local day (YYYY-MM-DD) the health snapshot was last persisted; '' = never. */
@@ -97,6 +107,7 @@ export function defaultState(): AppState {
   return {
     transactions: [],
     xp: { level: 1, xpIntoLevel: 0, totalXp: 0 },
+    xpLog: [],
     prevHealthScore: null,
     stage: null,
     healthDate: '',
@@ -120,6 +131,26 @@ function isOptionalBoolean(v: unknown): v is boolean | undefined {
   return v === undefined || typeof v === 'boolean'
 }
 
+const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Grant id for XP earned before the grant log existed (older schemas). */
+const LEGACY_XP_GRANT_ID = 'legacy-total'
+
+const XP_GRANT_ACTIONS: ReadonlySet<string> = new Set([...Object.keys(XP_REWARDS), 'legacy'])
+
+function isXpGrant(v: unknown): v is XpGrant {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    typeof v.action === 'string' &&
+    XP_GRANT_ACTIONS.has(v.action) &&
+    isFiniteNumber(v.amount) &&
+    v.amount >= 0 &&
+    typeof v.date === 'string' &&
+    (v.date === '' || DAY_KEY_RE.test(v.date))
+  )
+}
+
 function isTransaction(v: unknown): v is Transaction {
   // Strict on exactly the fields that feed the health score: a negative
   // amount would *reduce* trailing-30d spend (inflating SR/BA), and a truthy
@@ -133,7 +164,7 @@ function isTransaction(v: unknown): v is Transaction {
     v.amountDA >= 0 &&
     typeof v.category === 'string' &&
     typeof v.date === 'string' &&
-    /^\d{4}-\d{2}-\d{2}$/.test(v.date) &&
+    DAY_KEY_RE.test(v.date) &&
     (v.note === undefined || typeof v.note === 'string') &&
     isOptionalBoolean(v.resistedImpulse) &&
     isOptionalBoolean(v.impulseFlagged)
@@ -171,6 +202,40 @@ export function sanitizeState(parsed: unknown): AppState {
       totalXp: Math.max(0, xp.totalXp),
     }
   }
+  if (Array.isArray(parsed.xpLog)) {
+    // Union by id like transactions; a duplicated id keeps the larger amount
+    // so applying the same rule in any order (or twice) lands on the same log.
+    const byId = new Map<string, XpGrant>()
+    for (const g of parsed.xpLog) {
+      if (isXpGrant(g)) {
+        const prev = byId.get(g.id)
+        if (!prev || g.amount > prev.amount) {
+          byId.set(g.id, { id: g.id, action: g.action, amount: g.amount, date: g.date })
+        }
+      }
+    }
+    out.xpLog = [...byId.values()]
+  }
+  // Reconcile the counter with the grant evidence. XP earned before the log
+  // existed (older schema) has no entries: bank the shortfall as a single
+  // mergeable baseline grant, so deriving XP from a merged log can never pay
+  // less than the total this payload already showed. If instead the log holds
+  // MORE than the counter (corrupt/hand-edited xp field), the evidence wins.
+  const logged = xpFromLog(out.xpLog)
+  if (logged.totalXp > out.xp.totalXp) {
+    out.xp = logged
+  } else if (out.xp.totalXp > logged.totalXp) {
+    const prior = out.xpLog.find((g) => g.id === LEGACY_XP_GRANT_ID)
+    out.xpLog = [
+      {
+        id: LEGACY_XP_GRANT_ID,
+        action: 'legacy',
+        amount: (prior?.amount ?? 0) + (out.xp.totalXp - logged.totalXp),
+        date: '',
+      },
+      ...out.xpLog.filter((g) => g.id !== LEGACY_XP_GRANT_ID),
+    ]
+  }
   if (isFiniteNumber(parsed.prevHealthScore)) {
     // Clamp into the score's [0, 100] range: a hand-edited negative snapshot
     // would smooth() to a negative score and crash stage mapping at first
@@ -180,7 +245,12 @@ export function sanitizeState(parsed: unknown): AppState {
   if (STAGES.includes(parsed.stage as Stage)) {
     out.stage = parsed.stage as Stage
   }
-  if (typeof parsed.healthDate === 'string') {
+  // Day keys must hold the YYYY-MM-DD shape the rest of the app compares
+  // lexicographically (same rule as transaction dates): finalizeHealthThrough
+  // walks single-day steps from healthDate, and a free-form string here (a
+  // hand-edited 'never', an old schema's ISO timestamp) would feed the
+  // rollover garbage. Mismatches fall back to the default ('' = never).
+  if (typeof parsed.healthDate === 'string' && DAY_KEY_RE.test(parsed.healthDate)) {
     out.healthDate = parsed.healthDate
   }
   if (Array.isArray(parsed.quests)) {
@@ -195,7 +265,7 @@ export function sanitizeState(parsed: unknown): AppState {
     }
     out.quests = DEFAULT_QUESTS.map((d) => ({ ...d, done: doneById.get(d.id) === true }))
   }
-  if (typeof parsed.questsDate === 'string') {
+  if (typeof parsed.questsDate === 'string' && DAY_KEY_RE.test(parsed.questsDate)) {
     out.questsDate = parsed.questsDate
   }
   if (typeof parsed.muted === 'boolean') {
@@ -229,24 +299,63 @@ export function saveState(state: AppState): void {
  * each saveState() on every change; without a merge, whichever tab writes
  * last — even on an automatic midnight quest roll — silently erases the
  * other tab's transactions, the worst possible failure for a local-first app.
- * The merge must be deterministic and idempotent: both tabs converge on the
- * same payload, so the write ping-pong settles instead of oscillating.
+ * The merge must be deterministic, idempotent AND commutative — merge(A, B)
+ * deep-equals merge(B, A) — so that when writes truly cross (both tabs save
+ * before receiving each other's storage event), both converge on one
+ * canonical payload and the write ping-pong settles instead of oscillating.
+ * When the merge changes nothing, `local` itself is returned, so the HYDRATE
+ * reducer path (and React's bail-out) skips the re-render and re-save.
  */
 export function mergeStates(local: AppState, incoming: AppState): AppState {
-  // Transactions: union by id. Anything only in `local` was logged in this
-  // tab and never seen by the writer, so it is prepended — matching LOG_TX's
-  // newest-first insertion order for the Ledger.
+  // Transactions: union by id, in canonical order — date desc (the Ledger's
+  // newest-first), id asc within a day. Insertion-ordered output would make
+  // crossed writes each adopt the other's differing ordering forever, every
+  // save a new JSON string that never reaches a fixpoint.
   const incomingIds = new Set(incoming.transactions.map((t) => t.id))
   const transactions = [
     ...local.transactions.filter((t) => !incomingIds.has(t.id)),
     ...incoming.transactions,
-  ]
-  // XP is a monotone counter: the larger total saw more grants. Summing or
-  // averaging would double-pay grants both tabs already recorded.
-  const xp = local.xp.totalXp >= incoming.xp.totalXp ? local.xp : incoming.xp
+  ].sort((a, b) =>
+    a.date !== b.date ? (a.date > b.date ? -1 : 1) : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  )
+  // XP: union the grant logs by id and fold. Diverged tabs each hold grants
+  // the other missed (A logged a purchase while B finished a quest), and a
+  // bare max(totalXp) would silently drop the smaller tab's grant even though
+  // the transaction/quest union preserves its evidence. Duplicated ids keep
+  // the larger amount (deterministic in any merge order); the fold re-applies
+  // the resist daily cap across the union so two tabs can't jointly overpay
+  // it. max() with both counters floors the result for pre-log legacy totals.
+  const grantById = new Map<string, XpGrant>()
+  for (const g of [...local.xpLog, ...incoming.xpLog]) {
+    const prev = grantById.get(g.id)
+    if (!prev || g.amount > prev.amount) grantById.set(g.id, g)
+  }
+  const xpLog = [...grantById.values()].sort((a, b) =>
+    a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  )
+  const xp = xpStateFromTotal(
+    Math.max(xpFromLog(xpLog).totalXp, local.xp.totalXp, incoming.xp.totalXp),
+  )
   // Health snapshot: the newer healthDate supersedes (day keys compare
-  // lexicographically). Ties keep local — the trios match after a same-day roll.
-  const localHealthNewer = local.healthDate >= incoming.healthDate
+  // lexicographically). Same-day ties need a SYMMETRIC rule — "keep local"
+  // would leave two crossed writers each adopting the other's snapshot
+  // forever: the higher score wins (null loses to any score), and on equal
+  // scores the further stage, so both tabs pick the identical trio.
+  let snapshot: AppState
+  if (local.healthDate !== incoming.healthDate) {
+    snapshot = local.healthDate > incoming.healthDate ? local : incoming
+  } else {
+    const ls = local.prevHealthScore ?? -1
+    const is = incoming.prevHealthScore ?? -1
+    snapshot =
+      ls !== is
+        ? ls > is
+          ? local
+          : incoming
+        : STAGES.indexOf(local.stage as Stage) >= STAGES.indexOf(incoming.stage as Stage)
+          ? local
+          : incoming
+  }
   // Quests: same-day lists union their done flags — a quest completed in
   // either tab granted its XP once already, and reviving it as incomplete
   // would offer a second grant. Across days, the newer roster wins.
@@ -262,16 +371,26 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     quests = local.quests
     questsDate = local.questsDate
   }
-  return {
+  const merged: AppState = {
     transactions,
     xp,
-    prevHealthScore: localHealthNewer ? local.prevHealthScore : incoming.prevHealthScore,
-    stage: localHealthNewer ? local.stage : incoming.stage,
-    healthDate: localHealthNewer ? local.healthDate : incoming.healthDate,
+    xpLog,
+    prevHealthScore: snapshot.prevHealthScore,
+    stage: snapshot.stage,
+    healthDate: snapshot.healthDate,
     quests,
     questsDate,
-    muted: incoming.muted,
+    // Mute merges as OR: muting is the safety direction — a stale unmuted
+    // peer write must never switch sound back on against this tab's explicit
+    // mute (there is no timestamp to arbitrate recency), and OR is symmetric
+    // so crossed writes still converge. The cost — an unmute can be re-muted
+    // by a still-muted background tab's next write — errs silent, never loud.
+    muted: local.muted || incoming.muted,
   }
+  // Fixpoint short-circuit: an unchanged merge returns the SAME reference, so
+  // useReducer's HYDRATE hands React an identical state, the re-render bails,
+  // and the save effect never echoes an equal payload back into storage.
+  return JSON.stringify(merged) === JSON.stringify(local) ? local : merged
 }
 
 /**

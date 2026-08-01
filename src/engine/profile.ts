@@ -213,7 +213,20 @@ export function finalizeHealthThrough(
     prevScore,
     prevStage,
   )
-  for (day = daysBeforeISO(day, -1); day < toDay; day = daysBeforeISO(day, -1)) {
+  // Iteration-bounded, not just date-bounded: the day cursor is a string, and
+  // a five-digit-year healthDate ('9999-12-31' increments to '10000-01-01')
+  // compares LESS than any real toDay, so the lexicographic guard alone would
+  // walk millions of single-day steps and freeze first render — the exact
+  // stall ROLLOVER_CATCHUP_DAYS exists to prevent. (The earliest-clamp above
+  // only bounds the past direction, and the anomalous-clock single-step path
+  // assumes future dates always compare greater — false once the year gains a
+  // digit.)
+  let steps = 0
+  for (
+    day = daysBeforeISO(day, -1);
+    steps < ROLLOVER_CATCHUP_DAYS && day < toDay;
+    day = daysBeforeISO(day, -1), steps++
+  ) {
     result = computeHealthScore(
       deriveHealthInputs(transactions, profile, day),
       result.score,

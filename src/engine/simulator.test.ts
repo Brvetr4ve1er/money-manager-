@@ -30,6 +30,22 @@ describe('installment', () => {
   })
 })
 
+describe('horizon hardening', () => {
+  it('clamps a non-positive horizon to a 1-month projection instead of crashing', () => {
+    // simulate() would return [] for horizonMonths <= 0 and runSimulation
+    // would then throw reading scenario[0].health — the same class of hole
+    // the financedMonths: 0 clamp already closes.
+    const r = runSimulation(yasmine, { amount: 10_000, funding: 'lump' }, 0)
+    expect(r.baseline).toHaveLength(1)
+    expect(r.scenario).toHaveLength(1)
+    expect(Number.isFinite(r.healthDeltaMonth1)).toBe(true)
+    expect(runSimulation(yasmine, { amount: 10_000, funding: 'lump' }, -3).baseline).toHaveLength(1)
+  })
+  it('floors a fractional horizon to whole months', () => {
+    expect(runSimulation(yasmine, { amount: 10_000, funding: 'lump' }, 2.9).baseline).toHaveLength(2)
+  })
+})
+
 describe('lump-sum purchase', () => {
   const r = runSimulation(yasmine, { amount: 180_000, funding: 'lump' })
 

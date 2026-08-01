@@ -22,9 +22,15 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     const prev = prevXp.current
     prevXp.current = state.xp
     if (state.xp.totalXp > prev.totalXp) {
-      // `at` forces a fresh object per grant so back-to-back equal gains
-      // still reset the dismiss timer below.
-      setXpGain({ amount: state.xp.totalXp - prev.totalXp, at: Date.now() })
+      // Accumulate into a still-visible chip instead of replacing it: two
+      // equal gains in a row would otherwise leave the chip and the sr-only
+      // region text literally unchanged ('+5 XP' → '+5 XP'), so neither
+      // re-pops nor re-announces — the blip would carry the second grant
+      // alone, which sounds must never do. '+5 XP' → '+10 XP' both visibly
+      // updates and re-announces. `at` still forces a fresh object per grant
+      // so the keyed dismiss timer below resets each time.
+      const gained = state.xp.totalXp - prev.totalXp
+      setXpGain((cur) => ({ amount: gained + (cur?.amount ?? 0), at: Date.now() }))
     }
     if (state.xp.level > prev.level) {
       sfx.fanfare()

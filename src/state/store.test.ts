@@ -137,6 +137,14 @@ describe('sanitizeState', () => {
     expect(sanitizeState({ prevHealthScore: 61.2 }).prevHealthScore).toBe(61.2)
   })
 
+  it('rejects day keys that do not hold the YYYY-MM-DD shape', () => {
+    // finalizeHealthThrough walks single-day steps from healthDate — a
+    // free-form string ('never', an ISO timestamp) must not reach it.
+    const state = sanitizeState({ healthDate: 'never', questsDate: '2026-08-01T00:00:00Z' })
+    expect(state.healthDate).toBe('')
+    expect(state.questsDate).toBe(defaultState().questsDate)
+  })
+
   it('keeps a valid persisted snapshot', () => {
     const state = sanitizeState({
       prevHealthScore: 61.2,
@@ -146,6 +154,35 @@ describe('sanitizeState', () => {
     expect(state.prevHealthScore).toBe(61.2)
     expect(state.stage).toBe('bonfire')
     expect(state.healthDate).toBe('2026-07-31')
+  })
+
+  it('keeps valid XP grants, drops malformed ones, and dedupes by id', () => {
+    const g = { id: 'tx:a', action: 'logExpense', amount: 5, date: '2026-08-01' }
+    const state = sanitizeState({
+      xpLog: [
+        g,
+        { ...g, amount: 3 }, // duplicate id — larger amount wins
+        { id: 'bad-action', action: 'hack', amount: 5, date: '2026-08-01' },
+        { id: 'bad-amount', action: 'logExpense', amount: -5, date: '2026-08-01' },
+        { id: 'bad-date', action: 'logExpense', amount: 5, date: 'yesterday' },
+        'junk',
+      ],
+    })
+    expect(state.xpLog).toEqual([g])
+    expect(state.xp.totalXp).toBe(5) // the log is evidence the counter lost
+  })
+
+  it('banks a pre-log XP total as a mergeable legacy baseline grant', () => {
+    // Older schemas carried only the counter: without a baseline entry, a
+    // merge deriving XP from the unioned logs could pay less than the total
+    // this payload already showed the user.
+    const state = sanitizeState({
+      xp: { level: 2, xpIntoLevel: 10, totalXp: 110 },
+      xpLog: [{ id: 'tx:a', action: 'logExpense', amount: 5, date: '2026-08-01' }],
+    })
+    const legacy = state.xpLog.find((gr) => gr.action === 'legacy')
+    expect(legacy?.amount).toBe(105)
+    expect(state.xp.totalXp).toBe(110)
   })
 
   it('replaces a quest list with any malformed entry', () => {
@@ -229,10 +266,99 @@ describe('mergeStates', () => {
   })
 
   it('keeps the larger XP total — a monotone counter is never summed or averaged', () => {
+    // Pre-log legacy states (no grant evidence): the counter max still floors
+    // the merge, so upgrading never loses XP.
     const local = base({ xp: { level: 2, xpIntoLevel: 10, totalXp: 110 } })
     const incoming = base({ xp: { level: 1, xpIntoLevel: 90, totalXp: 90 } })
     expect(mergeStates(local, incoming).xp).toEqual(local.xp)
     expect(mergeStates(incoming, local).xp).toEqual(local.xp)
+  })
+
+  it('keeps BOTH tabs’ XP grants when the tabs diverged — evidence unions, counters race', () => {
+    // A frozen background tab missed a storage event, then the user acted in
+    // it: A logged a purchase (+5) while B completed the review quest (+10).
+    // max(totalXp) alone would silently drop the +5 forever, even though the
+    // merged transactions and quest flags keep both pieces of evidence.
+    const local = base({
+      transactions: [mkTx('a')],
+      xp: { level: 1, xpIntoLevel: 5, totalXp: 5 },
+      xpLog: [{ id: 'tx:a', action: 'logExpense', amount: 5, date: '2026-08-01' }],
+    })
+    const incoming = base({
+      quests: defaultState().quests.map((q) => ({ ...q, done: q.id === 'review' })),
+      xp: { level: 1, xpIntoLevel: 10, totalXp: 10 },
+      xpLog: [{ id: 'quest:review:2026-08-01', action: 'reviewRecent', amount: 10, date: '2026-08-01' }],
+    })
+    expect(mergeStates(local, incoming).xp.totalXp).toBe(15)
+    expect(mergeStates(incoming, local).xp.totalXp).toBe(15)
+  })
+
+  it('re-applies the resist daily cap across the merged grant union', () => {
+    // Each tab granted up to the cap on the same day before merging: the
+    // union holds 4 resist grants but must pay only RESIST_XP_DAILY_CAP.
+    const grant = (id: string) => ({ id: `tx:${id}`, action: 'resistImpulse' as const, amount: 50, date: '2026-08-01' })
+    const local = base({
+      transactions: [mkTx('r1', { resistedImpulse: true }), mkTx('r2', { resistedImpulse: true })],
+      xp: { level: 2, xpIntoLevel: 0, totalXp: 100 },
+      xpLog: [grant('r1'), grant('r2')],
+    })
+    const incoming = base({
+      transactions: [mkTx('r3', { resistedImpulse: true }), mkTx('r4', { resistedImpulse: true })],
+      xp: { level: 2, xpIntoLevel: 0, totalXp: 100 },
+      xpLog: [grant('r3'), grant('r4')],
+    })
+    expect(mergeStates(local, incoming).xp.totalXp).toBe(100)
+  })
+
+  it('is commutative — crossed writes converge on one canonical payload', () => {
+    // Both tabs saved before receiving each other's storage event. Each then
+    // merges the other's write: unless merge(A,B) deep-equals merge(B,A),
+    // every save produces a different JSON string and the storage-event →
+    // HYDRATE → save ping-pong never settles.
+    const a = base({
+      transactions: [mkTx('x', { date: '2026-07-31' }), mkTx('shared')],
+      xp: { level: 1, xpIntoLevel: 5, totalXp: 5 },
+      xpLog: [{ id: 'tx:x', action: 'logExpense', amount: 5, date: '2026-07-31' }],
+      prevHealthScore: 40,
+      stage: 'ember',
+      healthDate: '2026-08-01',
+      muted: true,
+    })
+    const b = base({
+      transactions: [mkTx('y'), mkTx('shared')],
+      xp: { level: 1, xpIntoLevel: 10, totalXp: 10 },
+      xpLog: [{ id: 'quest:review:2026-08-01', action: 'reviewRecent', amount: 10, date: '2026-08-01' }],
+      prevHealthScore: 44,
+      stage: 'hearth',
+      healthDate: '2026-08-01',
+      muted: false,
+    })
+    expect(mergeStates(a, b)).toEqual(mergeStates(b, a))
+  })
+
+  it('breaks a same-day snapshot tie symmetrically — higher score, not "keep local"', () => {
+    const low = base({ healthDate: '2026-08-01', prevHealthScore: 40, stage: 'ember' })
+    const high = base({ healthDate: '2026-08-01', prevHealthScore: 44, stage: 'hearth' })
+    for (const merged of [mergeStates(low, high), mergeStates(high, low)]) {
+      expect(merged.prevHealthScore).toBe(44)
+      expect(merged.stage).toBe('hearth')
+    }
+  })
+
+  it('returns the identical local reference when the merge changes nothing', () => {
+    // The fixpoint short-circuit: HYDRATE hands React the same state object,
+    // the re-render bails, and no echo write lands back in storage.
+    const local = base({ transactions: [mkTx('a2'), mkTx('shared')] })
+    const incoming = base({ transactions: [mkTx('shared')] })
+    const merged = mergeStates(local, incoming)
+    expect(mergeStates(merged, incoming)).toBe(merged)
+  })
+
+  it('never lets a stale peer write un-mute this tab', () => {
+    // Mute merges as OR: sound returning against an explicit mute is the one
+    // surprising direction, and there is no timestamp to arbitrate recency.
+    expect(mergeStates(base({ muted: true }), base({ muted: false })).muted).toBe(true)
+    expect(mergeStates(base({ muted: false }), base({ muted: true })).muted).toBe(true)
   })
 
   it('unions same-day quest done flags so neither tab can re-grant quest XP', () => {
