@@ -1,0 +1,92 @@
+/* Ember design tokens — neo-brutalist × gacha. See design-system artifact. */
+
+:root {
+  --ink: #141414;
+  --paper: #f6efdc;
+  --paper-hi: #fffcf3;
+  --paper-dim: #ece2c8;
+  --flame: #ff4b2b; --flame-sh: #c4300f;
+  --gold: #ffc93c; --gold-sh: #c79415;
+  --pink: #ff2d78; --pink-sh: #c4104f;
+  --teal: #00b4b0; --teal-sh: #067e7b;
+  --violet: #4b2e83; --violet-sh: #331d5c;
+  --good: #2f9e44;
+  --line: var(--ink);
+  --shadow: var(--ink);
+  --display: "Arial Black", "Helvetica Neue", -apple-system, "Segoe UI", sans-serif;
+  --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r: 7px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f3ecd8;
+    --paper: #141414;
+    --paper-hi: #1f1f1f;
+    --paper-dim: #0c0c0c;
+    --shadow: #000000;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.5;
+  font-size: 16px;
+}
+
+::selection { background: var(--gold); color: #141414; }
+:focus-visible { outline: 3px solid var(--flame); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+h1, h2, h3 {
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.card {
+  background: var(--paper-hi);
+  border: 3px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: 5px 5px 0 var(--shadow);
+  padding: 1.2rem 1.4rem;
+}
+
+.btn {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  border: 3px solid var(--ink);
+  border-radius: var(--r);
+  padding: 0.7rem 1.3rem;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--paper-hi);
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+.btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--shadow); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-flame { background: var(--flame); color: #fff; box-shadow: 4px 4px 0 var(--flame-sh); }
+.btn-flame:active { box-shadow: 0 0 0 var(--flame-sh); }
+.btn-gold { background: var(--gold); color: #141414; box-shadow: 4px 4px 0 var(--gold-sh); }
+.btn-gold:active { box-shadow: 0 0 0 var(--gold-sh); }
+.btn-teal { background: var(--teal); color: #fff; box-shadow: 4px 4px 0 var(--teal-sh); }
+.btn-teal:active { box-shadow: 0 0 0 var(--teal-sh); }
+
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
