@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import App from './App.tsx'
 import { computeHealthScore } from './engine/healthScore.ts'
-import { deriveHealthInputs, DEMO_PROFILE } from './engine/profile.ts'
+import { deriveHealthInputs, finalizeHealthThrough, DEMO_PROFILE } from './engine/profile.ts'
 import type { Transaction } from './state/store.ts'
 
 // Sounds are reinforcement only; jsdom has no AudioContext, so stub the module.
@@ -43,12 +43,20 @@ describe('quest completion', () => {
     expect(xpNow()).toBe(5)
   })
 
-  it('completes a quest from a tap on the quest text (whole row is the button)', () => {
+  it('completes a self-report quest from a tap on the quest text (whole row is the button)', () => {
     render(<App />)
-    const text = screen.getByText('Run one decision simulation')
+    const text = screen.getByText('Review yesterday')
     expect(text.closest('button')).not.toBeNull()
     fireEvent.click(text)
-    expect(xpNow()).toBe(15)
+    expect(xpNow()).toBe(10)
+  })
+
+  it('renders the verified sim quest without a tappable row — no XP from a tap', () => {
+    render(<App />)
+    const text = screen.getByText('Run one decision simulation')
+    expect(text.closest('button')).toBeNull()
+    fireEvent.click(text)
+    expect(xpNow()).toBe(0)
   })
 
   it('renders a completed quest as disabled, without toggle semantics', () => {
@@ -64,7 +72,9 @@ describe('quest completion', () => {
     fireEvent.change(screen.getByLabelText('Purchase amount in DA'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(xpNow()).toBe(15)
-    expect(screen.getByRole('button', { name: /Run one decision simulation — done/ })).toBeTruthy()
+    // Done state renders on the static (never tappable) verified row.
+    const row = screen.getByText('Run one decision simulation').closest('li')!
+    expect(row.className).toContain('done')
   })
 
   it('shows a visible all-complete state, not just the arpeggio', () => {
@@ -72,8 +82,13 @@ describe('quest completion', () => {
     for (const btn of screen.getAllByRole('button', { name: /^Mark done:/ })) {
       fireEvent.click(btn)
     }
+    // The sim quest is verified (no tap target), so complete it via a run.
+    fireEvent.change(screen.getByLabelText('Purchase amount in DA'), { target: { value: '5000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(screen.getByText(/All complete/)).toBeTruthy()
-    expect(screen.getByRole('status').textContent).toBe('All quests complete!')
+    expect(screen.getByRole('status', { name: 'Announcements' }).textContent).toBe(
+      'All quests complete!',
+    )
   })
 })
 
@@ -101,12 +116,41 @@ describe('logging flow', () => {
     fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '2' } })
     expect(screen.queryByRole('alert')).toBeNull()
   })
+
+  it('rejects an amount that parses to Infinity instead of logging it', () => {
+    // '1e999' → Infinity: it would grant XP, then JSON round-trip as null and
+    // silently vanish from the ledger on the next reload.
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '1e999' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
+    expect(xpNow()).toBe(0)
+    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
+  })
 })
 
 describe('simulator honesty', () => {
   it('discloses that projections run on the demo profile', () => {
     render(<App />)
     expect(screen.getByText(/demo profile/i).textContent).toContain('90,000 DA/mo')
+  })
+
+  it('rejects an Infinity amount instead of projecting nonsense', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Purchase amount in DA'), { target: { value: '1e999' } })
+    fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
+    expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
+    expect(xpNow()).toBe(0)
+  })
+
+  it('announces the projection through a live region, not just visually', () => {
+    render(<App />)
+    // Mounted empty before the run: live regions announce content CHANGES.
+    const region = screen.getByRole('status', { name: 'Simulation result' })
+    expect(region.textContent).toBe('')
+    fireEvent.change(screen.getByLabelText('Purchase amount in DA'), { target: { value: '5000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
+    expect(region.textContent).not.toBe('')
   })
 })
 
@@ -170,6 +214,28 @@ describe('day rollover health smoothing', () => {
     )
     expect(screen.getByText(`Health ${day2.score.toFixed(1)}`)).toBeTruthy()
   })
+
+  it('chains one smoothing step per elapsed day after a multi-day absence', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 1, 12, 0, 0)) // Aug 1, local noon
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        prevHealthScore: 30,
+        stage: 'ember',
+        healthDate: '2026-07-25', // last opened a week ago
+        questsDate: '2026-07-25',
+      }),
+    )
+    render(<App />)
+    const persisted = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(persisted.healthDate).toBe('2026-08-01')
+    // Seven elapsed days → seven chained steps, the same trajectory a daily
+    // opener would have banked (app-open frequency never moves the score).
+    const expected = finalizeHealthThrough([], DEMO_PROFILE, '2026-07-25', '2026-08-01', 30, 'ember')
+    expect(persisted.prevHealthScore).toBeCloseTo(expected.score, 10)
+    expect(persisted.stage).toBe(expected.stage)
+  })
 })
 
 describe('level-up toast lifecycle', () => {
@@ -180,15 +246,24 @@ describe('level-up toast lifecycle', () => {
     const resist = screen.getByRole('button', { name: /I resisted an impulse/ })
     fireEvent.click(resist)
     fireEvent.click(resist)
-    expect(screen.getByRole('status').textContent).toMatch(/^Level 2/)
+    const toast = () => screen.getByRole('status', { name: 'Announcements' })
+    expect(toast().textContent).toMatch(/^Level 2/)
     // XP within the dismiss window used to cancel the timer and strand the
     // toast (and the live region content) on screen.
     fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
-    expect(screen.getByRole('status').textContent).toMatch(/^Level 2/)
+    expect(toast().textContent).toMatch(/^Level 2/)
     act(() => {
       vi.advanceTimersByTime(2600)
     })
-    expect(screen.getByRole('status').textContent).toBe('')
+    expect(toast().textContent).toBe('')
+  })
+})
+
+describe('page heading structure', () => {
+  it('exposes the wordmark as the single page-level h1', () => {
+    render(<App />)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Ember')
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 })

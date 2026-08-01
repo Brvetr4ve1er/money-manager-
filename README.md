@@ -22,7 +22,10 @@ no server.
   scenario ("buy") path month by month and states the specific tradeoffs:
   goal delay, extra months of debt, the month-one dip.
 - **XP, levels, and daily quests** — the engagement track. Logging every
-  purchase, resisting an impulse, and reviewing yesterday all earn XP.
+  purchase (+5), running a decision simulation (+15), resisting an impulse
+  (+50, capped daily), and reviewing yesterday (+10) all earn XP. A daily
+  lesson reward (+15) is reserved for when lesson content actually ships —
+  Ember never pays XP for content that doesn't exist.
 - **Chiptune audio cues** — small synthesized sounds for logging, level-ups,
   and quest completion. Mutable; sound never carries information alone.
 - **Neo-brutalist × gacha design** — thick black strokes, hard offset

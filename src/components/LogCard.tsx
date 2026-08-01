@@ -1,0 +1,93 @@
+import { useState } from 'react'
+import * as sfx from '../audio/chiptune.ts'
+
+const CATEGORIES = ['Food', 'Transport', 'Fun', 'Bills', 'Health', 'Other']
+
+export function LogCard({
+  onLog,
+  resistXpCapped,
+}: {
+  onLog: (amountDA: number, category: string, resisted: boolean) => void
+  resistXpCapped: boolean
+}) {
+  const [amount, setAmount] = useState('')
+  const [category, setCategory] = useState(CATEGORIES[0])
+  const [error, setError] = useState<string | null>(null)
+
+  // The app's most-used action must never fail silently: invalid input gets
+  // an inline error (plus a denial blip reinforcing it, never replacing it).
+  // isFinite, not !isNaN: '1e999' parses to Infinity, which would log a
+  // nonsense row that JSON round-trips as null and silently vanishes on
+  // reload — XP granted, record lost.
+  function submit(resisted: boolean) {
+    const amt = parseFloat(amount)
+    if (!resisted && (!Number.isFinite(amt) || amt <= 0)) {
+      setError('Enter an amount first.')
+      sfx.deny()
+      return
+    }
+    setError(null)
+    onLog(resisted ? 0 : amt, category, resisted)
+    setAmount('')
+  }
+
+  return (
+    <section className="card">
+      <h2>Log it</h2>
+      {/* A real <form> so Enter / the mobile keyboard's done key submits. */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          submit(false)
+        }}
+      >
+        <div className="log-row">
+          {/* type="text" + inputMode="decimal", not type="number": the numeric
+              keyboard still comes up on mobile, without number-input quirks
+              (scroll-wheel value changes, silent clearing on non-numeric
+              paste). Validation happens in submit(), where it can explain
+              itself. */}
+          <input
+            className="field mono"
+            type="text"
+            inputMode="decimal"
+            placeholder="Amount (DA)"
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value)
+              setError(null)
+            }}
+            aria-label="Amount in DA"
+            aria-invalid={error !== null}
+            aria-describedby={error ? 'log-error' : undefined}
+          />
+          <select
+            className="field"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            aria-label="Category"
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        {error && (
+          <p className="field-error" id="log-error" role="alert">{error}</p>
+        )}
+        <div className="log-actions">
+          <button type="submit" className="btn btn-flame">
+            Log purchase (+5 XP)
+          </button>
+          {/* The label must not promise XP the capped grant won't pay —
+              resists past the daily cap still log, they just earn nothing. */}
+          <button type="button" className="btn btn-gold" onClick={() => submit(true)}>
+            {resistXpCapped
+              ? 'I resisted an impulse (XP capped today)'
+              : 'I resisted an impulse (+50 XP)'}
+          </button>
+        </div>
+      </form>
+    </section>
+  )
+}

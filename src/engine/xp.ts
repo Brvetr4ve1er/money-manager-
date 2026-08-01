@@ -3,6 +3,14 @@
  * Score: XP rewards showing up; the score reflects financial reality.
  */
 
+/**
+ * XP roster — the canonical reward table (the product spec defers to this).
+ * Deliberate divergence from the spec draft's "daily lesson +15": no lesson
+ * content ships yet, and paying XP for a claim the user cannot perform would
+ * be a hollow grant, so +15 rewards running a decision simulation instead.
+ * "Lesson +15" stays reserved: when lesson content lands, add `lesson: 15`
+ * here and restore the lesson quest in DEFAULT_QUESTS.
+ */
 export const XP_REWARDS = {
   logExpense: 5,
   resistImpulse: 50,

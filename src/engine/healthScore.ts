@@ -144,7 +144,11 @@ export function smooth(prev: number, rawToday: number): number {
 
 /** Map a score to a stage with ±3 hysteresis against the current stage. */
 export function mapToStage(score: number, currentStage: Stage | null): Stage {
-  const plain = STAGE_BOUNDS.find((b) => score >= b.min)!.stage
+  // Defense in depth: a score below every bound (e.g. an out-of-range
+  // persisted snapshot that slipped past sanitization) must map to the floor
+  // stage, never crash on `find()` missing — a corrupted payload would brick
+  // the app at every render until localStorage is cleared.
+  const plain = (STAGE_BOUNDS.find((b) => score >= b.min) ?? STAGE_BOUNDS[STAGE_BOUNDS.length - 1]).stage
   if (currentStage === null || plain === currentStage) return plain
 
   const order: Stage[] = ['ember', 'hearth', 'bonfire', 'beacon']
@@ -183,9 +187,16 @@ export function computeHealthScore(
     weightSum += WEIGHTS[key]
   }
 
-  // Nothing included at all (brand-new user): neutral start.
+  // Nothing included at all (brand-new user): neutral start. The smoothed
+  // score is clamped to [0, 100]: `prevSmoothed` comes from persisted state,
+  // and even a sanitizer miss on an out-of-range snapshot must degrade to a
+  // clamped score, never leak out of range into stage mapping or the UI.
   const rawBlend = weightSum > 0 ? blend / weightSum : 50
-  const score = prevSmoothed === null ? rawBlend : smooth(prevSmoothed, rawBlend)
+  const score = clamp(
+    prevSmoothed === null ? rawBlend : smooth(prevSmoothed, rawBlend),
+    0,
+    100,
+  )
   const stage = mapToStage(score, currentStage)
 
   return { score, rawBlend, components, stage }

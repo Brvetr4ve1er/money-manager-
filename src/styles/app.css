@@ -69,7 +69,9 @@
   transition: background 240ms steps(1);
 }
 .stage-flame { font-size: 2.6rem; }
-.stage-info h2 { font-size: 1.4rem; }
+/* .card scope keeps this heavier than the generic .card h2 title rule below
+   regardless of source order — the stage label is the hero, not a card title. */
+.card .stage-info h2 { font-size: 1.4rem; }
 .stars { color: var(--flame); font-size: 1.05rem; letter-spacing: 0.1rem; }
 .score-line { font-size: 0.85rem; opacity: 0.7; font-weight: 700; }
 
@@ -81,7 +83,7 @@
   flex-wrap: wrap;
   margin-bottom: 0.5rem;
 }
-.xp-head h3 { font-size: 0.95rem; }
+.xp-head h2 { font-size: 0.95rem; }
 .xp-numbers { display: inline-flex; align-items: baseline; gap: 0.5rem; }
 /* Transient +XP chip (see XpCard): a non-audio, non-motion confirmation of a
    gain — visible to muted and reduced-motion users, gold like the bar it
@@ -109,14 +111,19 @@
   transition: width 480ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.card h3 { font-size: 0.95rem; margin-bottom: 0.7rem; }
+/* Card titles are h2 (siblings of the hero stage label in the outline, under
+   the single page h1 wordmark) styled down to card scale. */
+.card h2 { font-size: 0.95rem; margin-bottom: 0.7rem; }
 
 .log-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .field {
   flex: 1;
   min-width: 120px;
   font-family: var(--sans);
-  font-size: 0.95rem;
+  /* 16px floor: iOS Safari auto-zooms the whole page when a focused input is
+     under 16px, wrecking the 320px layout on the app's most-used action
+     (logging an amount) on the primary target device. Never shrink this. */
+  font-size: 1rem;
   border: 3px solid var(--ink);
   border-radius: var(--r);
   padding: 0.6rem 0.8rem;
@@ -142,7 +149,7 @@
   flex-wrap: wrap;
   margin-bottom: 0.7rem;
 }
-.quest-head h3 { margin-bottom: 0; }
+.quest-head h2 { margin-bottom: 0; }
 /* Persistent all-complete marker — the arpeggio's visual counterpart. */
 .quest-alldone {
   background: var(--gold);
@@ -180,7 +187,11 @@
   color: inherit;
   text-align: left;
 }
-.quest-row:not(:disabled) { cursor: pointer; }
+/* button-scoped: a verified quest renders as a static div .quest-row (it
+   completes only when the app observes the action), and a div is never
+   :disabled — an unscoped selector would give the inert row a pointer cursor
+   and press feedback, breaking the "pressed = something happened" contract. */
+button.quest-row:not(:disabled) { cursor: pointer; }
 /* Invisible hit-area extension: 28px visual row, >=48px touch target. */
 .quest-row::after {
   content: '';
@@ -203,8 +214,8 @@
      reads as the tap target that grants XP, not a decorative bullet. */
   box-shadow: 3px 3px 0 var(--shadow);
 }
-.quest-row:not(:disabled):hover .quest-box { background: var(--paper-dim); }
-.quest-row:not(:disabled):active .quest-box { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--shadow); }
+button.quest-row:not(:disabled):hover .quest-box { background: var(--paper-dim); }
+button.quest-row:not(:disabled):active .quest-box { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--shadow); }
 .quest.done .quest-box { background: var(--good); }
 .quest.done .quest-text { text-decoration: line-through; opacity: 0.5; }
 .quest-text { font-size: 0.9rem; font-weight: 600; }
@@ -231,6 +242,9 @@
   padding: 0.8rem 1rem;
   font-size: 0.88rem;
 }
+/* The result live region stays mounted (see SimCard); hide it while empty so
+   the teal panel doesn't render as an empty box before the first run. */
+.sim-result:empty { display: none; }
 
 .tx-list { list-style: none; margin: 0; padding: 0; }
 .tx {

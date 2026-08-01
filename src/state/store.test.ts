@@ -126,6 +126,14 @@ describe('sanitizeState', () => {
     expect(state.prevHealthScore).toBeNull()
   })
 
+  it('clamps an out-of-range prevHealthScore into [0, 100] instead of bricking render', () => {
+    // A negative snapshot would smooth() to a negative score and crash stage
+    // mapping at first render — permanently, until localStorage is cleared.
+    expect(sanitizeState({ prevHealthScore: -500 }).prevHealthScore).toBe(0)
+    expect(sanitizeState({ prevHealthScore: 1e6 }).prevHealthScore).toBe(100)
+    expect(sanitizeState({ prevHealthScore: 61.2 }).prevHealthScore).toBe(61.2)
+  })
+
   it('keeps a valid persisted snapshot', () => {
     const state = sanitizeState({
       prevHealthScore: 61.2,
@@ -142,5 +150,18 @@ describe('sanitizeState', () => {
       quests: [{ id: 'log', text: 'Log', xpAction: 'hack', done: false }],
     })
     expect(state.quests).toEqual(defaultState().quests)
+  })
+
+  it('re-stamps the verified flag from the canonical roster', () => {
+    // The flag is a product invariant, not user data: an older persisted list
+    // (or a hand-edited one) must not resurrect a tappable sim quest.
+    const state = sanitizeState({
+      quests: [
+        { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', done: false },
+        { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense', verified: true, done: false },
+      ],
+    })
+    expect(state.quests.find((q) => q.id === 'sim')?.verified).toBe(true)
+    expect(state.quests.find((q) => q.id === 'log')?.verified).toBeUndefined()
   })
 })

@@ -121,6 +121,23 @@ describe('stage mapping with hysteresis', () => {
     expect(mapToStage(72, null)).toBe('bonfire')
     expect(mapToStage(85, null)).toBe('beacon')
   })
+  it('falls back to ember for a score below every bound instead of crashing', () => {
+    expect(mapToStage(-10, null)).toBe('ember')
+    expect(mapToStage(-500, 'beacon')).toBe('ember')
+  })
+})
+
+describe('out-of-range snapshot defense', () => {
+  it('clamps the smoothed score into [0, 100] when prev is corrupt', () => {
+    // Belt and braces with the sanitizer's clamp: even a snapshot that slips
+    // through must degrade to a clamped score, never brick stage mapping.
+    const inputs: HealthInputs = {
+      SR: included(0), BA: included(0), EF: included(0), DT: included(0), IC: included(0),
+    }
+    const r = computeHealthScore(inputs, -500, null)
+    expect(r.score).toBeGreaterThanOrEqual(0)
+    expect(r.stage).toBe('ember')
+  })
 })
 
 describe('full blend — Yasmine day 45 worked example', () => {

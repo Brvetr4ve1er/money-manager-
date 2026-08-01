@@ -25,6 +25,11 @@ export interface Quest {
   id: string
   text: string
   xpAction: 'logExpense' | 'runSimulation' | 'reviewYesterday' | 'resistImpulse'
+  /** True when the app itself verifies completion (e.g. SimCard dispatches on
+   *  an actual simulation run). Verified quests render as non-interactive
+   *  status rows — a tap must never self-report a quest the code promises is
+   *  verified. */
+  verified?: boolean
   done: boolean
 }
 
@@ -47,8 +52,9 @@ export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   // Every quest must be an action the app actually supports today — a quest
   // promising nonexistent content (e.g. a daily lesson) pays XP for a claim
   // the user cannot perform. The sim quest even self-verifies: running a
-  // simulation completes it (see SimCard's onRun in App).
-  { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation' },
+  // simulation completes it (see SimCard's onRun in App) — and because it is
+  // verified, QuestCard renders it without a tap-to-complete button.
+  { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', verified: true },
   { id: 'review', text: 'Review yesterday', xpAction: 'reviewYesterday' },
 ]
 
@@ -141,6 +147,7 @@ function isQuest(v: unknown): v is Quest {
     typeof v.id === 'string' &&
     typeof v.text === 'string' &&
     QUEST_ACTIONS.includes(v.xpAction as Quest['xpAction']) &&
+    isOptionalBoolean(v.verified) &&
     typeof v.done === 'boolean'
   )
 }
@@ -177,7 +184,10 @@ export function sanitizeState(parsed: unknown): AppState {
     }
   }
   if (isFiniteNumber(parsed.prevHealthScore)) {
-    out.prevHealthScore = parsed.prevHealthScore
+    // Clamp into the score's [0, 100] range: a hand-edited negative snapshot
+    // would smooth() to a negative score and crash stage mapping at first
+    // render — the exact permanent brick this sanitizer exists to prevent.
+    out.prevHealthScore = Math.min(100, Math.max(0, parsed.prevHealthScore))
   }
   if (STAGES.includes(parsed.stage as Stage)) {
     out.stage = parsed.stage as Stage
@@ -186,7 +196,13 @@ export function sanitizeState(parsed: unknown): AppState {
     out.healthDate = parsed.healthDate
   }
   if (Array.isArray(parsed.quests) && parsed.quests.every(isQuest)) {
-    out.quests = parsed.quests
+    // Re-stamp `verified` from the canonical roster: the flag is a product
+    // invariant, not user data — an older or hand-edited persisted list must
+    // not resurrect a tappable sim quest (or verify a self-report one).
+    out.quests = parsed.quests.map((q) => ({
+      ...q,
+      verified: DEFAULT_QUESTS.find((d) => d.id === q.id)?.verified,
+    }))
   }
   if (typeof parsed.questsDate === 'string') {
     out.questsDate = parsed.questsDate

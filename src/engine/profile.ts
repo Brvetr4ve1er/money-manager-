@@ -11,7 +11,9 @@ import {
   emergencyFundScore,
   debtTrendScore,
   impulseControlScore,
+  computeHealthScore,
   type HealthInputs,
+  type Stage,
 } from './healthScore.ts'
 import type { SimProfile } from './simulator.ts'
 import type { Transaction } from '../state/store.ts'
@@ -72,6 +74,16 @@ export const IC_RESISTED_DAILY_CAP = 2
  */
 export const DEMO_PROFILE_CONFIDENCE = 0.3
 
+/**
+ * Categories the DEMO_PROFILE's monthlyEssentials placeholder already models.
+ * Logged transactions in these categories are excluded from trailing spend
+ * until onboarding replaces the placeholder with real numbers: counting them
+ * would charge essentials twice (placeholder + log), deflating SR/BA and
+ * punishing exactly the "log every purchase" behavior the daily quest
+ * rewards. Only discretionary logging moves SR/BA for now.
+ */
+export const ESSENTIAL_CATEGORIES: ReadonlySet<string> = new Set(['Food', 'Bills', 'Health'])
+
 /** Local-calendar day key `n` days before `dayISO` (pure — no wall clock). */
 function daysBeforeISO(dayISO: string, n: number): string {
   const [y, m, d] = dayISO.split('-').map(Number)
@@ -95,8 +107,13 @@ export function deriveHealthInputs(
   // 1st, spiking SR/BA to their no-spend maxima and banking half the jump
   // into the persisted snapshot via smooth()'s fast-up rate.
   const cutoff = daysBeforeISO(today, 30)
+  // Essential categories are excluded: the monthlyEssentials placeholder
+  // already models them (see ESSENTIAL_CATEGORIES) — summing both would
+  // double-count a compliant logger's groceries and bills.
   const trailingSpend = transactions
-    .filter((t) => t.date >= cutoff && !t.resistedImpulse)
+    .filter(
+      (t) => t.date >= cutoff && !t.resistedImpulse && !ESSENTIAL_CATEGORIES.has(t.category),
+    )
     .reduce((s, t) => s + t.amountDA, 0)
   // Impulse Control counts only explicitly flagged events (per the IC
   // contract: resisted / total flagged), scoped to the same trailing 30
@@ -153,6 +170,50 @@ export function deriveHealthInputs(
       confidence: Math.min(1, (resisted + yielded) / 10),
     },
   }
+}
+
+/**
+ * Cap on how many elapsed days the rollover catch-up chains through. By 60
+ * daily steps the slow (15%) smoothing rate has long converged — (1 − 0.15)^60
+ * leaves ~6e−5 of the original delta — and a corrupted or ancient persisted
+ * healthDate must not stall the UI in a years-long loop.
+ */
+export const ROLLOVER_CATCHUP_DAYS = 60
+
+/**
+ * Finalize the persisted health snapshot across every elapsed calendar day in
+ * [`fromDay`, `toDay`), chaining one smooth() step per day. A user who returns
+ * after N days gets the same N-step trajectory as one who opened the app every
+ * day: score dynamics (and stage hysteresis, which must compound day over day)
+ * reflect wall-clock days, never app-open frequency — engagement may not leak
+ * into the health score.
+ *
+ * Anomalous clocks (`fromDay` >= `toDay`, e.g. the device clock moved back)
+ * finalize a single step at `fromDay`, matching the one-day rollover.
+ */
+export function finalizeHealthThrough(
+  transactions: Transaction[],
+  profile: UserProfile,
+  fromDay: string,
+  toDay: string,
+  prevScore: number | null,
+  prevStage: Stage | null,
+): { score: number; stage: Stage } {
+  const earliest = daysBeforeISO(toDay, ROLLOVER_CATCHUP_DAYS)
+  let day = fromDay < earliest ? earliest : fromDay
+  let result = computeHealthScore(
+    deriveHealthInputs(transactions, profile, day),
+    prevScore,
+    prevStage,
+  )
+  for (day = daysBeforeISO(day, -1); day < toDay; day = daysBeforeISO(day, -1)) {
+    result = computeHealthScore(
+      deriveHealthInputs(transactions, profile, day),
+      result.score,
+      result.stage,
+    )
+  }
+  return { score: result.score, stage: result.stage }
 }
 
 /** Map the user profile onto the Decision Simulator's input shape. */
