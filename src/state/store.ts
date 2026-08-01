@@ -5,7 +5,6 @@
 
 import {
   XP_REWARDS,
-  xpForLevel,
   xpFromLog,
   xpStateFromTotal,
   type XpAction,
@@ -133,6 +132,21 @@ function isOptionalBoolean(v: unknown): v is boolean | undefined {
 
 const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
 
+/**
+ * Shape AND calendar validity: DAY_KEY_RE alone accepts impossible keys like
+ * '2026-99-99' or '2026-02-30', which compare lexicographically ABOVE every
+ * real day in their year — a hand-edited payload could pin such a row inside
+ * every trailing window and atop the ledger sort forever. Round-tripping
+ * through the same local-day formatter the app stamps dates with (Date
+ * normalizes overflow: month 99 rolls into the next years) rejects anything
+ * the app itself could never have written.
+ */
+function isValidDayKey(v: string): boolean {
+  if (!DAY_KEY_RE.test(v)) return false
+  const [y, m, d] = v.split('-').map(Number)
+  return localDayISO(new Date(y, m - 1, d)) === v
+}
+
 /** Grant id for XP earned before the grant log existed (older schemas). */
 const LEGACY_XP_GRANT_ID = 'legacy-total'
 
@@ -156,7 +170,8 @@ function isTransaction(v: unknown): v is Transaction {
   // amount would *reduce* trailing-30d spend (inflating SR/BA), and a truthy
   // non-boolean resistedImpulse (e.g. "no") would count as a resisted impulse
   // in IC while excluding the row from spend. Dates are compared
-  // lexicographically against YYYY-MM-DD window cutoffs, so enforce the shape too.
+  // lexicographically against YYYY-MM-DD window cutoffs, so enforce the shape
+  // AND calendar validity (see isValidDayKey).
   return (
     isRecord(v) &&
     typeof v.id === 'string' &&
@@ -164,7 +179,7 @@ function isTransaction(v: unknown): v is Transaction {
     v.amountDA >= 0 &&
     typeof v.category === 'string' &&
     typeof v.date === 'string' &&
-    DAY_KEY_RE.test(v.date) &&
+    isValidDayKey(v.date) &&
     (v.note === undefined || typeof v.note === 'string') &&
     isOptionalBoolean(v.resistedImpulse) &&
     isOptionalBoolean(v.impulseFlagged)
@@ -185,22 +200,15 @@ export function sanitizeState(parsed: unknown): AppState {
     out.transactions = parsed.transactions.filter(isTransaction)
   }
   const xp = parsed.xp
-  if (
-    isRecord(xp) &&
-    isFiniteNumber(xp.level) &&
-    xp.level >= 1 &&
-    isFiniteNumber(xp.xpIntoLevel) &&
-    isFiniteNumber(xp.totalXp)
-  ) {
-    // Coerce to the XP invariants, not just finite numbers: a hand-edited
-    // payload like { level: 1.5, xpIntoLevel: -50 } would otherwise render a
-    // broken progress bar and compound through grantXp's while-loop.
-    const level = Math.max(1, Math.floor(xp.level))
-    out.xp = {
-      level,
-      xpIntoLevel: Math.min(Math.max(0, xp.xpIntoLevel), xpForLevel(level) - 1),
-      totalXp: Math.max(0, xp.totalXp),
-    }
+  if (isRecord(xp) && isFiniteNumber(xp.totalXp)) {
+    // Only totalXp is user data — level/xpIntoLevel are BY CONSTRUCTION a pure
+    // function of it (xpStateFromTotal), so persisted values are never
+    // trusted. Clamping them individually would still admit an inconsistent
+    // triple like { level: 7, xpIntoLevel: 10, totalXp: 0 }, which renders as
+    // "Level 7" with zero evidence until the first cross-tab merge rebuilds
+    // from totalXp and the level silently collapses. Deriving here makes load
+    // and merge agree on the same derivation.
+    out.xp = xpStateFromTotal(Math.max(0, xp.totalXp))
   }
   if (Array.isArray(parsed.xpLog)) {
     // Union by id like transactions; a duplicated id keeps the larger amount

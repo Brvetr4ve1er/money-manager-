@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import App from './App.tsx'
+import * as sfx from './audio/chiptune.ts'
 import { computeHealthScore } from './engine/healthScore.ts'
 import { deriveHealthInputs, finalizeHealthThrough, DEMO_PROFILE } from './engine/profile.ts'
 import type { Transaction } from './state/store.ts'
@@ -121,6 +122,31 @@ describe('logging flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '2' } })
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('records a typed amount on a resist as the avoided amount — never silently discarded', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '500' } })
+    fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    expect(xpNow()).toBe(50)
+    expect(screen.getByText('500 DA avoided')).toBeTruthy()
+    expect((screen.getByLabelText('Amount (DA)') as HTMLInputElement).value).toBe('')
+  })
+
+  it('still resists with an empty amount (the amount is optional for resists)', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    expect(xpNow()).toBe(50)
+    expect(screen.getByText('—')).toBeTruthy()
+  })
+
+  it('rejects a typed-but-invalid amount on a resist instead of silently discarding it', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: 'abc' } })
+    fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
+    expect(xpNow()).toBe(0)
+    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
   })
 
   it('rejects an amount that parses to Infinity instead of logging it', () => {
@@ -315,5 +341,63 @@ describe('page heading structure', () => {
     render(<App />)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Ember')
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+  })
+
+  it('wraps the card stack in a <main> landmark with header and footer as siblings', () => {
+    render(<App />)
+    const main = screen.getByRole('main')
+    // The primary content — every card — lives inside the landmark…
+    expect(main.querySelectorAll('.card').length).toBeGreaterThanOrEqual(5)
+    // …while the topbar and foot stay sibling landmarks, not descendants.
+    expect(main.querySelector('header, footer')).toBeNull()
+  })
+})
+
+describe('resist day-source consistency', () => {
+  it('enforces the resist XP cap against the same day the label reports across midnight', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 1, 23, 59, 0)) // Aug 1, just before midnight
+    render(<App />)
+    const resist = () => screen.getByRole('button', { name: /I resisted an impulse/ })
+    fireEvent.click(resist())
+    fireEvent.click(resist()) // 2 × 50 XP = level 2 exactly → bar reads 0
+    expect(resist().textContent).toContain('XP capped today')
+    expect(xpNow()).toBe(0)
+    // Midnight passes, but no sync (60s interval / focus / visibility) has
+    // landed yet: the label still says capped, so a tap must grant nothing —
+    // the tx date and cap check use the hook's day, not a fresh clock read.
+    vi.setSystemTime(new Date(2026, 7, 2, 0, 0, 30))
+    fireEvent.click(resist())
+    expect(xpNow()).toBe(0)
+  })
+})
+
+describe('peer-origin rewards', () => {
+  it('suppresses celebration sounds in a hidden tab when a peer write levels up', () => {
+    render(<App />)
+    vi.mocked(sfx.fanfare).mockClear()
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+    })
+    try {
+      // A peer tab's write carries enough XP evidence to level this tab up.
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: 'ember-state-v1',
+            newValue: JSON.stringify({ xp: { totalXp: 100 } }),
+          }),
+        )
+      })
+      // No fanfare in a tab the user never touched — but the toast/live
+      // region still announces (sound never carries information alone).
+      expect(sfx.fanfare).not.toHaveBeenCalled()
+      expect(
+        screen.getByRole('status', { name: 'Announcements' }).textContent,
+      ).toMatch(/^Level 2/)
+    } finally {
+      delete (document as { visibilityState?: string }).visibilityState
+    }
   })
 })

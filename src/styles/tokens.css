@@ -33,7 +33,12 @@
     --paper: #141414;
     --paper-hi: #1f1f1f;
     --paper-dim: #0c0c0c;
-    --shadow: #000000;
+    /* NOT #000: pure black on --paper #141414 is ~1.2:1 — the hard offset
+       shadows (the neo-brutalist signature) and the press-collapse feedback
+       on .card/.btn/.quest-box would vanish on neutral surfaces while accent
+       buttons kept their colored shadows. A dim warm gray stays visibly a
+       shadow against both --paper and --paper-hi #1f1f1f. */
+    --shadow: #3a3a3a;
   }
 }
 

@@ -12,7 +12,11 @@ export function setMuted(v: boolean): void {
 
 function ensureCtx(): AudioContext {
   if (!ctx) ctx = new AudioContext()
-  if (ctx.state === 'suspended') void ctx.resume()
+  // resume() rejects when the tab has no user activation (e.g. an effect
+  // fired by a peer tab's write) — swallow it explicitly so a suspended
+  // context can never surface as an unhandled promise rejection. Sound is
+  // reinforcement only, so a silently-failed resume loses nothing.
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {})
   return ctx
 }
 

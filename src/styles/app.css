@@ -7,6 +7,15 @@
   gap: 1rem;
 }
 
+/* The <main> landmark wraps the card stack (see App.tsx): it inherits the
+   shell's column rhythm so the cards space exactly as they did as direct
+   shell children. */
+.main-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -58,13 +67,17 @@
   text-align: center;
   z-index: 10;
   animation: toastin 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Never intercepts pointer events, visible or not: the toast holds no
+     actions, and while shown it floats over the topbar — without this a
+     level-up banner blocks taps on the mute button for its 2.6s lifetime. */
+  pointer-events: none;
 }
 /* The live region stays mounted (see App.tsx); fade it while empty with
    opacity — NEVER display:none or visibility:hidden, which drop the empty
    region from the accessibility tree, so its reappearance with text reads as
    a brand-new region that VoiceOver (and sometimes NVDA) won't announce.
    Removing the animation here restarts toastin each time text lands. */
-.toast:empty { opacity: 0; pointer-events: none; animation: none; }
+.toast:empty { opacity: 0; animation: none; }
 @keyframes toastin {
   0% { opacity: 0; transform: translateX(-50%) translateY(-16px) rotate(2deg); }
   100% { opacity: 1; transform: translateX(-50%) translateY(0) rotate(-1deg); }

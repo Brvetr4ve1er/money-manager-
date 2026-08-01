@@ -112,6 +112,26 @@ describe('deriveHealthInputs', () => {
     expect(inputs.IC.confidence).toBe(0)
   })
 
+  it('excludes future-dated transactions from every trailing window', () => {
+    // Device clock skew or a hand-edited payload: a transaction dated after
+    // `today` must not sit inside every window "ending at today" forever,
+    // deflating SR/BA or inflating the IC resist count.
+    const baseline = deriveHealthInputs([], DEMO_PROFILE, TODAY)
+    const inputs = deriveHealthInputs(
+      [
+        tx({ id: 'tomorrow', amountDA: 999_999, date: '2026-08-02' }),
+        tx({ id: 'far', amountDA: 999_999, date: '2030-12-31' }),
+        tx({ id: 'r-future', amountDA: 0, resistedImpulse: true, date: '2026-08-15' }),
+        tx({ id: 'y-future', amountDA: 500, impulseFlagged: true, date: '2026-08-15' }),
+      ],
+      DEMO_PROFILE,
+      TODAY,
+    )
+    expect(inputs.SR.raw).toBe(baseline.SR.raw)
+    expect(inputs.BA.raw).toBe(baseline.BA.raw)
+    expect(inputs.IC.structurallyUndefined).toBe(true)
+  })
+
   it('ignores flagged events outside the 30-day window', () => {
     const inputs = deriveHealthInputs(
       [tx({ id: 'old', amountDA: 0, resistedImpulse: true, date: '2026-06-01' })],
@@ -185,6 +205,19 @@ describe('finalizeHealthThrough', () => {
     const result = finalizeHealthThrough(txs, DEMO_PROFILE, '2026-07-31', TODAY, 40, 'hearth')
     expect(result.score).toBeCloseTo(one.score, 10)
     expect(result.stage).toBe(one.stage)
+  })
+
+  it('keeps replayed catch-up days blind to transactions dated after them', () => {
+    // The documented invariant: a user returning after N days gets the same
+    // N-step trajectory as one who opened the app daily. A transaction dated
+    // `today` did not exist on any earlier replayed day, so it must not leak
+    // into those steps — here every replayed day is before the tx date, so
+    // the chain must match a transaction-free replay exactly.
+    const txs = [tx({ id: 'today', amountDA: 20_000, date: TODAY })]
+    const replayed = finalizeHealthThrough(txs, DEMO_PROFILE, '2026-07-25', TODAY, 30, 'ember')
+    const clean = finalizeHealthThrough([], DEMO_PROFILE, '2026-07-25', TODAY, 30, 'ember')
+    expect(replayed.score).toBeCloseTo(clean.score, 10)
+    expect(replayed.stage).toBe(clean.stage)
   })
 
   it('caps catch-up at ROLLOVER_CATCHUP_DAYS so an ancient healthDate cannot stall the UI', () => {

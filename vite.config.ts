@@ -31,9 +31,20 @@ function absoluteSocialCards(siteUrl: string): Plugin {
   }
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const siteUrl = (env.VITE_SITE_URL ?? '').replace(/\/+$/, '')
+  // The README's deploy checklist as a guardrail, not a hope: a production
+  // build without VITE_SITE_URL would otherwise silently ship relative
+  // og:image/twitter:image URLs that the dominant share channels drop.
+  if (command === 'build' && !siteUrl) {
+    console.warn(
+      '\n[ember] WARNING: VITE_SITE_URL is unset — og:image/twitter:image stay ' +
+        'site-relative, and WhatsApp/Facebook/Telegram crawlers silently drop ' +
+        'relative social-card URLs. Set VITE_SITE_URL to the canonical origin ' +
+        'before deploying (see README "Deploying").\n',
+    )
+  }
   return {
     plugins: [react(), absoluteSocialCards(siteUrl)],
     test: {

@@ -114,12 +114,18 @@ export function deriveHealthInputs(
   // against one month of income/essentials would carry a permanent
   // overstated-spend bias into SR/BA (and skew the IC counts).
   const cutoff = daysBeforeISO(today, 29)
+  // Bounded on BOTH ends: `<= today` matters as much as the cutoff. A
+  // future-dated transaction (device clock skew, a hand-edited payload) would
+  // otherwise sit inside every window "ending at today" indefinitely — and
+  // break finalizeHealthThrough's replay contract, where each catch-up day
+  // must see only the transactions that existed by that day.
+  const inWindow = (date: string): boolean => date >= cutoff && date <= today
   // Essential categories are excluded: the monthlyEssentials placeholder
   // already models them (see ESSENTIAL_CATEGORIES) — summing both would
   // double-count a compliant logger's groceries and bills.
   const trailingSpend = transactions
     .filter(
-      (t) => t.date >= cutoff && !t.resistedImpulse && !ESSENTIAL_CATEGORIES.has(t.category),
+      (t) => inWindow(t.date) && !t.resistedImpulse && !ESSENTIAL_CATEGORIES.has(t.category),
     )
     .reduce((s, t) => s + t.amountDA, 0)
   // Impulse Control counts only explicitly flagged events (per the IC
@@ -133,7 +139,7 @@ export function deriveHealthInputs(
   // gameable upward).
   const resistedByDay = new Map<string, number>()
   for (const t of transactions) {
-    if (t.resistedImpulse && t.date >= cutoff) {
+    if (t.resistedImpulse && inWindow(t.date)) {
       resistedByDay.set(t.date, (resistedByDay.get(t.date) ?? 0) + 1)
     }
   }
@@ -142,7 +148,7 @@ export function deriveHealthInputs(
     resisted += Math.min(n, IC_RESISTED_DAILY_CAP)
   }
   const yielded = transactions.filter(
-    (t) => t.impulseFlagged && !t.resistedImpulse && t.date >= cutoff,
+    (t) => t.impulseFlagged && !t.resistedImpulse && inWindow(t.date),
   ).length
 
   // SR/BA/EF/DT are built on DEMO_PROFILE placeholders until onboarding

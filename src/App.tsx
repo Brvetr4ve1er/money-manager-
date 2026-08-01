@@ -50,7 +50,13 @@ export default function App() {
       id: crypto.randomUUID(),
       amountDA,
       category,
-      date: todayISO(),
+      // The hook's `today`, NOT a fresh todayISO(): the resist button's label
+      // ("XP capped today") and the reducer's cap check both key off this
+      // date. A fresh wall-clock read in the minute after midnight — before
+      // the hook's interval/focus sync lands — would stamp the new day while
+      // the label still promises the old day's cap state, granting XP the
+      // label just said was capped (or vice versa).
+      date: today,
       resistedImpulse: resisted,
     }
     dispatch({ type: 'LOG_TX', tx })
@@ -102,21 +108,27 @@ export default function App() {
         {xpGain !== null ? `+${xpGain} XP` : ''}
       </div>
 
-      <HeroCard stage={health.stage} score={health.score} />
-      <XpCard xp={state.xp} gain={xpGain} />
-      <LogCard
-        onLog={logPurchase}
-        resistXpCapped={
-          state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
-          RESIST_XP_DAILY_CAP
-        }
-      />
-      <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
-      {/* Running a simulation genuinely completes the sim quest — the one
-          daily quest the app verifies instead of taking on self-report, so
-          QuestCard renders it without a tap-to-complete button. */}
-      <SimCard profile={DEMO_PROFILE} onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })} />
-      <Ledger transactions={state.transactions} />
+      {/* <main> landmark so AT users get a "jump to main content" target —
+          the card stack is the page's primary content, with the topbar and
+          foot as sibling landmarks. .main-stack carries the shell's column
+          rhythm inside the landmark. */}
+      <main className="main-stack">
+        <HeroCard stage={health.stage} score={health.score} />
+        <XpCard xp={state.xp} gain={xpGain} />
+        <LogCard
+          onLog={logPurchase}
+          resistXpCapped={
+            state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
+            RESIST_XP_DAILY_CAP
+          }
+        />
+        <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
+        {/* Running a simulation genuinely completes the sim quest — the one
+            daily quest the app verifies instead of taking on self-report, so
+            QuestCard renders it without a tap-to-complete button. */}
+        <SimCard profile={DEMO_PROFILE} onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })} />
+        <Ledger transactions={state.transactions} />
+      </main>
 
       <footer className="foot">
         <button className="btn" onClick={downloadExport}>Export my data</button>

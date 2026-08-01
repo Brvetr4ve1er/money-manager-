@@ -19,15 +19,20 @@ export function LogCard({
   // isFinite, not !isNaN: '1e999' parses to Infinity, which would log a
   // nonsense row that JSON round-trips as null and silently vanishes on
   // reload — XP granted, record lost.
+  // A resist needs no amount — but a typed one is never thrown away: it logs
+  // as the avoided amount (the Ledger shows "N DA avoided"), because the
+  // price of what you didn't buy may be the app's most motivating stat.
+  // Clearing the field while recording 0 would silently imply capture.
   function submit(resisted: boolean) {
     const amt = parseFloat(amount)
-    if (!resisted && (!Number.isFinite(amt) || amt <= 0)) {
+    const validAmt = Number.isFinite(amt) && amt > 0
+    if (!validAmt && (!resisted || amount.trim() !== '')) {
       setError('Enter an amount first.')
       sfx.deny()
       return
     }
     setError(null)
-    onLog(resisted ? 0 : amt, category, resisted)
+    onLog(validAmt ? amt : 0, category, resisted)
     setAmount('')
   }
 

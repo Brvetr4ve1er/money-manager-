@@ -10,9 +10,25 @@ export function Ledger({ transactions }: { transactions: Transaction[] }) {
         <ul className="tx-list">
           {transactions.slice(0, 8).map((t) => (
             <li key={t.id} className="tx">
-              <span>{t.resistedImpulse ? '🛡 Resisted' : t.category}</span>
+              <span>
+                {/* aria-hidden emoji, matching the mute button and stage
+                    flame — screen readers must not read "shield Resisted". */}
+                {t.resistedImpulse ? (
+                  <>
+                    <span aria-hidden="true">🛡 </span>Resisted
+                  </>
+                ) : (
+                  t.category
+                )}
+              </span>
               <span className="mono">
-                {t.resistedImpulse ? '—' : `${t.amountDA.toLocaleString()} DA`}
+                {/* A resist logged with a typed amount records what the tap
+                    avoided spending — shown, not silently dropped. */}
+                {t.resistedImpulse
+                  ? t.amountDA > 0
+                    ? `${t.amountDA.toLocaleString()} DA avoided`
+                    : '—'
+                  : `${t.amountDA.toLocaleString()} DA`}
               </span>
             </li>
           ))}

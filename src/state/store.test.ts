@@ -8,6 +8,7 @@ import {
   type AppState,
   type Transaction,
 } from './store.ts'
+import { xpStateFromTotal } from '../engine/xp.ts'
 
 describe('todayISO', () => {
   it('uses the local calendar day, not UTC', () => {
@@ -90,6 +91,22 @@ describe('sanitizeState', () => {
     expect(state.transactions.map((t) => t.id)).toEqual(['d'])
   })
 
+  it('drops calendar-impossible dates that pass the shape check', () => {
+    // '2026-99-99' matches DAY_KEY_RE but compares lexicographically ABOVE
+    // every real day of its year — a hand-edited payload could pin such a row
+    // inside every trailing window and atop the ledger sort forever.
+    const base = { id: 'a', amountDA: 100, category: 'Food' }
+    const state = sanitizeState({
+      transactions: [
+        { ...base, id: 'b', date: '2026-99-99' },
+        { ...base, id: 'c', date: '2026-02-30' },
+        { ...base, id: 'd', date: '2026-00-10' },
+        { ...base, id: 'e', date: '2024-02-29' }, // a real leap day stays
+      ],
+    })
+    expect(state.transactions.map((t) => t.id)).toEqual(['e'])
+  })
+
   it('drops a non-string note but keeps a valid one', () => {
     const base = { id: 'a', amountDA: 100, category: 'Food', date: '2026-08-01' }
     const state = sanitizeState({
@@ -106,21 +123,30 @@ describe('sanitizeState', () => {
     expect(state.xp).toEqual(defaultState().xp)
   })
 
-  it('clamps a negative xpIntoLevel to 0', () => {
+  it('rebuilds a corrupted xpIntoLevel from totalXp', () => {
     const state = sanitizeState({ xp: { level: 2, xpIntoLevel: -50, totalXp: 100 } })
     expect(state.xp).toEqual({ level: 2, xpIntoLevel: 0, totalXp: 100 })
   })
 
-  it('clamps an oversized xpIntoLevel below the level requirement', () => {
+  it('derives level/xpIntoLevel from totalXp — persisted values are never trusted', () => {
+    // The triple is by construction a pure function of totalXp; trusting
+    // (even clamped) persisted level/xpIntoLevel would admit inconsistent
+    // states the first cross-tab merge silently rewrites.
     const state = sanitizeState({ xp: { level: 3, xpIntoLevel: 1e9, totalXp: 400 } })
-    // xpForLevel(3) = 200, so the bar can never render permanently full.
-    expect(state.xp.xpIntoLevel).toBe(199)
-    expect(state.xp.level).toBe(3)
+    expect(state.xp).toEqual(xpStateFromTotal(400))
+    expect(state.xp.xpIntoLevel).toBeLessThan(200) // xpForLevel(3)
   })
 
-  it('floors a fractional level and clamps negative totalXp', () => {
+  it('collapses an inflated level with no backing totalXp instead of rendering it', () => {
+    // { level: 7, totalXp: 0 } used to pass both reconciliation branches and
+    // show "Level 7" with zero evidence until the first merge dropped it to 1.
+    const state = sanitizeState({ xp: { level: 7, xpIntoLevel: 10, totalXp: 0 }, xpLog: [] })
+    expect(state.xp).toEqual({ level: 1, xpIntoLevel: 0, totalXp: 0 })
+  })
+
+  it('clamps negative totalXp to 0 and rebuilds the triple from it', () => {
     const state = sanitizeState({ xp: { level: 1.5, xpIntoLevel: 10, totalXp: -5 } })
-    expect(state.xp).toEqual({ level: 1, xpIntoLevel: 10, totalXp: 0 })
+    expect(state.xp).toEqual({ level: 1, xpIntoLevel: 0, totalXp: 0 })
   })
 
   it('rejects an unknown stage and non-numeric prevHealthScore', () => {

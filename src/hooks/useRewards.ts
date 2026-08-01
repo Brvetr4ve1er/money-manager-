@@ -10,6 +10,23 @@ import { levelTitle } from '../engine/xp.ts'
 import * as sfx from '../audio/chiptune.ts'
 import type { AppState } from '../state/store.ts'
 
+/**
+ * True when this tab plausibly hosts the user action behind a state change.
+ * The effects below diff state without knowing its origin, so a peer tab's
+ * write (a HYDRATE merge) moves XP/level/quests here too — but a celebration
+ * sound must never play in a background tab the user never touched. A hidden
+ * tab is certainly not where the tap landed, and a tab with no user
+ * activation cannot even resume its AudioContext. Defaults open (?? true) on
+ * browsers without navigator.userActivation. The toast/chip still render:
+ * sound never carries information alone, so suppressing it loses nothing.
+ */
+function likelyLocalAction(): boolean {
+  return (
+    document.visibilityState === 'visible' &&
+    (navigator.userActivation?.hasBeenActive ?? true)
+  )
+}
+
 export function useRewards(state: AppState): { toast: string | null; xpGain: number | null } {
   const [toast, setToast] = useState<string | null>(null)
 
@@ -33,7 +50,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
       setXpGain((cur) => ({ amount: gained + (cur?.amount ?? 0), at: Date.now() }))
     }
     if (state.xp.level > prev.level) {
-      sfx.fanfare()
+      if (likelyLocalAction()) sfx.fanfare()
       setToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
     }
   }, [state.xp])
@@ -64,13 +81,16 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     const prev = prevQuestsDone.current
     prevQuestsDone.current = doneCount
     if (doneCount > prev) {
-      sfx.blip()
+      const local = likelyLocalAction()
+      if (local) sfx.blip()
       if (state.quests.every((q) => q.done)) {
         // The arpeggio never carries the moment alone: the toast announces it
         // through the live region and QuestCard shows a persistent badge.
         setToast('All quests complete!')
-        const t = setTimeout(sfx.arpeggio, 180)
-        return () => clearTimeout(t)
+        if (local) {
+          const t = setTimeout(sfx.arpeggio, 180)
+          return () => clearTimeout(t)
+        }
       }
     }
   }, [state.quests])
