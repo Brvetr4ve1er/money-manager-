@@ -15,6 +15,7 @@ import {
   type HealthInputs,
   type Stage,
 } from './healthScore.ts'
+import { RESIST_XP_DAILY_CAP } from './xp.ts'
 import type { SimProfile } from './simulator.ts'
 import type { Transaction } from '../state/store.ts'
 
@@ -57,12 +58,14 @@ export const DEMO_PROFILE: UserProfile = {
 }
 
 /**
- * Max resisted events per day that count toward Impulse Control. Mirrors the
- * resist XP cap in the reducer: the resist button is an unverifiable
+ * Max resisted events per day that count toward Impulse Control. Defined AS
+ * the resist XP cap (not a copied literal) so the XP incentive and the IC
+ * component can never desynchronize — paying XP for resists that stopped
+ * counting toward IC, or vice versa. The resist button is an unverifiable
  * self-report, and without a cap ten free taps drive IC raw to 100 at full
  * confidence — a health score must never be a tappable lever.
  */
-export const IC_RESISTED_DAILY_CAP = 2
+export const IC_RESISTED_DAILY_CAP = RESIST_XP_DAILY_CAP
 
 /**
  * Confidence for score components backed by DEMO_PROFILE placeholders rather
@@ -106,7 +109,11 @@ export function deriveHealthInputs(
   // the IC window below. A calendar-month window would reset to zero on the
   // 1st, spiking SR/BA to their no-spend maxima and banking half the jump
   // into the persisted snapshot via smooth()'s fast-up rate.
-  const cutoff = daysBeforeISO(today, 30)
+  // 29, not 30: the filter below is inclusive (>= cutoff), so today−29
+  // through today is exactly 30 calendar days — a 31-day window compared
+  // against one month of income/essentials would carry a permanent
+  // overstated-spend bias into SR/BA (and skew the IC counts).
+  const cutoff = daysBeforeISO(today, 29)
   // Essential categories are excluded: the monthlyEssentials placeholder
   // already models them (see ESSENTIAL_CATEGORIES) — summing both would
   // double-count a compliant logger's groceries and bills.

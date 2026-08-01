@@ -45,7 +45,7 @@ describe('quest completion', () => {
 
   it('completes a self-report quest from a tap on the quest text (whole row is the button)', () => {
     render(<App />)
-    const text = screen.getByText('Review yesterday')
+    const text = screen.getByText('Look back over your recent purchases')
     expect(text.closest('button')).not.toBeNull()
     fireEvent.click(text)
     expect(xpNow()).toBe(10)
@@ -59,12 +59,18 @@ describe('quest completion', () => {
     expect(xpNow()).toBe(0)
   })
 
-  it('renders a completed quest as disabled, without toggle semantics', () => {
+  it('renders a completed quest inert via aria-disabled — focus is never dropped', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /Mark done: Log every purchase today/ }))
     const done = screen.getByRole('button', { name: /Log every purchase today — done/ })
-    expect((done as HTMLButtonElement).disabled).toBe(true)
+    // aria-disabled, NOT the disabled attribute: disabling the button the
+    // user just activated silently drops keyboard focus to <body>.
+    expect((done as HTMLButtonElement).disabled).toBe(false)
+    expect(done.getAttribute('aria-disabled')).toBe('true')
     expect(done.getAttribute('aria-pressed')).toBeNull()
+    // Activation on the done quest is a guarded no-op — no double grant.
+    fireEvent.click(done)
+    expect(xpNow()).toBe(5)
   })
 
   it('completes the sim quest when a simulation actually runs (verified, not self-reported)', () => {
@@ -160,11 +166,55 @@ describe('xp gain visibility', () => {
     render(<App />)
     fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
-    expect(screen.getByText('+5 XP')).toBeTruthy()
+    expect(screen.getAllByText('+5 XP').length).toBeGreaterThan(0)
     act(() => {
       vi.advanceTimersByTime(1800)
     })
     expect(screen.queryByText('+5 XP')).toBeNull()
+  })
+
+  it('announces non-level-up gains through a live region — never sound alone', () => {
+    // The +XP chip is visual-only and the blip is sound-only: without this
+    // region a screen-reader user who marks a quest done hears nothing.
+    vi.useFakeTimers()
+    render(<App />)
+    const region = screen.getByRole('status', { name: 'XP gains' })
+    expect(region.textContent).toBe('')
+    fireEvent.click(screen.getByRole('button', { name: /Mark done: Log every purchase today/ }))
+    expect(region.textContent).toBe('+5 XP')
+    act(() => {
+      vi.advanceTimersByTime(1800)
+    })
+    expect(region.textContent).toBe('')
+  })
+})
+
+describe('multi-tab sync', () => {
+  it('merges a peer tab write instead of letting the next save clobber it', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '1500' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    // A second tab — still holding the state it loaded earlier — saves a
+    // payload that lacks the transaction above but carries one of its own.
+    const today = new Date()
+    const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    const peer = {
+      transactions: [{ id: 'peer-tx', amountDA: 777, category: 'Fun', date: day }],
+    }
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'ember-state-v1',
+          newValue: JSON.stringify(peer),
+        }),
+      )
+    })
+    // Both rows render, and the merged union — not either tab's partial list —
+    // is what lands back in storage.
+    expect(screen.getByText('1,500 DA')).toBeTruthy()
+    expect(screen.getByText('777 DA')).toBeTruthy()
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.transactions).toHaveLength(2)
   })
 })
 

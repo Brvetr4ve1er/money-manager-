@@ -8,6 +8,7 @@ import {
   IC_RESISTED_DAILY_CAP,
   ROLLOVER_CATCHUP_DAYS,
 } from './profile.ts'
+import { RESIST_XP_DAILY_CAP } from './xp.ts'
 import {
   savingsRateScore,
   budgetAdherenceScore,
@@ -42,6 +43,35 @@ describe('deriveHealthInputs', () => {
     expect(inputs.BA.raw).toBe(
       budgetAdherenceScore([{ budgeted: DEMO_PROFILE.budgeted, actual: expectedSpend }]),
     )
+  })
+
+  it('pins the boundary: today−29 is inside the 30-day window, today−30 is out', () => {
+    // Inclusive >= filter: cutoff must be today−29 so the window holds exactly
+    // 30 calendar days ending at today — a today−30 cutoff keeps 31 days,
+    // permanently overstating spend against one month of income/essentials.
+    const inputs = deriveHealthInputs(
+      [
+        tx({ id: 'in', amountDA: 10_000, date: '2026-07-03' }), // today−29
+        tx({ id: 'out', amountDA: 999_999, date: '2026-07-02' }), // today−30
+      ],
+      DEMO_PROFILE,
+      TODAY,
+    )
+    const expectedSpend = DEMO_PROFILE.monthlyEssentials + 10_000
+    expect(inputs.SR.raw).toBe(savingsRateScore(DEMO_PROFILE.monthlyIncome, expectedSpend))
+    // The same cutoff scopes the IC counts.
+    const icOut = deriveHealthInputs(
+      [tx({ id: 'r', amountDA: 0, resistedImpulse: true, date: '2026-07-02' })],
+      DEMO_PROFILE,
+      TODAY,
+    )
+    expect(icOut.IC.structurallyUndefined).toBe(true)
+    const icIn = deriveHealthInputs(
+      [tx({ id: 'r', amountDA: 0, resistedImpulse: true, date: '2026-07-03' })],
+      DEMO_PROFILE,
+      TODAY,
+    )
+    expect(icIn.IC.structurallyUndefined).toBe(false)
   })
 
   it('excludes resisted impulses from spend and counts them toward IC', () => {
@@ -89,6 +119,10 @@ describe('deriveHealthInputs', () => {
       TODAY,
     )
     expect(inputs.IC.structurallyUndefined).toBe(true)
+  })
+
+  it('keeps the IC cap and the resist XP cap in lockstep — drift fails CI', () => {
+    expect(IC_RESISTED_DAILY_CAP).toBe(RESIST_XP_DAILY_CAP)
   })
 
   it('caps resisted events counted toward IC per day — ten free taps cannot max IC', () => {

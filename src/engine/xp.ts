@@ -15,7 +15,7 @@ export const XP_REWARDS = {
   logExpense: 5,
   resistImpulse: 50,
   runSimulation: 15,
-  reviewYesterday: 10,
+  reviewRecent: 10,
 } as const
 
 export type XpAction = keyof typeof XP_REWARDS

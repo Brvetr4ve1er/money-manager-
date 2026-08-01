@@ -63,6 +63,12 @@ export interface MonthState {
   liquidBalance: number
   /** Total debt outstanding: revolving balance plus any unamortized financed principal. */
   debtBalance: number
+  /** Revolving (card) balance alone. Debt-clearance months compare this, not
+   *  debtBalance: a financed purchase keeps the combined total positive for
+   *  its whole term, and measuring "carrying your card balance longer"
+   *  against it would attribute the installment plan to a card balance the
+   *  user may not even have. */
+  revolvingBalance: number
   goalBalance: number
   /** Amount actually contributed to the goal this month — may be less than
    *  the planned monthlyContribution when the surplus is squeezed. */
@@ -232,6 +238,7 @@ export function simulate(
       month: m,
       liquidBalance: liquid,
       debtBalance: debt + financedDebt,
+      revolvingBalance: debt,
       goalBalance: goalBal,
       goalContribution,
       goalPaused,
@@ -256,8 +263,14 @@ export function runSimulation(
   const goalDoneScen = target !== null
     ? firstMonthReaching(scenario, (m) => m.goalBalance >= target)
     : null
-  const debtClearBase = firstMonthReaching(baseline, (m) => m.debtBalance <= 0)
-  const debtClearScen = firstMonthReaching(scenario, (m) => m.debtBalance <= 0)
+  // Clearance over the REVOLVING balance only: describeResult's copy says
+  // "card balance", and with no revolving debt every baseline month clears in
+  // month 1 while a financed purchase holds the combined total positive for
+  // its term — the "delay" would be the installment plan itself measured
+  // against a fictitious month-1 clearance. The financed principal still
+  // shows its cost through debtBalance, DT, and the health deltas.
+  const debtClearBase = firstMonthReaching(baseline, (m) => m.revolvingBalance <= 0)
+  const debtClearScen = firstMonthReaching(scenario, (m) => m.revolvingBalance <= 0)
 
   return {
     baseline,

@@ -26,15 +26,19 @@ export function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete:
             ) : (
               /* The whole row is the button: the quest text is the natural tap
                  target, and the 48px row pitch prevents cross-quest mis-taps.
-                 Completion is irreversible, so a done quest is disabled — not a
-                 still-pressable toggle: aria-pressed would tell screen-reader
-                 users it can be un-pressed, and an active press animation on an
-                 inert control breaks the "pressed = something happened"
-                 contract. */
+                 Completion is irreversible, so a done quest is inert — but via
+                 aria-disabled plus an onClick guard, NOT the disabled
+                 attribute: disabling the button the user just activated drops
+                 keyboard focus to <body>, silently losing their place, and
+                 hides the state change from screen readers. aria-pressed is
+                 still wrong (it would imply the quest can be un-pressed). */
               <button
                 className="quest-row"
-                onClick={() => onComplete(q.id)}
-                disabled={q.done}
+                onClick={() => {
+                  if (q.done) return
+                  onComplete(q.id)
+                }}
+                aria-disabled={q.done}
                 aria-label={q.done ? `${q.text} — done` : `Mark done: ${q.text}`}
               >
                 <span className="quest-box" aria-hidden="true">{q.done ? '✓' : ''}</span>

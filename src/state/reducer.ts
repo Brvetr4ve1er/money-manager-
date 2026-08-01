@@ -8,12 +8,13 @@
 
 import { grantXp, RESIST_XP_DAILY_CAP } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
-import { rollQuests, type AppState, type Transaction } from './store.ts'
+import { mergeStates, rollQuests, type AppState, type Transaction } from './store.ts'
 
 export type AppAction =
   | { type: 'LOG_TX'; tx: Transaction }
   | { type: 'COMPLETE_QUEST'; id: string }
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
+  | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -63,6 +64,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             healthDate: action.today,
           }
     }
+    case 'HYDRATE':
+      // Another tab wrote the store key. Merge instead of replace: replacing
+      // would drop this tab's unsaved-in-peer transactions, and ignoring the
+      // write means the next save here clobbers the peer's (see mergeStates).
+      return mergeStates(state, action.incoming)
     case 'TOGGLE_MUTE':
       return { ...state, muted: !state.muted }
   }

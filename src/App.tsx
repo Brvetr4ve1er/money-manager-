@@ -9,7 +9,14 @@ import { useEffect, useReducer } from 'react'
 import { RESIST_XP_DAILY_CAP } from './engine/xp.ts'
 import { DEMO_PROFILE } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
-import { loadState, saveState, exportJSON, todayISO, type Transaction } from './state/store.ts'
+import {
+  loadState,
+  saveState,
+  exportJSON,
+  subscribeToPeerWrites,
+  todayISO,
+  type Transaction,
+} from './state/store.ts'
 import { appReducer } from './state/reducer.ts'
 import { HeroCard } from './components/HeroCard.tsx'
 import { XpCard } from './components/XpCard.tsx'
@@ -26,6 +33,13 @@ export default function App() {
   const [state, dispatch] = useReducer(appReducer, undefined, loadState)
 
   useEffect(() => saveState(state), [state])
+  // A second open tab also saves on every change; without re-syncing, this
+  // tab's next save would overwrite the peer's transactions with its own
+  // stale list (silent data loss — see mergeStates in the store).
+  useEffect(
+    () => subscribeToPeerWrites((incoming) => dispatch({ type: 'HYDRATE', incoming })),
+    [],
+  )
   useEffect(() => sfx.setMuted(state.muted), [state.muted])
 
   const { today, health } = useHealthDay(state, dispatch)
@@ -76,6 +90,15 @@ export default function App() {
           for AT users and the fanfare sound carries it alone. Hidden via
           .toast:empty while there is no message. */}
       <div className="toast" role="status" aria-label="Announcements">{toast}</div>
+
+      {/* Visually-hidden counterpart to the +XP chip: the chip is sighted-only
+          and the blip is sound-only, so without this region a non-level-up
+          grant (quest done, purchase logged) is never announced — sound would
+          carry the confirmation alone for screen-reader users. Permanently
+          mounted for the same announce-on-change reason as the toast. */}
+      <div className="sr-only" role="status" aria-label="XP gains">
+        {xpGain !== null ? `+${xpGain} XP` : ''}
+      </div>
 
       <HeroCard stage={health.stage} score={health.score} />
       <XpCard xp={state.xp} gain={xpGain} />

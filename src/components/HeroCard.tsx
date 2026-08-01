@@ -19,8 +19,11 @@ export function HeroCard({ stage, score }: { stage: Stage; score: number }) {
       </div>
       <div className="stage-info">
         <h2>{meta.label}</h2>
-        <div className="stars" aria-label={`${meta.stars} of 4 stars`}>
-          {'★'.repeat(meta.stars)}
+        {/* role="img": a generic div prohibits accessible naming, so without
+            it the aria-label may be ignored and screen readers read the raw
+            glyphs ("black star black star…") — or nothing. */}
+        <div className="stars" role="img" aria-label={`${meta.stars} of 4 stars`}>
+          <span aria-hidden="true">{'★'.repeat(meta.stars)}</span>
         </div>
         <div className="mono score-line">
           Health {score.toFixed(1)}

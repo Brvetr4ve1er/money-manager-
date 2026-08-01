@@ -102,6 +102,18 @@ describe('ROLL_DAY', () => {
   })
 })
 
+describe('HYDRATE', () => {
+  it('merges a peer tab payload instead of replacing local state', () => {
+    const local = appReducer(defaultState(), { type: 'LOG_TX', tx: tx({ id: 'local' }) })
+    const incoming = { ...defaultState(), transactions: [tx({ id: 'peer' })] }
+    const next = appReducer(local, { type: 'HYDRATE', incoming })
+    // Both tabs' transactions survive; local XP (5 from the log) beats the
+    // peer's 0.
+    expect(next.transactions.map((t) => t.id).sort()).toEqual(['local', 'peer'])
+    expect(next.xp.totalXp).toBe(5)
+  })
+})
+
 describe('TOGGLE_MUTE', () => {
   it('flips the muted flag', () => {
     const s = defaultState()

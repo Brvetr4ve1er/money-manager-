@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
   defaultState,
+  mergeStates,
   sanitizeState,
   todayISO,
   rollQuests,
+  type AppState,
+  type Transaction,
 } from './store.ts'
 
 describe('todayISO', () => {
@@ -163,5 +166,104 @@ describe('sanitizeState', () => {
     })
     expect(state.quests.find((q) => q.id === 'sim')?.verified).toBe(true)
     expect(state.quests.find((q) => q.id === 'log')?.verified).toBeUndefined()
+  })
+
+  it('drops quest ids outside the canonical roster — no hand-added XP levers', () => {
+    // Unknown ids ('lesson' from an old schema, hand-added 'log2'…'log50')
+    // would each render as a tappable self-report row granting XP once — an
+    // unbounded same-day XP lever bypassing the roster.
+    const state = sanitizeState({
+      quests: [
+        ...defaultState().quests,
+        { id: 'lesson', text: 'Daily lesson', xpAction: 'logExpense', done: false },
+        { id: 'log2', text: 'Log again', xpAction: 'logExpense', done: false },
+      ],
+    })
+    expect(state.quests).toEqual(defaultState().quests)
+  })
+
+  it('preserves same-day done flags by id while refreshing text from the roster', () => {
+    const state = sanitizeState({
+      quests: [
+        { id: 'log', text: 'Old copy from a previous release', xpAction: 'logExpense', done: true },
+        { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', done: false },
+      ],
+    })
+    const log = state.quests.find((q) => q.id === 'log')!
+    expect(log.done).toBe(true)
+    expect(log.text).toBe('Log every purchase today') // roster owns the copy
+    // Quests absent from the payload (here: 'review') come back undone.
+    expect(state.quests.find((q) => q.id === 'review')?.done).toBe(false)
+  })
+})
+
+describe('mergeStates', () => {
+  const mkTx = (id: string, over: Partial<Transaction> = {}): Transaction => ({
+    id,
+    amountDA: 1_000,
+    category: 'Fun',
+    date: '2026-08-01',
+    ...over,
+  })
+  const base = (over: Partial<AppState> = {}): AppState => ({
+    ...defaultState(),
+    questsDate: '2026-08-01',
+    ...over,
+  })
+
+  it('unions transactions by id so a peer write cannot erase local logs', () => {
+    // Tab A logged 'a2' after tab B last loaded; tab B's write lacks it.
+    const local = base({ transactions: [mkTx('a2'), mkTx('shared')] })
+    const incoming = base({ transactions: [mkTx('b1'), mkTx('shared')] })
+    const merged = mergeStates(local, incoming)
+    expect(merged.transactions.map((t) => t.id)).toEqual(['a2', 'b1', 'shared'])
+  })
+
+  it('is idempotent — the peer merging the merged write reaches a fixpoint', () => {
+    const local = base({ transactions: [mkTx('a2'), mkTx('shared')] })
+    const incoming = base({ transactions: [mkTx('b1'), mkTx('shared')] })
+    const merged = mergeStates(local, incoming)
+    // The other tab (whose state content equals `incoming` here… it wrote it)
+    // now receives `merged`: the result must be identical, ending the echo.
+    expect(mergeStates(incoming, merged)).toEqual(merged)
+  })
+
+  it('keeps the larger XP total — a monotone counter is never summed or averaged', () => {
+    const local = base({ xp: { level: 2, xpIntoLevel: 10, totalXp: 110 } })
+    const incoming = base({ xp: { level: 1, xpIntoLevel: 90, totalXp: 90 } })
+    expect(mergeStates(local, incoming).xp).toEqual(local.xp)
+    expect(mergeStates(incoming, local).xp).toEqual(local.xp)
+  })
+
+  it('unions same-day quest done flags so neither tab can re-grant quest XP', () => {
+    const localQuests = defaultState().quests.map((q) => ({ ...q, done: q.id === 'log' }))
+    const incomingQuests = defaultState().quests.map((q) => ({ ...q, done: q.id === 'sim' }))
+    const merged = mergeStates(base({ quests: localQuests }), base({ quests: incomingQuests }))
+    expect(merged.quests.find((q) => q.id === 'log')?.done).toBe(true)
+    expect(merged.quests.find((q) => q.id === 'sim')?.done).toBe(true)
+    expect(merged.quests.find((q) => q.id === 'review')?.done).toBe(false)
+  })
+
+  it('takes the newer quest day and health snapshot across a midnight roll', () => {
+    // Tab B rolled midnight already; tab A is still on yesterday.
+    const local = base({
+      questsDate: '2026-07-31',
+      quests: defaultState().quests.map((q) => ({ ...q, done: true })),
+      healthDate: '2026-07-31',
+      prevHealthScore: 40,
+      stage: 'ember',
+    })
+    const incoming = base({
+      questsDate: '2026-08-01',
+      healthDate: '2026-08-01',
+      prevHealthScore: 44,
+      stage: 'hearth',
+    })
+    const merged = mergeStates(local, incoming)
+    expect(merged.questsDate).toBe('2026-08-01')
+    expect(merged.quests.every((q) => !q.done)).toBe(true)
+    expect(merged.healthDate).toBe('2026-08-01')
+    expect(merged.prevHealthScore).toBe(44)
+    expect(merged.stage).toBe('hearth')
   })
 })

@@ -3,7 +3,7 @@
  * fallback — the store is built around fast transaction entry.
  */
 
-import { xpForLevel, type XpState } from '../engine/xp.ts'
+import { xpForLevel, type XpAction, type XpState } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
 
 export interface Transaction {
@@ -24,7 +24,7 @@ export interface Transaction {
 export interface Quest {
   id: string
   text: string
-  xpAction: 'logExpense' | 'runSimulation' | 'reviewYesterday' | 'resistImpulse'
+  xpAction: XpAction
   /** True when the app itself verifies completion (e.g. SimCard dispatches on
    *  an actual simulation run). Verified quests render as non-interactive
    *  status rows — a tap must never self-report a quest the code promises is
@@ -55,7 +55,12 @@ export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   // simulation completes it (see SimCard's onRun in App) — and because it is
   // verified, QuestCard renders it without a tap-to-complete button.
   { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', verified: true },
-  { id: 'review', text: 'Review yesterday', xpAction: 'reviewYesterday' },
+  // The Ledger's "Recent" list is the surface this quest points at. It must
+  // not promise a yesterday view (dates, day grouping) the app doesn't have —
+  // that would be the same hollow grant as the cut lesson quest. If a
+  // date-grouped ledger ships, reword toward "yesterday" and verify it like
+  // the sim quest instead of taking the tap on self-report.
+  { id: 'review', text: 'Look back over your recent purchases', xpAction: 'reviewRecent' },
 ]
 
 function localDayISO(d: Date): string {
@@ -102,12 +107,6 @@ export function defaultState(): AppState {
 }
 
 const STAGES: ReadonlyArray<Stage> = ['ember', 'hearth', 'bonfire', 'beacon']
-const QUEST_ACTIONS: ReadonlyArray<Quest['xpAction']> = [
-  'logExpense',
-  'runSimulation',
-  'reviewYesterday',
-  'resistImpulse',
-]
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
@@ -138,17 +137,6 @@ function isTransaction(v: unknown): v is Transaction {
     (v.note === undefined || typeof v.note === 'string') &&
     isOptionalBoolean(v.resistedImpulse) &&
     isOptionalBoolean(v.impulseFlagged)
-  )
-}
-
-function isQuest(v: unknown): v is Quest {
-  return (
-    isRecord(v) &&
-    typeof v.id === 'string' &&
-    typeof v.text === 'string' &&
-    QUEST_ACTIONS.includes(v.xpAction as Quest['xpAction']) &&
-    isOptionalBoolean(v.verified) &&
-    typeof v.done === 'boolean'
   )
 }
 
@@ -195,14 +183,17 @@ export function sanitizeState(parsed: unknown): AppState {
   if (typeof parsed.healthDate === 'string') {
     out.healthDate = parsed.healthDate
   }
-  if (Array.isArray(parsed.quests) && parsed.quests.every(isQuest)) {
-    // Re-stamp `verified` from the canonical roster: the flag is a product
-    // invariant, not user data — an older or hand-edited persisted list must
-    // not resurrect a tappable sim quest (or verify a self-report one).
-    out.quests = parsed.quests.map((q) => ({
-      ...q,
-      verified: DEFAULT_QUESTS.find((d) => d.id === q.id)?.verified,
-    }))
+  if (Array.isArray(parsed.quests)) {
+    // Rebuild from the canonical roster: only same-day completion state is
+    // user data — text, xpAction, and `verified` are product invariants the
+    // roster owns. Trusting the persisted list wholesale would let unknown or
+    // duplicate ids (old schemas, hand-edited payloads) render as tappable
+    // self-report rows, each an unearned same-day XP grant.
+    const doneById = new Map<string, boolean>()
+    for (const q of parsed.quests) {
+      if (isRecord(q) && typeof q.id === 'string') doneById.set(q.id, q.done === true)
+    }
+    out.quests = DEFAULT_QUESTS.map((d) => ({ ...d, done: doneById.get(d.id) === true }))
   }
   if (typeof parsed.questsDate === 'string') {
     out.questsDate = parsed.questsDate
@@ -230,6 +221,76 @@ export function saveState(state: AppState): void {
   } catch {
     // Storage full or unavailable — the app keeps working in memory.
   }
+}
+
+/**
+ * Merge a peer tab's freshly-written state into this tab's in-memory state.
+ * Two open tabs (common on mobile browsers that keep background tabs alive)
+ * each saveState() on every change; without a merge, whichever tab writes
+ * last — even on an automatic midnight quest roll — silently erases the
+ * other tab's transactions, the worst possible failure for a local-first app.
+ * The merge must be deterministic and idempotent: both tabs converge on the
+ * same payload, so the write ping-pong settles instead of oscillating.
+ */
+export function mergeStates(local: AppState, incoming: AppState): AppState {
+  // Transactions: union by id. Anything only in `local` was logged in this
+  // tab and never seen by the writer, so it is prepended — matching LOG_TX's
+  // newest-first insertion order for the Ledger.
+  const incomingIds = new Set(incoming.transactions.map((t) => t.id))
+  const transactions = [
+    ...local.transactions.filter((t) => !incomingIds.has(t.id)),
+    ...incoming.transactions,
+  ]
+  // XP is a monotone counter: the larger total saw more grants. Summing or
+  // averaging would double-pay grants both tabs already recorded.
+  const xp = local.xp.totalXp >= incoming.xp.totalXp ? local.xp : incoming.xp
+  // Health snapshot: the newer healthDate supersedes (day keys compare
+  // lexicographically). Ties keep local — the trios match after a same-day roll.
+  const localHealthNewer = local.healthDate >= incoming.healthDate
+  // Quests: same-day lists union their done flags — a quest completed in
+  // either tab granted its XP once already, and reviving it as incomplete
+  // would offer a second grant. Across days, the newer roster wins.
+  let quests = incoming.quests
+  let questsDate = incoming.questsDate
+  if (local.questsDate === incoming.questsDate) {
+    quests = local.quests.map((q) => ({
+      ...q,
+      done: q.done || incoming.quests.some((i) => i.id === q.id && i.done),
+    }))
+    questsDate = local.questsDate
+  } else if (local.questsDate > incoming.questsDate) {
+    quests = local.quests
+    questsDate = local.questsDate
+  }
+  return {
+    transactions,
+    xp,
+    prevHealthScore: localHealthNewer ? local.prevHealthScore : incoming.prevHealthScore,
+    stage: localHealthNewer ? local.stage : incoming.stage,
+    healthDate: localHealthNewer ? local.healthDate : incoming.healthDate,
+    quests,
+    questsDate,
+    muted: incoming.muted,
+  }
+}
+
+/**
+ * Re-sync when ANOTHER tab writes the store key ('storage' fires only in
+ * non-writing tabs, and only when the value actually changed — so writing the
+ * merged result back cannot echo forever). The payload is untrusted persisted
+ * JSON like any load: sanitize + roll quests before handing it to the reducer.
+ */
+export function subscribeToPeerWrites(onWrite: (incoming: AppState) => void): () => void {
+  const listener = (e: StorageEvent) => {
+    if (e.key !== KEY || e.newValue === null) return
+    try {
+      onWrite(rollQuests(sanitizeState(JSON.parse(e.newValue) as unknown), todayISO()))
+    } catch {
+      // Corrupt peer payload — this tab's in-memory state stays authoritative.
+    }
+  }
+  window.addEventListener('storage', listener)
+  return () => window.removeEventListener('storage', listener)
 }
 
 /** Full export, always available, open format — the data-ownership guarantee. */

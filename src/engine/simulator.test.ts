@@ -160,6 +160,27 @@ describe('financed purchase', () => {
       expect(m.goalPaused).toBe(false)
     }
   })
+  it('tracks the revolving balance separately from the financed principal', () => {
+    // Month 1: revolving 9,500 − 500 minimum (surplus is eaten by the
+    // installment, so no extra paydown); the financed principal sits on top
+    // in the combined total only.
+    expect(r.scenario[0].revolvingBalance).toBeCloseTo(9_000, 6)
+    expect(r.scenario[0].debtBalance).toBeGreaterThan(r.scenario[0].revolvingBalance + 100_000)
+  })
+  it('never attributes installment debt to a nonexistent card balance', () => {
+    // With no revolving debt, both paths carry a zero card balance from month
+    // 1 — the installment plan is not a "card balance carried longer", and
+    // copy claiming so would misstate the tradeoff (trust rules). The
+    // financed obligation still shows through debtBalance and the health deltas.
+    const noRevolving = runSimulation(
+      { ...yasmine, debtBalance: 0 },
+      { amount: 180_000, funding: 'financed', financedMonths: 6 },
+    )
+    expect(noRevolving.debtDelayMonths).toBe(0)
+    expect(noRevolving.debtMissesHorizon).toBe(false)
+    expect(describeResult(noRevolving)).not.toContain('card balance')
+    expect(noRevolving.scenario[0].debtBalance).toBeGreaterThan(100_000)
+  })
   it('never treats financedMonths: 0 as a free purchase', () => {
     const zero = runSimulation(yasmine, {
       amount: 180_000,
@@ -256,6 +277,7 @@ describe('describeResult trust rules', () => {
       month,
       liquidBalance: 0,
       debtBalance: 0,
+      revolvingBalance: 0,
       goalBalance: 0,
       goalContribution: 0,
       goalPaused: false,
@@ -280,6 +302,7 @@ describe('describeResult trust rules', () => {
       month,
       liquidBalance: 0,
       debtBalance: 0,
+      revolvingBalance: 0,
       goalBalance: 0,
       goalContribution: 0,
       goalPaused: false,

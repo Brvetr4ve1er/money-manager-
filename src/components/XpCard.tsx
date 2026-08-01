@@ -17,10 +17,15 @@ export function XpCard({ xp, gain }: { xp: XpState; gain: number | null }) {
       <div className="xp-track" role="progressbar"
         aria-valuenow={xp.xpIntoLevel} aria-valuemin={0} aria-valuemax={xpForLevel(xp.level)}
         aria-label={`Level ${xp.level} progress: ${xp.xpIntoLevel} of ${xpForLevel(xp.level)} XP`}>
-        <div
-          className="xp-fill"
-          style={{ width: `${Math.min(100, (xp.xpIntoLevel / xpForLevel(xp.level)) * 100)}%` }}
-        />
+        {/* Not rendered at 0 XP: the fill's ink leading edge (the 1.4.11
+            fill/empty boundary — see .xp-fill) would otherwise show as a
+            phantom 3px sliver of progress on an empty bar. */}
+        {xp.xpIntoLevel > 0 && (
+          <div
+            className="xp-fill"
+            style={{ width: `${Math.min(100, (xp.xpIntoLevel / xpForLevel(xp.level)) * 100)}%` }}
+          />
+        )}
       </div>
     </section>
   )
