@@ -3,7 +3,7 @@
  * fallback — the store is built around fast transaction entry.
  */
 
-import type { XpState } from '../engine/xp.ts'
+import { xpForLevel, type XpState } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
 
 export interface Transaction {
@@ -156,7 +156,15 @@ export function sanitizeState(parsed: unknown): AppState {
     isFiniteNumber(xp.xpIntoLevel) &&
     isFiniteNumber(xp.totalXp)
   ) {
-    out.xp = { level: xp.level, xpIntoLevel: xp.xpIntoLevel, totalXp: xp.totalXp }
+    // Coerce to the XP invariants, not just finite numbers: a hand-edited
+    // payload like { level: 1.5, xpIntoLevel: -50 } would otherwise render a
+    // broken progress bar and compound through grantXp's while-loop.
+    const level = Math.max(1, Math.floor(xp.level))
+    out.xp = {
+      level,
+      xpIntoLevel: Math.min(Math.max(0, xp.xpIntoLevel), xpForLevel(level) - 1),
+      totalXp: Math.max(0, xp.totalXp),
+    }
   }
   if (isFiniteNumber(parsed.prevHealthScore)) {
     out.prevHealthScore = parsed.prevHealthScore

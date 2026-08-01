@@ -53,6 +53,7 @@ export interface Purchase {
 export interface MonthState {
   month: number
   liquidBalance: number
+  /** Total debt outstanding: revolving balance plus any unamortized financed principal. */
   debtBalance: number
   goalBalance: number
   goalPaused: boolean
@@ -120,6 +121,13 @@ export function simulate(
   let liquid = profile.liquidBalance
   let debt = profile.debtBalance
   let goalBal = profile.goal?.current ?? 0
+  // A financed purchase is a contractual debt from month 0, amortized by the
+  // installments below. It must be visible to debtBalance, debt-clearance
+  // months, and the DT term — otherwise the financed path under-reports its
+  // debt tradeoff, exactly what the trust rules forbid. Tracked separately
+  // from the revolving balance so minimums / extra paydown never double-pay
+  // what the fixed installment already covers.
+  let financedDebt = purchase?.funding === 'financed' ? purchase.amount : 0
 
   // Clamp to a whole positive month count: an explicit 0 (or negative /
   // fractional) financedMonths must never simulate the purchase as free —
@@ -137,7 +145,7 @@ export function simulate(
   if (purchase?.funding === 'lump') liquid -= purchase.amount
 
   for (let m = 1; m <= horizonMonths; m++) {
-    const debtStartOfMonth = debt
+    const debtStartOfMonth = debt + financedDebt
     const install = m <= financedMonths ? monthlyInstallment : 0
 
     const fixedOutflow =
@@ -146,6 +154,15 @@ export function simulate(
       Math.min(debt, profile.debtMinimum) +
       install
     debt = Math.max(0, debt - Math.min(debt, profile.debtMinimum))
+    if (install > 0) {
+      // The installment's principal portion (installment minus this month's
+      // interest) amortizes the financed balance; interest is a pure cost.
+      const interest = financedDebt * ((purchase?.apr ?? 0) / 12)
+      financedDebt = Math.max(0, financedDebt - Math.max(0, install - interest))
+      // The fixed-installment formula amortizes exactly over financedMonths;
+      // clear float residue so the final installment truly zeroes the balance.
+      if (m === financedMonths) financedDebt = 0
+    }
 
     let surplus = profile.monthlyIncome - fixedOutflow
     liquid += surplus
@@ -180,13 +197,13 @@ export function simulate(
       ef: profile.efBalance,
       essentials: profile.monthlyEssentials,
       debtStart: debtStartOfMonth,
-      debtNow: debt,
+      debtNow: debt + financedDebt,
     })
 
     months.push({
       month: m,
       liquidBalance: liquid,
-      debtBalance: debt,
+      debtBalance: debt + financedDebt,
       goalBalance: goalBal,
       goalPaused,
       health,
@@ -251,7 +268,11 @@ export function describeResult(r: SimResult): string {
       `By the end of the projection your overall position sits about ${Math.abs(finalDelta).toFixed(0)} points lower than if you wait.`,
     )
   } else {
-    parts.push('This purchase leaves your projected position slightly ahead — likely via debt or cash-flow effects worth double-checking.')
+    // Mirror the negative branch: state the number, keep the hedge. Hiding
+    // the magnitude behind "slightly" drifts toward soft reassurance.
+    parts.push(
+      `By the end of the projection your position sits about ${finalDelta.toFixed(0)} points ahead — likely via debt or cash-flow effects worth double-checking.`,
+    )
   }
   if (r.goalMissesHorizon) {
     parts.push(

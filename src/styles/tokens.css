@@ -44,7 +44,12 @@ body {
 }
 
 ::selection { background: var(--gold); color: #141414; }
-:focus-visible { outline: 3px solid var(--flame); outline-offset: 2px; }
+/* Ink outline, not flame: flame is invisible on .btn-flame (the primary CTA)
+   and only ~2.9:1 on paper — below the WCAG 3:1 non-text minimum. Ink flips
+   with the theme, so the ring holds contrast on paper, accent fills, and the
+   dark theme alike; the 2px offset gap shows the surface underneath as the
+   second layer of the indicator. */
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

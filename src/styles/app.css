@@ -34,6 +34,13 @@
   font-family: var(--display);
   font-weight: 900;
   text-transform: uppercase;
+  /* Shrink-to-fit on a centered fixed element caps at ~50vw: without an
+     explicit width a level-up title wraps into a tall column at 320px.
+     max-content keeps it on one/two tidy lines; the max-width cap keeps it
+     on-screen on the smallest phones. */
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  text-align: center;
   z-index: 10;
   animation: toastin 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -124,7 +131,12 @@
   justify-content: center;
   flex-shrink: 0;
   padding: 0;
+  /* Family look: offset shadow that collapses on press, so the checkbox
+     reads as the tap target that grants XP, not a decorative bullet. */
+  box-shadow: 3px 3px 0 var(--shadow);
 }
+.quest-box:hover { background: var(--paper-dim); }
+.quest-box:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--shadow); }
 /* Invisible hit-area extension: 28px visual box, >=48px touch target. */
 .quest-box::after {
   content: '';

@@ -55,6 +55,24 @@ npm test        # run the engine test suites (vitest)
 npm run build   # type-check and produce a production build
 ```
 
+## Deploying
+
+Social-share crawlers (WhatsApp, Facebook, Telegram — the dominant channels
+in the target market) require **absolute** `og:image`/`twitter:image` URLs
+and silently drop relative ones. Before building for production, set the
+canonical origin so `vite.config.ts` can rewrite the card URLs and inject
+`og:url`:
+
+```bash
+VITE_SITE_URL=https://ember.example.com npm run build
+```
+
+Deploy checklist:
+
+- [ ] `VITE_SITE_URL` set to the canonical https origin (no trailing slash)
+- [ ] `dist/index.html` contains absolute `og:image`/`twitter:image` URLs and an `og:url` tag
+- [ ] `/og.png` (1200×630) is served at that origin
+
 ## Project layout
 
 - `src/engine/healthScore.ts` — Health Score Formula v0.1

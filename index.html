@@ -6,8 +6,9 @@
     <meta name="description" content="Ember — don't teach budgeting, build financial instincts." />
     <meta name="theme-color" content="#ff4b2b" />
     <!-- Social cards (WhatsApp/Facebook/Telegram are the dominant share
-         channels in the target market). og:image is site-relative until a
-         canonical domain exists — make it absolute at deploy time. -->
+         channels in the target market). Those crawlers require ABSOLUTE
+         image URLs: set VITE_SITE_URL at build time and vite.config.ts
+         rewrites the /og.png references and injects og:url. -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Ember" />
     <meta property="og:description" content="Don't teach budgeting, build financial instincts." />

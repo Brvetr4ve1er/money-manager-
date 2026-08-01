@@ -63,34 +63,58 @@ export default function App() {
   useEffect(() => saveState(state), [state])
   useEffect(() => sfx.setMuted(state.muted), [state.muted])
 
+  // The current local day lives in React state so a tab kept open past
+  // midnight re-renders on its own: a timer plus visibility/focus listeners
+  // notice the date change, which recomputes health and fires the rollover
+  // effect below — instead of waiting for the next transaction edit.
+  const [today, setToday] = useState(todayISO)
+  useEffect(() => {
+    const sync = () =>
+      setToday((prev) => {
+        const now = todayISO()
+        return prev === now ? prev : now
+      })
+    const id = window.setInterval(sync, 60_000)
+    document.addEventListener('visibilitychange', sync)
+    window.addEventListener('focus', sync)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', sync)
+      window.removeEventListener('focus', sync)
+    }
+  }, [])
+
   const health = useMemo(() => {
-    const today = todayISO()
-    const monthSpend = state.transactions
-      .filter((t) => t.date.slice(0, 7) === today.slice(0, 7) && !t.resistedImpulse)
+    // Trailing-30d spend window, matching the savingsRateScore contract and
+    // the IC window below. A calendar-month window would reset to zero on the
+    // 1st, spiking SR/BA to their no-spend maxima and banking half the jump
+    // into the persisted snapshot via smooth()'s fast-up rate.
+    const cutoff = daysAgoISO(30)
+    const trailingSpend = state.transactions
+      .filter((t) => t.date >= cutoff && !t.resistedImpulse)
       .reduce((s, t) => s + t.amountDA, 0)
     // Impulse Control counts only explicitly flagged events (per the IC
-    // contract: resisted / total flagged), scoped to a trailing 30 days like
-    // the month-scoped inputs above. Ordinary spending — Fun included — was
+    // contract: resisted / total flagged), scoped to the same trailing 30
+    // days as the spend window above. Ordinary spending — Fun included — was
     // never flagged as an impulse and must not drag IC down. No UI sets
     // impulseFlagged yet ("I bought it anyway" ships later), so yielded stays
     // 0 and IC confidence stays honestly low.
-    const icCutoff = daysAgoISO(30)
     const resisted = state.transactions.filter(
-      (t) => t.resistedImpulse && t.date >= icCutoff,
+      (t) => t.resistedImpulse && t.date >= cutoff,
     ).length
     const yielded = state.transactions.filter(
-      (t) => t.impulseFlagged && !t.resistedImpulse && t.date >= icCutoff,
+      (t) => t.impulseFlagged && !t.resistedImpulse && t.date >= cutoff,
     ).length
 
     const inputs: HealthInputs = {
       SR: {
         structurallyUndefined: false,
-        raw: savingsRateScore(DEMO.monthlyIncome, DEMO.monthlyEssentials + monthSpend),
+        raw: savingsRateScore(DEMO.monthlyIncome, DEMO.monthlyEssentials + trailingSpend),
         confidence: 1,
       },
       BA: {
         structurallyUndefined: false,
-        raw: budgetAdherenceScore([{ budgeted: DEMO.budgeted, actual: DEMO.monthlyEssentials + monthSpend }]),
+        raw: budgetAdherenceScore([{ budgeted: DEMO.budgeted, actual: DEMO.monthlyEssentials + trailingSpend }]),
         confidence: 1,
       },
       EF: {
@@ -110,15 +134,17 @@ export default function App() {
       },
     }
     return computeHealthScore(inputs, state.prevHealthScore, state.stage)
-  }, [state.transactions, state.prevHealthScore, state.stage])
+    // `today` is a dep (not read directly) so the memo recomputes its
+    // wall-clock windows when the day-rollover state above advances.
+  }, [state.transactions, state.prevHealthScore, state.stage, today])
 
   // Persist a once-per-day health snapshot so asymmetric smoothing and stage
   // hysteresis actually compound day over day. Keyed on healthDate: persisting
   // per render would re-apply smooth() many times within a single day. Quests
-  // roll here too — the same day-change signal — so a tab kept open past
-  // midnight can't advance the health day while yesterday's quests stay done.
+  // roll here too — driven by the `today` state, so a tab kept open past
+  // midnight rolls quests and advances the health day at the actual date
+  // change, not only when a transaction edit happens to recompute health.
   useEffect(() => {
-    const today = todayISO()
     setState((s) => {
       if (s.healthDate === today && s.questsDate === today) return s
       const rolled = rollQuests(s, today)
@@ -126,7 +152,7 @@ export default function App() {
         ? rolled
         : { ...rolled, prevHealthScore: health.score, stage: health.stage, healthDate: today }
     })
-  }, [health])
+  }, [health, today])
 
   // Level-up fanfare/toast as a reaction to xp changes, never inside a state
   // updater (StrictMode double-invokes updaters in dev).

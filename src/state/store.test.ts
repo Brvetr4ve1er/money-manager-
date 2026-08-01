@@ -70,6 +70,23 @@ describe('sanitizeState', () => {
     expect(state.xp).toEqual(defaultState().xp)
   })
 
+  it('clamps a negative xpIntoLevel to 0', () => {
+    const state = sanitizeState({ xp: { level: 2, xpIntoLevel: -50, totalXp: 100 } })
+    expect(state.xp).toEqual({ level: 2, xpIntoLevel: 0, totalXp: 100 })
+  })
+
+  it('clamps an oversized xpIntoLevel below the level requirement', () => {
+    const state = sanitizeState({ xp: { level: 3, xpIntoLevel: 1e9, totalXp: 400 } })
+    // xpForLevel(3) = 200, so the bar can never render permanently full.
+    expect(state.xp.xpIntoLevel).toBe(199)
+    expect(state.xp.level).toBe(3)
+  })
+
+  it('floors a fractional level and clamps negative totalXp', () => {
+    const state = sanitizeState({ xp: { level: 1.5, xpIntoLevel: 10, totalXp: -5 } })
+    expect(state.xp).toEqual({ level: 1, xpIntoLevel: 10, totalXp: 0 })
+  })
+
   it('rejects an unknown stage and non-numeric prevHealthScore', () => {
     const state = sanitizeState({ stage: 'volcano', prevHealthScore: 'fifty' })
     expect(state.stage).toBeNull()

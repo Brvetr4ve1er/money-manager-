@@ -4,6 +4,8 @@ import {
   runSimulation,
   describeResult,
   type SimProfile,
+  type SimResult,
+  type MonthState,
 } from './simulator.ts'
 
 /** Yasmine's profile from the Decision Simulator worked example. */
@@ -113,6 +115,33 @@ describe('financed purchase', () => {
     const lump = runSimulation(yasmine, { amount: 180_000, funding: 'lump' })
     expect(r.healthDeltaMonth1).toBeGreaterThan(lump.healthDeltaMonth1)
   })
+  it('carries the financed principal as debt from month 1', () => {
+    // The contractual obligation must be visible to debtBalance / DT — a
+    // financed purchase is not debt-free just because it isn't revolving.
+    expect(r.scenario[0].debtBalance).toBeGreaterThan(
+      r.baseline[0].debtBalance + 100_000,
+    )
+  })
+  it('reports the financed debt tradeoff via debtDelayMonths', () => {
+    // Baseline clears the 9,500 revolving balance in month 4 (500 min +
+    // 2,000 extra). Installments eat the whole surplus for 6 months, pausing
+    // extra paydown, so clearance slips well past baseline.
+    expect(r.debtDelayMonths).not.toBeNull()
+    expect(r.debtDelayMonths!).toBeGreaterThan(0)
+  })
+  it('fully amortizes the financed balance by the final installment', () => {
+    // During months 1–6 the installment consumes the surplus, so only the
+    // 500/mo minimum hits the revolving balance: 9,500 − 6×500 = 6,500.
+    // The financed principal itself must be exactly 0 after installment 6.
+    expect(r.scenario[5].debtBalance).toBeCloseTo(6_500, 6)
+    const withApr = runSimulation(yasmine, {
+      amount: 180_000,
+      funding: 'financed',
+      financedMonths: 6,
+      apr: 0.24,
+    })
+    expect(withApr.scenario[5].debtBalance).toBeCloseTo(6_500, 6)
+  })
   it('never treats financedMonths: 0 as a free purchase', () => {
     const zero = runSimulation(yasmine, {
       amount: 180_000,
@@ -145,6 +174,29 @@ describe('describeResult trust rules', () => {
     if (r.healthDeltaMonth1 < -10) {
       expect(text).toContain('month one')
     }
+  })
+  it('states the magnitude when the projection lands ahead, never "slightly"', () => {
+    const mk = (month: number, health: number): MonthState => ({
+      month,
+      liquidBalance: 0,
+      debtBalance: 0,
+      goalBalance: 0,
+      goalPaused: false,
+      health,
+    })
+    const ahead: SimResult = {
+      baseline: Array.from({ length: 12 }, (_, i) => mk(i + 1, 50)),
+      scenario: Array.from({ length: 12 }, (_, i) => mk(i + 1, 65)),
+      goalDelayMonths: null,
+      goalMissesHorizon: false,
+      debtDelayMonths: null,
+      debtMissesHorizon: false,
+      healthDeltaMonth1: 15,
+      healthDeltaFinal: 15,
+    }
+    const text = describeResult(ahead)
+    expect(text).toContain('15 points ahead')
+    expect(text).not.toContain('slightly')
   })
   it('describes a near-zero final delta as a projection, not reassurance', () => {
     const r = runSimulation(yasmine, { amount: 5_000, funding: 'lump' })
