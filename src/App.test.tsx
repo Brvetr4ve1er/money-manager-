@@ -334,6 +334,38 @@ describe('level-up toast lifecycle', () => {
     })
     expect(toast().textContent).toBe('')
   })
+
+  it('queues the level-up when the final quest completes and levels up in one commit', () => {
+    vi.useFakeTimers()
+    render(<App />)
+    // Sim quest (verified): +15.
+    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
+    // Log quest: +5 → 20.
+    fireEvent.click(screen.getByRole('button', { name: /Mark done: Log every purchase today/ }))
+    // Prime the bar just below the level-2 boundary: 14 × +5 → 90 total.
+    for (let i = 0; i < 14; i++) {
+      fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '100' } })
+      fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    }
+    const toast = () => screen.getByRole('status', { name: 'Announcements' })
+    // The FINAL quest (+10 → 100) crosses the boundary, so the level-up and
+    // all-quests-complete toasts land in the same commit. The quest toast
+    // used to stomp the level-up before the live region ever carried it —
+    // leaving the fanfare to announce the level alone.
+    fireEvent.click(
+      screen.getByRole('button', { name: /Mark done: Look back over your recent purchases/ }),
+    )
+    expect(toast().textContent).toMatch(/^Level 2/)
+    act(() => {
+      vi.advanceTimersByTime(2600)
+    })
+    expect(toast().textContent).toBe('All quests complete!')
+    act(() => {
+      vi.advanceTimersByTime(2600)
+    })
+    expect(toast().textContent).toBe('')
+  })
 })
 
 describe('page heading structure', () => {

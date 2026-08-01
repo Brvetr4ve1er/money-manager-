@@ -4,6 +4,7 @@
  */
 
 import {
+  MAX_TOTAL_XP,
   XP_REWARDS,
   xpFromLog,
   xpStateFromTotal,
@@ -87,6 +88,20 @@ export function todayISO(): string {
   return localDayISO(new Date())
 }
 
+/**
+ * Unique id for transactions. crypto.randomUUID exists only in secure
+ * contexts (https/localhost) — on a plain-http deployment (LAN preview, cheap
+ * shared hosting) it is undefined, and calling it would throw from the log
+ * handlers, silently killing the app's core action. getRandomValues IS
+ * available in insecure contexts, so fall back to it: merge/dedupe only needs
+ * uniqueness, never the RFC-4122 shape.
+ */
+export function newId(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  const rand = crypto.getRandomValues(new Uint32Array(2))
+  return `${Date.now().toString(36)}-${rand[0].toString(36)}-${rand[1].toString(36)}`
+}
+
 export function freshQuests(): Quest[] {
   return DEFAULT_QUESTS.map((q) => ({ ...q, done: false }))
 }
@@ -153,6 +168,10 @@ const LEGACY_XP_GRANT_ID = 'legacy-total'
 const XP_GRANT_ACTIONS: ReadonlySet<string> = new Set([...Object.keys(XP_REWARDS), 'legacy'])
 
 function isXpGrant(v: unknown): v is XpGrant {
+  // The MAX_TOTAL_XP ceiling applies per grant too: xpFromLog sums amounts,
+  // and a single hand-edited grant of 1e300 would push the fold's total into
+  // the float range where xpStateFromTotal's level loop can no longer
+  // terminate without its own clamp. No real grant exceeds the reward table.
   return (
     isRecord(v) &&
     typeof v.id === 'string' &&
@@ -160,6 +179,7 @@ function isXpGrant(v: unknown): v is XpGrant {
     XP_GRANT_ACTIONS.has(v.action) &&
     isFiniteNumber(v.amount) &&
     v.amount >= 0 &&
+    v.amount <= MAX_TOTAL_XP &&
     typeof v.date === 'string' &&
     (v.date === '' || DAY_KEY_RE.test(v.date))
   )
@@ -207,8 +227,10 @@ export function sanitizeState(parsed: unknown): AppState {
     // triple like { level: 7, xpIntoLevel: 10, totalXp: 0 }, which renders as
     // "Level 7" with zero evidence until the first cross-tab merge rebuilds
     // from totalXp and the level silently collapses. Deriving here makes load
-    // and merge agree on the same derivation.
-    out.xp = xpStateFromTotal(Math.max(0, xp.totalXp))
+    // and merge agree on the same derivation. xpStateFromTotal clamps into
+    // [0, MAX_TOTAL_XP]: an absurd persisted total (1e300) must derive a
+    // bounded level instead of spinning the level loop forever at load.
+    out.xp = xpStateFromTotal(xp.totalXp)
   }
   if (Array.isArray(parsed.xpLog)) {
     // Union by id like transactions; a duplicated id keeps the larger amount

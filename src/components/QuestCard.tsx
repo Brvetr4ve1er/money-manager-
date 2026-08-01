@@ -22,6 +22,10 @@ export function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete:
               <div className="quest-row">
                 <span className="quest-box" aria-hidden="true">{q.done ? '✓' : ''}</span>
                 <span className="quest-text">{q.text}</span>
+                {/* Visible "auto" tag: the row deliberately lacks the
+                    pressable shadow (see app.css), and this names why — it
+                    completes on a real run, not a tap. */}
+                <span className="quest-auto">Auto</span>
               </div>
             ) : (
               /* The whole row is the button: the quest text is the natural tap

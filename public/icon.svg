@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Ember flame mark: neo-brutalist ink stroke, flat brand fills — a gold
+       flame on the flame-red tile (matches theme-color #ff4b2b). -->
+  <rect x="3" y="3" width="58" height="58" rx="12" fill="#ff4b2b" stroke="#141414" stroke-width="5"/>
+  <path d="M32 10 C34 20 46 25 46 37 a14 14 0 0 1 -28 0 C18 25 30 20 32 10 Z" fill="#ffc93c" stroke="#141414" stroke-width="4.5" stroke-linejoin="round"/>
+</svg>

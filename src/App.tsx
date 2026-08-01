@@ -11,6 +11,7 @@ import { DEMO_PROFILE } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
+  newId,
   saveState,
   exportJSON,
   subscribeToPeerWrites,
@@ -47,7 +48,10 @@ export default function App() {
 
   function logPurchase(amountDA: number, category: string, resisted: boolean) {
     const tx: Transaction = {
-      id: crypto.randomUUID(),
+      // newId, not bare crypto.randomUUID: randomUUID is undefined outside
+      // secure contexts (plain-http hosting), and a throw here would fail the
+      // core logging action silently — see newId in the store.
+      id: newId(),
       amountDA,
       category,
       // The hook's `today`, NOT a fresh todayISO(): the resist button's label

@@ -23,9 +23,11 @@ no server.
   goal delay, extra months of debt, the month-one dip.
 - **XP, levels, and daily quests** — the engagement track. Logging every
   purchase (+5), running a decision simulation (+15), resisting an impulse
-  (+50, capped daily), and reviewing yesterday (+10) all earn XP. A daily
-  lesson reward (+15) is reserved for when lesson content actually ships —
-  Ember never pays XP for content that doesn't exist.
+  (+50, capped daily), and reviewing your recent purchases (+10) all earn XP.
+  The simulation reward stands in for the spec draft's "daily lesson +15",
+  which stays reserved until lesson content actually ships — Ember never
+  pays XP for content that doesn't exist. This roster is canonical: the spec
+  defers to it (see `src/engine/xp.ts`).
 - **Chiptune audio cues** — small synthesized sounds for logging, level-ups,
   and quest completion. Mutable; sound never carries information alone.
 - **Neo-brutalist × gacha design** — thick black strokes, hard offset

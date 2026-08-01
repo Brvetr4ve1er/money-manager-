@@ -5,6 +5,7 @@ import {
   xpFromLog,
   xpStateFromTotal,
   levelTitle,
+  MAX_TOTAL_XP,
   RESIST_XP_DAILY_CAP,
   XP_REWARDS,
   type XpGrant,
@@ -72,6 +73,22 @@ describe('xpStateFromTotal', () => {
     expect(xpStateFromTotal(100)).toEqual({ level: 2, xpIntoLevel: 0, totalXp: 100 })
     // Matches the incremental path: 290 = level 3 with 40 in (see grantXp test).
     expect(xpStateFromTotal(290)).toEqual({ level: 3, xpIntoLevel: 40, totalXp: 290 })
+  })
+
+  it('clamps an absurd total to MAX_TOTAL_XP and returns quickly with a bounded level', () => {
+    // Regression: totalXp = 1e300 used to spin the level loop forever — the
+    // per-level subtraction is absorbed by float precision (1e300 - 15000 ===
+    // 1e300) — bricking every tab at load via sanitizeState/mergeStates.
+    const s = xpStateFromTotal(1e300)
+    expect(s.totalXp).toBe(MAX_TOTAL_XP)
+    expect(s).toEqual(xpStateFromTotal(MAX_TOTAL_XP))
+    expect(s.level).toBeGreaterThan(1)
+    expect(s.level).toBeLessThan(10_000)
+    expect(s.xpIntoLevel).toBeLessThan(xpForLevel(s.level))
+  })
+
+  it('clamps a negative total to 0', () => {
+    expect(xpStateFromTotal(-50)).toEqual({ level: 1, xpIntoLevel: 0, totalXp: 0 })
   })
 })
 

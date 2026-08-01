@@ -98,15 +98,26 @@ h1, h2, h3 {
   background: var(--paper-hi);
   box-shadow: 4px 4px 0 var(--shadow);
 }
-.btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--shadow); }
+/* Hover is a 1px lean toward the pressed position with the shadow shrinking
+   to match — the same press metaphor quest rows already speak on hover, so
+   the primary CTAs give a pre-click affordance beyond the cursor. Gated off
+   disabled; :active (declared after, equal specificity) stays the stronger
+   full collapse. */
+.btn:not(:disabled):hover { transform: translate(1px, 1px); box-shadow: 3px 3px 0 var(--shadow); }
+.btn:not(:disabled):active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--shadow); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 /* Accent surfaces take --on-accent text (see its definition above): white
-   fails WCAG AA on flame/teal/pink. */
+   fails WCAG AA on flame/teal/pink. Their hover/active shadows mirror the
+   base rules above at matching specificity and order so the colored shadow
+   always wins over the neutral one. */
 .btn-flame { background: var(--flame); color: var(--on-accent); box-shadow: 4px 4px 0 var(--flame-sh); }
-.btn-flame:active { box-shadow: 0 0 0 var(--flame-sh); }
+.btn-flame:not(:disabled):hover { box-shadow: 3px 3px 0 var(--flame-sh); }
+.btn-flame:not(:disabled):active { box-shadow: 0 0 0 var(--flame-sh); }
 .btn-gold { background: var(--gold); color: var(--on-accent); box-shadow: 4px 4px 0 var(--gold-sh); }
-.btn-gold:active { box-shadow: 0 0 0 var(--gold-sh); }
+.btn-gold:not(:disabled):hover { box-shadow: 3px 3px 0 var(--gold-sh); }
+.btn-gold:not(:disabled):active { box-shadow: 0 0 0 var(--gold-sh); }
 .btn-teal { background: var(--teal); color: var(--on-accent); box-shadow: 4px 4px 0 var(--teal-sh); }
-.btn-teal:active { box-shadow: 0 0 0 var(--teal-sh); }
+.btn-teal:not(:disabled):hover { box-shadow: 3px 3px 0 var(--teal-sh); }
+.btn-teal:not(:disabled):active { box-shadow: 0 0 0 var(--teal-sh); }
 
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }

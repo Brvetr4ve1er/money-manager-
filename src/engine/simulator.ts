@@ -17,6 +17,7 @@
  */
 
 import {
+  WEIGHTS,
   savingsRateScore,
   budgetAdherenceScore,
   emergencyFundScore,
@@ -111,12 +112,26 @@ export function installment(amount: number, months: number, apr = 0): number {
   return (amount * r) / (1 - Math.pow(1 + r, -months))
 }
 
+/**
+ * Blend weights derived FROM the Health Score engine's WEIGHTS — never a
+ * local copy: the module header promises the simulator scores like the
+ * avatar, and a re-tuned WEIGHTS that a hardcoded copy here didn't follow
+ * would break that contract silently. IC-exclusion-plus-renormalization is
+ * the only local logic (Impulse Control can't be projected).
+ */
+const PROJECTION_WEIGHTS = {
+  SR: WEIGHTS.SR,
+  BA: WEIGHTS.BA,
+  EF: WEIGHTS.EF,
+  DT: WEIGHTS.DT,
+} as const
+
 /** Projected health blend with Impulse Control excluded (can't be projected). */
 export function projectedHealth(
   s: { income: number; expenses: number; overspend: number; budgetTotal: number; ef: number; essentials: number; debtStart: number; debtNow: number },
 ): number {
-  const w = { SR: 0.25, BA: 0.2, EF: 0.2, DT: 0.2 }
-  const totalW = w.SR + w.BA + w.EF + w.DT // 0.85, renormalized below
+  const w = PROJECTION_WEIGHTS
+  const totalW = w.SR + w.BA + w.EF + w.DT // IC's weight renormalized away
   const sr = savingsRateScore(s.income, s.expenses)
   const ba = budgetAdherenceScore([{ budgeted: s.budgetTotal, actual: s.budgetTotal + s.overspend }])
   const ef = emergencyFundScore(s.ef, s.essentials)

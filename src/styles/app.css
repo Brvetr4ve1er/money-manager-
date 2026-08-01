@@ -267,10 +267,18 @@ button.quest-row:not([aria-disabled='true']) { cursor: pointer; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  /* Family look: offset shadow that collapses on press, so the checkbox
-     reads as the tap target that grants XP, not a decorative bullet. */
-  box-shadow: 3px 3px 0 var(--shadow);
 }
+/* Family look — BUTTON rows only: the offset shadow that collapses on press
+   reads as "the tap target that grants XP", so the verified quest's static
+   div row must never wear it. On touch there is no hover to correct the
+   impression, and a tap on the inert row gives zero feedback — a dead tap
+   that breaks the "pressed = something happened" contract. */
+button.quest-row .quest-box { box-shadow: 3px 3px 0 var(--shadow); }
+/* The verified quest's box rests visibly non-pressable: flat (no shadow) with
+   a dashed border while pending — the app itself draws the solid check once a
+   simulation actually runs. Paired with the .quest-auto tag below. */
+div.quest-row .quest-box { border-style: dashed; }
+.quest.done div.quest-row .quest-box { border-style: solid; }
 button.quest-row:not([aria-disabled='true']):hover .quest-box { background: var(--paper-dim); }
 button.quest-row:not([aria-disabled='true']):active .quest-box { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--shadow); }
 .quest.done .quest-box { background: var(--good); }
@@ -279,6 +287,21 @@ button.quest-row:not([aria-disabled='true']):active .quest-box { transform: tran
    The line-through plus the green box carry the de-emphasis. */
 .quest.done .quest-text { text-decoration: line-through; opacity: 0.65; }
 .quest-text { font-size: 0.9rem; font-weight: 600; }
+/* "Auto" tag on the verified quest: names WHY the row has no press
+   affordance — the app completes it itself when a simulation actually runs.
+   Dashed like the pending box so the whole row reads as one status family. */
+.quest-auto {
+  margin-left: auto;
+  border: 2px dashed var(--ink);
+  border-radius: var(--r);
+  padding: 0.05rem 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
 
 .sim-card { padding: 0; overflow: hidden; }
 .window-bar {

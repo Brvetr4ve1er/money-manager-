@@ -1,12 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import {
   installment,
+  projectedHealth,
   runSimulation,
   describeResult,
   type SimProfile,
   type SimResult,
   type MonthState,
 } from './simulator.ts'
+import {
+  WEIGHTS,
+  savingsRateScore,
+  budgetAdherenceScore,
+  emergencyFundScore,
+  debtTrendScore,
+} from './healthScore.ts'
 
 /** Yasmine's profile from the Decision Simulator worked example. */
 const yasmine: SimProfile = {
@@ -27,6 +35,37 @@ describe('installment', () => {
   })
   it('charges more with APR', () => {
     expect(installment(180_000, 6, 0.24)).toBeGreaterThan(30_000)
+  })
+})
+
+describe('projectedHealth weight contract', () => {
+  it('blends with the Health Score WEIGHTS (IC excluded, renormalized) — never a local copy', () => {
+    // The simulator promises to score exactly like the avatar. This asserts
+    // its blend is WEIGHTS-derived, so a future WEIGHTS re-tune that misses
+    // the simulator fails loudly here instead of silently letting the two
+    // surfaces disagree about the same purchase.
+    const s = {
+      income: 90_000,
+      expenses: 70_000,
+      overspend: 5_000,
+      budgetTotal: 67_000,
+      ef: 45_000,
+      essentials: 52_000,
+      debtStart: 9_500,
+      debtNow: 7_000,
+    }
+    const totalW = WEIGHTS.SR + WEIGHTS.BA + WEIGHTS.EF + WEIGHTS.DT
+    const expected =
+      (WEIGHTS.SR * savingsRateScore(s.income, s.expenses) +
+        WEIGHTS.BA *
+          budgetAdherenceScore([{ budgeted: s.budgetTotal, actual: s.budgetTotal + s.overspend }]) +
+        WEIGHTS.EF * emergencyFundScore(s.ef, s.essentials) +
+        WEIGHTS.DT * debtTrendScore(s.debtStart, s.debtNow)) /
+      totalW
+    expect(projectedHealth(s)).toBeCloseTo(expected, 10)
+    // The renormalized weights must sum to exactly 1 - IC's weight: any
+    // component added to or removed from the projection breaks this identity.
+    expect(totalW).toBeCloseTo(1 - WEIGHTS.IC, 10)
   })
 })
 

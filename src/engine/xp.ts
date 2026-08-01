@@ -85,8 +85,23 @@ export interface XpGrant {
   date: string
 }
 
+/**
+ * Product ceiling on any XP total or single grant amount. Legitimate play
+ * cannot approach it (a billion XP is ~55,000 years of the daily maximum);
+ * its only job is defense. Without a clamp, a hand-edited or corrupted
+ * localStorage payload carrying totalXp = 1e300 spins the level loop below
+ * effectively forever — the per-level subtraction is absorbed by float
+ * precision (1e300 - 15000 === 1e300) — bricking the app at every load and,
+ * via storage events, freezing every other open tab too. Enforced both here
+ * (xpStateFromTotal) and at the sanitizer boundary (isXpGrant in the store).
+ */
+export const MAX_TOTAL_XP = 1_000_000_000
+
 /** Level and progress are a pure function of the total: rebuild them from it. */
 export function xpStateFromTotal(totalXp: number): XpState {
+  // Clamp untrusted totals into [0, MAX_TOTAL_XP] so the loop is always
+  // bounded (~6,300 iterations at the ceiling) — see MAX_TOTAL_XP.
+  totalXp = Math.min(Math.max(0, totalXp), MAX_TOTAL_XP)
   let level = 1
   let xpIntoLevel = totalXp
   while (xpIntoLevel >= xpForLevel(level)) {

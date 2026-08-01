@@ -1,20 +1,44 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   defaultState,
   mergeStates,
+  newId,
   sanitizeState,
   todayISO,
   rollQuests,
   type AppState,
   type Transaction,
 } from './store.ts'
-import { xpStateFromTotal } from '../engine/xp.ts'
+import { MAX_TOTAL_XP, xpStateFromTotal } from '../engine/xp.ts'
 
 describe('todayISO', () => {
   it('uses the local calendar day, not UTC', () => {
     const d = new Date()
     const expected = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     expect(todayISO()).toBe(expected)
+  })
+})
+
+describe('newId', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('uses crypto.randomUUID when available', () => {
+    expect(newId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+  })
+
+  it('still produces unique ids when randomUUID is missing (plain-http contexts)', () => {
+    // randomUUID exists only in secure contexts; on plain-http hosting the
+    // fallback must keep the core logging action working instead of throwing.
+    vi.stubGlobal('crypto', {
+      getRandomValues: crypto.getRandomValues.bind(crypto),
+    })
+    const a = newId()
+    const b = newId()
+    expect(a).toBeTruthy()
+    expect(b).toBeTruthy()
+    expect(a).not.toBe(b)
   })
 })
 
@@ -147,6 +171,27 @@ describe('sanitizeState', () => {
   it('clamps negative totalXp to 0 and rebuilds the triple from it', () => {
     const state = sanitizeState({ xp: { level: 1.5, xpIntoLevel: 10, totalXp: -5 } })
     expect(state.xp).toEqual({ level: 1, xpIntoLevel: 0, totalXp: 0 })
+  })
+
+  it('clamps an absurd persisted totalXp instead of freezing the app at load', () => {
+    // Regression: totalXp = 1e300 used to hang xpStateFromTotal's level loop
+    // forever (float precision absorbs the per-level subtraction), bricking
+    // every load AND every peer tab via the storage-event merge path — the
+    // exact failure this sanitizer promises to prevent.
+    const state = sanitizeState({ xp: { totalXp: 1e300 } })
+    expect(state.xp.totalXp).toBe(MAX_TOTAL_XP)
+    expect(state.xp).toEqual(xpStateFromTotal(MAX_TOTAL_XP))
+  })
+
+  it('drops an XP grant whose amount exceeds the product ceiling', () => {
+    // xpFromLog sums grant amounts, so a single hand-edited 1e300 grant would
+    // reach the same non-terminating derivation without this gate.
+    const good = { id: 'tx:a', action: 'logExpense', amount: 5, date: '2026-08-01' }
+    const state = sanitizeState({
+      xpLog: [good, { id: 'huge', action: 'legacy', amount: 1e300, date: '' }],
+    })
+    expect(state.xpLog).toEqual([good])
+    expect(state.xp.totalXp).toBe(5)
   })
 
   it('rejects an unknown stage and non-numeric prevHealthScore', () => {

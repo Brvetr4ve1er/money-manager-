@@ -28,7 +28,17 @@ function likelyLocalAction(): boolean {
 }
 
 export function useRewards(state: AppState): { toast: string | null; xpGain: number | null } {
-  const [toast, setToast] = useState<string | null>(null)
+  // Toasts QUEUE instead of overwrite: completing the final quest can cross a
+  // level boundary in the same commit, and both effects below then announce
+  // in one batch — a bare setToast would let the later (quest) effect stomp
+  // the level-up before the live region ever carried it, leaving the fanfare
+  // to announce the level alone, which sound must never do. The head of the
+  // queue is the visible toast; the dismiss timer shifts to the next.
+  const [toastQueue, setToastQueue] = useState<string[]>([])
+  const toast = toastQueue.length > 0 ? toastQueue[0] : null
+  function pushToast(message: string) {
+    setToastQueue((q) => [...q, message])
+  }
 
   // Level-up fanfare/toast as a reaction to xp changes. The same effect
   // derives the transient +XP chip from the totalXp delta, so every grant —
@@ -51,7 +61,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     }
     if (state.xp.level > prev.level) {
       if (likelyLocalAction()) sfx.fanfare()
-      setToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
+      pushToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
     }
   }, [state.xp])
 
@@ -63,16 +73,18 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     return () => clearTimeout(t)
   }, [xpGain])
 
-  // Toast dismissal owns its own timer, keyed on the toast itself. It must
-  // NOT live in the XP effect above: any XP gain within 2.6s of a level-up
-  // (e.g. +5 for logging a purchase) would run that effect's cleanup, cancel
-  // the dismiss timer, and strand the toast — and the role="status" live
-  // region content — on screen until the next level-up.
+  // Toast dismissal owns its own timer, keyed on the queue. It must NOT live
+  // in the XP effect above: any XP gain within 2.6s of a level-up (e.g. +5
+  // for logging a purchase) would run that effect's cleanup, cancel the
+  // dismiss timer, and strand the toast — and the role="status" live region
+  // content — on screen until the next level-up. Shifting (not clearing)
+  // lets a queued second message ("All quests complete!") take its own turn
+  // in the live region after the current one dismisses.
   useEffect(() => {
-    if (toast === null) return
-    const t = setTimeout(() => setToast(null), 2600)
+    if (toastQueue.length === 0) return
+    const t = setTimeout(() => setToastQueue((q) => q.slice(1)), 2600)
     return () => clearTimeout(t)
-  }, [toast])
+  }, [toastQueue])
 
   // Quest-completion sounds, likewise driven by state changes only.
   const prevQuestsDone = useRef(state.quests.filter((q) => q.done).length)
@@ -86,7 +98,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
       if (state.quests.every((q) => q.done)) {
         // The arpeggio never carries the moment alone: the toast announces it
         // through the live region and QuestCard shows a persistent badge.
-        setToast('All quests complete!')
+        pushToast('All quests complete!')
         if (local) {
           const t = setTimeout(sfx.arpeggio, 180)
           return () => clearTimeout(t)
