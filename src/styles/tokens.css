@@ -82,11 +82,12 @@ h1, h2, h3 {
 }
 .btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--shadow); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-flame { background: var(--flame); color: #fff; box-shadow: 4px 4px 0 var(--flame-sh); }
+/* Accent surfaces take ink (#141414) text: white fails WCAG AA on flame/teal/pink. */
+.btn-flame { background: var(--flame); color: #141414; box-shadow: 4px 4px 0 var(--flame-sh); }
 .btn-flame:active { box-shadow: 0 0 0 var(--flame-sh); }
 .btn-gold { background: var(--gold); color: #141414; box-shadow: 4px 4px 0 var(--gold-sh); }
 .btn-gold:active { box-shadow: 0 0 0 var(--gold-sh); }
-.btn-teal { background: var(--teal); color: #fff; box-shadow: 4px 4px 0 var(--teal-sh); }
+.btn-teal { background: var(--teal); color: #141414; box-shadow: 4px 4px 0 var(--teal-sh); }
 .btn-teal:active { box-shadow: 0 0 0 var(--teal-sh); }
 
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }

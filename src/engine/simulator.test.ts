@@ -41,6 +41,17 @@ describe('lump-sum purchase', () => {
     expect(r.scenario[0].goalPaused).toBe(true)
     expect(r.baseline[0].goalPaused).toBe(false)
   })
+  it('never funds the goal while liquid is negative (buffer-repair contract)', () => {
+    // 184,000 DA lump: the month liquid first crosses zero used to contribute
+    // the full goal amount and drive liquid negative again with goalPaused
+    // still false — exactly the misleading output the trust rules forbid.
+    const edge = runSimulation(yasmine, { amount: 184_000, funding: 'lump' })
+    for (const m of edge.scenario) {
+      if (!m.goalPaused) {
+        expect(m.liquidBalance).toBeGreaterThanOrEqual(0)
+      }
+    }
+  })
   it('delays debt clearance vs. baseline', () => {
     expect(r.debtDelayMonths).not.toBeNull()
     expect(r.debtDelayMonths!).toBeGreaterThan(0)

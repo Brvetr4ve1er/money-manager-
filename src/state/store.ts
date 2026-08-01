@@ -29,8 +29,9 @@ export interface AppState {
   xp: XpState
   prevHealthScore: number | null
   stage: Stage | null
-  quests: Quest[
-  ]
+  /** Local day (YYYY-MM-DD) the health snapshot was last persisted; '' = never. */
+  healthDate: string
+  quests: Quest[]
   questsDate: string
   muted: boolean
 }
@@ -43,8 +44,16 @@ export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   { id: 'review', text: 'Review yesterday', xpAction: 'reviewYesterday' },
 ]
 
+/**
+ * Local-calendar day key (YYYY-MM-DD). Deliberately NOT toISOString(): the
+ * target market is UTC+1, so UTC keys would roll quests at 01:00 local time
+ * and stamp late-night purchases with the previous day/month.
+ */
 export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
 }
 
 export function freshQuests(): Quest[] {
@@ -57,23 +66,105 @@ export function defaultState(): AppState {
     xp: { level: 1, xpIntoLevel: 0, totalXp: 0 },
     prevHealthScore: null,
     stage: null,
+    healthDate: '',
     quests: freshQuests(),
     questsDate: todayISO(),
     muted: false,
   }
 }
 
+const STAGES: ReadonlyArray<Stage> = ['ember', 'hearth', 'bonfire', 'beacon']
+const QUEST_ACTIONS: ReadonlyArray<Quest['xpAction']> = [
+  'logExpense',
+  'readLesson',
+  'reviewYesterday',
+  'save',
+  'resistImpulse',
+]
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null
+}
+
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v)
+}
+
+function isTransaction(v: unknown): v is Transaction {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    isFiniteNumber(v.amountDA) &&
+    typeof v.category === 'string' &&
+    typeof v.date === 'string'
+  )
+}
+
+function isQuest(v: unknown): v is Quest {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    typeof v.text === 'string' &&
+    QUEST_ACTIONS.includes(v.xpAction as Quest['xpAction']) &&
+    typeof v.done === 'boolean'
+  )
+}
+
+/**
+ * Field-by-field validation of untrusted persisted JSON over defaultState().
+ * A corrupted, hand-edited, or older-schema payload must never brick the app:
+ * every unrecognized field falls back to its default instead of crashing at
+ * first render. Exported for tests.
+ */
+export function sanitizeState(parsed: unknown): AppState {
+  const out = defaultState()
+  if (!isRecord(parsed)) return out
+
+  if (Array.isArray(parsed.transactions)) {
+    out.transactions = parsed.transactions.filter(isTransaction)
+  }
+  const xp = parsed.xp
+  if (
+    isRecord(xp) &&
+    isFiniteNumber(xp.level) &&
+    xp.level >= 1 &&
+    isFiniteNumber(xp.xpIntoLevel) &&
+    isFiniteNumber(xp.totalXp)
+  ) {
+    out.xp = { level: xp.level, xpIntoLevel: xp.xpIntoLevel, totalXp: xp.totalXp }
+  }
+  if (isFiniteNumber(parsed.prevHealthScore)) {
+    out.prevHealthScore = parsed.prevHealthScore
+  }
+  if (STAGES.includes(parsed.stage as Stage)) {
+    out.stage = parsed.stage as Stage
+  }
+  if (typeof parsed.healthDate === 'string') {
+    out.healthDate = parsed.healthDate
+  }
+  if (Array.isArray(parsed.quests) && parsed.quests.every(isQuest)) {
+    out.quests = parsed.quests
+  }
+  if (typeof parsed.questsDate === 'string') {
+    out.questsDate = parsed.questsDate
+  }
+  if (typeof parsed.muted === 'boolean') {
+    out.muted = parsed.muted
+  }
+  return out
+}
+
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return defaultState()
-    const parsed = JSON.parse(raw) as AppState
+    const state = sanitizeState(JSON.parse(raw) as unknown)
     // Roll quests daily.
-    if (parsed.questsDate !== todayISO()) {
-      parsed.quests = freshQuests()
-      parsed.questsDate = todayISO()
+    if (state.questsDate !== todayISO()) {
+      state.quests = freshQuests()
+      state.questsDate = todayISO()
     }
-    return parsed
+    return state
   } catch {
     return defaultState()
   }

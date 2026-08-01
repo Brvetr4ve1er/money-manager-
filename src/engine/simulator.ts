@@ -143,10 +143,14 @@ export function simulate(
       // += above; contributions pause until liquid recovers.
       goalPaused = true
     } else {
+      // Optional outflows are capped by liquid as well as surplus so the
+      // month the buffer first crosses zero can never fund the goal back
+      // into the red (buffer-repair contract in the header).
+      const available = Math.max(0, Math.min(surplus, liquid))
       const goalContribution = profile.goal
-        ? Math.min(profile.goal.monthlyContribution, surplus)
+        ? Math.min(profile.goal.monthlyContribution, available)
         : 0
-      const afterGoal = surplus - goalContribution
+      const afterGoal = available - goalContribution
       const extraDebt = Math.min(debt, Math.min(profile.extraDebtPayment, afterGoal))
       goalBal += goalContribution
       debt -= extraDebt

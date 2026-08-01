@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   computeHealthScore,
   savingsRateScore,
@@ -101,18 +101,51 @@ export default function App() {
     return computeHealthScore(inputs, state.prevHealthScore, state.stage)
   }, [state.transactions, state.prevHealthScore, state.stage])
 
+  // Persist a once-per-day health snapshot so asymmetric smoothing and stage
+  // hysteresis actually compound day over day. Keyed on healthDate: persisting
+  // per render would re-apply smooth() many times within a single day.
+  useEffect(() => {
+    const today = todayISO()
+    setState((s) =>
+      s.healthDate === today
+        ? s
+        : { ...s, prevHealthScore: health.score, stage: health.stage, healthDate: today },
+    )
+  }, [health])
+
+  // Level-up fanfare/toast as a reaction to xp changes, never inside a state
+  // updater (StrictMode double-invokes updaters in dev).
+  const prevXp = useRef(state.xp)
+  useEffect(() => {
+    const prev = prevXp.current
+    prevXp.current = state.xp
+    if (state.xp.level > prev.level) {
+      sfx.fanfare()
+      setToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
+      const t = setTimeout(() => setToast(null), 2600)
+      return () => clearTimeout(t)
+    }
+  }, [state.xp])
+
+  // Quest-completion sounds, likewise driven by state changes only.
+  const prevQuestsDone = useRef(state.quests.filter((q) => q.done).length)
+  useEffect(() => {
+    const doneCount = state.quests.filter((q) => q.done).length
+    const prev = prevQuestsDone.current
+    prevQuestsDone.current = doneCount
+    if (doneCount > prev) {
+      sfx.blip()
+      if (state.quests.every((q) => q.done)) {
+        const t = setTimeout(sfx.arpeggio, 180)
+        return () => clearTimeout(t)
+      }
+    }
+  }, [state.quests])
+
   const stageMeta = STAGE_META[health.stage]
 
   function grant(action: XpAction) {
-    setState((s) => {
-      const { next, leveledUp } = grantXp(s.xp, action)
-      if (leveledUp) {
-        sfx.fanfare()
-        setToast(`Level ${next.level} — ${levelTitle(next.level)}!`)
-        setTimeout(() => setToast(null), 2600)
-      }
-      return { ...s, xp: next }
-    })
+    setState((s) => ({ ...s, xp: grantXp(s.xp, action).next }))
   }
 
   function logPurchase(resisted: boolean) {
@@ -137,16 +170,15 @@ export default function App() {
   }
 
   function completeQuest(id: string) {
+    // Quest flag and XP grant happen in one atomic functional update: a second
+    // call before re-render sees done === true and is a no-op, so rapid double
+    // clicks can never double-grant XP. Sounds fire from the effects above.
     setState((s) => {
       const quest = s.quests.find((q) => q.id === id)
       if (!quest || quest.done) return s
-      sfx.blip()
       const quests = s.quests.map((q) => (q.id === id ? { ...q, done: true } : q))
-      if (quests.every((q) => q.done)) setTimeout(sfx.arpeggio, 180)
-      return { ...s, quests }
+      return { ...s, quests, xp: grantXp(s.xp, quest.xpAction).next }
     })
-    const quest = state.quests.find((q) => q.id === id)
-    if (quest && !quest.done) grant(quest.xpAction)
   }
 
   function runSim() {
@@ -186,8 +218,9 @@ export default function App() {
           className="btn"
           onClick={() => setState((s) => ({ ...s, muted: !s.muted }))}
           aria-pressed={state.muted}
+          aria-label="Mute sound"
         >
-          {state.muted ? '🔇' : '🔊'}
+          <span aria-hidden="true">{state.muted ? '🔇' : '🔊'}</span>
         </button>
       </header>
 
@@ -217,7 +250,8 @@ export default function App() {
           <span className="mono">{state.xp.xpIntoLevel} / {xpForLevel(state.xp.level)} XP</span>
         </div>
         <div className="xp-track" role="progressbar"
-          aria-valuenow={state.xp.xpIntoLevel} aria-valuemin={0} aria-valuemax={xpForLevel(state.xp.level)}>
+          aria-valuenow={state.xp.xpIntoLevel} aria-valuemin={0} aria-valuemax={xpForLevel(state.xp.level)}
+          aria-label={`Level ${state.xp.level} progress: ${state.xp.xpIntoLevel} of ${xpForLevel(state.xp.level)} XP`}>
           <div
             className="xp-fill"
             style={{ width: `${Math.min(100, (state.xp.xpIntoLevel / xpForLevel(state.xp.level)) * 100)}%` }}
