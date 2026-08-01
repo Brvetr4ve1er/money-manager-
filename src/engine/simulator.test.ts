@@ -142,6 +142,24 @@ describe('financed purchase', () => {
     })
     expect(withApr.scenario[5].debtBalance).toBeCloseTo(6_500, 6)
   })
+  it('reports goal months as paused while installments consume the surplus', () => {
+    // 90k income vs 97.5k fixed outflow during the 6 installment months:
+    // liquid stays positive but the goal receives nothing — those months must
+    // say so instead of flatlining with goalPaused: false.
+    for (let i = 0; i < 6; i++) {
+      expect(r.scenario[i].goalContribution).toBe(0)
+      expect(r.scenario[i].goalPaused).toBe(true)
+    }
+    // Contributions resume at full plan once the installments end.
+    expect(r.scenario[6].goalContribution).toBe(12_000)
+    expect(r.scenario[6].goalPaused).toBe(false)
+  })
+  it('reports the funded amount at baseline (full plan, not paused)', () => {
+    for (const m of r.baseline) {
+      expect(m.goalContribution).toBe(12_000)
+      expect(m.goalPaused).toBe(false)
+    }
+  })
   it('never treats financedMonths: 0 as a free purchase', () => {
     const zero = runSimulation(yasmine, {
       amount: 180_000,
@@ -158,6 +176,35 @@ describe('financed purchase', () => {
     expect(zero.scenario[0].liquidBalance).toBeLessThan(
       zero.baseline[0].liquidBalance,
     )
+  })
+})
+
+describe('revolving APR', () => {
+  it('accrues interest identically on both paths before payments land', () => {
+    const r = runSimulation(
+      { ...yasmine, revolvingApr: 0.24 },
+      { amount: 5_000, funding: 'lump' },
+    )
+    // Month 1: 9,500 × 2%/mo = 190 interest, then 500 minimum + 2,000 extra.
+    expect(r.baseline[0].debtBalance).toBeCloseTo(9_500 * 1.02 - 2_500, 6)
+    expect(r.scenario[0].debtBalance).toBeCloseTo(9_500 * 1.02 - 2_500, 6)
+  })
+  it('defaults to 0% when revolvingApr is omitted', () => {
+    const r = runSimulation(yasmine, { amount: 5_000, funding: 'lump' })
+    expect(r.baseline[0].debtBalance).toBe(9_500 - 2_500)
+  })
+  it('makes a longer debt carry cost health instead of being free in-model', () => {
+    // 15k revolving at 30% APR: baseline clears within the horizon, but the
+    // financed purchase pauses extra paydown for 6 months and the interest
+    // keeps the balance alive at month 12 — where the interest-free model
+    // would have cleared it. Delaying paydown must show up in the deltas.
+    const indebted: SimProfile = { ...yasmine, debtBalance: 15_000 }
+    const purchase = { amount: 180_000, funding: 'financed' as const, financedMonths: 6 }
+    const withApr = runSimulation({ ...indebted, revolvingApr: 0.3 }, purchase)
+    const noApr = runSimulation(indebted, purchase)
+    expect(noApr.debtMissesHorizon).toBe(false)
+    expect(withApr.debtMissesHorizon).toBe(true)
+    expect(withApr.healthDeltaFinal).toBeLessThan(noApr.healthDeltaFinal)
   })
 })
 
@@ -181,6 +228,7 @@ describe('describeResult trust rules', () => {
       liquidBalance: 0,
       debtBalance: 0,
       goalBalance: 0,
+      goalContribution: 0,
       goalPaused: false,
       health,
     })
@@ -197,6 +245,44 @@ describe('describeResult trust rules', () => {
     const text = describeResult(ahead)
     expect(text).toContain('15 points ahead')
     expect(text).not.toContain('slightly')
+  })
+  it('only claims recovery from the month-1 dip when the projection shows it', () => {
+    const mk = (month: number, health: number): MonthState => ({
+      month,
+      liquidBalance: 0,
+      debtBalance: 0,
+      goalBalance: 0,
+      goalContribution: 0,
+      goalPaused: false,
+      health,
+    })
+    const base = {
+      goalDelayMonths: null,
+      goalMissesHorizon: false,
+      debtDelayMonths: null,
+      debtMissesHorizon: false,
+    }
+    // Dip persists to month 12: asserting recovery here would be the soft
+    // reassurance the trust rules forbid.
+    const persisting: SimResult = {
+      ...base,
+      baseline: Array.from({ length: 12 }, (_, i) => mk(i + 1, 60)),
+      scenario: Array.from({ length: 12 }, (_, i) => mk(i + 1, 45)),
+      healthDeltaMonth1: -15,
+      healthDeltaFinal: -15,
+    }
+    const persistingText = describeResult(persisting)
+    expect(persistingText).toContain('persisting')
+    expect(persistingText).not.toContain('recover')
+    // Genuine recovery keeps the original copy.
+    const recovering: SimResult = {
+      ...base,
+      baseline: Array.from({ length: 12 }, (_, i) => mk(i + 1, 60)),
+      scenario: Array.from({ length: 12 }, (_, i) => mk(i + 1, i === 0 ? 42 : 59)),
+      healthDeltaMonth1: -18,
+      healthDeltaFinal: -1,
+    }
+    expect(describeResult(recovering)).toContain('recover from there')
   })
   it('describes a near-zero final delta as a projection, not reassurance', () => {
     const r = runSimulation(yasmine, { amount: 5_000, funding: 'lump' })

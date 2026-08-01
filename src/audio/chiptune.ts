@@ -73,6 +73,12 @@ export function zap(): void {
 export const sparkle = (): void =>
   [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, i * 0.045, 0.16, 'triangle', 0.07))
 
+/** Invalid action — low double-thud, always paired with inline error text. */
+export function deny(): void {
+  tone(196, 0, 0.1, 'square', 0.07)
+  tone(146.83, 0.09, 0.14, 'square', 0.07)
+}
+
 /** Simulator result — calm, informative, not celebratory. */
 export function reveal(): void {
   tone(659.25, 0, 0.22, 'sine', 0.08)

@@ -115,13 +115,27 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
 }
 
+function isOptionalBoolean(v: unknown): v is boolean | undefined {
+  return v === undefined || typeof v === 'boolean'
+}
+
 function isTransaction(v: unknown): v is Transaction {
+  // Strict on exactly the fields that feed the health score: a negative
+  // amount would *reduce* trailing-30d spend (inflating SR/BA), and a truthy
+  // non-boolean resistedImpulse (e.g. "no") would count as a resisted impulse
+  // in IC while excluding the row from spend. Dates are compared
+  // lexicographically against daysAgoISO cutoffs, so enforce the shape too.
   return (
     isRecord(v) &&
     typeof v.id === 'string' &&
     isFiniteNumber(v.amountDA) &&
+    v.amountDA >= 0 &&
     typeof v.category === 'string' &&
-    typeof v.date === 'string'
+    typeof v.date === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(v.date) &&
+    (v.note === undefined || typeof v.note === 'string') &&
+    isOptionalBoolean(v.resistedImpulse) &&
+    isOptionalBoolean(v.impulseFlagged)
   )
 }
 

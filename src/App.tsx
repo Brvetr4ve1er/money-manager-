@@ -1,47 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  computeHealthScore,
-  savingsRateScore,
-  budgetAdherenceScore,
-  emergencyFundScore,
-  debtTrendScore,
-  impulseControlScore,
-  type HealthInputs,
-  type Stage,
-} from './engine/healthScore.ts'
-import { runSimulation, describeResult, type SimProfile } from './engine/simulator.ts'
-import { grantXp, xpForLevel, levelTitle, type XpAction } from './engine/xp.ts'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { computeHealthScore, type Stage } from './engine/healthScore.ts'
+import { runSimulation, describeResult } from './engine/simulator.ts'
+import { xpForLevel, levelTitle, type XpState } from './engine/xp.ts'
+import { deriveHealthInputs, buildSimProfile, DEMO_PROFILE, type UserProfile } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
   saveState,
   exportJSON,
   todayISO,
-  daysAgoISO,
-  rollQuests,
-  type AppState,
+  type Quest,
   type Transaction,
 } from './state/store.ts'
+import { appReducer } from './state/reducer.ts'
 import './styles/tokens.css'
 import './styles/app.css'
-
-/**
- * Demo profile powering score components until onboarding exists. Transaction
- * logging is live; income/budget/EF/debt setup ships next.
- */
-const DEMO = {
-  monthlyIncome: 90_000,
-  monthlyEssentials: 52_000,
-  monthlyDiscretionary: 15_000,
-  budgeted: 62_000,
-  efBalance: 45_000,
-  debtStart: 12_000,
-  debtNow: 9_500,
-  liquidBalance: 60_000,
-  debtMinimum: 500,
-  extraDebtPayment: 2_000,
-  goal: { target: 500_000, current: 150_000, monthlyContribution: 12_000 },
-}
 
 const STAGE_META: Record<Stage, { label: string; stars: number; color: string; colorSh: string }> = {
   ember: { label: 'Ember', stars: 1, color: 'var(--flame)', colorSh: 'var(--flame-sh)' },
@@ -52,12 +25,229 @@ const STAGE_META: Record<Stage, { label: string; stars: number; color: string; c
 
 const CATEGORIES = ['Food', 'Transport', 'Fun', 'Bills', 'Health', 'Other']
 
-export default function App() {
-  const [state, setState] = useState<AppState>(loadState)
+function HeroCard({ stage, score }: { stage: Stage; score: number }) {
+  const meta = STAGE_META[stage]
+  return (
+    <section className="card hero-card">
+      <div
+        className="stage-badge"
+        style={{ background: meta.color, boxShadow: `6px 6px 0 ${meta.colorSh}` }}
+      >
+        <span className="stage-flame" aria-hidden="true">🔥</span>
+      </div>
+      <div className="stage-info">
+        <h2>{meta.label}</h2>
+        <div className="stars" aria-label={`${meta.stars} of 4 stars`}>
+          {'★'.repeat(meta.stars)}
+        </div>
+        <div className="mono score-line">
+          Health {score.toFixed(1)}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function XpCard({ xp }: { xp: XpState }) {
+  return (
+    <section className="card">
+      <div className="xp-head">
+        <h3>Level {xp.level} · {levelTitle(xp.level)}</h3>
+        <span className="mono">{xp.xpIntoLevel} / {xpForLevel(xp.level)} XP</span>
+      </div>
+      <div className="xp-track" role="progressbar"
+        aria-valuenow={xp.xpIntoLevel} aria-valuemin={0} aria-valuemax={xpForLevel(xp.level)}
+        aria-label={`Level ${xp.level} progress: ${xp.xpIntoLevel} of ${xpForLevel(xp.level)} XP`}>
+        <div
+          className="xp-fill"
+          style={{ width: `${Math.min(100, (xp.xpIntoLevel / xpForLevel(xp.level)) * 100)}%` }}
+        />
+      </div>
+    </section>
+  )
+}
+
+function LogCard({ onLog }: { onLog: (amountDA: number, category: string, resisted: boolean) => void }) {
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(CATEGORIES[0])
-  const [simText, setSimText] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  // The app's most-used action must never fail silently: invalid input gets
+  // an inline error (plus a denial blip reinforcing it, never replacing it).
+  function submit(resisted: boolean) {
+    const amt = parseFloat(amount)
+    if (!resisted && (Number.isNaN(amt) || amt <= 0)) {
+      setError('Enter an amount first.')
+      sfx.deny()
+      return
+    }
+    setError(null)
+    onLog(resisted ? 0 : amt, category, resisted)
+    setAmount('')
+  }
+
+  return (
+    <section className="card">
+      <h3>Log it</h3>
+      {/* A real <form> so Enter / the mobile keyboard's done key submits. */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          submit(false)
+        }}
+      >
+        <div className="log-row">
+          <input
+            className="field mono"
+            type="number"
+            inputMode="decimal"
+            placeholder="Amount (DA)"
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value)
+              setError(null)
+            }}
+            aria-label="Amount in DA"
+            aria-invalid={error !== null}
+            aria-describedby={error ? 'log-error' : undefined}
+          />
+          <select
+            className="field"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            aria-label="Category"
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        {error && (
+          <p className="field-error" id="log-error" role="alert">{error}</p>
+        )}
+        <div className="log-actions">
+          <button type="submit" className="btn btn-flame">
+            Log purchase (+5 XP)
+          </button>
+          <button type="button" className="btn btn-gold" onClick={() => submit(true)}>
+            I resisted an impulse (+50 XP)
+          </button>
+        </div>
+      </form>
+    </section>
+  )
+}
+
+function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete: (id: string) => void }) {
+  const allDone = quests.length > 0 && quests.every((q) => q.done)
+  return (
+    <section className="card">
+      <div className="quest-head">
+        <h3>Today's quests</h3>
+        {/* Persistent visual counterpart to the completion arpeggio — sound
+            never carries the moment alone. */}
+        {allDone && <span className="quest-alldone">All complete ✓</span>}
+      </div>
+      <ul className="quest-list">
+        {quests.map((q) => (
+          <li key={q.id} className={q.done ? 'quest done' : 'quest'}>
+            {/* The whole row is the button: the quest text is the natural tap
+                target, and the 48px row pitch prevents cross-quest mis-taps. */}
+            <button
+              className="quest-row"
+              onClick={() => onComplete(q.id)}
+              aria-pressed={q.done}
+              aria-label={q.done ? `${q.text} — done` : `Mark done: ${q.text}`}
+            >
+              <span className="quest-box" aria-hidden="true">{q.done ? '✓' : ''}</span>
+              <span className="quest-text">{q.text}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function SimCard({ profile }: { profile: UserProfile }) {
   const [simAmount, setSimAmount] = useState('')
+  const [simText, setSimText] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  function run() {
+    const amt = parseFloat(simAmount)
+    if (Number.isNaN(amt) || amt <= 0) {
+      setError('Enter an amount first.')
+      sfx.deny()
+      return
+    }
+    setError(null)
+    const result = runSimulation(buildSimProfile(profile), { amount: amt, funding: 'lump' })
+    sfx.reveal()
+    setSimText(describeResult(result))
+  }
+
+  return (
+    <section className="card sim-card">
+      <div className="window-bar mono">DECISION_SIM.EXE</div>
+      <div className="sim-body">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            run()
+          }}
+        >
+          <div className="log-row">
+            <input
+              className="field mono"
+              type="number"
+              inputMode="decimal"
+              placeholder="Purchase amount (DA)"
+              value={simAmount}
+              onChange={(e) => {
+                setSimAmount(e.target.value)
+                setError(null)
+              }}
+              aria-label="Purchase amount in DA"
+              aria-invalid={error !== null}
+              aria-describedby={error ? 'sim-error' : undefined}
+            />
+            <button type="submit" className="btn btn-teal">Run simulation</button>
+          </div>
+          {error && (
+            <p className="field-error" id="sim-error" role="alert">{error}</p>
+          )}
+        </form>
+        {simText && <p className="sim-result">{simText}</p>}
+      </div>
+    </section>
+  )
+}
+
+function Ledger({ transactions }: { transactions: Transaction[] }) {
+  return (
+    <section className="card ledger-card">
+      <h3>Recent</h3>
+      {transactions.length === 0 ? (
+        <p className="empty">Nothing logged yet. First log is +5 XP.</p>
+      ) : (
+        <ul className="tx-list">
+          {transactions.slice(0, 8).map((t) => (
+            <li key={t.id} className="tx">
+              <span>{t.resistedImpulse ? '🛡 Resisted' : t.category}</span>
+              <span className="mono">
+                {t.resistedImpulse ? '—' : `${t.amountDA.toLocaleString()} DA`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+export default function App() {
+  const [state, dispatch] = useReducer(appReducer, undefined, loadState)
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => saveState(state), [state])
@@ -84,78 +274,25 @@ export default function App() {
     }
   }, [])
 
-  const health = useMemo(() => {
-    // Trailing-30d spend window, matching the savingsRateScore contract and
-    // the IC window below. A calendar-month window would reset to zero on the
-    // 1st, spiking SR/BA to their no-spend maxima and banking half the jump
-    // into the persisted snapshot via smooth()'s fast-up rate.
-    const cutoff = daysAgoISO(30)
-    const trailingSpend = state.transactions
-      .filter((t) => t.date >= cutoff && !t.resistedImpulse)
-      .reduce((s, t) => s + t.amountDA, 0)
-    // Impulse Control counts only explicitly flagged events (per the IC
-    // contract: resisted / total flagged), scoped to the same trailing 30
-    // days as the spend window above. Ordinary spending — Fun included — was
-    // never flagged as an impulse and must not drag IC down. No UI sets
-    // impulseFlagged yet ("I bought it anyway" ships later), so yielded stays
-    // 0 and IC confidence stays honestly low.
-    const resisted = state.transactions.filter(
-      (t) => t.resistedImpulse && t.date >= cutoff,
-    ).length
-    const yielded = state.transactions.filter(
-      (t) => t.impulseFlagged && !t.resistedImpulse && t.date >= cutoff,
-    ).length
+  const health = useMemo(
+    () =>
+      computeHealthScore(
+        deriveHealthInputs(state.transactions, DEMO_PROFILE, today),
+        state.prevHealthScore,
+        state.stage,
+      ),
+    [state.transactions, state.prevHealthScore, state.stage, today],
+  )
 
-    const inputs: HealthInputs = {
-      SR: {
-        structurallyUndefined: false,
-        raw: savingsRateScore(DEMO.monthlyIncome, DEMO.monthlyEssentials + trailingSpend),
-        confidence: 1,
-      },
-      BA: {
-        structurallyUndefined: false,
-        raw: budgetAdherenceScore([{ budgeted: DEMO.budgeted, actual: DEMO.monthlyEssentials + trailingSpend }]),
-        confidence: 1,
-      },
-      EF: {
-        structurallyUndefined: false,
-        raw: emergencyFundScore(DEMO.efBalance, DEMO.monthlyEssentials),
-        confidence: 1,
-      },
-      DT: {
-        structurallyUndefined: false,
-        raw: debtTrendScore(DEMO.debtStart, DEMO.debtNow),
-        confidence: 1,
-      },
-      IC: {
-        structurallyUndefined: resisted + yielded === 0,
-        raw: impulseControlScore(resisted, yielded),
-        confidence: Math.min(1, (resisted + yielded) / 10),
-      },
-    }
-    return computeHealthScore(inputs, state.prevHealthScore, state.stage)
-    // `today` is a dep (not read directly) so the memo recomputes its
-    // wall-clock windows when the day-rollover state above advances.
-  }, [state.transactions, state.prevHealthScore, state.stage, today])
-
-  // Persist a once-per-day health snapshot so asymmetric smoothing and stage
-  // hysteresis actually compound day over day. Keyed on healthDate: persisting
-  // per render would re-apply smooth() many times within a single day. Quests
-  // roll here too — driven by the `today` state, so a tab kept open past
-  // midnight rolls quests and advances the health day at the actual date
-  // change, not only when a transaction edit happens to recompute health.
+  // Day rollover (quests + once-per-day health snapshot) is a reducer action;
+  // the reducer returns the same state on no-op days, so this dispatch is
+  // render-free until the day actually changes.
   useEffect(() => {
-    setState((s) => {
-      if (s.healthDate === today && s.questsDate === today) return s
-      const rolled = rollQuests(s, today)
-      return s.healthDate === today
-        ? rolled
-        : { ...rolled, prevHealthScore: health.score, stage: health.stage, healthDate: today }
-    })
+    dispatch({ type: 'ROLL_DAY', today, healthScore: health.score, healthStage: health.stage })
   }, [health, today])
 
   // Level-up fanfare/toast as a reaction to xp changes, never inside a state
-  // updater (StrictMode double-invokes updaters in dev).
+  // transition (StrictMode double-invokes reducers in dev).
   const prevXp = useRef(state.xp)
   useEffect(() => {
     const prev = prevXp.current
@@ -163,10 +300,19 @@ export default function App() {
     if (state.xp.level > prev.level) {
       sfx.fanfare()
       setToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
-      const t = setTimeout(() => setToast(null), 2600)
-      return () => clearTimeout(t)
     }
   }, [state.xp])
+
+  // Toast dismissal owns its own timer, keyed on the toast itself. It must
+  // NOT live in the XP effect above: any XP gain within 2.6s of a level-up
+  // (e.g. +5 for logging a purchase) would run that effect's cleanup, cancel
+  // the dismiss timer, and strand the toast — and the role="status" live
+  // region content — on screen until the next level-up.
+  useEffect(() => {
+    if (toast === null) return
+    const t = setTimeout(() => setToast(null), 2600)
+    return () => clearTimeout(t)
+  }, [toast])
 
   // Quest-completion sounds, likewise driven by state changes only.
   const prevQuestsDone = useRef(state.quests.filter((q) => q.done).length)
@@ -177,68 +323,26 @@ export default function App() {
     if (doneCount > prev) {
       sfx.blip()
       if (state.quests.every((q) => q.done)) {
+        // The arpeggio never carries the moment alone: the toast announces it
+        // through the live region and QuestCard shows a persistent badge.
+        setToast('All quests complete!')
         const t = setTimeout(sfx.arpeggio, 180)
         return () => clearTimeout(t)
       }
     }
   }, [state.quests])
 
-  const stageMeta = STAGE_META[health.stage]
-
-  function grant(action: XpAction) {
-    setState((s) => ({ ...s, xp: grantXp(s.xp, action).next }))
-  }
-
-  function logPurchase(resisted: boolean) {
-    const amt = parseFloat(amount)
-    if (!resisted && (Number.isNaN(amt) || amt <= 0)) return
+  function logPurchase(amountDA: number, category: string, resisted: boolean) {
     const tx: Transaction = {
       id: crypto.randomUUID(),
-      amountDA: resisted ? 0 : amt,
+      amountDA,
       category,
       date: todayISO(),
       resistedImpulse: resisted,
     }
-    setState((s) => ({ ...s, transactions: [tx, ...s.transactions] }))
-    if (resisted) {
-      sfx.sparkle()
-      grant('resistImpulse')
-    } else {
-      sfx.blip()
-      grant('logExpense')
-    }
-    setAmount('')
-  }
-
-  function completeQuest(id: string) {
-    // Quest flag and XP grant happen in one atomic functional update: a second
-    // call before re-render sees done === true and is a no-op, so rapid double
-    // clicks can never double-grant XP. Sounds fire from the effects above.
-    setState((s) => {
-      const quest = s.quests.find((q) => q.id === id)
-      if (!quest || quest.done) return s
-      const quests = s.quests.map((q) => (q.id === id ? { ...q, done: true } : q))
-      return { ...s, quests, xp: grantXp(s.xp, quest.xpAction).next }
-    })
-  }
-
-  function runSim() {
-    const amt = parseFloat(simAmount)
-    if (Number.isNaN(amt) || amt <= 0) return
-    const profile: SimProfile = {
-      monthlyIncome: DEMO.monthlyIncome,
-      monthlyEssentials: DEMO.monthlyEssentials,
-      monthlyDiscretionary: DEMO.monthlyDiscretionary,
-      liquidBalance: DEMO.liquidBalance,
-      efBalance: DEMO.efBalance,
-      debtBalance: DEMO.debtNow,
-      debtMinimum: DEMO.debtMinimum,
-      extraDebtPayment: DEMO.extraDebtPayment,
-      goal: DEMO.goal,
-    }
-    const result = runSimulation(profile, { amount: amt, funding: 'lump' })
-    sfx.reveal()
-    setSimText(describeResult(result))
+    dispatch({ type: 'LOG_TX', tx })
+    if (resisted) sfx.sparkle()
+    else sfx.blip()
   }
 
   function downloadExport() {
@@ -257,7 +361,7 @@ export default function App() {
         <span className="wordmark">Ember</span>
         <button
           className="btn"
-          onClick={() => setState((s) => ({ ...s, muted: !s.muted }))}
+          onClick={() => dispatch({ type: 'TOGGLE_MUTE' })}
           aria-pressed={state.muted}
           aria-label="Mute sound"
         >
@@ -272,127 +376,12 @@ export default function App() {
           .toast:empty while there is no message. */}
       <div className="toast" role="status">{toast}</div>
 
-      <section className="card hero-card">
-        <div
-          className="stage-badge"
-          style={{ background: stageMeta.color, boxShadow: `6px 6px 0 ${stageMeta.colorSh}` }}
-        >
-          <span className="stage-flame" aria-hidden="true">🔥</span>
-        </div>
-        <div className="stage-info">
-          <h2>{stageMeta.label}</h2>
-          <div className="stars" aria-label={`${stageMeta.stars} of 4 stars`}>
-            {'★'.repeat(stageMeta.stars)}
-          </div>
-          <div className="mono score-line">
-            Health {health.score.toFixed(1)}
-          </div>
-        </div>
-      </section>
-
-      <section className="card">
-        <div className="xp-head">
-          <h3>Level {state.xp.level} · {levelTitle(state.xp.level)}</h3>
-          <span className="mono">{state.xp.xpIntoLevel} / {xpForLevel(state.xp.level)} XP</span>
-        </div>
-        <div className="xp-track" role="progressbar"
-          aria-valuenow={state.xp.xpIntoLevel} aria-valuemin={0} aria-valuemax={xpForLevel(state.xp.level)}
-          aria-label={`Level ${state.xp.level} progress: ${state.xp.xpIntoLevel} of ${xpForLevel(state.xp.level)} XP`}>
-          <div
-            className="xp-fill"
-            style={{ width: `${Math.min(100, (state.xp.xpIntoLevel / xpForLevel(state.xp.level)) * 100)}%` }}
-          />
-        </div>
-      </section>
-
-      <section className="card">
-        <h3>Log it</h3>
-        <div className="log-row">
-          <input
-            className="field mono"
-            type="number"
-            inputMode="decimal"
-            placeholder="Amount (DA)"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            aria-label="Amount in DA"
-          />
-          <select
-            className="field"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            aria-label="Category"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-        <div className="log-actions">
-          <button className="btn btn-flame" onClick={() => logPurchase(false)}>
-            Log purchase (+5 XP)
-          </button>
-          <button className="btn btn-gold" onClick={() => logPurchase(true)}>
-            I resisted an impulse (+50 XP)
-          </button>
-        </div>
-      </section>
-
-      <section className="card">
-        <h3>Today's quests</h3>
-        <ul className="quest-list">
-          {state.quests.map((q) => (
-            <li key={q.id} className={q.done ? 'quest done' : 'quest'}>
-              <button
-                className="quest-box"
-                onClick={() => completeQuest(q.id)}
-                aria-pressed={q.done}
-                aria-label={q.done ? `${q.text} — done` : `Mark done: ${q.text}`}
-              >
-                {q.done ? '✓' : ''}
-              </button>
-              <span className="quest-text">{q.text}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="card sim-card">
-        <div className="window-bar mono">DECISION_SIM.EXE</div>
-        <div className="sim-body">
-          <div className="log-row">
-            <input
-              className="field mono"
-              type="number"
-              inputMode="decimal"
-              placeholder="Purchase amount (DA)"
-              value={simAmount}
-              onChange={(e) => setSimAmount(e.target.value)}
-              aria-label="Purchase amount in DA"
-            />
-            <button className="btn btn-teal" onClick={runSim}>Run simulation</button>
-          </div>
-          {simText && <p className="sim-result">{simText}</p>}
-        </div>
-      </section>
-
-      <section className="card ledger-card">
-        <h3>Recent</h3>
-        {state.transactions.length === 0 ? (
-          <p className="empty">Nothing logged yet. First log is +5 XP.</p>
-        ) : (
-          <ul className="tx-list">
-            {state.transactions.slice(0, 8).map((t) => (
-              <li key={t.id} className="tx">
-                <span>{t.resistedImpulse ? '🛡 Resisted' : t.category}</span>
-                <span className="mono">
-                  {t.resistedImpulse ? '—' : `${t.amountDA.toLocaleString()} DA`}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <HeroCard stage={health.stage} score={health.score} />
+      <XpCard xp={state.xp} />
+      <LogCard onLog={logPurchase} />
+      <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
+      <SimCard profile={DEMO_PROFILE} />
+      <Ledger transactions={state.transactions} />
 
       <footer className="foot">
         <button className="btn" onClick={downloadExport}>Export my data</button>

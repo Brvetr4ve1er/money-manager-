@@ -10,7 +10,10 @@
  *    non-negotiable outflows;
  *  - if liquid balance would go negative, that month's surplus repairs the
  *    buffer first, pausing goal contributions and extra debt paydown;
- *  - contributions resume automatically once the buffer is repaired.
+ *  - contributions resume automatically once the buffer is repaired;
+ *  - even with liquid positive, contributions are capped by the month's
+ *    surplus — any month funded below plan reports goalPaused with the
+ *    actual amount in goalContribution.
  */
 
 import {
@@ -33,6 +36,11 @@ export interface SimProfile {
   efBalance: number
   /** Current revolving debt balance. */
   debtBalance: number
+  /** Annual rate on the revolving balance as a decimal (0.24 = 24% APR).
+   *  Omit or 0 for interest-free. Accrued identically on both paths so
+   *  carrying the balance longer has a real in-model cost — otherwise
+   *  debtDelayMonths would read as free, under-reporting the tradeoff. */
+  revolvingApr?: number
   /** Required minimum debt payment per month. */
   debtMinimum: number
   /** Extra (voluntary) debt paydown per month at baseline. */
@@ -56,6 +64,12 @@ export interface MonthState {
   /** Total debt outstanding: revolving balance plus any unamortized financed principal. */
   debtBalance: number
   goalBalance: number
+  /** Amount actually contributed to the goal this month — may be less than
+   *  the planned monthlyContribution when the surplus is squeezed. */
+  goalContribution: number
+  /** True when a goal exists and this month funded it below plan (buffer
+   *  repair, or installments/outflows eating the surplus). A UI charting the
+   *  goal must never show it flatlining while claiming it is not paused. */
   goalPaused: boolean
   /** Projected health blend for this month (IC excluded, weights renormalized). */
   health: number
@@ -145,6 +159,10 @@ export function simulate(
   if (purchase?.funding === 'lump') liquid -= purchase.amount
 
   for (let m = 1; m <= horizonMonths; m++) {
+    // Revolving interest accrues at the top of the month, before any payment
+    // lands — identically on both paths, so a scenario that delays paydown
+    // pays for every extra month it carries the balance.
+    debt += debt * ((profile.revolvingApr ?? 0) / 12)
     const debtStartOfMonth = debt + financedDebt
     const install = m <= financedMonths ? monthlyInstallment : 0
 
@@ -168,17 +186,15 @@ export function simulate(
     liquid += surplus
     surplus = Math.max(0, surplus)
 
-    let goalPaused = false
-    if (liquid < 0) {
-      // Buffer repair: the entire month's surplus already went in via the
-      // += above; contributions pause until liquid recovers.
-      goalPaused = true
-    } else {
+    // While liquid < 0 the buffer repairs itself: the entire month's surplus
+    // already went in via the += above; contributions pause until it recovers.
+    let goalContribution = 0
+    if (liquid >= 0) {
       // Optional outflows are capped by liquid as well as surplus so the
       // month the buffer first crosses zero can never fund the goal back
       // into the red (buffer-repair contract in the header).
       const available = Math.max(0, Math.min(surplus, liquid))
-      const goalContribution = profile.goal
+      goalContribution = profile.goal
         ? Math.min(profile.goal.monthlyContribution, available)
         : 0
       const afterGoal = available - goalContribution
@@ -187,6 +203,11 @@ export function simulate(
       debt -= extraDebt
       liquid -= goalContribution + extraDebt
     }
+    // Paused = funded below plan, not just "liquid went negative": a financed
+    // purchase can zero out contributions for months while liquid stays
+    // positive, and reporting goalPaused: false there would be misleading.
+    const goalPaused =
+      profile.goal !== null && goalContribution < profile.goal.monthlyContribution
 
     const expensesThisMonth = fixedOutflow + (m === 1 && purchase?.funding === 'lump' ? purchase.amount : 0)
     const health = projectedHealth({
@@ -205,6 +226,7 @@ export function simulate(
       liquidBalance: liquid,
       debtBalance: debt + financedDebt,
       goalBalance: goalBal,
+      goalContribution,
       goalPaused,
       health,
     })
@@ -289,7 +311,14 @@ export function describeResult(r: SimResult): string {
     parts.push(`You'd carry your card balance about ${r.debtDelayMonths} month${r.debtDelayMonths === 1 ? '' : 's'} longer.`)
   }
   if (r.healthDeltaMonth1 < -10) {
-    parts.push('The rough part is month one — your numbers dip hard right after the purchase and recover from there.')
+    // Only claim recovery when the projection actually shows it: asserting
+    // "and recover from there" while healthDeltaFinal stays deep in the red
+    // is exactly the soft reassurance the trust rules forbid.
+    if (r.healthDeltaFinal > r.healthDeltaMonth1 + 5) {
+      parts.push('The rough part is month one — your numbers dip hard right after the purchase and recover from there.')
+    } else {
+      parts.push('The dip lands in month one and the projection shows it persisting.')
+    }
   }
   return parts.join(' ')
 }

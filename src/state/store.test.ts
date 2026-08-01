@@ -65,6 +65,49 @@ describe('sanitizeState', () => {
     expect(state.transactions).toEqual([good])
   })
 
+  it('drops negative amounts that would reduce trailing spend and inflate SR/BA', () => {
+    const good = { id: 'a', amountDA: 1200, category: 'Food', date: '2026-08-01' }
+    const state = sanitizeState({
+      transactions: [good, { id: 'b', amountDA: -50_000, category: 'Food', date: '2026-08-01' }],
+    })
+    expect(state.transactions).toEqual([good])
+  })
+
+  it('drops truthy-string impulse flags that would count as resisted in IC', () => {
+    const base = { id: 'a', amountDA: 100, category: 'Fun', date: '2026-08-01' }
+    const state = sanitizeState({
+      transactions: [
+        { ...base, id: 'b', resistedImpulse: 'no' },
+        { ...base, id: 'c', impulseFlagged: 1 },
+        { ...base, id: 'd', resistedImpulse: true, impulseFlagged: false },
+      ],
+    })
+    expect(state.transactions.map((t) => t.id)).toEqual(['d'])
+  })
+
+  it('drops dates that cannot be compared against the YYYY-MM-DD cutoffs', () => {
+    const base = { id: 'a', amountDA: 100, category: 'Food' }
+    const state = sanitizeState({
+      transactions: [
+        { ...base, id: 'b', date: 'yesterday' },
+        { ...base, id: 'c', date: '2026-08-01T10:00:00Z' },
+        { ...base, id: 'd', date: '2026-08-01' },
+      ],
+    })
+    expect(state.transactions.map((t) => t.id)).toEqual(['d'])
+  })
+
+  it('drops a non-string note but keeps a valid one', () => {
+    const base = { id: 'a', amountDA: 100, category: 'Food', date: '2026-08-01' }
+    const state = sanitizeState({
+      transactions: [
+        { ...base, id: 'b', note: 42 },
+        { ...base, id: 'c', note: 'lunch' },
+      ],
+    })
+    expect(state.transactions.map((t) => t.id)).toEqual(['c'])
+  })
+
   it('rejects a malformed xp shape', () => {
     const state = sanitizeState({ xp: { level: 'high', xpIntoLevel: 3 } })
     expect(state.xp).toEqual(defaultState().xp)

@@ -34,7 +34,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), absoluteSocialCards(siteUrl)],
     test: {
       environment: 'node',
-      include: ['src/**/*.test.ts'],
+      // Component tests (*.test.tsx) need a DOM; engine/state tests stay on
+      // the faster node environment.
+      environmentMatchGlobs: [['**/*.test.tsx', 'jsdom']],
+      include: ['src/**/*.test.{ts,tsx}'],
     },
   }
 }) as ReturnType<typeof defineConfig>
