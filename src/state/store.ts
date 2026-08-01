@@ -15,6 +15,10 @@ export interface Transaction {
   date: string
   /** True when this entry was flagged as a resisted impulse (no money spent). */
   resistedImpulse?: boolean
+  /** True when the user explicitly flagged this purchase as a yielded impulse
+   *  (a future "I bought it anyway" flow). Only flagged events may count
+   *  against Impulse Control — ordinary planned spending never does. */
+  impulseFlagged?: boolean
 }
 
 export interface Quest {
@@ -44,20 +48,41 @@ export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   { id: 'review', text: 'Review yesterday', xpAction: 'reviewYesterday' },
 ]
 
+function localDayISO(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
+
 /**
  * Local-calendar day key (YYYY-MM-DD). Deliberately NOT toISOString(): the
  * target market is UTC+1, so UTC keys would roll quests at 01:00 local time
  * and stamp late-night purchases with the previous day/month.
  */
 export function todayISO(): string {
+  return localDayISO(new Date())
+}
+
+/** Local-calendar day key `n` days before today (same format as todayISO). */
+export function daysAgoISO(n: number): string {
   const d = new Date()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${dd}`
+  d.setDate(d.getDate() - n)
+  return localDayISO(d)
 }
 
 export function freshQuests(): Quest[] {
   return DEFAULT_QUESTS.map((q) => ({ ...q, done: false }))
+}
+
+/**
+ * Roll the daily quest list when the stored quest day is not `today`.
+ * Used by loadState at mount AND by the day-change effect in App, so a tab
+ * left open past midnight rolls quests the same way a reload does. Returns
+ * the same object when nothing needs to change.
+ */
+export function rollQuests(state: AppState, today: string): AppState {
+  if (state.questsDate === today) return state
+  return { ...state, quests: freshQuests(), questsDate: today }
 }
 
 export function defaultState(): AppState {
@@ -159,12 +184,7 @@ export function loadState(): AppState {
     const raw = localStorage.getItem(KEY)
     if (!raw) return defaultState()
     const state = sanitizeState(JSON.parse(raw) as unknown)
-    // Roll quests daily.
-    if (state.questsDate !== todayISO()) {
-      state.quests = freshQuests()
-      state.questsDate = todayISO()
-    }
-    return state
+    return rollQuests(state, todayISO())
   } catch {
     return defaultState()
   }

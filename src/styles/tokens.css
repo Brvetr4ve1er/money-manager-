@@ -1,6 +1,9 @@
 /* Ember design tokens — neo-brutalist × gacha. See design-system artifact. */
 
 :root {
+  /* Native controls (select popups, spinners, scrollbars) follow the active
+     theme instead of staying light over the dark UI. */
+  color-scheme: light dark;
   --ink: #141414;
   --paper: #f6efdc;
   --paper-hi: #fffcf3;
@@ -10,7 +13,7 @@
   --pink: #ff2d78; --pink-sh: #c4104f;
   --teal: #00b4b0; --teal-sh: #067e7b;
   --violet: #4b2e83; --violet-sh: #331d5c;
-  --good: #2f9e44;
+  --good: #2f9e44; --good-sh: #1d6b2f;
   --line: var(--ink);
   --shadow: var(--ink);
   --display: "Arial Black", "Helvetica Neue", -apple-system, "Segoe UI", sans-serif;

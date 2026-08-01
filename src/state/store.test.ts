@@ -1,11 +1,44 @@
 import { describe, it, expect } from 'vitest'
-import { defaultState, sanitizeState, todayISO } from './store.ts'
+import {
+  defaultState,
+  sanitizeState,
+  todayISO,
+  daysAgoISO,
+  rollQuests,
+} from './store.ts'
 
 describe('todayISO', () => {
   it('uses the local calendar day, not UTC', () => {
     const d = new Date()
     const expected = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     expect(todayISO()).toBe(expected)
+  })
+})
+
+describe('daysAgoISO', () => {
+  it('matches todayISO at zero days', () => {
+    expect(daysAgoISO(0)).toBe(todayISO())
+  })
+  it('sorts strictly before today (usable as a window cutoff)', () => {
+    expect(daysAgoISO(30) < todayISO()).toBe(true)
+  })
+})
+
+describe('rollQuests', () => {
+  it('returns the same state object when the quest day matches', () => {
+    const s = defaultState()
+    expect(rollQuests(s, s.questsDate)).toBe(s)
+  })
+  it('resets quests when the day changed (tab open past midnight)', () => {
+    const s = defaultState()
+    s.questsDate = '2026-07-31'
+    s.quests = s.quests.map((q) => ({ ...q, done: true }))
+    const rolled = rollQuests(s, '2026-08-01')
+    expect(rolled.questsDate).toBe('2026-08-01')
+    expect(rolled.quests.every((q) => !q.done)).toBe(true)
+    // Everything else is untouched.
+    expect(rolled.xp).toBe(s.xp)
+    expect(rolled.transactions).toBe(s.transactions)
   })
 })
 

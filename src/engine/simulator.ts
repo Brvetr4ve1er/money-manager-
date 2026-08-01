@@ -64,11 +64,20 @@ export interface SimResult {
   baseline: MonthState[]
   scenario: MonthState[]
   /** Months of delay to goal completion caused by the purchase (null if goal
-   *  doesn't complete within the horizon on either path). */
+   *  doesn't complete within the horizon on either path, or if the purchase
+   *  pushes completion past the horizon — see goalMissesHorizon). */
   goalDelayMonths: number | null
+  /** True when the baseline reaches the goal within the horizon but the
+   *  purchase path does not: the purchase's biggest tradeoff, surfaced
+   *  explicitly instead of collapsing to a null delay. */
+  goalMissesHorizon: boolean
   /** Extra months carrying revolving debt vs. baseline (null if debt never
-   *  clears within the horizon on either path). */
+   *  clears within the horizon on either path, or if the purchase pushes
+   *  clearance past the horizon — see debtMissesHorizon). */
   debtDelayMonths: number | null
+  /** True when debt clears within the horizon at baseline but not with the
+   *  purchase. */
+  debtMissesHorizon: boolean
   healthDeltaMonth1: number
   healthDeltaFinal: number
 }
@@ -112,8 +121,13 @@ export function simulate(
   let debt = profile.debtBalance
   let goalBal = profile.goal?.current ?? 0
 
+  // Clamp to a whole positive month count: an explicit 0 (or negative /
+  // fractional) financedMonths must never simulate the purchase as free —
+  // the ?? default only covers undefined.
   const financedMonths =
-    purchase?.funding === 'financed' ? (purchase.financedMonths ?? 6) : 0
+    purchase?.funding === 'financed'
+      ? Math.max(1, Math.floor(purchase.financedMonths ?? 6))
+      : 0
   const monthlyInstallment =
     purchase?.funding === 'financed'
       ? installment(purchase.amount, financedMonths, purchase.apr ?? 0)
@@ -206,10 +220,12 @@ export function runSimulation(
       goalDoneBase !== null && goalDoneScen !== null
         ? goalDoneScen - goalDoneBase
         : null,
+    goalMissesHorizon: goalDoneBase !== null && goalDoneScen === null,
     debtDelayMonths:
       debtClearBase !== null && debtClearScen !== null
         ? debtClearScen - debtClearBase
         : null,
+    debtMissesHorizon: debtClearBase !== null && debtClearScen === null,
     healthDeltaMonth1: scenario[0].health - baseline[0].health,
     healthDeltaFinal:
       scenario[scenario.length - 1].health - baseline[baseline.length - 1].health,
@@ -222,10 +238,13 @@ export function runSimulation(
  */
 export function describeResult(r: SimResult): string {
   const parts: string[] = []
+  const horizon = r.baseline.length
   const finalDelta = r.healthDeltaFinal
   if (Math.abs(finalDelta) < 3) {
+    // Neutral projection statement, not reassurance: "doesn't leave a mark"
+    // reads as a verdict one step from "you can afford it".
     parts.push(
-      "Buying this doesn't leave a lasting mark on your overall financial health — by the end of the projection your position looks about the same either way.",
+      `By month ${horizon} the buy and wait paths land within 3 points of each other.`,
     )
   } else if (finalDelta < 0) {
     parts.push(
@@ -234,10 +253,18 @@ export function describeResult(r: SimResult): string {
   } else {
     parts.push('This purchase leaves your projected position slightly ahead — likely via debt or cash-flow effects worth double-checking.')
   }
-  if (r.goalDelayMonths !== null && r.goalDelayMonths > 0) {
+  if (r.goalMissesHorizon) {
+    parts.push(
+      `Your goal no longer completes within the ${horizon}-month projection — on the wait path it does.`,
+    )
+  } else if (r.goalDelayMonths !== null && r.goalDelayMonths > 0) {
     parts.push(`Your goal slips about ${r.goalDelayMonths} month${r.goalDelayMonths === 1 ? '' : 's'}.`)
   }
-  if (r.debtDelayMonths !== null && r.debtDelayMonths > 0) {
+  if (r.debtMissesHorizon) {
+    parts.push(
+      `Your card balance doesn't clear within the ${horizon}-month projection — on the wait path it does.`,
+    )
+  } else if (r.debtDelayMonths !== null && r.debtDelayMonths > 0) {
     parts.push(`You'd carry your card balance about ${r.debtDelayMonths} month${r.debtDelayMonths === 1 ? '' : 's'} longer.`)
   }
   if (r.healthDeltaMonth1 < -10) {

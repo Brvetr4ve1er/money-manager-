@@ -17,6 +17,8 @@ import {
   saveState,
   exportJSON,
   todayISO,
+  daysAgoISO,
+  rollQuests,
   type AppState,
   type Transaction,
 } from './state/store.ts'
@@ -66,9 +68,18 @@ export default function App() {
     const monthSpend = state.transactions
       .filter((t) => t.date.slice(0, 7) === today.slice(0, 7) && !t.resistedImpulse)
       .reduce((s, t) => s + t.amountDA, 0)
-    const resisted = state.transactions.filter((t) => t.resistedImpulse).length
+    // Impulse Control counts only explicitly flagged events (per the IC
+    // contract: resisted / total flagged), scoped to a trailing 30 days like
+    // the month-scoped inputs above. Ordinary spending — Fun included — was
+    // never flagged as an impulse and must not drag IC down. No UI sets
+    // impulseFlagged yet ("I bought it anyway" ships later), so yielded stays
+    // 0 and IC confidence stays honestly low.
+    const icCutoff = daysAgoISO(30)
+    const resisted = state.transactions.filter(
+      (t) => t.resistedImpulse && t.date >= icCutoff,
+    ).length
     const yielded = state.transactions.filter(
-      (t) => !t.resistedImpulse && t.category === 'Fun',
+      (t) => t.impulseFlagged && !t.resistedImpulse && t.date >= icCutoff,
     ).length
 
     const inputs: HealthInputs = {
@@ -103,14 +114,18 @@ export default function App() {
 
   // Persist a once-per-day health snapshot so asymmetric smoothing and stage
   // hysteresis actually compound day over day. Keyed on healthDate: persisting
-  // per render would re-apply smooth() many times within a single day.
+  // per render would re-apply smooth() many times within a single day. Quests
+  // roll here too — the same day-change signal — so a tab kept open past
+  // midnight can't advance the health day while yesterday's quests stay done.
   useEffect(() => {
     const today = todayISO()
-    setState((s) =>
-      s.healthDate === today
-        ? s
-        : { ...s, prevHealthScore: health.score, stage: health.stage, healthDate: today },
-    )
+    setState((s) => {
+      if (s.healthDate === today && s.questsDate === today) return s
+      const rolled = rollQuests(s, today)
+      return s.healthDate === today
+        ? rolled
+        : { ...rolled, prevHealthScore: health.score, stage: health.stage, healthDate: today }
+    })
   }, [health])
 
   // Level-up fanfare/toast as a reaction to xp changes, never inside a state
@@ -224,7 +239,12 @@ export default function App() {
         </button>
       </header>
 
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {/* Permanently mounted live region: most screen readers only announce
+          text CHANGES inside an existing live region, so the element must not
+          mount already containing its text — otherwise the level-up is silent
+          for AT users and the fanfare sound carries it alone. Hidden via
+          .toast:empty while there is no message. */}
+      <div className="toast" role="status">{toast}</div>
 
       <section className="card hero-card">
         <div
