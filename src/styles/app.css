@@ -82,6 +82,20 @@
   margin-bottom: 0.5rem;
 }
 .xp-head h3 { font-size: 0.95rem; }
+.xp-numbers { display: inline-flex; align-items: baseline; gap: 0.5rem; }
+/* Transient +XP chip (see XpCard): a non-audio, non-motion confirmation of a
+   gain — visible to muted and reduced-motion users, gold like the bar it
+   feeds. It appears/disappears by state swap, never by animation alone. */
+.xp-gain {
+  background: var(--gold);
+  color: #141414; /* ink on gold, per the accent-surface rule */
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  box-shadow: 2px 2px 0 var(--gold-sh);
+  padding: 0.05rem 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
 .xp-track {
   height: 22px;
   border: 3px solid var(--ink);
@@ -148,7 +162,11 @@
 .quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.25rem; }
 .quest { display: flex; align-items: center; }
 /* The whole row is the button: quest text is the natural tap target, so it
-   must carry the affordance (cursor, hover) the 28px box alone had before. */
+   must carry the affordance (cursor, hover) the 28px box alone had before.
+   Cursor/hover/active are gated on :not(:disabled): a done quest is inert
+   (irreversible, XP already granted), and a pointer cursor plus a press
+   animation on a control that does nothing would break the "pressed =
+   something happened" contract. */
 .quest-row {
   position: relative;
   display: flex;
@@ -161,8 +179,8 @@
   font: inherit;
   color: inherit;
   text-align: left;
-  cursor: pointer;
 }
+.quest-row:not(:disabled) { cursor: pointer; }
 /* Invisible hit-area extension: 28px visual row, >=48px touch target. */
 .quest-row::after {
   content: '';
@@ -185,8 +203,8 @@
      reads as the tap target that grants XP, not a decorative bullet. */
   box-shadow: 3px 3px 0 var(--shadow);
 }
-.quest-row:hover .quest-box { background: var(--paper-dim); }
-.quest-row:active .quest-box { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--shadow); }
+.quest-row:not(:disabled):hover .quest-box { background: var(--paper-dim); }
+.quest-row:not(:disabled):active .quest-box { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--shadow); }
 .quest.done .quest-box { background: var(--good); }
 .quest.done .quest-text { text-decoration: line-through; opacity: 0.5; }
 .quest-text { font-size: 0.9rem; font-weight: 600; }
@@ -200,6 +218,9 @@
   font-weight: 700;
 }
 .sim-body { padding: 1.1rem 1.3rem; }
+/* Honesty note: while the simulator runs on the demo profile, the card
+   discloses whose numbers it projects (see SimCard). */
+.sim-note { margin: 0 0 0.7rem; font-size: 0.72rem; opacity: 0.7; }
 .sim-result {
   margin: 0.8rem 0 0;
   background: var(--teal);

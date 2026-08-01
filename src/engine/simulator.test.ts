@@ -179,6 +179,35 @@ describe('financed purchase', () => {
   })
 })
 
+describe('goal completion', () => {
+  // 480k of 500k at 12k/mo: month 1 funds the full plan (492k), month 2 only
+  // the 8k remainder, and every later month contributes nothing.
+  const nearDone: SimProfile = {
+    ...yasmine,
+    goal: { target: 500_000, current: 480_000, monthlyContribution: 12_000 },
+  }
+  const r = runSimulation(nearDone, { amount: 5_000, funding: 'lump' })
+
+  it('caps the final contribution at the remaining amount and stops at target', () => {
+    expect(r.baseline[0].goalContribution).toBe(12_000)
+    expect(r.baseline[1].goalContribution).toBe(8_000)
+    for (let i = 2; i < r.baseline.length; i++) {
+      expect(r.baseline[i].goalContribution).toBe(0)
+      expect(r.baseline[i].goalBalance).toBe(500_000)
+    }
+  })
+  it('never reports a completed goal as paused', () => {
+    for (const m of r.baseline) expect(m.goalPaused).toBe(false)
+  })
+  it('redirects the freed surplus to liquid after completion', () => {
+    // Month 3 (no contribution) must grow liquid faster than month 2 (8k
+    // contribution) — the surplus stays in the buffer instead of vanishing
+    // into a finished goal.
+    const growth = (i: number) => r.baseline[i].liquidBalance - r.baseline[i - 1].liquidBalance
+    expect(growth(2)).toBeGreaterThan(growth(1))
+  })
+})
+
 describe('revolving APR', () => {
   it('accrues interest identically on both paths before payments land', () => {
     const r = runSimulation(

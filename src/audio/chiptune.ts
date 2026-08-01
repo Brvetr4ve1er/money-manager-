@@ -9,9 +9,6 @@ let muted = false
 export function setMuted(v: boolean): void {
   muted = v
 }
-export function isMuted(): boolean {
-  return muted
-}
 
 function ensureCtx(): AudioContext {
   if (!ctx) ctx = new AudioContext()
@@ -52,22 +49,6 @@ export const fanfare = (): void =>
   [392, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
     tone(f, i * 0.075, 0.28, 'square', 0.1),
   )
-
-/** Boss hit — descending zap. */
-export function zap(): void {
-  if (muted) return
-  const c = ensureCtx()
-  const osc = c.createOscillator()
-  const gain = c.createGain()
-  osc.type = 'square'
-  osc.frequency.setValueAtTime(500, c.currentTime)
-  osc.frequency.exponentialRampToValueAtTime(80, c.currentTime + 0.18)
-  gain.gain.setValueAtTime(0.14, c.currentTime)
-  gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.2)
-  osc.connect(gain).connect(c.destination)
-  osc.start()
-  osc.stop(c.currentTime + 0.22)
-}
 
 /** Achievement unlock — rare-pull shimmer. */
 export const sparkle = (): void =>

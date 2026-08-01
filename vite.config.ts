@@ -1,4 +1,8 @@
-import { defineConfig, loadEnv, type Plugin } from 'vite'
+// defineConfig comes from 'vitest/config', whose UserConfig extends Vite's
+// with a typed `test` field — the 'vite' version would force an `as` cast on
+// the whole export, silently disabling type checking for every config key.
+import { defineConfig } from 'vitest/config'
+import { loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
 /**
@@ -40,4 +44,4 @@ export default defineConfig(({ mode }) => {
       include: ['src/**/*.test.{ts,tsx}'],
     },
   }
-}) as ReturnType<typeof defineConfig>
+})

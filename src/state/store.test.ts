@@ -3,7 +3,6 @@ import {
   defaultState,
   sanitizeState,
   todayISO,
-  daysAgoISO,
   rollQuests,
 } from './store.ts'
 
@@ -12,15 +11,6 @@ describe('todayISO', () => {
     const d = new Date()
     const expected = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     expect(todayISO()).toBe(expected)
-  })
-})
-
-describe('daysAgoISO', () => {
-  it('matches todayISO at zero days', () => {
-    expect(daysAgoISO(0)).toBe(todayISO())
-  })
-  it('sorts strictly before today (usable as a window cutoff)', () => {
-    expect(daysAgoISO(30) < todayISO()).toBe(true)
   })
 })
 

@@ -186,6 +186,14 @@ export function simulate(
     liquid += surplus
     surplus = Math.max(0, surplus)
 
+    // Planned contribution this month: the plan capped at what the goal still
+    // needs. A completed goal takes nothing more — post-completion months must
+    // not keep diverting surplus from liquid (and, via afterGoal, from extra
+    // debt paydown) into a finished goal, which would understate liquid and
+    // skew debt-clearance months on whichever path finishes first.
+    const goalPlanned = profile.goal
+      ? Math.min(profile.goal.monthlyContribution, Math.max(0, profile.goal.target - goalBal))
+      : 0
     // While liquid < 0 the buffer repairs itself: the entire month's surplus
     // already went in via the += above; contributions pause until it recovers.
     let goalContribution = 0
@@ -194,9 +202,7 @@ export function simulate(
       // month the buffer first crosses zero can never fund the goal back
       // into the red (buffer-repair contract in the header).
       const available = Math.max(0, Math.min(surplus, liquid))
-      goalContribution = profile.goal
-        ? Math.min(profile.goal.monthlyContribution, available)
-        : 0
+      goalContribution = Math.min(goalPlanned, available)
       const afterGoal = available - goalContribution
       const extraDebt = Math.min(debt, Math.min(profile.extraDebtPayment, afterGoal))
       goalBal += goalContribution
@@ -206,8 +212,9 @@ export function simulate(
     // Paused = funded below plan, not just "liquid went negative": a financed
     // purchase can zero out contributions for months while liquid stays
     // positive, and reporting goalPaused: false there would be misleading.
-    const goalPaused =
-      profile.goal !== null && goalContribution < profile.goal.monthlyContribution
+    // The plan is goalPlanned, not monthlyContribution: a finished goal
+    // receiving 0 is complete, not paused.
+    const goalPaused = profile.goal !== null && goalContribution < goalPlanned
 
     const expensesThisMonth = fixedOutflow + (m === 1 && purchase?.funding === 'lump' ? purchase.amount : 0)
     const health = projectedHealth({

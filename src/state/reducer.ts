@@ -6,7 +6,7 @@
  * them in dev, and sounds/toasts fire from effects that watch the results.
  */
 
-import { grantXp } from '../engine/xp.ts'
+import { grantXp, RESIST_XP_DAILY_CAP } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
 import { rollQuests, type AppState, type Transaction } from './store.ts'
 
@@ -19,11 +19,22 @@ export type AppAction =
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'LOG_TX': {
-      const xpAction = action.tx.resistedImpulse ? 'resistImpulse' : 'logExpense'
+      // Resist XP caps per day: the button is an unverifiable self-report
+      // that also feeds the IC health component, so an uncapped grant would
+      // pay the user to game the score. The entry itself always logs.
+      const resisted = action.tx.resistedImpulse === true
+      const resistGrantsToday = resisted
+        ? state.transactions.filter(
+            (t) => t.resistedImpulse && t.date === action.tx.date,
+          ).length
+        : 0
+      const grantsXp = !resisted || resistGrantsToday < RESIST_XP_DAILY_CAP
       return {
         ...state,
         transactions: [action.tx, ...state.transactions],
-        xp: grantXp(state.xp, xpAction).next,
+        xp: grantsXp
+          ? grantXp(state.xp, resisted ? 'resistImpulse' : 'logExpense').next
+          : state.xp,
       }
     }
     case 'COMPLETE_QUEST': {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { computeHealthScore, type Stage } from './engine/healthScore.ts'
 import { runSimulation, describeResult } from './engine/simulator.ts'
-import { xpForLevel, levelTitle, type XpState } from './engine/xp.ts'
+import { xpForLevel, levelTitle, RESIST_XP_DAILY_CAP, type XpState } from './engine/xp.ts'
 import { deriveHealthInputs, buildSimProfile, DEMO_PROFILE, type UserProfile } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
@@ -48,12 +48,19 @@ function HeroCard({ stage, score }: { stage: Stage; score: number }) {
   )
 }
 
-function XpCard({ xp }: { xp: XpState }) {
+function XpCard({ xp, gain }: { xp: XpState; gain: number | null }) {
   return (
     <section className="card">
       <div className="xp-head">
         <h3>Level {xp.level} · {levelTitle(xp.level)}</h3>
-        <span className="mono">{xp.xpIntoLevel} / {xpForLevel(xp.level)} XP</span>
+        <span className="xp-numbers">
+          {/* Transient +XP chip: the discrete visible moment for a gain. A
+              state swap, not an animation, so it reads under reduced motion
+              and with sound muted — the bar nudge (sub-pixel at high levels)
+              and the blip never carry the reward alone. */}
+          {gain !== null && <span className="xp-gain mono">+{gain} XP</span>}
+          <span className="mono">{xp.xpIntoLevel} / {xpForLevel(xp.level)} XP</span>
+        </span>
       </div>
       <div className="xp-track" role="progressbar"
         aria-valuenow={xp.xpIntoLevel} aria-valuemin={0} aria-valuemax={xpForLevel(xp.level)}
@@ -67,7 +74,13 @@ function XpCard({ xp }: { xp: XpState }) {
   )
 }
 
-function LogCard({ onLog }: { onLog: (amountDA: number, category: string, resisted: boolean) => void }) {
+function LogCard({
+  onLog,
+  resistXpCapped,
+}: {
+  onLog: (amountDA: number, category: string, resisted: boolean) => void
+  resistXpCapped: boolean
+}) {
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(CATEGORIES[0])
   const [error, setError] = useState<string | null>(null)
@@ -129,8 +142,12 @@ function LogCard({ onLog }: { onLog: (amountDA: number, category: string, resist
           <button type="submit" className="btn btn-flame">
             Log purchase (+5 XP)
           </button>
+          {/* The label must not promise XP the capped grant won't pay —
+              resists past the daily cap still log, they just earn nothing. */}
           <button type="button" className="btn btn-gold" onClick={() => submit(true)}>
-            I resisted an impulse (+50 XP)
+            {resistXpCapped
+              ? 'I resisted an impulse (XP capped today)'
+              : 'I resisted an impulse (+50 XP)'}
           </button>
         </div>
       </form>
@@ -152,11 +169,16 @@ function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete: (id: s
         {quests.map((q) => (
           <li key={q.id} className={q.done ? 'quest done' : 'quest'}>
             {/* The whole row is the button: the quest text is the natural tap
-                target, and the 48px row pitch prevents cross-quest mis-taps. */}
+                target, and the 48px row pitch prevents cross-quest mis-taps.
+                Completion is irreversible, so a done quest is disabled — not a
+                still-pressable toggle: aria-pressed would tell screen-reader
+                users it can be un-pressed, and an active press animation on an
+                inert control breaks the "pressed = something happened"
+                contract. */}
             <button
               className="quest-row"
               onClick={() => onComplete(q.id)}
-              aria-pressed={q.done}
+              disabled={q.done}
               aria-label={q.done ? `${q.text} — done` : `Mark done: ${q.text}`}
             >
               <span className="quest-box" aria-hidden="true">{q.done ? '✓' : ''}</span>
@@ -169,7 +191,7 @@ function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete: (id: s
   )
 }
 
-function SimCard({ profile }: { profile: UserProfile }) {
+function SimCard({ profile, onRun }: { profile: UserProfile; onRun: () => void }) {
   const [simAmount, setSimAmount] = useState('')
   const [simText, setSimText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -185,12 +207,20 @@ function SimCard({ profile }: { profile: UserProfile }) {
     const result = runSimulation(buildSimProfile(profile), { amount: amt, funding: 'lump' })
     sfx.reveal()
     setSimText(describeResult(result))
+    onRun()
   }
 
   return (
     <section className="card sim-card">
       <div className="window-bar mono">DECISION_SIM.EXE</div>
       <div className="sim-body">
+        {/* Honesty gap guard: the result copy speaks in second person, but the
+            projection runs on the demo profile until onboarding ships — the
+            card must say so, or it claims a personalization it doesn't have. */}
+        <p className="sim-note mono">
+          Projected on the demo profile ({profile.monthlyIncome.toLocaleString()} DA/mo
+          income) — your own numbers arrive with setup.
+        </p>
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -274,6 +304,8 @@ export default function App() {
     }
   }, [])
 
+  // Live health: exactly one smoothing step from the persisted snapshot
+  // (yesterday's final score) toward today's raw blend.
   const health = useMemo(
     () =>
       computeHealthScore(
@@ -286,22 +318,53 @@ export default function App() {
 
   // Day rollover (quests + once-per-day health snapshot) is a reducer action;
   // the reducer returns the same state on no-op days, so this dispatch is
-  // render-free until the day actually changes.
+  // render-free until the day actually changes. The snapshot persisted is the
+  // FINAL score of the previous snapshot day — the blend re-windowed at that
+  // day, one smooth() step from its own base. Persisting today's live score
+  // instead would apply smooth() twice against the same raw blend (once into
+  // the snapshot, once again in the memo above), moving ~75%/28% of the delta
+  // per day instead of the documented 50%/15% and promoting stages the
+  // persisted state never reached.
   useEffect(() => {
-    dispatch({ type: 'ROLL_DAY', today, healthScore: health.score, healthStage: health.stage })
-  }, [health, today])
+    if (state.healthDate === today && state.questsDate === today) return
+    const finalized =
+      state.healthDate === '' || state.healthDate === today
+        ? health // first run (or quests-only roll): nothing to finalize
+        : computeHealthScore(
+            deriveHealthInputs(state.transactions, DEMO_PROFILE, state.healthDate),
+            state.prevHealthScore,
+            state.stage,
+          )
+    dispatch({ type: 'ROLL_DAY', today, healthScore: finalized.score, healthStage: finalized.stage })
+  }, [state.healthDate, state.questsDate, state.transactions, state.prevHealthScore, state.stage, health, today])
 
   // Level-up fanfare/toast as a reaction to xp changes, never inside a state
-  // transition (StrictMode double-invokes reducers in dev).
+  // transition (StrictMode double-invokes reducers in dev). The same effect
+  // derives the transient +XP chip from the totalXp delta, so every grant —
+  // whatever action produced it — gets a visible moment.
+  const [xpGain, setXpGain] = useState<{ amount: number; at: number } | null>(null)
   const prevXp = useRef(state.xp)
   useEffect(() => {
     const prev = prevXp.current
     prevXp.current = state.xp
+    if (state.xp.totalXp > prev.totalXp) {
+      // `at` forces a fresh object per grant so back-to-back equal gains
+      // still reset the dismiss timer below.
+      setXpGain({ amount: state.xp.totalXp - prev.totalXp, at: Date.now() })
+    }
     if (state.xp.level > prev.level) {
       sfx.fanfare()
       setToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
     }
   }, [state.xp])
+
+  // Chip dismissal owns its own timer, keyed on the gain (same pattern and
+  // rationale as the toast timer below).
+  useEffect(() => {
+    if (xpGain === null) return
+    const t = setTimeout(() => setXpGain(null), 1800)
+    return () => clearTimeout(t)
+  }, [xpGain])
 
   // Toast dismissal owns its own timer, keyed on the toast itself. It must
   // NOT live in the XP effect above: any XP gain within 2.6s of a level-up
@@ -377,10 +440,18 @@ export default function App() {
       <div className="toast" role="status">{toast}</div>
 
       <HeroCard stage={health.stage} score={health.score} />
-      <XpCard xp={state.xp} />
-      <LogCard onLog={logPurchase} />
+      <XpCard xp={state.xp} gain={xpGain?.amount ?? null} />
+      <LogCard
+        onLog={logPurchase}
+        resistXpCapped={
+          state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
+          RESIST_XP_DAILY_CAP
+        }
+      />
       <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
-      <SimCard profile={DEMO_PROFILE} />
+      {/* Running a simulation genuinely completes the sim quest — the one
+          daily quest the app can verify instead of taking on self-report. */}
+      <SimCard profile={DEMO_PROFILE} onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })} />
       <Ledger transactions={state.transactions} />
 
       <footer className="foot">

@@ -23,6 +23,24 @@ describe('LOG_TX', () => {
     })
     expect(next.xp.totalXp).toBe(50)
   })
+  it('caps resist XP per day but still logs the entry', () => {
+    let s = defaultState()
+    for (let i = 0; i < 3; i++) {
+      s = appReducer(s, {
+        type: 'LOG_TX',
+        tx: tx({ id: `r${i}`, amountDA: 0, resistedImpulse: true }),
+      })
+    }
+    // Third press logs the transaction but grants nothing (2 × 50 cap).
+    expect(s.transactions).toHaveLength(3)
+    expect(s.xp.totalXp).toBe(100)
+    // A new local day resets the cap.
+    const nextDay = appReducer(s, {
+      type: 'LOG_TX',
+      tx: tx({ id: 'r3', amountDA: 0, resistedImpulse: true, date: '2026-08-02' }),
+    })
+    expect(nextDay.xp.totalXp).toBe(150)
+  })
 })
 
 describe('COMPLETE_QUEST', () => {

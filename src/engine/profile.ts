@@ -54,6 +54,24 @@ export const DEMO_PROFILE: UserProfile = {
   goal: { target: 500_000, current: 150_000, monthlyContribution: 12_000 },
 }
 
+/**
+ * Max resisted events per day that count toward Impulse Control. Mirrors the
+ * resist XP cap in the reducer: the resist button is an unverifiable
+ * self-report, and without a cap ten free taps drive IC raw to 100 at full
+ * confidence — a health score must never be a tappable lever.
+ */
+export const IC_RESISTED_DAILY_CAP = 2
+
+/**
+ * Confidence for score components backed by DEMO_PROFILE placeholders rather
+ * than any real user history. Deliberately low so shrink() pulls them toward
+ * the neutral 50: a brand-new user must not see a fully-confident score built
+ * on fictional income/EF/debt numbers, and the lurch when onboarding replaces
+ * the demo data stays small. Rises to history-derived confidence once
+ * onboarding ships real numbers.
+ */
+export const DEMO_PROFILE_CONFIDENCE = 0.3
+
 /** Local-calendar day key `n` days before `dayISO` (pure — no wall clock). */
 function daysBeforeISO(dayISO: string, n: number): string {
   const [y, m, d] = dayISO.split('-').map(Number)
@@ -86,35 +104,48 @@ export function deriveHealthInputs(
   // never flagged as an impulse and must not drag IC down. No UI sets
   // impulseFlagged yet ("I bought it anyway" ships later), so yielded stays
   // 0 and IC confidence stays honestly low.
-  const resisted = transactions.filter(
-    (t) => t.resistedImpulse && t.date >= cutoff,
-  ).length
+  // Resisted events count toward IC at most IC_RESISTED_DAILY_CAP per day —
+  // yielded events are never capped (self-reporting against yourself is not
+  // gameable upward).
+  const resistedByDay = new Map<string, number>()
+  for (const t of transactions) {
+    if (t.resistedImpulse && t.date >= cutoff) {
+      resistedByDay.set(t.date, (resistedByDay.get(t.date) ?? 0) + 1)
+    }
+  }
+  let resisted = 0
+  for (const n of resistedByDay.values()) {
+    resisted += Math.min(n, IC_RESISTED_DAILY_CAP)
+  }
   const yielded = transactions.filter(
     (t) => t.impulseFlagged && !t.resistedImpulse && t.date >= cutoff,
   ).length
 
+  // SR/BA/EF/DT are built on DEMO_PROFILE placeholders until onboarding
+  // ships, so they carry DEMO_PROFILE_CONFIDENCE, not 1 — full confidence in
+  // fictional numbers would contradict the engine's own shrinkage design.
   return {
     SR: {
       structurallyUndefined: false,
       raw: savingsRateScore(profile.monthlyIncome, profile.monthlyEssentials + trailingSpend),
-      confidence: 1,
+      confidence: DEMO_PROFILE_CONFIDENCE,
     },
     BA: {
       structurallyUndefined: false,
       raw: budgetAdherenceScore([
         { budgeted: profile.budgeted, actual: profile.monthlyEssentials + trailingSpend },
       ]),
-      confidence: 1,
+      confidence: DEMO_PROFILE_CONFIDENCE,
     },
     EF: {
       structurallyUndefined: false,
       raw: emergencyFundScore(profile.efBalance, profile.monthlyEssentials),
-      confidence: 1,
+      confidence: DEMO_PROFILE_CONFIDENCE,
     },
     DT: {
       structurallyUndefined: false,
       raw: debtTrendScore(profile.debtStart, profile.debtNow),
-      confidence: 1,
+      confidence: DEMO_PROFILE_CONFIDENCE,
     },
     IC: {
       structurallyUndefined: resisted + yielded === 0,

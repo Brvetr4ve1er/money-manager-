@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import App from './App.tsx'
+import { computeHealthScore } from './engine/healthScore.ts'
+import { deriveHealthInputs, DEMO_PROFILE } from './engine/profile.ts'
+import type { Transaction } from './state/store.ts'
 
 // Sounds are reinforcement only; jsdom has no AudioContext, so stub the module.
 vi.mock('./audio/chiptune.ts', () => ({
   setMuted: vi.fn(),
-  isMuted: () => false,
   blip: vi.fn(),
   arpeggio: vi.fn(),
   fanfare: vi.fn(),
-  zap: vi.fn(),
   sparkle: vi.fn(),
   deny: vi.fn(),
   reveal: vi.fn(),
@@ -44,10 +45,26 @@ describe('quest completion', () => {
 
   it('completes a quest from a tap on the quest text (whole row is the button)', () => {
     render(<App />)
-    const text = screen.getByText("Read today's 2-minute lesson")
+    const text = screen.getByText('Run one decision simulation')
     expect(text.closest('button')).not.toBeNull()
     fireEvent.click(text)
     expect(xpNow()).toBe(15)
+  })
+
+  it('renders a completed quest as disabled, without toggle semantics', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /Mark done: Log every purchase today/ }))
+    const done = screen.getByRole('button', { name: /Log every purchase today — done/ })
+    expect((done as HTMLButtonElement).disabled).toBe(true)
+    expect(done.getAttribute('aria-pressed')).toBeNull()
+  })
+
+  it('completes the sim quest when a simulation actually runs (verified, not self-reported)', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Purchase amount in DA'), { target: { value: '5000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
+    expect(xpNow()).toBe(15)
+    expect(screen.getByRole('button', { name: /Run one decision simulation — done/ })).toBeTruthy()
   })
 
   it('shows a visible all-complete state, not just the arpeggio', () => {
@@ -83,6 +100,75 @@ describe('logging flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '2' } })
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+})
+
+describe('simulator honesty', () => {
+  it('discloses that projections run on the demo profile', () => {
+    render(<App />)
+    expect(screen.getByText(/demo profile/i).textContent).toContain('90,000 DA/mo')
+  })
+})
+
+describe('xp gain visibility', () => {
+  it('shows a transient +XP chip so muted / reduced-motion users see the gain', () => {
+    vi.useFakeTimers()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '500' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(screen.getByText('+5 XP')).toBeTruthy()
+    act(() => {
+      vi.advanceTimersByTime(1800)
+    })
+    expect(screen.queryByText('+5 XP')).toBeNull()
+  })
+})
+
+describe('day rollover health smoothing', () => {
+  it('persists yesterday’s final score at midnight — smooth() applies once per day, not twice', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 1, 12, 0, 0)) // Aug 1, local noon
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        prevHealthScore: 30,
+        stage: 'ember',
+        healthDate: '2026-08-01',
+        questsDate: '2026-08-01',
+      }),
+    )
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount in DA'), { target: { value: '5000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+
+    const txs: Transaction[] = [
+      { id: 'x', amountDA: 5_000, category: 'Food', date: '2026-08-01', resistedImpulse: false },
+    ]
+    const day1 = computeHealthScore(
+      deriveHealthInputs(txs, DEMO_PROFILE, '2026-08-01'),
+      30,
+      'ember',
+    )
+    expect(screen.getByText(`Health ${day1.score.toFixed(1)}`)).toBeTruthy()
+
+    // Midnight passes; the focus listener notices the new day.
+    vi.setSystemTime(new Date(2026, 7, 2, 0, 5, 0))
+    act(() => {
+      fireEvent.focus(window)
+    })
+
+    const persisted = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(persisted.healthDate).toBe('2026-08-02')
+    // The snapshot is yesterday's FINAL rendered score, not a re-smoothed
+    // copy computed against today's blend.
+    expect(persisted.prevHealthScore).toBeCloseTo(day1.score, 10)
+    // Today renders exactly one smoothing step from that base.
+    const day2 = computeHealthScore(
+      deriveHealthInputs(txs, DEMO_PROFILE, '2026-08-02'),
+      day1.score,
+      day1.stage,
+    )
+    expect(screen.getByText(`Health ${day2.score.toFixed(1)}`)).toBeTruthy()
   })
 })
 

@@ -31,10 +31,10 @@ describe('grantXp', () => {
   })
 
   it('rolls through multiple levels in one grant (while-loop)', () => {
-    // 240 + 150 = 390: clears level 1 (100) and level 2 (150), landing at
-    // level 3 with 140 of its 200 requirement.
-    const { next, leveledUp } = grantXp(at(1, 240, 240), 'weeklyReview')
-    expect(next).toEqual({ level: 3, xpIntoLevel: 140, totalXp: 390 })
+    // 240 + 50 = 290: clears level 1 (100) and level 2 (150), landing at
+    // level 3 with 40 of its 200 requirement.
+    const { next, leveledUp } = grantXp(at(1, 240, 240), 'resistImpulse')
+    expect(next).toEqual({ level: 3, xpIntoLevel: 40, totalXp: 290 })
     expect(leveledUp).toBe(true)
   })
 

@@ -6,13 +6,19 @@
 export const XP_REWARDS = {
   logExpense: 5,
   resistImpulse: 50,
-  save: 30,
-  readLesson: 15,
+  runSimulation: 15,
   reviewYesterday: 10,
-  weeklyReview: 150,
 } as const
 
 export type XpAction = keyof typeof XP_REWARDS
+
+/**
+ * Max resistImpulse XP grants per local day. The resist button is an
+ * unverifiable self-report, and it is the largest routine reward — uncapped,
+ * it is an unlimited zero-friction XP lever. Entries past the cap still log
+ * (the record is the point); only the XP stops.
+ */
+export const RESIST_XP_DAILY_CAP = 2
 
 /** XP needed to complete a given level (1-indexed). Gentle early curve. */
 export function xpForLevel(level: number): number {

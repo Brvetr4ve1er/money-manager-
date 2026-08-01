@@ -24,7 +24,7 @@ export interface Transaction {
 export interface Quest {
   id: string
   text: string
-  xpAction: 'logExpense' | 'readLesson' | 'reviewYesterday' | 'save' | 'resistImpulse'
+  xpAction: 'logExpense' | 'runSimulation' | 'reviewYesterday' | 'resistImpulse'
   done: boolean
 }
 
@@ -44,7 +44,11 @@ const KEY = 'ember-state-v1'
 
 export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense' },
-  { id: 'lesson', text: "Read today's 2-minute lesson", xpAction: 'readLesson' },
+  // Every quest must be an action the app actually supports today — a quest
+  // promising nonexistent content (e.g. a daily lesson) pays XP for a claim
+  // the user cannot perform. The sim quest even self-verifies: running a
+  // simulation completes it (see SimCard's onRun in App).
+  { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation' },
   { id: 'review', text: 'Review yesterday', xpAction: 'reviewYesterday' },
 ]
 
@@ -61,13 +65,6 @@ function localDayISO(d: Date): string {
  */
 export function todayISO(): string {
   return localDayISO(new Date())
-}
-
-/** Local-calendar day key `n` days before today (same format as todayISO). */
-export function daysAgoISO(n: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return localDayISO(d)
 }
 
 export function freshQuests(): Quest[] {
@@ -101,9 +98,8 @@ export function defaultState(): AppState {
 const STAGES: ReadonlyArray<Stage> = ['ember', 'hearth', 'bonfire', 'beacon']
 const QUEST_ACTIONS: ReadonlyArray<Quest['xpAction']> = [
   'logExpense',
-  'readLesson',
+  'runSimulation',
   'reviewYesterday',
-  'save',
   'resistImpulse',
 ]
 
@@ -124,7 +120,7 @@ function isTransaction(v: unknown): v is Transaction {
   // amount would *reduce* trailing-30d spend (inflating SR/BA), and a truthy
   // non-boolean resistedImpulse (e.g. "no") would count as a resisted impulse
   // in IC while excluding the row from spend. Dates are compared
-  // lexicographically against daysAgoISO cutoffs, so enforce the shape too.
+  // lexicographically against YYYY-MM-DD window cutoffs, so enforce the shape too.
   return (
     isRecord(v) &&
     typeof v.id === 'string' &&
