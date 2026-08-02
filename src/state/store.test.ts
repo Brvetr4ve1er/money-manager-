@@ -290,6 +290,72 @@ describe('sanitizeState', () => {
     expect(state.quests).toEqual(defaultState().quests)
   })
 
+  it('defaults to a null profile (demo numbers) when the payload has none', () => {
+    expect(sanitizeState({ muted: true }).profile).toBeNull()
+  })
+
+  it('keeps a valid profile, including blank (null) optional sections', () => {
+    const profile = {
+      monthlyIncome: 75_000,
+      monthlyEssentials: 40_000,
+      efBalance: null,
+      debt: { balance: 12_000, minimum: 800 },
+      goal: { name: 'Laptop', target: 200_000, current: 30_000, monthlyContribution: 8_000 },
+      savedDate: '2026-08-01',
+    }
+    expect(sanitizeState({ profile }).profile).toEqual(profile)
+  })
+
+  it('treats missing optional profile sections as not-entered, never zero', () => {
+    const state = sanitizeState({
+      profile: { monthlyIncome: 75_000, monthlyEssentials: 40_000, savedDate: '2026-08-01' },
+    })
+    expect(state.profile).toEqual({
+      monthlyIncome: 75_000,
+      monthlyEssentials: 40_000,
+      efBalance: null,
+      debt: null,
+      goal: null,
+      savedDate: '2026-08-01',
+    })
+  })
+
+  it('drops the whole profile when a required number is non-finite or negative', () => {
+    // All-or-nothing: salvaging real income next to a NaN-turned-default
+    // essentials would score a mixture the user never stated.
+    const base = { monthlyIncome: 75_000, monthlyEssentials: 40_000, savedDate: '2026-08-01' }
+    for (const bad of [
+      { ...base, monthlyIncome: NaN },
+      { ...base, monthlyIncome: Infinity },
+      { ...base, monthlyEssentials: -1 },
+      { ...base, monthlyIncome: '75000' },
+      { ...base, efBalance: -5 },
+    ]) {
+      expect(sanitizeState({ profile: bad }).profile).toBeNull()
+    }
+  })
+
+  it('drops the whole profile on a malformed debt or goal group', () => {
+    const base = { monthlyIncome: 75_000, monthlyEssentials: 40_000, savedDate: '2026-08-01' }
+    expect(
+      sanitizeState({ profile: { ...base, debt: { balance: 5_000 } } }).profile,
+    ).toBeNull() // minimum missing
+    expect(
+      sanitizeState({
+        profile: { ...base, goal: { name: 7, target: 1_000, current: 0, monthlyContribution: 0 } },
+      }).profile,
+    ).toBeNull()
+  })
+
+  it('drops a profile whose savedDate is not a real calendar day', () => {
+    // savedDate arbitrates recency lexicographically in mergeStates: an
+    // impossible key like '2026-99-99' would make the profile unbeatable.
+    const base = { monthlyIncome: 75_000, monthlyEssentials: 40_000 }
+    for (const savedDate of ['2026-99-99', 'yesterday', '2026-08-01T10:00:00Z', undefined]) {
+      expect(sanitizeState({ profile: { ...base, savedDate } }).profile).toBeNull()
+    }
+  })
+
   it('preserves same-day done flags by id while refreshing text from the roster', () => {
     const state = sanitizeState({
       quests: [
@@ -439,6 +505,40 @@ describe('mergeStates', () => {
     expect(merged.quests.find((q) => q.id === 'log')?.done).toBe(true)
     expect(merged.quests.find((q) => q.id === 'sim')?.done).toBe(true)
     expect(merged.quests.find((q) => q.id === 'review')?.done).toBe(false)
+  })
+
+  const mkProfile = (over: Partial<NonNullable<AppState['profile']>> = {}) => ({
+    monthlyIncome: 75_000,
+    monthlyEssentials: 40_000,
+    efBalance: null,
+    debt: null,
+    goal: null,
+    savedDate: '2026-08-01',
+    ...over,
+  })
+
+  it('a completed setup survives a peer write that still carries null', () => {
+    const withProfile = base({ profile: mkProfile() })
+    const without = base()
+    expect(mergeStates(withProfile, without).profile).toEqual(mkProfile())
+    expect(mergeStates(without, withProfile).profile).toEqual(mkProfile())
+  })
+
+  it('the newer savedDate wins across profile edits in different tabs', () => {
+    const older = base({ profile: mkProfile({ monthlyIncome: 60_000, savedDate: '2026-07-20' }) })
+    const newer = base({ profile: mkProfile({ savedDate: '2026-08-01' }) })
+    expect(mergeStates(older, newer).profile?.monthlyIncome).toBe(75_000)
+    expect(mergeStates(newer, older).profile?.monthlyIncome).toBe(75_000)
+  })
+
+  it('same-day profile edits converge on one deterministic winner in both tabs', () => {
+    // No recency signal within a day: the tie-break is arbitrary but must be
+    // symmetric, or crossed writes swap profiles forever without settling.
+    const a = base({ profile: mkProfile({ monthlyIncome: 60_000 }) })
+    const b = base({ profile: mkProfile({ monthlyIncome: 75_000 }) })
+    const merged = mergeStates(a, b)
+    expect(merged).toEqual(mergeStates(b, a))
+    expect(mergeStates(merged, b)).toEqual(merged) // idempotent fixpoint
   })
 
   it('takes the newer quest day and health snapshot across a midnight roll', () => {

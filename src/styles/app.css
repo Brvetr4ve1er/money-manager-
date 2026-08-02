@@ -329,6 +329,30 @@ button.quest-row:not([aria-disabled='true']):active .quest-box { transform: tran
   font-size: 0.88rem;
 }
 
+/* Setup / "My numbers" card. Fieldsets group the optional sections (real
+   <fieldset>/<legend> so AT reads the section name with each field) with the
+   UA chrome stripped — the .field-label legend carries the visual grouping. */
+.profile-group { border: 0; margin: 0.9rem 0 0; padding: 0; min-width: 0; }
+.profile-group > legend { padding: 0; margin-bottom: 0.3rem; }
+/* Contract copy (blank ≠ 0, demo disclosure) — quiet, like the sim note. */
+.profile-note { margin: 0.7rem 0 0; font-size: 0.78rem; opacity: 0.7; }
+form > .profile-note { margin-top: 0.6rem; }
+/* Saved-numbers summary: same row rhythm as the ledger. */
+.profile-rows { list-style: none; margin: 0 0 0.9rem; padding: 0; }
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.45rem 0;
+  border-bottom: 2px solid var(--paper-dim);
+  font-size: 0.9rem;
+}
+.profile-row:last-child { border-bottom: none; }
+.profile-row > span:first-child { font-weight: 700; flex-shrink: 0; }
+/* "Not entered" reads as status, not failure: the exclusion is the honest
+   state the blank ≠ 0 contract promises, so it must never look like an error. */
+.profile-unset { opacity: 0.6; font-size: 0.82rem; text-align: right; }
+
 .tx-list { list-style: none; margin: 0; padding: 0; }
 .tx {
   display: flex;

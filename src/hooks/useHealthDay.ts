@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useState, type Dispatch } from 'react'
 import { computeHealthScore, type HealthResult } from '../engine/healthScore.ts'
-import { deriveHealthInputs, finalizeHealthThrough, DEMO_PROFILE } from '../engine/profile.ts'
+import { deriveHealthInputs, finalizeHealthThrough, resolveProfile } from '../engine/profile.ts'
 import { todayISO, type AppState } from '../state/store.ts'
 import type { AppAction } from '../state/reducer.ts'
 
@@ -35,16 +35,21 @@ export function useHealthDay(
     }
   }, [])
 
+  // The real profile once setup completed, DEMO_PROFILE (with its disclosed
+  // placeholder confidence) until then — one resolution feeding both the live
+  // memo and the rollover, so the snapshot can never mix profiles.
+  const { profile, meta } = useMemo(() => resolveProfile(state.profile), [state.profile])
+
   // Live health: exactly one smoothing step from the persisted snapshot
   // (yesterday's final score) toward today's raw blend.
   const health = useMemo(
     () =>
       computeHealthScore(
-        deriveHealthInputs(state.transactions, DEMO_PROFILE, today),
+        deriveHealthInputs(state.transactions, profile, today, meta),
         state.prevHealthScore,
         state.stage,
       ),
-    [state.transactions, state.prevHealthScore, state.stage, today],
+    [state.transactions, profile, meta, state.prevHealthScore, state.stage, today],
   )
 
   // Day rollover (quests + once-per-day health snapshot) is a reducer action;
@@ -65,14 +70,15 @@ export function useHealthDay(
         ? health // first run (or quests-only roll): nothing to finalize
         : finalizeHealthThrough(
             state.transactions,
-            DEMO_PROFILE,
+            profile,
             state.healthDate,
             today,
             state.prevHealthScore,
             state.stage,
+            meta,
           )
     dispatch({ type: 'ROLL_DAY', today, healthScore: finalized.score, healthStage: finalized.stage })
-  }, [state.healthDate, state.questsDate, state.transactions, state.prevHealthScore, state.stage, health, today, dispatch])
+  }, [state.healthDate, state.questsDate, state.transactions, profile, meta, state.prevHealthScore, state.stage, health, today, dispatch])
 
   return { today, health }
 }

@@ -127,6 +127,53 @@ describe('HYDRATE', () => {
   })
 })
 
+describe('PROFILE_SET', () => {
+  const profile = {
+    monthlyIncome: 75_000,
+    monthlyEssentials: 40_000,
+    efBalance: 20_000,
+    debt: null,
+    goal: null,
+    savedDate: '2026-08-01',
+  }
+
+  it('stores a valid profile', () => {
+    const next = appReducer(defaultState(), { type: 'PROFILE_SET', profile })
+    expect(next.profile).toEqual(profile)
+  })
+
+  it('replaces an existing profile on edit', () => {
+    const s = appReducer(defaultState(), { type: 'PROFILE_SET', profile })
+    const next = appReducer(s, {
+      type: 'PROFILE_SET',
+      profile: { ...profile, monthlyIncome: 90_000, savedDate: '2026-08-02' },
+    })
+    expect(next.profile?.monthlyIncome).toBe(90_000)
+  })
+
+  it('rejects a payload with a smuggled non-finite number — state unchanged', () => {
+    // The form validates first, but a NaN that slipped through would persist,
+    // fail sanitizeState at next load, and silently revert the user to demo.
+    const s = defaultState()
+    expect(
+      appReducer(s, { type: 'PROFILE_SET', profile: { ...profile, monthlyIncome: NaN } }),
+    ).toBe(s)
+    expect(
+      appReducer(s, {
+        type: 'PROFILE_SET',
+        profile: { ...profile, efBalance: Infinity },
+      }),
+    ).toBe(s)
+  })
+
+  it('rejects an invalid savedDate — merge recency must stay comparable', () => {
+    const s = defaultState()
+    expect(
+      appReducer(s, { type: 'PROFILE_SET', profile: { ...profile, savedDate: '2026-99-99' } }),
+    ).toBe(s)
+  })
+})
+
 describe('TOGGLE_MUTE', () => {
   it('flips the muted flag', () => {
     const s = defaultState()

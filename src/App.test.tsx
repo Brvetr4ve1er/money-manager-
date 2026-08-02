@@ -186,6 +186,59 @@ describe('simulator honesty', () => {
   })
 })
 
+describe('profile setup', () => {
+  const save = () => fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
+
+  it('flips the sim honesty note from demo numbers to your numbers after setup', () => {
+    render(<App />)
+    expect(screen.getByText(/demo profile/i)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
+    save()
+    expect(screen.queryByText(/demo profile/i)).toBeNull()
+    expect(screen.getByText(/your numbers/i).textContent).toContain('75,000 DA/mo')
+    // The setup card flips to the saved summary…
+    expect(screen.getByRole('button', { name: /Edit my numbers/ })).toBeTruthy()
+    // …and the profile persists.
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.profile.monthlyIncome).toBe(75_000)
+    expect(saved.profile.efBalance).toBeNull() // blank stayed not-entered
+    // Setup pays no XP — the profile is data, never an XP lever.
+    expect(xpNow()).toBe(0)
+  })
+
+  it('shows an inline error instead of saving on invalid required numbers', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: 'abc' } })
+    save()
+    expect(screen.getByRole('alert').textContent).toContain('Monthly income')
+    expect(screen.getByLabelText('Monthly income (DA)').getAttribute('aria-invalid')).toBe('true')
+    expect(JSON.parse(localStorage.getItem('ember-state-v1')!).profile).toBeNull()
+  })
+
+  it('keeps a typed-but-invalid optional field as an error, never silently blank', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
+    fireEvent.change(screen.getByLabelText('Emergency fund (DA)'), { target: { value: '1e999' } })
+    save()
+    expect(screen.getByRole('alert').textContent).toContain('Emergency fund')
+    expect(JSON.parse(localStorage.getItem('ember-state-v1')!).profile).toBeNull()
+  })
+
+  it('edits reopen the form seeded with the saved numbers', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
+    save()
+    fireEvent.click(screen.getByRole('button', { name: /Edit my numbers/ }))
+    expect((screen.getByLabelText('Monthly income (DA)') as HTMLInputElement).value).toBe('75000')
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '90000' } })
+    save()
+    expect(JSON.parse(localStorage.getItem('ember-state-v1')!).profile.monthlyIncome).toBe(90_000)
+  })
+})
+
 describe('xp gain visibility', () => {
   it('shows a transient +XP chip so muted / reduced-motion users see the gain', () => {
     vi.useFakeTimers()

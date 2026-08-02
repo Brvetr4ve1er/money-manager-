@@ -7,7 +7,7 @@
 
 import { useEffect, useReducer } from 'react'
 import { RESIST_XP_DAILY_CAP } from './engine/xp.ts'
-import { DEMO_PROFILE } from './engine/profile.ts'
+import { resolveProfile } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
@@ -24,6 +24,7 @@ import { XpCard } from './components/XpCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
 import { QuestCard } from './components/QuestCard.tsx'
 import { SimCard } from './components/SimCard.tsx'
+import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
 import { Ledger } from './components/Ledger.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
 import { useRewards } from './hooks/useRewards.ts'
@@ -45,6 +46,10 @@ export default function App() {
 
   const { today, health } = useHealthDay(state, dispatch)
   const { toast, xpGain } = useRewards(state)
+  // Real numbers once the setup card completed, DEMO_PROFILE until then —
+  // the same resolution useHealthDay applies, so the simulator and the score
+  // can never speak from different profiles.
+  const { profile, isDemo } = resolveProfile(state.profile)
 
   function logPurchase(amountDA: number, category: string, resisted: boolean) {
     const tx: Transaction = {
@@ -65,6 +70,19 @@ export default function App() {
     }
     dispatch({ type: 'LOG_TX', tx })
     if (resisted) sfx.sparkle()
+    else sfx.blip()
+  }
+
+  function saveProfile(draft: ProfileDraft) {
+    const firstSetup = state.profile === null
+    // The hook's `today` for the same reason logPurchase uses it: savedDate
+    // arbitrates profile recency in mergeStates, and it must agree with the
+    // day every other write in this render believes it is.
+    dispatch({ type: 'PROFILE_SET', profile: { ...draft, savedDate: today } })
+    // Sparkle only on the setup that retires the demo profile — the bigger
+    // visible change (sim note flips, EF/DT join the score); edits get the
+    // ordinary confirmation blip.
+    if (firstSetup) sfx.sparkle()
     else sfx.blip()
   }
 
@@ -130,7 +148,12 @@ export default function App() {
         {/* Running a simulation genuinely completes the sim quest — the one
             daily quest the app verifies instead of taking on self-report, so
             QuestCard renders it without a tap-to-complete button. */}
-        <SimCard profile={DEMO_PROFILE} onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })} />
+        <SimCard
+          profile={profile}
+          isDemo={isDemo}
+          onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
+        />
+        <ProfileCard profile={state.profile} onSave={saveProfile} />
         <Ledger transactions={state.transactions} />
       </main>
 

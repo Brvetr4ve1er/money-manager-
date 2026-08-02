@@ -29,6 +29,34 @@ export interface Transaction {
   impulseFlagged?: boolean
 }
 
+export interface ProfileGoal {
+  /** Display name only — engines see target/current/contribution. */
+  name: string
+  target: number
+  current: number
+  monthlyContribution: number
+}
+
+/**
+ * The user's real numbers from the setup card, persisted as entered. This is
+ * deliberately NOT the engine-facing UserProfile: fields the user never
+ * answered stay null here (blank ≠ zero — a blank emergency fund is excluded
+ * from the Health Score, a typed 0 is real data scoring 0), and the engine
+ * shape is derived in resolveProfile. `null` at the AppState level means
+ * setup never completed and the engines run on DEMO_PROFILE.
+ */
+export interface ProfileData {
+  monthlyIncome: number
+  monthlyEssentials: number
+  /** null = not entered: the EF component stays structurally excluded. */
+  efBalance: number | null
+  /** null = not entered: the DT component stays structurally excluded. */
+  debt: { balance: number; minimum: number } | null
+  goal: ProfileGoal | null
+  /** Local day (YYYY-MM-DD) this profile was saved — newer wins in mergeStates. */
+  savedDate: string
+}
+
 export interface Quest {
   id: string
   text: string
@@ -53,6 +81,8 @@ export interface AppState {
   quests: Quest[]
   questsDate: string
   muted: boolean
+  /** Real numbers from the setup card; null = demo profile still in use. */
+  profile: ProfileData | null
 }
 
 const KEY = 'ember-state-v1'
@@ -128,6 +158,7 @@ export function defaultState(): AppState {
     quests: freshQuests(),
     questsDate: todayISO(),
     muted: false,
+    profile: null,
   }
 }
 
@@ -204,6 +235,65 @@ function isTransaction(v: unknown): v is Transaction {
     isOptionalBoolean(v.resistedImpulse) &&
     isOptionalBoolean(v.impulseFlagged)
   )
+}
+
+/** Finite and non-negative — the validity rule for every profile amount. */
+function isMoney(v: unknown): v is number {
+  return isFiniteNumber(v) && v >= 0
+}
+
+/**
+ * Validate an untrusted profile payload into ProfileData, or null when any
+ * field is malformed. All-or-nothing on purpose: the profile is one atomic
+ * user entry, and salvaging half of it (say, real income next to a NaN-turned-
+ * default essentials) would feed the Health Score a mixture the user never
+ * stated. Optional sections accept undefined as null (older payloads), and the
+ * result is rebuilt field by field so every stored profile carries one
+ * canonical key order — mergeStates compares profiles as JSON strings.
+ * Shared by sanitizeState and the PROFILE_SET reducer path.
+ */
+export function sanitizeProfile(v: unknown): ProfileData | null {
+  if (!isRecord(v)) return null
+  if (!isMoney(v.monthlyIncome) || !isMoney(v.monthlyEssentials)) return null
+  const ef = v.efBalance ?? null
+  if (ef !== null && !isMoney(ef)) return null
+  const rawDebt = v.debt ?? null
+  let debt: ProfileData['debt'] = null
+  if (rawDebt !== null) {
+    if (!isRecord(rawDebt) || !isMoney(rawDebt.balance) || !isMoney(rawDebt.minimum)) return null
+    debt = { balance: rawDebt.balance, minimum: rawDebt.minimum }
+  }
+  const rawGoal = v.goal ?? null
+  let goal: ProfileData['goal'] = null
+  if (rawGoal !== null) {
+    if (
+      !isRecord(rawGoal) ||
+      typeof rawGoal.name !== 'string' ||
+      !isMoney(rawGoal.target) ||
+      !isMoney(rawGoal.current) ||
+      !isMoney(rawGoal.monthlyContribution)
+    ) {
+      return null
+    }
+    goal = {
+      name: rawGoal.name,
+      target: rawGoal.target,
+      current: rawGoal.current,
+      monthlyContribution: rawGoal.monthlyContribution,
+    }
+  }
+  // Same calendar-validity rule as transaction dates: savedDate arbitrates
+  // profile recency lexicographically in mergeStates, so an impossible key
+  // ('2026-99-99') would make a hand-edited profile unbeatable forever.
+  if (typeof v.savedDate !== 'string' || !isValidDayKey(v.savedDate)) return null
+  return {
+    monthlyIncome: v.monthlyIncome,
+    monthlyEssentials: v.monthlyEssentials,
+    efBalance: ef,
+    debt,
+    goal,
+    savedDate: v.savedDate,
+  }
 }
 
 /**
@@ -301,6 +391,10 @@ export function sanitizeState(parsed: unknown): AppState {
   if (typeof parsed.muted === 'boolean') {
     out.muted = parsed.muted
   }
+  // All-or-nothing (see sanitizeProfile): a malformed profile falls back to
+  // null — the engines return to the honestly-disclosed demo numbers rather
+  // than run on a half-default mixture.
+  out.profile = sanitizeProfile(parsed.profile)
   return out
 }
 
@@ -401,6 +495,24 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     quests = local.quests
     questsDate = local.questsDate
   }
+  // Profile: any profile beats null (setup completing in one tab must survive
+  // the other's write), and the newer savedDate wins across days. Same-day
+  // edits from two tabs carry no recency signal at all — the greater JSON
+  // string wins, an arbitrary but SYMMETRIC tie-break: both tabs converging on
+  // the same edit matters more than which edit survives, and "keep local"
+  // would leave crossed writes swapping profiles forever.
+  let profile: ProfileData | null
+  if (local.profile === null || incoming.profile === null) {
+    profile = local.profile ?? incoming.profile
+  } else if (local.profile.savedDate !== incoming.profile.savedDate) {
+    profile =
+      local.profile.savedDate > incoming.profile.savedDate ? local.profile : incoming.profile
+  } else {
+    profile =
+      JSON.stringify(incoming.profile) > JSON.stringify(local.profile)
+        ? incoming.profile
+        : local.profile
+  }
   const merged: AppState = {
     transactions,
     xp,
@@ -416,6 +528,11 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     // so crossed writes still converge. The cost — an unmute can be re-muted
     // by a still-muted background tab's next write — errs silent, never loud.
     muted: local.muted || incoming.muted,
+    // AFTER muted, matching defaultState's key order: the fixpoint check below
+    // and the storage-echo settling both compare JSON strings, so a merged
+    // object with a different key order than a sanitized load would never
+    // string-equal an identical state.
+    profile,
   }
   // Fixpoint short-circuit: an unchanged merge returns the SAME reference, so
   // useReducer's HYDRATE hands React an identical state, the re-render bails,

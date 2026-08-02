@@ -17,7 +17,7 @@ import {
 } from './healthScore.ts'
 import { RESIST_XP_DAILY_CAP } from './xp.ts'
 import type { SimProfile } from './simulator.ts'
-import type { Transaction } from '../state/store.ts'
+import type { ProfileData, Transaction } from '../state/store.ts'
 
 export interface UserProfile {
   monthlyIncome: number
@@ -36,8 +36,9 @@ export interface UserProfile {
 }
 
 /**
- * Demo profile powering score components until onboarding exists. Transaction
- * logging is live; income/budget/EF/debt setup ships next.
+ * Demo profile powering score components until the setup card is completed
+ * (state.profile === null). Every surface running on these numbers must say
+ * so — see SimCard's honesty note.
  */
 export const DEMO_PROFILE: UserProfile = {
   monthlyIncome: 90_000,
@@ -71,19 +72,122 @@ export const IC_RESISTED_DAILY_CAP = RESIST_XP_DAILY_CAP
  * Confidence for score components backed by DEMO_PROFILE placeholders rather
  * than any real user history. Deliberately low so shrink() pulls them toward
  * the neutral 50: a brand-new user must not see a fully-confident score built
- * on fictional income/EF/debt numbers, and the lurch when onboarding replaces
- * the demo data stays small. Rises to history-derived confidence once
- * onboarding ships real numbers.
+ * on fictional income/EF/debt numbers, and the lurch when setup replaces the
+ * demo data stays small.
  */
 export const DEMO_PROFILE_CONFIDENCE = 0.3
 
 /**
- * Categories the DEMO_PROFILE's monthlyEssentials placeholder already models.
- * Logged transactions in these categories are excluded from trailing spend
- * until onboarding replaces the placeholder with real numbers: counting them
- * would charge essentials twice (placeholder + log), deflating SR/BA and
- * punishing exactly the "log every purchase" behavior the daily quest
- * rewards. Only discretionary logging moves SR/BA for now.
+ * Confidence once the user has entered their own numbers. Real but still a
+ * one-time self-report — not verified by any logged history — so it stays
+ * below 1 and shrink() keeps tempering the components; well above the demo
+ * value because the numbers are at least the user's own.
+ */
+export const USER_PROFILE_CONFIDENCE = 0.8
+
+/**
+ * What the active profile can honestly back: the confidence its numbers carry
+ * and which components exist at all. Travels alongside the UserProfile the
+ * engines consume (see resolveProfile) instead of being baked into it, so
+ * deriveHealthInputs can structurally exclude EF/DT — per the health-score
+ * spec, a component whose underlying data was never entered redistributes its
+ * weight rather than scoring a guess.
+ */
+export interface ProfileMeta {
+  confidence: number
+  /** False = no emergency-fund balance entered: EF structurally excluded. */
+  efKnown: boolean
+  /** False = no debt numbers entered: DT structurally excluded. */
+  debtKnown: boolean
+}
+
+/** Demo numbers cover every component — just at placeholder confidence. */
+export const DEMO_META: ProfileMeta = {
+  confidence: DEMO_PROFILE_CONFIDENCE,
+  efKnown: true,
+  debtKnown: true,
+}
+
+/**
+ * Placeholder consumer-credit rate applied when the user entered a revolving
+ * balance: the setup card stays five questions and does not ask for an APR,
+ * but pricing the balance at 0 would let the simulator treat delaying paydown
+ * as free — under-reporting a real tradeoff, which the trust rules forbid.
+ */
+export const ASSUMED_REVOLVING_APR = 0.18
+
+export interface ResolvedProfile {
+  profile: UserProfile
+  meta: ProfileMeta
+  /** True while the engines still run on DEMO_PROFILE (setup not completed). */
+  isDemo: boolean
+}
+
+/**
+ * Turn the persisted setup answers (or their absence) into the engine-facing
+ * profile plus its honesty metadata. Fields the five-question setup does not
+ * ask for are derived conservatively, each choice commented — silently
+ * inventing optimistic numbers would put fiction back into a score that just
+ * became real.
+ */
+export function resolveProfile(data: ProfileData | null): ResolvedProfile {
+  if (data === null) return { profile: DEMO_PROFILE, meta: DEMO_META, isDemo: true }
+  const contribution = data.goal?.monthlyContribution ?? 0
+  const debtBalance = data.debt?.balance ?? 0
+  const freeCashFlow = Math.max(0, data.monthlyIncome - data.monthlyEssentials)
+  return {
+    profile: {
+      monthlyIncome: data.monthlyIncome,
+      monthlyEssentials: data.monthlyEssentials,
+      // Discretionary allowance = what income leaves after essentials and the
+      // stated goal contribution. Only the simulator's baseline outflow uses
+      // it; trailing spend still comes from the actual log.
+      monthlyDiscretionary: Math.max(0, freeCashFlow - contribution),
+      // The spending plan Budget Adherence measures against: everything except
+      // the goal contribution is spendable, so overspend begins exactly where
+      // spending eats the user's own stated savings plan.
+      budgeted: Math.max(0, data.monthlyIncome - contribution),
+      efBalance: data.efBalance ?? 0,
+      // A one-time balance entry has no 30-day history: with start == now the
+      // trend reads neutral (50) while debt is carried and 100 when debt-free
+      // — never a fabricated payoff direction. A balance-update flow can
+      // supply a real trend later.
+      debtStart: debtBalance,
+      debtNow: debtBalance,
+      // Setup doesn't ask for a checking balance; one month of free cash flow
+      // is a deliberately modest buffer stand-in so a lump purchase in the
+      // simulator shows real knock-on effects without every small buy reading
+      // as instantly unaffordable.
+      liquidBalance: freeCashFlow,
+      debtMinimum: data.debt?.minimum ?? 0,
+      // Not asked at setup: assuming voluntary extra paydown would flatter the
+      // baseline path.
+      extraDebtPayment: 0,
+      revolvingApr: debtBalance > 0 ? ASSUMED_REVOLVING_APR : 0,
+      goal: data.goal
+        ? {
+            target: data.goal.target,
+            current: data.goal.current,
+            monthlyContribution: data.goal.monthlyContribution,
+          }
+        : null,
+    },
+    meta: {
+      confidence: USER_PROFILE_CONFIDENCE,
+      efKnown: data.efBalance !== null,
+      debtKnown: data.debt !== null,
+    },
+    isDemo: false,
+  }
+}
+
+/**
+ * Categories the profile's monthlyEssentials figure already models — the
+ * demo placeholder and the user's own stated essentials alike. Logged
+ * transactions in these categories are excluded from trailing spend: counting
+ * them would charge essentials twice (stated monthly figure + log), deflating
+ * SR/BA and punishing exactly the "log every purchase" behavior the daily
+ * quest rewards. Only discretionary logging moves SR/BA.
  */
 export const ESSENTIAL_CATEGORIES: ReadonlySet<string> = new Set(['Food', 'Bills', 'Health'])
 
@@ -104,6 +208,7 @@ export function deriveHealthInputs(
   transactions: Transaction[],
   profile: UserProfile,
   today: string,
+  meta: ProfileMeta = DEMO_META,
 ): HealthInputs {
   // Trailing-30d spend window, matching the savingsRateScore contract and
   // the IC window below. A calendar-month window would reset to zero on the
@@ -151,31 +256,33 @@ export function deriveHealthInputs(
     (t) => t.impulseFlagged && !t.resistedImpulse && inWindow(t.date),
   ).length
 
-  // SR/BA/EF/DT are built on DEMO_PROFILE placeholders until onboarding
-  // ships, so they carry DEMO_PROFILE_CONFIDENCE, not 1 — full confidence in
-  // fictional numbers would contradict the engine's own shrinkage design.
+  // SR/BA/EF/DT carry the profile's confidence: DEMO_PROFILE_CONFIDENCE on
+  // the placeholder numbers, USER_PROFILE_CONFIDENCE once setup entered real
+  // ones — never 1, per the engine's shrinkage design. EF/DT are structurally
+  // excluded (weight redistributed, per the spec) while the user has not
+  // entered those numbers at all: blank is "does not exist", not zero.
   return {
     SR: {
       structurallyUndefined: false,
       raw: savingsRateScore(profile.monthlyIncome, profile.monthlyEssentials + trailingSpend),
-      confidence: DEMO_PROFILE_CONFIDENCE,
+      confidence: meta.confidence,
     },
     BA: {
       structurallyUndefined: false,
       raw: budgetAdherenceScore([
         { budgeted: profile.budgeted, actual: profile.monthlyEssentials + trailingSpend },
       ]),
-      confidence: DEMO_PROFILE_CONFIDENCE,
+      confidence: meta.confidence,
     },
     EF: {
-      structurallyUndefined: false,
+      structurallyUndefined: !meta.efKnown,
       raw: emergencyFundScore(profile.efBalance, profile.monthlyEssentials),
-      confidence: DEMO_PROFILE_CONFIDENCE,
+      confidence: meta.confidence,
     },
     DT: {
-      structurallyUndefined: false,
+      structurallyUndefined: !meta.debtKnown,
       raw: debtTrendScore(profile.debtStart, profile.debtNow),
-      confidence: DEMO_PROFILE_CONFIDENCE,
+      confidence: meta.confidence,
     },
     IC: {
       structurallyUndefined: resisted + yielded === 0,
@@ -211,11 +318,12 @@ export function finalizeHealthThrough(
   toDay: string,
   prevScore: number | null,
   prevStage: Stage | null,
+  meta: ProfileMeta = DEMO_META,
 ): { score: number; stage: Stage } {
   const earliest = daysBeforeISO(toDay, ROLLOVER_CATCHUP_DAYS)
   let day = fromDay < earliest ? earliest : fromDay
   let result = computeHealthScore(
-    deriveHealthInputs(transactions, profile, day),
+    deriveHealthInputs(transactions, profile, day, meta),
     prevScore,
     prevStage,
   )
@@ -234,7 +342,7 @@ export function finalizeHealthThrough(
     day = daysBeforeISO(day, -1), steps++
   ) {
     result = computeHealthScore(
-      deriveHealthInputs(transactions, profile, day),
+      deriveHealthInputs(transactions, profile, day, meta),
       result.score,
       result.stage,
     )

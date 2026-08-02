@@ -8,7 +8,14 @@
 
 import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
-import { mergeStates, rollQuests, type AppState, type Transaction } from './store.ts'
+import {
+  mergeStates,
+  rollQuests,
+  sanitizeProfile,
+  type AppState,
+  type ProfileData,
+  type Transaction,
+} from './store.ts'
 
 export type AppAction =
   | { type: 'LOG_TX'; tx: Transaction }
@@ -16,6 +23,7 @@ export type AppAction =
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
   | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
+  | { type: 'PROFILE_SET'; profile: ProfileData }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -101,5 +109,14 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return mergeStates(state, action.incoming)
     case 'TOGGLE_MUTE':
       return { ...state, muted: !state.muted }
+    case 'PROFILE_SET': {
+      // Re-validated even though the setup form validates first: the payload
+      // originates from free-text fields, and a smuggled NaN/negative would
+      // persist, fail sanitizeState at next load, and silently revert the
+      // user to the demo profile. sanitizeProfile also rebuilds the object in
+      // canonical key order — mergeStates compares profiles as JSON strings.
+      const profile = sanitizeProfile(action.profile)
+      return profile === null ? state : { ...state, profile }
+    }
   }
 }

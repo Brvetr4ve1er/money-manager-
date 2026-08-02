@@ -3,11 +3,16 @@ import {
   deriveHealthInputs,
   finalizeHealthThrough,
   buildSimProfile,
+  resolveProfile,
+  ASSUMED_REVOLVING_APR,
+  DEMO_META,
   DEMO_PROFILE,
   DEMO_PROFILE_CONFIDENCE,
   IC_RESISTED_DAILY_CAP,
   ROLLOVER_CATCHUP_DAYS,
+  USER_PROFILE_CONFIDENCE,
 } from './profile.ts'
+import type { ProfileData } from '../state/store.ts'
 import { RESIST_XP_DAILY_CAP } from './xp.ts'
 import {
   savingsRateScore,
@@ -242,6 +247,123 @@ describe('finalizeHealthThrough', () => {
     expect(Date.now() - start).toBeLessThan(2_000)
     expect(result.score).toBeGreaterThanOrEqual(0)
     expect(result.score).toBeLessThanOrEqual(100)
+  })
+})
+
+describe('resolveProfile', () => {
+  const data = (over: Partial<ProfileData> = {}): ProfileData => ({
+    monthlyIncome: 75_000,
+    monthlyEssentials: 40_000,
+    efBalance: 20_000,
+    debt: { balance: 12_000, minimum: 800 },
+    goal: { name: 'Laptop', target: 200_000, current: 30_000, monthlyContribution: 8_000 },
+    savedDate: '2026-08-01',
+    ...over,
+  })
+
+  it('falls back to the demo profile with demo meta while setup is incomplete', () => {
+    const resolved = resolveProfile(null)
+    expect(resolved.profile).toBe(DEMO_PROFILE)
+    expect(resolved.meta).toEqual(DEMO_META)
+    expect(resolved.isDemo).toBe(true)
+    // Demo meta covers every component — at placeholder confidence only.
+    expect(DEMO_META.confidence).toBe(DEMO_PROFILE_CONFIDENCE)
+  })
+
+  it('builds the engine profile from real numbers with documented derivations', () => {
+    const { profile, meta, isDemo } = resolveProfile(data())
+    expect(isDemo).toBe(false)
+    expect(profile.monthlyIncome).toBe(75_000)
+    expect(profile.monthlyEssentials).toBe(40_000)
+    // income − essentials − goal contribution, floored at 0.
+    expect(profile.monthlyDiscretionary).toBe(27_000)
+    // Spending plan: everything except the goal contribution is spendable.
+    expect(profile.budgeted).toBe(67_000)
+    expect(profile.efBalance).toBe(20_000)
+    // One-time balance entry: no trend history, start == now.
+    expect(profile.debtStart).toBe(12_000)
+    expect(profile.debtNow).toBe(12_000)
+    expect(profile.debtMinimum).toBe(800)
+    expect(profile.extraDebtPayment).toBe(0)
+    // One month of free cash flow stands in for the unasked liquid balance.
+    expect(profile.liquidBalance).toBe(35_000)
+    // A carried balance is priced, never free-to-delay.
+    expect(profile.revolvingApr).toBe(ASSUMED_REVOLVING_APR)
+    expect(profile.goal).toEqual({ target: 200_000, current: 30_000, monthlyContribution: 8_000 })
+    expect(meta).toEqual({ confidence: USER_PROFILE_CONFIDENCE, efKnown: true, debtKnown: true })
+  })
+
+  it('charges no APR when the user is debt-free or never entered debt', () => {
+    expect(resolveProfile(data({ debt: { balance: 0, minimum: 0 } })).profile.revolvingApr).toBe(0)
+    expect(resolveProfile(data({ debt: null })).profile.revolvingApr).toBe(0)
+  })
+
+  it('marks EF/DT unknown when those sections were left blank', () => {
+    const { meta } = resolveProfile(data({ efBalance: null, debt: null }))
+    expect(meta.efKnown).toBe(false)
+    expect(meta.debtKnown).toBe(false)
+  })
+
+  it('never derives negative discretionary or budget when essentials exceed income', () => {
+    const { profile } = resolveProfile(
+      data({ monthlyIncome: 30_000, monthlyEssentials: 40_000, goal: null }),
+    )
+    expect(profile.monthlyDiscretionary).toBe(0)
+    expect(profile.liquidBalance).toBe(0)
+    expect(profile.budgeted).toBe(30_000)
+  })
+
+  it('structurally excludes EF and DT until those numbers are entered', () => {
+    const { profile, meta } = resolveProfile(data({ efBalance: null, debt: null }))
+    const inputs = deriveHealthInputs([], profile, TODAY, meta)
+    // Per the health-score spec: never-entered data is "does not exist", the
+    // weight redistributes — a blank is not a zero balance.
+    expect(inputs.EF.structurallyUndefined).toBe(true)
+    expect(inputs.DT.structurallyUndefined).toBe(true)
+    expect(inputs.SR.structurallyUndefined).toBe(false)
+    expect(inputs.BA.structurallyUndefined).toBe(false)
+  })
+
+  it('includes EF/DT with real data once entered — a typed 0 counts', () => {
+    const { profile, meta } = resolveProfile(
+      data({ efBalance: 0, debt: { balance: 0, minimum: 0 } }),
+    )
+    const inputs = deriveHealthInputs([], profile, TODAY, meta)
+    expect(inputs.EF.structurallyUndefined).toBe(false)
+    expect(inputs.EF.raw).toBe(0) // zero emergency fund is real, scored data
+    expect(inputs.DT.structurallyUndefined).toBe(false)
+    expect(inputs.DT.raw).toBe(100) // debt-free
+  })
+
+  it('reads a carried balance as a neutral trend, never a fabricated direction', () => {
+    const { profile, meta } = resolveProfile(data())
+    const inputs = deriveHealthInputs([], profile, TODAY, meta)
+    expect(inputs.DT.raw).toBe(50) // start == now: no payoff history yet
+  })
+
+  it('raises component confidence above the demo placeholder once numbers are real', () => {
+    const { profile, meta } = resolveProfile(data())
+    const inputs = deriveHealthInputs([], profile, TODAY, meta)
+    for (const key of ['SR', 'BA', 'EF', 'DT'] as const) {
+      expect(inputs[key].confidence).toBe(USER_PROFILE_CONFIDENCE)
+    }
+    expect(USER_PROFILE_CONFIDENCE).toBeGreaterThan(DEMO_PROFILE_CONFIDENCE)
+    expect(USER_PROFILE_CONFIDENCE).toBeLessThan(1) // self-reported, unverified
+  })
+
+  it('keeps deriveHealthInputs defaulting to demo meta so demo callers stay honest', () => {
+    const withDefault = deriveHealthInputs([], DEMO_PROFILE, TODAY)
+    const explicit = deriveHealthInputs([], DEMO_PROFILE, TODAY, DEMO_META)
+    expect(withDefault).toEqual(explicit)
+  })
+
+  it('threads the profile meta through multi-day finalize catch-up', () => {
+    const { profile, meta } = resolveProfile(data({ efBalance: null, debt: null }))
+    const viaMeta = finalizeHealthThrough([], profile, '2026-07-25', TODAY, 30, 'ember', meta)
+    const viaDemoMeta = finalizeHealthThrough([], profile, '2026-07-25', TODAY, 30, 'ember')
+    // EF/DT excluded vs included on the same numbers must diverge — proof the
+    // rollover chain honors the exclusion instead of silently scoring blanks.
+    expect(viaMeta.score).not.toBeCloseTo(viaDemoMeta.score, 5)
   })
 })
 
