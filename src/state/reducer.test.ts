@@ -229,3 +229,30 @@ describe('TOGGLE_MUTE', () => {
     expect(appReducer(s, { type: 'TOGGLE_MUTE' }).muted).toBe(true)
   })
 })
+
+describe('BOSS_VICTORY', () => {
+  const claim = { type: 'BOSS_VICTORY', weekStart: '2026-07-27', date: '2026-08-03' } as const
+
+  it('grants weeklyBoss XP with a deterministic per-week grant id', () => {
+    const next = appReducer(defaultState(), claim)
+    expect(next.xp.totalXp).toBe(150)
+    expect(next.xpLog).toEqual([
+      { id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-03' },
+    ])
+  })
+
+  it('pays at most once per week — a duplicate claim is a no-op returning the same state', () => {
+    const s = appReducer(defaultState(), claim)
+    // StrictMode double-dispatch, a re-fired mount effect on reload, or a
+    // later day of the same week must all hit the grant-id guard.
+    expect(appReducer(s, claim)).toBe(s)
+    expect(appReducer(s, { ...claim, date: '2026-08-05' })).toBe(s)
+  })
+
+  it('pays again for a different week — one grant per battle, not per lifetime', () => {
+    const s = appReducer(defaultState(), claim)
+    const next = appReducer(s, { type: 'BOSS_VICTORY', weekStart: '2026-08-03', date: '2026-08-10' })
+    expect(next.xp.totalXp).toBe(300)
+    expect(next.xpLog).toHaveLength(2)
+  })
+})

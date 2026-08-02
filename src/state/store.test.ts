@@ -615,3 +615,26 @@ describe('mergeStates', () => {
     expect(merged.stage).toBe('hearth')
   })
 })
+
+describe('weekly boss grant persistence', () => {
+  it('sanitizeState keeps a weeklyBoss grant and folds its 150 XP into the counter', () => {
+    // The xpLog IS the once-per-week persistence for boss victories: a
+    // sanitizer that dropped the grant would let a reload re-claim the week.
+    const out = sanitizeState({
+      xpLog: [{ id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-03' }],
+    })
+    expect(out.xpLog).toEqual([
+      { id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-03' },
+    ])
+    expect(out.xp.totalXp).toBe(150)
+  })
+
+  it('two tabs claiming the same week merge to a single grant', () => {
+    const grant = { id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-03' } as const
+    const a: AppState = { ...defaultState(), xpLog: [grant], xp: xpStateFromTotal(150) }
+    const b: AppState = { ...defaultState(), xpLog: [{ ...grant }], xp: xpStateFromTotal(150) }
+    const merged = mergeStates(a, b)
+    expect(merged.xpLog).toHaveLength(1)
+    expect(merged.xp.totalXp).toBe(150)
+  })
+})

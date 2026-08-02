@@ -558,3 +558,70 @@ describe('peer-origin rewards', () => {
     }
   })
 })
+
+describe('weekly boss battle', () => {
+  it('shows the honest sizing-up state instead of fake numbers under two weeks of data', () => {
+    render(<App />)
+    expect(screen.getByText(/still sizing you up/)).toBeTruthy()
+    expect(screen.getByText(/no numbers on you yet/)).toBeTruthy()
+    // No invented opponent total anywhere on the card.
+    expect(screen.queryByText(/\/ 0 DA/)).toBeNull()
+  })
+
+  it('runs the battle against last week with beatable framing — never shame copy', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 12, 12, 0, 0)) // Wed Aug 12; week = Aug 10–16
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        transactions: [
+          { id: 'lw', amountDA: 6_000, category: 'Fun', date: '2026-08-05' }, // last week
+          { id: 'tw', amountDA: 1_500, category: 'Other', date: '2026-08-11' }, // this week
+        ],
+      }),
+    )
+    render(<App />)
+    expect(screen.getByText('1,500 / 6,000 DA')).toBeTruthy()
+    expect(screen.getByText(/Stay under that through Sunday and he goes down/)).toBeTruthy()
+    // Trust rule: the card never shames.
+    expect(screen.queryByText(/wasted/i)).toBeNull()
+  })
+
+  it('claims a won week exactly once — fanfare, toast, and a single persisted 150 XP grant', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 12, 12, 0, 0)) // the week after the win
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        transactions: [
+          { id: 'b', amountDA: 6_000, category: 'Fun', date: '2026-07-29' }, // opponent week
+          { id: 'w', amountDA: 4_000, category: 'Fun', date: '2026-08-05' }, // won week
+        ],
+      }),
+    )
+    vi.mocked(sfx.fanfare).mockClear()
+    render(<App />)
+    const saved = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved().xpLog).toEqual([
+      { id: 'boss:2026-08-03', action: 'weeklyBoss', amount: 150, date: '2026-08-12' },
+    ])
+    expect(saved().xp.totalXp).toBe(150)
+    // +150 XP crosses the level boundary in the same commit: both toasts
+    // queue (level first, then the boss), but the fanfare plays once — two
+    // stacked fanfares would double every note's gain.
+    expect(sfx.fanfare).toHaveBeenCalledTimes(1)
+    const toast = () => screen.getByRole('status', { name: 'Announcements' })
+    expect(toast().textContent).toMatch(/^Level 2/)
+    act(() => {
+      vi.advanceTimersByTime(2600)
+    })
+    expect(toast().textContent).toBe('Impulse Monster beaten — lighter week than last!')
+    // The card carries the persistent claimed-win marker past the toast.
+    expect(screen.getByText('Beaten last week +150 XP')).toBeTruthy()
+    // A reload (remount over the persisted grant) never pays the week twice.
+    cleanup()
+    render(<App />)
+    expect(saved().xp.totalXp).toBe(150)
+    expect(saved().xpLog).toHaveLength(1)
+  })
+})

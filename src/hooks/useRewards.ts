@@ -41,6 +41,20 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     setToastQueue((q) => [...q, message])
   }
 
+  // One fanfare per moment, shared by the level-up and boss-victory effects:
+  // a boss win's +150 XP usually crosses a level boundary in the same commit,
+  // and both effects firing sfx.fanfare 0ms apart would stack every note into
+  // doubled gain. Only the SOUND dedupes — both toasts still queue, so each
+  // moment keeps its visible announcement.
+  const lastFanfareAt = useRef(0)
+  function playFanfare() {
+    if (!likelyLocalAction()) return
+    const now = Date.now()
+    if (now - lastFanfareAt.current < 500) return
+    lastFanfareAt.current = now
+    sfx.fanfare()
+  }
+
   // Level-up fanfare/toast as a reaction to xp changes. The same effect
   // derives the transient +XP chip from the totalXp delta, so every grant —
   // whatever action produced it — gets a visible moment.
@@ -61,10 +75,28 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
       setXpGain((cur) => ({ amount: gained + (cur?.amount ?? 0), at: Date.now() }))
     }
     if (state.xp.level > prev.level) {
-      if (likelyLocalAction()) sfx.fanfare()
+      playFanfare()
       pushToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
     }
   }, [state.xp])
+
+  // Weekly boss victories land as xpLog grants (deterministic `boss:{week}`
+  // ids — see the BOSS_VICTORY reducer path), so diffing the grant count is
+  // origin-agnostic like every effect here: a peer tab's claim still toasts,
+  // while the ref initializer keeps long-persisted wins from re-celebrating
+  // on every mount. The fanfare (its doc comment reserves "boss defeated")
+  // never carries the win alone: the toast announces it through the live
+  // region and BossCard shows the persistent beaten chip.
+  const prevBossWins = useRef(state.xpLog.filter((g) => g.action === 'weeklyBoss').length)
+  useEffect(() => {
+    const n = state.xpLog.filter((g) => g.action === 'weeklyBoss').length
+    const prev = prevBossWins.current
+    prevBossWins.current = n
+    if (n > prev) {
+      pushToast('Impulse Monster beaten — lighter week than last!')
+      playFanfare()
+    }
+  }, [state.xpLog])
 
   // Chip dismissal owns its own timer, keyed on the gain (same pattern and
   // rationale as the toast timer below).

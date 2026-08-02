@@ -16,6 +16,11 @@ export const XP_REWARDS = {
   runSimulation: 15,
   readLesson: 15,
   reviewRecent: 10,
+  // Weekly boss victory (see engine/boss.ts): paid at most once per week via
+  // the deterministic `boss:{weekStart}` grant id the BOSS_VICTORY reducer
+  // path checks — the xpLog IS the persistence, so a claimed week can never
+  // pay twice across reloads or merged tabs.
+  weeklyBoss: 150,
 } as const
 
 export type XpAction = keyof typeof XP_REWARDS

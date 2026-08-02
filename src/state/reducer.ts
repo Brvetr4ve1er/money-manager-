@@ -7,6 +7,7 @@
  */
 
 import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS } from '../engine/xp.ts'
+import { bossGrantId } from '../engine/boss.ts'
 import type { Stage } from '../engine/healthScore.ts'
 import { LESSON_IDS } from '../content/lessons.ts'
 import {
@@ -23,6 +24,7 @@ export type AppAction =
   | { type: 'COMPLETE_QUEST'; id: string }
   | { type: 'READ_LESSON'; id: string; date: string }
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
+  | { type: 'BOSS_VICTORY'; weekStart: string; date: string }
   | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
   | { type: 'PROFILE_SET'; profile: ProfileData }
@@ -119,6 +121,24 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             stage: action.healthStage,
             healthDate: action.today,
           }
+    }
+    case 'BOSS_VICTORY': {
+      // Weekly boss win (computed by the boss engine, dispatched from
+      // useBossBattle). The xpLog is the once-per-week persistence: the
+      // deterministic per-week grant id makes this a pure state check, so a
+      // StrictMode double-dispatch, a re-fired mount effect on reload, or two
+      // tabs claiming the same week (grant logs union by id in mergeStates)
+      // all pay exactly once. No new state field — the evidence log carries it.
+      const id = bossGrantId(action.weekStart)
+      if (state.xpLog.some((g) => g.id === id)) return state
+      return {
+        ...state,
+        xp: grantXp(state.xp, 'weeklyBoss').next,
+        xpLog: [
+          ...state.xpLog,
+          { id, action: 'weeklyBoss', amount: XP_REWARDS.weeklyBoss, date: action.date },
+        ],
+      }
     }
     case 'HYDRATE':
       // Another tab wrote the store key. Merge instead of replace: replacing

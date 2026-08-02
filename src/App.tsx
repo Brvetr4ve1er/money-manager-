@@ -26,10 +26,12 @@ import { CodexCard } from './components/CodexCard.tsx'
 import { XpCard } from './components/XpCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
 import { QuestCard } from './components/QuestCard.tsx'
+import { BossCard } from './components/BossCard.tsx'
 import { SimCard } from './components/SimCard.tsx'
 import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
 import { Ledger } from './components/Ledger.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
+import { useBossBattle } from './hooks/useBossBattle.ts'
 import { useRewards } from './hooks/useRewards.ts'
 import './styles/tokens.css'
 import './styles/app.css'
@@ -48,6 +50,11 @@ export default function App() {
   useEffect(() => sfx.setMuted(state.muted), [state.muted])
 
   const { today, health } = useHealthDay(state, dispatch)
+  // The hook's `today` (like logPurchase uses), so the battle week can never
+  // disagree with the day every other card believes it is. The hook also
+  // claims a just-completed winning week — the toast/fanfare react to the
+  // resulting grant in useRewards.
+  const { battle, wonLastWeek } = useBossBattle(state, dispatch, today)
   const { toast, xpGain } = useRewards(state)
   // Real numbers once the setup card completed, DEMO_PROFILE until then —
   // the same resolution useHealthDay applies, so the simulator and the score
@@ -164,6 +171,7 @@ export default function App() {
           }
         />
         <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
+        <BossCard battle={battle} wonLastWeek={wonLastWeek} />
         {/* "Got it" genuinely completes the verified lesson quest — the tap
             lands on today's actual lesson content, so the app observes the
             action instead of taking it on self-report. */}
