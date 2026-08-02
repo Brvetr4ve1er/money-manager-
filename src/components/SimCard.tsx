@@ -34,7 +34,8 @@ export function SimCard({
   }
 
   return (
-    <section className="card sim-card">
+    // id: hero nav anchor target (desktop).
+    <section className="card sim-card" id="simulator">
       <div className="window-bar mono">DECISION_SIM.EXE</div>
       <div className="sim-body">
         {/* Honesty gap guard: the result copy speaks in second person, so the

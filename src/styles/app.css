@@ -16,10 +16,28 @@
   gap: 1rem;
 }
 
-.topbar {
+/* One header, two lives (see HeroShell.tsx): these base rules are the mobile
+   topbar — visually identical to the pre-hero layout. Every desktop-only
+   piece (nav, glow, stage line, right column) rests at display:none here so
+   the 320px single column is untouched; the ≥1024px block at the end of this
+   file turns the same DOM into the full-viewport hero. */
+.hero-frame {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+/* Flattened on mobile so the h1 and the mute button sit directly in the
+   frame's flex row, exactly as the old topbar laid them out; the wrappers
+   only become real boxes inside the desktop grid. */
+.hero-grid,
+.hero-word-col {
+  display: contents;
+}
+.hero-nav,
+.hero-glow,
+.hero-stage-line,
+.hero-side {
+  display: none;
 }
 .wordmark {
   font-family: var(--display);
@@ -27,6 +45,14 @@
   text-transform: uppercase;
   font-size: 1.6rem;
   letter-spacing: -0.02em;
+}
+/* The letters are the pull-up animation units (desktop): inline spans ignore
+   transforms entirely, so they must be inline-block for translateY to act. */
+.wm-letter { display: inline-block; }
+/* Anchor jumps (hero nav, CTA) glide; reduced-motion users get instant jumps
+   via the gate — never a crushed transition. */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
 }
 
 /* Visually-hidden-but-announced: for live regions whose text is for screen
@@ -703,3 +729,274 @@ form > .profile-note { margin-top: 0.6rem; }
   flex-wrap: wrap;
 }
 .foot-note { font-size: 0.75rem; opacity: 0.6; }
+
+/* ── Desktop hero + two-column stack (≥1024px) ─────────────────────────────
+   The mobile single-column layout above is untouched below this width. */
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* The pull-up runs once on load with fill-mode: both — backwards hides each
+   piece through its stagger delay (set inline per element), forwards makes
+   the 100% frame the at-rest state. Under prefers-reduced-motion the global
+   rule crushes the DURATION, so the element lands on that final, fully
+   visible frame instantly — but the global rule never touches DELAYS, and
+   without the override below a reduced-motion user would watch the pieces
+   pop in one by one across the stagger. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise { animation-delay: 0ms !important; }
+}
+
+@media (min-width: 1024px) {
+  /* The hero goes full-bleed, so the shell stops constraining width; the
+     card stack and foot reclaim their own centered measure below. */
+  .shell {
+    max-width: none;
+    padding: 0 0 3rem;
+    gap: 1.6rem;
+  }
+
+  /* 100vh section; the padding is the inset that floats the rounded frame
+     off the viewport edge (and leaves room for its offset shadow). */
+  .topbar {
+    height: 100vh;
+    padding: 1.1rem 1.2rem;
+  }
+  .hero-frame {
+    display: block;
+    position: relative;
+    height: 100%;
+    border: 3px solid var(--line);
+    border-radius: 2rem;
+    background: linear-gradient(180deg, var(--paper-hi) 0%, var(--paper-dim) 100%);
+    box-shadow: 8px 8px 0 var(--shadow);
+    /* Clips the oversized glow and keeps the noise inside the radius. */
+    overflow: hidden;
+  }
+  /* Grain over the whole container: a tiny inline feTurbulence SVG tile —
+     no asset request, no dependency. Overlay blend reads on both themes. */
+  .hero-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
+  /* Soft radial stage glow behind the wordmark; color arrives inline from
+     STAGE_META (see HeroShell) so it always matches the health engine. */
+  .hero-glow {
+    display: block;
+    position: absolute;
+    left: 4%;
+    bottom: -14%;
+    width: 58vw;
+    height: 58vw;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .hero-rise { animation: hero-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* Ink pill bar hanging from the frame's top edge. */
+  .hero-nav {
+    display: flex;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    border-radius: 0 0 1.1rem 1.1rem;
+    padding: 0 0.6rem;
+    z-index: 2;
+  }
+  .hero-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 0.9rem;
+    color: var(--paper);
+    opacity: 0.8;
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+  }
+  .hero-nav a:hover,
+  .hero-nav a:focus-visible { opacity: 1; }
+  /* The global ink focus ring is invisible on the ink bar: paper flips with
+     the theme exactly like ink does, and the negative offset keeps the ring
+     inside the bar so it can never bleed onto paper-on-paper. */
+  .hero-nav a:focus-visible {
+    outline-color: var(--paper);
+    outline-offset: -6px;
+  }
+
+  .hero-mute {
+    position: absolute;
+    top: 1.1rem;
+    right: 1.3rem;
+    z-index: 2;
+  }
+
+  /* Bottom-anchored 12-col grid: 8 cols wordmark, 4 cols thesis + CTA. */
+  .hero-grid {
+    display: grid;
+    position: absolute;
+    left: 2.4rem;
+    right: 2.4rem;
+    bottom: 1.6rem;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.5rem 2rem;
+    align-items: end;
+    z-index: 1;
+  }
+  .hero-word-col {
+    display: block;
+    grid-column: 1 / span 8;
+    min-width: 0;
+  }
+  .hero-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    grid-column: 9 / span 4;
+    padding-bottom: 0.6rem;
+  }
+
+  /* Giant display wordmark. 15.2vw, not the reference's ~18vw: EMBER's five
+     Arial Black caps run ~3.9em wide at -0.07em tracking, and 18vw pushes
+     that past the 8-col track at every viewport — 15.2vw is the largest
+     size that keeps the word inside the frame without clipping. */
+  .wordmark {
+    font-size: clamp(7rem, 15.2vw, 16rem);
+    line-height: 0.85;
+    letter-spacing: -0.07em;
+    white-space: nowrap;
+  }
+
+  /* Stage readout above the wordmark — the hero owns it at this width
+     (HeroCard sheds its duplicate below). Same badge language as mobile:
+     stage color fill, ink border, colored offset shadow, 🔥. */
+  .hero-stage-line {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+  }
+  .hero-stage-badge {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 4px solid var(--ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    flex-shrink: 0;
+    transition: background 240ms steps(1);
+  }
+  .hero-stage-name {
+    font-family: var(--display);
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+  }
+  .hero-pets {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+    font-size: 1.25rem;
+  }
+
+  .hero-thesis {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  .hero-health {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    opacity: 0.75;
+  }
+
+  /* Rounded-full CTA in the .btn-gold family: gold fill, ink border, offset
+     shadow that leans on hover and collapses on press. The gap transition
+     is the reference's widening arrow affordance. */
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 48px;
+    padding: 0.55rem 0.7rem 0.55rem 1.4rem;
+    background: var(--gold);
+    color: var(--on-accent);
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    box-shadow: 5px 5px 0 var(--gold-sh);
+    font-weight: 800;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: gap 160ms ease;
+  }
+  .hero-cta:hover {
+    gap: 1.05rem;
+    transform: translate(1px, 1px);
+    box-shadow: 4px 4px 0 var(--gold-sh);
+  }
+  .hero-cta:active {
+    transform: translate(5px, 5px);
+    box-shadow: 0 0 0 var(--gold-sh);
+  }
+  /* Chip on --on-accent/gold, not ink/paper: those flip in the dark theme
+     while the gold fill does not (see --on-accent in tokens.css), so the
+     chip must use the fixed pair to stay legible on gold in both themes. */
+  .hero-cta-chip {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--on-accent);
+    color: var(--gold);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Below the hero the card stack becomes a centered 2-col grid; the wide
+     list/collection cards span both tracks. align-items: start keeps short
+     cards from stretching to their row partner's height. */
+  .main-stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+    align-items: start;
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+  .ledger-card,
+  #codex,
+  #badges { grid-column: 1 / -1; }
+
+  /* The hero owns the stage badge/name/score at this width: HeroCard sheds
+     its duplicate readout (never two sources for one number) and keeps its
+     unique job — the explainability drawer. */
+  .hero-card .hero-main { display: none; }
+  .hero-card .hero-why { margin-top: 0; }
+
+  .foot {
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+}

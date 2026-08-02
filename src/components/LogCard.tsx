@@ -105,7 +105,8 @@ export function LogCard({
   }
 
   return (
-    <section className="card">
+    // id: hero nav / CTA anchor target (desktop).
+    <section className="card" id="log">
       <h2>Log it</h2>
       {chips.length > 0 && (
         <div className="chip-row" role="group" aria-label="Repeat a recent purchase">

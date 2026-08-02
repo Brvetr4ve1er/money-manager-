@@ -10,7 +10,8 @@ export function CodexCard({ collectedIds }: { collectedIds: ReadonlySet<string> 
   // already drops unknown ids, but the denominator must be the roster's.
   const count = LESSONS.filter((l) => collectedIds.has(l.id)).length
   return (
-    <section className="card">
+    // id: hero nav anchor target (desktop).
+    <section className="card" id="codex">
       <div className="codex-head">
         <h2>Lesson codex</h2>
         <span className="codex-count mono">{count} / {LESSONS.length} collected</span>

@@ -3,7 +3,8 @@ import type { Quest } from '../state/store.ts'
 export function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete: (id: string) => void }) {
   const allDone = quests.length > 0 && quests.every((q) => q.done)
   return (
-    <section className="card">
+    // id: hero nav anchor target (desktop).
+    <section className="card" id="quests">
       <div className="quest-head">
         <h2>Today's quests</h2>
         {/* Persistent visual counterpart to the completion arpeggio — sound

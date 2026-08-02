@@ -2,7 +2,9 @@ import { useState } from 'react'
 import type { ComponentKey, Stage } from '../engine/healthScore.ts'
 import type { PixelPet } from '../engine/achievements.ts'
 
-const STAGE_META: Record<Stage, { label: string; stars: number; color: string; colorSh: string }> = {
+/** Stage → accent mapping, shared with the desktop HeroShell so the hero
+    glow/badge and this card can never disagree about a stage's color. */
+export const STAGE_META: Record<Stage, { label: string; stars: number; color: string; colorSh: string }> = {
   ember: { label: 'Ember', stars: 1, color: 'var(--flame)', colorSh: 'var(--flame-sh)' },
   hearth: { label: 'Hearth-fire', stars: 2, color: 'var(--gold)', colorSh: 'var(--gold-sh)' },
   bonfire: { label: 'Bonfire', stars: 3, color: 'var(--pink)', colorSh: 'var(--pink-sh)' },

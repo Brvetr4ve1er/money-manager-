@@ -14,7 +14,8 @@ export function AchievementsCard({ unlocks }: { unlocks: AchievementUnlock[] }) 
   // roster's (same rule as CodexCard).
   const count = ACHIEVEMENTS.filter((a) => dateById.has(a.id)).length
   return (
-    <section className="card">
+    // id: hero nav anchor target (desktop).
+    <section className="card" id="badges">
       <div className="ach-head">
         <h2>Achievements</h2>
         <span className="ach-count mono">{count} / {ACHIEVEMENTS.length} earned</span>

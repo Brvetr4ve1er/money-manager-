@@ -21,6 +21,7 @@ import {
 import { appReducer } from './state/reducer.ts'
 import { unlockedPets } from './engine/achievements.ts'
 import { lessonForDay } from './content/lessons.ts'
+import { HeroShell } from './components/HeroShell.tsx'
 import { HeroCard } from './components/HeroCard.tsx'
 import { LessonCard } from './components/LessonCard.tsx'
 import { CodexCard } from './components/CodexCard.tsx'
@@ -68,6 +69,9 @@ export default function App() {
   // the same resolution useHealthDay applies, so the simulator and the score
   // can never speak from different profiles.
   const { profile, isDemo } = resolveProfile(state.profile)
+  // Computed once: the hero shell and the hero card both show the companions
+  // and must always agree on the shelf.
+  const pets = unlockedPets(state.achievements)
   // Deterministic pick for the hook's day — same lesson on every render,
   // reload, and tab of that day, and stable across "Got it" (lessonForDay
   // keeps today's own entry in the pool on purpose).
@@ -150,19 +154,17 @@ export default function App() {
 
   return (
     <div className="shell">
-      <header className="topbar">
-        {/* The wordmark is the page's h1: without it the accessibility outline
-            starts at the dynamic stage label with no page-level heading. */}
-        <h1 className="wordmark">Ember</h1>
-        <button
-          className="btn"
-          onClick={() => dispatch({ type: 'TOGGLE_MUTE' })}
-          aria-pressed={state.muted}
-          aria-label="Mute sound"
-        >
-          <span aria-hidden="true">{state.muted ? '🔇' : '🔊'}</span>
-        </button>
-      </header>
+      {/* The header carries the page's h1 wordmark: without it the
+          accessibility outline starts at the dynamic stage label with no
+          page-level heading. Mobile topbar and desktop full-viewport hero
+          are the same DOM — see HeroShell. */}
+      <HeroShell
+        stage={health.stage}
+        score={health.score}
+        pets={pets}
+        muted={state.muted}
+        onToggleMute={() => dispatch({ type: 'TOGGLE_MUTE' })}
+      />
 
       {/* Permanently mounted live region: most screen readers only announce
           text CHANGES inside an existing live region, so the element must not
@@ -190,7 +192,7 @@ export default function App() {
         <HeroCard
           stage={health.stage}
           score={health.score}
-          pets={unlockedPets(state.achievements)}
+          pets={pets}
           components={health.components}
         />
         <XpCard xp={state.xp} gain={xpGain} />
