@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { levelTitle } from '../engine/xp.ts'
+import { achievementById } from '../engine/achievements.ts'
 import { LESSONS } from '../content/lessons.ts'
 import * as sfx from '../audio/chiptune.ts'
 import type { AppState } from '../state/store.ts'
@@ -135,6 +136,27 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
       if (likelyLocalAction()) sfx.sparkle()
     }
   }, [state.lessonsSeen])
+
+  // Achievement unlocks — the rare-pull shimmer with its visible counterpart:
+  // one toast PER badge names it and its pet (the queue takes turns in the
+  // live region), and AchievementsCard/the pet strip are the persistent
+  // state, so the sparkle never carries the moment alone. Diffing persisted
+  // ids keeps this origin-agnostic (a peer tab's unlock still toasts here)
+  // while the ref initializer keeps long-held badges from re-celebrating on
+  // every mount. One sparkle per batch — a merge landing several badges at
+  // once must not stack the shimmer into doubled gain.
+  const prevAchievements = useRef(new Set(state.achievements.map((a) => a.id)))
+  useEffect(() => {
+    const prev = prevAchievements.current
+    const added = state.achievements.filter((a) => !prev.has(a.id))
+    prevAchievements.current = new Set(state.achievements.map((a) => a.id))
+    if (added.length === 0) return
+    for (const u of added) {
+      const a = achievementById(u.id)
+      if (a) pushToast(`${a.name} earned — ${a.pet.emoji} ${a.pet.name} joins you!`)
+    }
+    if (likelyLocalAction()) sfx.sparkle()
+  }, [state.achievements])
 
   // Quest-completion sounds, likewise driven by state changes only.
   const prevQuestsDone = useRef(state.quests.filter((q) => q.done).length)

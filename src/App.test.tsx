@@ -441,17 +441,27 @@ describe('level-up toast lifecycle', () => {
   it('dismisses the toast even when more XP lands inside the 2.6s window', () => {
     vi.useFakeTimers()
     render(<App />)
-    // Two resisted impulses = 100 XP = level 2 exactly.
+    // Two resisted impulses = 100 XP = level 2 exactly. The first resist also
+    // earns the Held the Line badge, whose toast takes the queue's first turn.
     const resist = screen.getByRole('button', { name: /I resisted an impulse/ })
     fireEvent.click(resist)
     fireEvent.click(resist)
     const toast = () => screen.getByRole('status', { name: 'Announcements' })
+    expect(toast().textContent).toMatch(/^Held the Line earned/)
+    act(() => {
+      vi.advanceTimersByTime(2600)
+    })
     expect(toast().textContent).toMatch(/^Level 2/)
     // XP within the dismiss window used to cancel the timer and strand the
-    // toast (and the live region content) on screen.
+    // toast (and the live region content) on screen. (This log also earns the
+    // First Spark badge, queued behind the level-up.)
     fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     expect(toast().textContent).toMatch(/^Level 2/)
+    act(() => {
+      vi.advanceTimersByTime(2600)
+    })
+    expect(toast().textContent).toMatch(/^First Spark earned/)
     act(() => {
       vi.advanceTimersByTime(2600)
     })
@@ -481,6 +491,14 @@ describe('level-up toast lifecycle', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /Mark done: Look back over your recent purchases/ }),
     )
+    // The actions above also earned three badges (first sim, first purchase,
+    // ten purchases), each queued at its own moment — drain their turns first.
+    for (const badge of [/^Future Sight earned/, /^First Spark earned/, /^Ten in the Ledger earned/]) {
+      expect(toast().textContent).toMatch(badge)
+      act(() => {
+        vi.advanceTimersByTime(2600)
+      })
+    }
     expect(toast().textContent).toMatch(/^Level 2/)
     act(() => {
       vi.advanceTimersByTime(2600)

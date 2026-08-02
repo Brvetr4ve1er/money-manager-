@@ -14,6 +14,9 @@ import {
 } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
 import { LESSON_IDS } from '../content/lessons.ts'
+// Runtime-safe despite achievements.ts importing store types: type imports
+// erase at build, so only this direction carries code (same shape as boss.ts).
+import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 
 export interface Transaction {
   id: string
@@ -82,6 +85,18 @@ export interface LessonSeen {
   date: string
 }
 
+/**
+ * One earned achievement badge. The date is the local day the predicate first
+ * held on this device; a peer tab earning the same badge merges by id keeping
+ * the EARLIEST date — a badge, once shown as earned on some day, must never
+ * drift to a later date after a merge.
+ */
+export interface AchievementUnlock {
+  id: string
+  /** Local day (YYYY-MM-DD) the badge was earned. */
+  date: string
+}
+
 export interface AppState {
   transactions: Transaction[]
   xp: XpState
@@ -98,6 +113,8 @@ export interface AppState {
   muted: boolean
   /** Real numbers from the setup card; null = demo profile still in use. */
   profile: ProfileData | null
+  /** Earned achievement badges (ids + dates), unioned by id across tabs. */
+  achievements: AchievementUnlock[]
 }
 
 const KEY = 'ember-state-v1'
@@ -181,6 +198,7 @@ export function defaultState(): AppState {
     lessonsSeen: [],
     muted: false,
     profile: null,
+    achievements: [],
   }
 }
 
@@ -216,13 +234,15 @@ function isValidDayKey(v: string): boolean {
 }
 
 /**
- * Union lesson-seen entries by id, keeping the earliest date, in canonical id
+ * Union {id, date} entries by id, keeping the earliest date, in canonical id
  * order. Deterministic and commutative regardless of input order, so the
  * sanitizer and mergeStates share it and every tab converges on one JSON
- * string (the merge fixpoint compares strings — see mergeStates).
+ * string (the merge fixpoint compares strings — see mergeStates). Shared by
+ * the codex (LessonSeen) and the achievement shelf (AchievementUnlock): both
+ * collections key their UI off the FIRST day the entry landed.
  */
-function dedupeLessonsSeen(entries: LessonSeen[]): LessonSeen[] {
-  const byId = new Map<string, LessonSeen>()
+function dedupeEarliestById(entries: { id: string; date: string }[]): { id: string; date: string }[] {
+  const byId = new Map<string, { id: string; date: string }>()
   for (const e of entries) {
     const prev = byId.get(e.id)
     if (!prev || e.date < prev.date) byId.set(e.id, { id: e.id, date: e.date })
@@ -433,7 +453,7 @@ export function sanitizeState(parsed: unknown): AppState {
     // is what the no-repeat rotation keys off, and taking min in any order
     // (or twice) lands on the same list — the same idempotence rule the
     // xpLog/transaction unions follow.
-    out.lessonsSeen = dedupeLessonsSeen(
+    out.lessonsSeen = dedupeEarliestById(
       parsed.lessonsSeen.filter(
         (e): e is LessonSeen =>
           isRecord(e) &&
@@ -451,6 +471,23 @@ export function sanitizeState(parsed: unknown): AppState {
   // null — the engines return to the honestly-disclosed demo numbers rather
   // than run on a half-default mixture.
   out.profile = sanitizeProfile(parsed.profile)
+  if (Array.isArray(parsed.achievements)) {
+    // Same gatekeeping as the codex: ids must exist in the canonical roster
+    // (a hand-added id would inflate the earned count past the shelf's own
+    // denominator) and dates must be real calendar keys. Dropping an invalid
+    // unlock costs nothing — the predicate still holds, so useAchievements
+    // simply re-earns the badge (stamped with today) at next render.
+    out.achievements = dedupeEarliestById(
+      parsed.achievements.filter(
+        (e): e is AchievementUnlock =>
+          isRecord(e) &&
+          typeof e.id === 'string' &&
+          ACHIEVEMENT_IDS.has(e.id) &&
+          typeof e.date === 'string' &&
+          isValidDayKey(e.date),
+      ),
+    )
+  }
   return out
 }
 
@@ -580,8 +617,8 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     questsDate,
     // Codex union: a lesson collected in either tab stays collected — same
     // survival rule as transactions. Earliest date wins on duplicates (see
-    // dedupeLessonsSeen) so both tabs converge on the identical list.
-    lessonsSeen: dedupeLessonsSeen([...local.lessonsSeen, ...incoming.lessonsSeen]),
+    // dedupeEarliestById) so both tabs converge on the identical list.
+    lessonsSeen: dedupeEarliestById([...local.lessonsSeen, ...incoming.lessonsSeen]),
     // Mute merges as OR: muting is the safety direction — a stale unmuted
     // peer write must never switch sound back on against this tab's explicit
     // mute (there is no timestamp to arbitrate recency), and OR is symmetric
@@ -593,6 +630,9 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     // object with a different key order than a sanitized load would never
     // string-equal an identical state.
     profile,
+    // Badge union: earned in either tab stays earned, earliest date wins on
+    // duplicates — same survival + convergence rules as the codex.
+    achievements: dedupeEarliestById([...local.achievements, ...incoming.achievements]),
   }
   // Fixpoint short-circuit: an unchanged merge returns the SAME reference, so
   // useReducer's HYDRATE hands React an identical state, the re-render bails,

@@ -256,3 +256,38 @@ describe('BOSS_VICTORY', () => {
     expect(next.xpLog).toHaveLength(2)
   })
 })
+
+describe('UNLOCK_ACHIEVEMENTS', () => {
+  const unlock = (ids: string[], date = '2026-08-01') =>
+    ({ type: 'UNLOCK_ACHIEVEMENTS', ids, date }) as const
+
+  it('persists new unlocks with the given date, in canonical id order — and no XP', () => {
+    const s = appReducer(defaultState(), unlock(['first-resist', 'first-log']))
+    expect(s.achievements).toEqual([
+      { id: 'first-log', date: '2026-08-01' },
+      { id: 'first-resist', date: '2026-08-01' },
+    ])
+    // Badges are their own reward: the XP economy must stay untouched.
+    expect(s.xp.totalXp).toBe(0)
+    expect(s.xpLog).toEqual([])
+  })
+
+  it('drops ids outside the canonical roster — the sanitizer would evict them at next load', () => {
+    const s = appReducer(defaultState(), unlock(['nope', 'first-log']))
+    expect(s.achievements).toEqual([{ id: 'first-log', date: '2026-08-01' }])
+  })
+
+  it('is a same-reference no-op when every id is already earned (StrictMode double-dispatch)', () => {
+    const s = appReducer(defaultState(), unlock(['first-log']))
+    expect(appReducer(s, unlock(['first-log'], '2026-08-05'))).toBe(s)
+  })
+
+  it('keeps the original earn date when a later dispatch repeats an earned id', () => {
+    const s = appReducer(defaultState(), unlock(['first-log']))
+    const next = appReducer(s, unlock(['first-log', 'ten-logs'], '2026-08-09'))
+    expect(next.achievements).toEqual([
+      { id: 'first-log', date: '2026-08-01' },
+      { id: 'ten-logs', date: '2026-08-09' },
+    ])
+  })
+})

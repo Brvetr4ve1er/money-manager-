@@ -19,10 +19,12 @@ import {
   type Transaction,
 } from './state/store.ts'
 import { appReducer } from './state/reducer.ts'
+import { unlockedPets } from './engine/achievements.ts'
 import { lessonForDay } from './content/lessons.ts'
 import { HeroCard } from './components/HeroCard.tsx'
 import { LessonCard } from './components/LessonCard.tsx'
 import { CodexCard } from './components/CodexCard.tsx'
+import { AchievementsCard } from './components/AchievementsCard.tsx'
 import { XpCard } from './components/XpCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
 import { QuestCard } from './components/QuestCard.tsx'
@@ -32,6 +34,7 @@ import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
 import { Ledger } from './components/Ledger.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
 import { useBossBattle } from './hooks/useBossBattle.ts'
+import { useAchievements } from './hooks/useAchievements.ts'
 import { useRewards } from './hooks/useRewards.ts'
 import './styles/tokens.css'
 import './styles/app.css'
@@ -55,6 +58,11 @@ export default function App() {
   // claims a just-completed winning week — the toast/fanfare react to the
   // resulting grant in useRewards.
   const { battle, wonLastWeek } = useBossBattle(state, dispatch, today)
+  // Badge predicates run over the same state every card renders from; the
+  // hook persists any newly-earned ids stamped with the hook's `today` (the
+  // day every other write in this render believes it is), and the unlock
+  // toast + sparkle react to the persisted change in useRewards.
+  useAchievements(state, dispatch, today)
   const { toast, xpGain } = useRewards(state)
   // Real numbers once the setup card completed, DEMO_PROFILE until then —
   // the same resolution useHealthDay applies, so the simulator and the score
@@ -161,7 +169,7 @@ export default function App() {
           foot as sibling landmarks. .main-stack carries the shell's column
           rhythm inside the landmark. */}
       <main className="main-stack">
-        <HeroCard stage={health.stage} score={health.score} />
+        <HeroCard stage={health.stage} score={health.score} pets={unlockedPets(state.achievements)} />
         <XpCard xp={state.xp} gain={xpGain} />
         <LogCard
           onLog={logPurchase}
@@ -187,6 +195,7 @@ export default function App() {
         <ProfileCard profile={state.profile} onSave={saveProfile} />
         <Ledger transactions={state.transactions} />
         <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
+        <AchievementsCard unlocks={state.achievements} />
       </main>
 
       <footer className="foot">

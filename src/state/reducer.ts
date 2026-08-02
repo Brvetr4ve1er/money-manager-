@@ -8,6 +8,7 @@
 
 import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS } from '../engine/xp.ts'
 import { bossGrantId } from '../engine/boss.ts'
+import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 import type { Stage } from '../engine/healthScore.ts'
 import { LESSON_IDS } from '../content/lessons.ts'
 import {
@@ -25,6 +26,7 @@ export type AppAction =
   | { type: 'READ_LESSON'; id: string; date: string }
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
   | { type: 'BOSS_VICTORY'; weekStart: string; date: string }
+  | { type: 'UNLOCK_ACHIEVEMENTS'; ids: string[]; date: string }
   | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
   | { type: 'PROFILE_SET'; profile: ProfileData }
@@ -139,6 +141,23 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           { id, action: 'weeklyBoss', amount: XP_REWARDS.weeklyBoss, date: action.date },
         ],
       }
+    }
+    case 'UNLOCK_ACHIEVEMENTS': {
+      // Badges pay NO XP — the toast/sparkle and the permanent shelf row are
+      // the whole reward (see the achievements engine), so there is no grant
+      // to guard. Already-earned ids drop out here, making a StrictMode
+      // double-dispatch or a re-fired mount effect a no-op after the first;
+      // ids outside the roster never persist (the sanitizer would drop them
+      // and the badge would flicker back to locked at next load).
+      const fresh = action.ids.filter(
+        (id) => ACHIEVEMENT_IDS.has(id) && !state.achievements.some((a) => a.id === id),
+      )
+      if (fresh.length === 0) return state
+      const achievements = [
+        ...state.achievements,
+        ...fresh.map((id) => ({ id, date: action.date })),
+      ].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      return { ...state, achievements }
     }
     case 'HYDRATE':
       // Another tab wrote the store key. Merge instead of replace: replacing

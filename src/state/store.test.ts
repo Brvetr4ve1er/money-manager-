@@ -638,3 +638,63 @@ describe('weekly boss grant persistence', () => {
     expect(merged.xp.totalXp).toBe(150)
   })
 })
+
+describe('achievement persistence', () => {
+  it('sanitizeState keeps valid unlocks and defaults to none', () => {
+    expect(sanitizeState({}).achievements).toEqual([])
+    const out = sanitizeState({
+      achievements: [{ id: 'first-log', date: '2026-08-01' }],
+    })
+    expect(out.achievements).toEqual([{ id: 'first-log', date: '2026-08-01' }])
+  })
+
+  it('drops unlock ids outside the canonical roster and calendar-invalid dates', () => {
+    const out = sanitizeState({
+      achievements: [
+        { id: 'hand-added', date: '2026-08-01' }, // no roster entry — no shelf inflation
+        { id: 'first-resist', date: '2026-99-99' }, // impossible calendar day
+        { id: 'first-resist', date: 'yesterday' },
+        { id: 'streak-7', date: '2026-08-02' },
+      ],
+    })
+    expect(out.achievements).toEqual([{ id: 'streak-7', date: '2026-08-02' }])
+  })
+
+  it('dedupes unlocks by id keeping the earliest date, in canonical order', () => {
+    const out = sanitizeState({
+      achievements: [
+        { id: 'first-resist', date: '2026-08-05' },
+        { id: 'first-log', date: '2026-08-03' },
+        { id: 'first-resist', date: '2026-08-02' },
+      ],
+    })
+    expect(out.achievements).toEqual([
+      { id: 'first-log', date: '2026-08-03' },
+      { id: 'first-resist', date: '2026-08-02' },
+    ])
+  })
+
+  it('merges the badge shelf as a union — earned in either tab stays earned', () => {
+    const a: AppState = {
+      ...defaultState(),
+      achievements: [
+        { id: 'first-log', date: '2026-08-01' },
+        { id: 'first-resist', date: '2026-08-04' },
+      ],
+    }
+    const b: AppState = {
+      ...defaultState(),
+      achievements: [
+        { id: 'first-resist', date: '2026-08-02' }, // earlier earn wins the date
+        { id: 'ten-logs', date: '2026-08-05' },
+      ],
+    }
+    const expected = [
+      { id: 'first-log', date: '2026-08-01' },
+      { id: 'first-resist', date: '2026-08-02' },
+      { id: 'ten-logs', date: '2026-08-05' },
+    ]
+    expect(mergeStates(a, b).achievements).toEqual(expected)
+    expect(mergeStates(b, a).achievements).toEqual(expected)
+  })
+})

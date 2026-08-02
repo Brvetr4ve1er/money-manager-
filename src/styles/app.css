@@ -88,6 +88,26 @@
   align-items: center;
   gap: 1.2rem;
 }
+/* Badge + pet strip as one column so the companions sit under the flame
+   without pushing the stage info sideways. */
+.stage-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+/* Achievement loot: earned cosmetic companions. Capped to the badge's width
+   so a full shelf wraps into rows instead of widening the hero column. */
+.pet-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.15rem;
+  max-width: 92px;
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
 .stage-badge {
   width: 92px;
   height: 92px;
@@ -435,6 +455,60 @@ button.quest-row:not([aria-disabled='true']):active .quest-box { transform: tran
   min-height: 3.2rem;
 }
 .codex-locked .codex-tile-title { font-size: 1rem; }
+
+/* Achievements — the badge shelf. Earned tiles are mini gold cards in the
+   codex-tile family (non-interactive display, card shadows — never the
+   pressable-row language of quest buttons); locked tiles are flat + dashed
+   with the earning hint visible: locked is a neutral "not yet", never a
+   shame state, and nothing on the shelf is purchasable. */
+.ach-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.ach-head h2 { margin-bottom: 0.7rem; }
+.ach-count { font-size: 0.8rem; font-weight: 700; }
+.ach-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.7rem;
+}
+.ach-tile {
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  background: var(--gold);
+  color: var(--on-accent);
+  box-shadow: 3px 3px 0 var(--gold-sh);
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.ach-medal { font-size: 1.1rem; }
+.ach-name {
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+}
+.ach-date { font-size: 0.7rem; opacity: 0.8; }
+.ach-hint { font-size: 0.74rem; }
+/* Same "pending, not pressable" language as .codex-locked — 0.75 (not lower):
+   the hint text is content (it names the action), so it must stay readable
+   on --paper-dim in both themes. */
+.ach-locked {
+  border-style: dashed;
+  background: var(--paper-dim);
+  color: var(--ink);
+  box-shadow: none;
+  opacity: 0.75;
+}
 
 .sim-card { padding: 0; overflow: hidden; }
 .window-bar {
