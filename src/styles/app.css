@@ -83,11 +83,57 @@
   100% { opacity: 1; transform: translateX(-50%) translateY(0) rotate(-1deg); }
 }
 
-.hero-card {
+/* Block, not flex: .hero-main keeps the badge/info row, so the explainability
+   button + drawer below it get the card's full width. */
+.hero-card { display: block; }
+.hero-main {
   display: flex;
   align-items: center;
   gap: 1.2rem;
 }
+/* Explainability toggle — quieter than the CTAs (it opens a readout, it
+   grants nothing), but still a real pressable .btn in the family language. */
+.hero-why {
+  margin-top: 0.9rem;
+  font-size: 0.72rem;
+  padding: 0.55rem 0.9rem;
+}
+.health-breakdown { margin-top: 0.9rem; }
+.health-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.health-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+.health-bar-label { font-weight: 700; flex: 0 0 8.2rem; }
+/* Mini readout track in the xp-track family — 2px border at this scale, and
+   the same hard ink leading edge on the fill (WCAG 1.4.11: the fill/empty
+   boundary must clear 3:1 on both themes' tracks). */
+.health-track {
+  flex: 1;
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 99px;
+  background: var(--paper-dim);
+  overflow: hidden;
+}
+.health-fill {
+  height: 100%;
+  background: var(--teal);
+  border-right: 2px solid var(--ink);
+}
+.health-val { flex: 0 0 2ch; text-align: right; font-size: 0.8rem; font-weight: 700; }
+/* Excluded component: status, not failure — same voice as .profile-unset. */
+.health-unset { opacity: 0.6; font-size: 0.78rem; }
+.health-note { margin: 0.7rem 0 0; font-size: 0.75rem; opacity: 0.7; }
 /* Badge + pet strip as one column so the companions sit under the flame
    without pushing the stage info sideways. */
 .stage-col {
@@ -171,6 +217,17 @@
    the single page h1 wordmark) styled down to card scale. */
 .card h2 { font-size: 0.95rem; margin-bottom: 0.7rem; }
 
+/* Repeat chips: the user's own frequent (amount, category) pairs as one-tap
+   log buttons. min-height keeps every chip a 48px target even at the small
+   chip type size. */
+.chip-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.chip {
+  font-size: 0.78rem;
+  padding: 0.45rem 0.8rem;
+  min-height: 48px;
+  text-transform: none;
+}
+
 /* flex-end, not stretch: a sibling button (SimCard's Run) must align with
    the input's box, not stretch up alongside the caption above it. */
 .log-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end; }
@@ -205,7 +262,42 @@
    theme ink at reduced opacity instead of trusting the UA-default gray to
    clear contrast on the cream and dark surfaces. */
 .field::placeholder { color: var(--ink); opacity: 0.6; }
+/* "I bought it anyway" self-report. The whole label is the toggle and its
+   min-height makes it a 48px target; accent-color keeps the native checkbox
+   on the theme instead of UA blue. */
+.impulse-check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 48px;
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.impulse-check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--teal);
+  flex-shrink: 0;
+}
 .log-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.7rem; }
+/* Post-log Undo grace strip: mis-tap safety for the app's most-used action.
+   Neutral paper (not an accent) — it is a control surface, not a reward. */
+.undo-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+  border: 2px dashed var(--ink);
+  border-radius: var(--r);
+  padding: 0.35rem 0.35rem 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.undo-btn { font-size: 0.72rem; padding: 0.55rem 0.9rem; min-height: 44px; }
 /* Inline validation message: ink text (contrast-safe on paper in both themes)
    with a flame accent bar — the error never relies on the denial blip alone. */
 .field-error {
@@ -560,6 +652,39 @@ form > .profile-note { margin-top: 0.6rem; }
    state the blank ≠ 0 contract promises, so it must never look like an error. */
 .profile-unset { opacity: 0.6; font-size: 0.82rem; text-align: right; }
 
+.ledger-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.ledger-head h2 { margin-bottom: 0.7rem; }
+/* "Kept, not spent" — resisted DA summed for the month. Teal, not gold: it is
+   a mirror of the user's own resists, not an award in the reward family. */
+.kept-chip {
+  background: var(--teal);
+  color: var(--on-accent);
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  box-shadow: 2px 2px 0 var(--teal-sh);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+/* Yielded-impulse tag: dashed + ink like the neutral status family — the
+   flag is honest data the user volunteered, never a shame accent. */
+.tx-impulse {
+  margin-left: 0.45rem;
+  border: 2px dashed var(--ink);
+  border-radius: var(--r);
+  padding: 0.02rem 0.35rem;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+}
 .tx-list { list-style: none; margin: 0; padding: 0; }
 .tx {
   display: flex;

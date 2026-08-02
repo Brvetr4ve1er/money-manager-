@@ -6,7 +6,7 @@
  * them in dev, and sounds/toasts fire from effects that watch the results.
  */
 
-import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS } from '../engine/xp.ts'
+import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS, xpStateFromTotal } from '../engine/xp.ts'
 import { bossGrantId } from '../engine/boss.ts'
 import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 import type { Stage } from '../engine/healthScore.ts'
@@ -22,6 +22,7 @@ import {
 
 export type AppAction =
   | { type: 'LOG_TX'; tx: Transaction }
+  | { type: 'UNDO_TX'; id: string }
   | { type: 'COMPLETE_QUEST'; id: string }
   | { type: 'READ_LESSON'; id: string; date: string }
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
@@ -64,6 +65,26 @@ export function appReducer(state: AppState, action: AppAction): AppState {
               },
             ]
           : state.xpLog,
+      }
+    }
+    case 'UNDO_TX': {
+      // Mis-tap grace: LogCard offers a short-lived Undo after every log. The
+      // XP grant leaves WITH the transaction — its deterministic `tx:{id}`
+      // grant id makes the removal exact — so log→undo cycles farm nothing,
+      // and the counter is rebuilt from the reduced total so it still matches
+      // the grant evidence (sanitizeState reconciles the two at every load).
+      // A resist past the daily cap granted nothing, so only the row leaves.
+      // Multi-tab: a peer still holding the tx re-adds it via the union merge;
+      // a second undo works the same way. Quest flags and badges earned off
+      // the logged state stay — neither is money data, and badges pay no XP.
+      if (!state.transactions.some((t) => t.id === action.id)) return state
+      const grantId = `tx:${action.id}`
+      const grant = state.xpLog.find((g) => g.id === grantId)
+      return {
+        ...state,
+        transactions: state.transactions.filter((t) => t.id !== action.id),
+        xp: grant ? xpStateFromTotal(Math.max(0, state.xp.totalXp - grant.amount)) : state.xp,
+        xpLog: grant ? state.xpLog.filter((g) => g.id !== grantId) : state.xpLog,
       }
     }
     case 'COMPLETE_QUEST': {

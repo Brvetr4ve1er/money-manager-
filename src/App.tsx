@@ -85,7 +85,12 @@ export default function App() {
     dispatch({ type: 'COMPLETE_QUEST', id: 'lesson' })
   }
 
-  function logPurchase(amountDA: number, category: string, resisted: boolean) {
+  function logPurchase(
+    amountDA: number,
+    category: string,
+    resisted: boolean,
+    impulseFlagged: boolean,
+  ): string {
     const tx: Transaction = {
       // newId, not bare crypto.randomUUID: randomUUID is undefined outside
       // secure contexts (plain-http hosting), and a throw here would fail the
@@ -101,10 +106,23 @@ export default function App() {
       // label just said was capped (or vice versa).
       date: today,
       resistedImpulse: resisted,
+      // "I bought it anyway" — the yielded side of Impulse Control. Same XP,
+      // same blip as any log: self-reporting against yourself is never
+      // punished, and the flag is what makes IC genuine two-sided data.
+      impulseFlagged,
     }
     dispatch({ type: 'LOG_TX', tx })
     if (resisted) sfx.sparkle()
     else sfx.blip()
+    // The id is LogCard's undo handle for the grace window.
+    return tx.id
+  }
+
+  function undoLog(id: string) {
+    // Row and XP grant leave together (see UNDO_TX in the reducer). The blip
+    // reinforces the visible change — the ledger row and undo strip vanish.
+    dispatch({ type: 'UNDO_TX', id })
+    sfx.blip()
   }
 
   function saveProfile(draft: ProfileDraft) {
@@ -169,10 +187,17 @@ export default function App() {
           foot as sibling landmarks. .main-stack carries the shell's column
           rhythm inside the landmark. */}
       <main className="main-stack">
-        <HeroCard stage={health.stage} score={health.score} pets={unlockedPets(state.achievements)} />
+        <HeroCard
+          stage={health.stage}
+          score={health.score}
+          pets={unlockedPets(state.achievements)}
+          components={health.components}
+        />
         <XpCard xp={state.xp} gain={xpGain} />
         <LogCard
+          transactions={state.transactions}
           onLog={logPurchase}
+          onUndo={undoLog}
           resistXpCapped={
             state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
             RESIST_XP_DAILY_CAP
@@ -193,7 +218,7 @@ export default function App() {
           onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
         />
         <ProfileCard profile={state.profile} onSave={saveProfile} />
-        <Ledger transactions={state.transactions} />
+        <Ledger transactions={state.transactions} today={today} />
         <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
         <AchievementsCard unlocks={state.achievements} />
       </main>

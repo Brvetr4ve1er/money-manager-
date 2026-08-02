@@ -51,6 +51,48 @@ describe('LOG_TX', () => {
   })
 })
 
+describe('UNDO_TX', () => {
+  it('removes the transaction AND its XP grant — log→undo cycles farm nothing', () => {
+    const logged = appReducer(defaultState(), { type: 'LOG_TX', tx: tx() })
+    const next = appReducer(logged, { type: 'UNDO_TX', id: 't1' })
+    expect(next.transactions).toHaveLength(0)
+    expect(next.xp.totalXp).toBe(0)
+    expect(next.xpLog).toEqual([])
+  })
+
+  it('is a same-reference no-op for an unknown id', () => {
+    const logged = appReducer(defaultState(), { type: 'LOG_TX', tx: tx() })
+    expect(appReducer(logged, { type: 'UNDO_TX', id: 'nope' })).toBe(logged)
+  })
+
+  it('rebuilds the level from the reduced total — an undone level-up collapses', () => {
+    let s = defaultState()
+    // Two resists = 100 XP = exactly level 2.
+    for (const id of ['r0', 'r1']) {
+      s = appReducer(s, { type: 'LOG_TX', tx: tx({ id, amountDA: 0, resistedImpulse: true }) })
+    }
+    expect(s.xp.level).toBe(2)
+    const next = appReducer(s, { type: 'UNDO_TX', id: 'r1' })
+    expect(next.xp).toEqual({ level: 1, xpIntoLevel: 50, totalXp: 50 })
+    expect(next.xpLog).toHaveLength(1)
+  })
+
+  it('removes only the row for a capped resist that never granted XP', () => {
+    let s = defaultState()
+    for (let i = 0; i < 3; i++) {
+      s = appReducer(s, {
+        type: 'LOG_TX',
+        tx: tx({ id: `r${i}`, amountDA: 0, resistedImpulse: true }),
+      })
+    }
+    // r2 was past the daily cap: no grant to remove, XP stays at 2 × 50.
+    const next = appReducer(s, { type: 'UNDO_TX', id: 'r2' })
+    expect(next.transactions).toHaveLength(2)
+    expect(next.xp.totalXp).toBe(100)
+    expect(next.xpLog).toHaveLength(2)
+  })
+})
+
 describe('COMPLETE_QUEST', () => {
   it('marks the quest done and grants its XP atomically', () => {
     const s = defaultState()

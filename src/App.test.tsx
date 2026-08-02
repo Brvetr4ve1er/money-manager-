@@ -165,6 +165,100 @@ describe('logging flow', () => {
   })
 })
 
+describe('logging quick wins', () => {
+  const logAmount = (value: string) => {
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+  }
+
+  it('flags a yielded impulse via the checkbox — honesty pays the normal +5, never less', () => {
+    render(<App />)
+    const box = () => screen.getByLabelText('This was an impulse I gave in to') as HTMLInputElement
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '300' } })
+    fireEvent.click(box())
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(xpNow()).toBe(5)
+    // The ledger row carries a factual marker and the flag persists — the
+    // yielded side of Impulse Control is now real data.
+    expect(screen.getByText('impulse')).toBeTruthy()
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.transactions[0].impulseFlagged).toBe(true)
+    // The checkbox resets per entry: the flag is a deliberate choice each time.
+    expect(box().checked).toBe(false)
+  })
+
+  it('offers one-tap repeat chips once an (amount, category) pair repeats', () => {
+    render(<App />)
+    // No chips before anything repeats — one-offs are not habits.
+    expect(screen.queryByRole('button', { name: /DA · / })).toBeNull()
+    for (let i = 0; i < 2; i++) {
+      fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '80' } })
+      fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'Transport' } })
+      fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    }
+    // One tap logs the pair with no typing — the daily bus fare in one press.
+    fireEvent.click(screen.getByRole('button', { name: '80 DA · Transport' }))
+    expect(xpNow()).toBe(15)
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.transactions).toHaveLength(3)
+    expect(saved.transactions[0].category).toBe('Transport')
+    expect(saved.transactions[0].amountDA).toBe(80)
+  })
+
+  it('undoes the last log within the grace window — row and XP both revert', () => {
+    render(<App />)
+    logAmount('500')
+    expect(xpNow()).toBe(5)
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(xpNow()).toBe(0)
+    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.transactions).toHaveLength(0)
+    // The grant leaves with the row — log→undo cycles farm nothing.
+    expect(saved.xpLog).toHaveLength(0)
+  })
+
+  it('retires the Undo affordance after the 5s grace window', () => {
+    vi.useFakeTimers()
+    render(<App />)
+    logAmount('500')
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+  })
+
+  it('sums resisted amounts into a kept-this-month line — mirror, not score input', () => {
+    render(<App />)
+    expect(screen.queryByText(/kept this month/)).toBeNull()
+    for (const value of ['500', '300']) {
+      fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value } })
+      fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    }
+    expect(screen.getByText('800 DA kept this month')).toBeTruthy()
+  })
+})
+
+describe('health explainability drawer', () => {
+  it('expands a component breakdown that explains, never advises', () => {
+    render(<App />)
+    const why = screen.getByRole('button', { name: /Why this stage/ })
+    expect(why.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByText('Savings rate')).toBeNull()
+    fireEvent.click(why)
+    expect(why.getAttribute('aria-expanded')).toBe('true')
+    for (const label of ['Savings rate', 'Budget', 'Emergency fund', 'Debt trend']) {
+      expect(screen.getByText(label)).toBeTruthy()
+    }
+    // No flagged impulse events yet: IC is structurally excluded and must
+    // read as honest absence, never as a zero counting against the user.
+    expect(screen.getByText('Impulse control').closest('li')!.textContent).toContain(
+      'not counted',
+    )
+  })
+})
+
 describe('daily lesson + codex', () => {
   it('pays readLesson XP exactly once per day through the verified lesson quest', () => {
     render(<App />)

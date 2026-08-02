@@ -236,9 +236,9 @@ export function deriveHealthInputs(
   // Impulse Control counts only explicitly flagged events (per the IC
   // contract: resisted / total flagged), scoped to the same trailing 30
   // days as the spend window above. Ordinary spending — Fun included — was
-  // never flagged as an impulse and must not drag IC down. No UI sets
-  // impulseFlagged yet ("I bought it anyway" ships later), so yielded stays
-  // 0 and IC confidence stays honestly low.
+  // never flagged as an impulse and must not drag IC down. LogCard's "I
+  // bought it anyway" checkbox is the sole source of yielded events, making
+  // IC a genuine two-sided ratio instead of a resist-only self-report.
   // Resisted events count toward IC at most IC_RESISTED_DAILY_CAP per day —
   // yielded events are never capped (self-reporting against yourself is not
   // gameable upward).
