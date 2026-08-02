@@ -1,0 +1,123 @@
+/* Ember design tokens — neo-brutalist × gacha. See design-system artifact. */
+
+:root {
+  /* Native controls (select popups, spinners, scrollbars) follow the active
+     theme instead of staying light over the dark UI. */
+  color-scheme: light dark;
+  --ink: #141414;
+  --paper: #f6efdc;
+  --paper-hi: #fffcf3;
+  --paper-dim: #ece2c8;
+  --flame: #ff4b2b; --flame-sh: #c4300f;
+  --gold: #ffc93c; --gold-sh: #c79415;
+  --pink: #ff2d78; --pink-sh: #c4104f;
+  --teal: #00b4b0; --teal-sh: #067e7b;
+  --violet: #4b2e83; --violet-sh: #331d5c;
+  --good: #2f9e44; --good-sh: #1d6b2f;
+  /* Text on accent fills (flame/gold/pink/teal/--good). Deliberately NOT
+     --ink, and it never flips in the dark theme: accent surfaces keep their
+     light-theme colors in dark mode, so the ink that passes WCAG AA on them
+     stays fixed — white fails AA on every one of them. */
+  --on-accent: #141414;
+  --line: var(--ink);
+  --shadow: var(--ink);
+  --display: "Arial Black", "Helvetica Neue", -apple-system, "Segoe UI", sans-serif;
+  --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r: 7px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f3ecd8;
+    --paper: #141414;
+    --paper-hi: #1f1f1f;
+    --paper-dim: #0c0c0c;
+    /* NOT #000: pure black on --paper #141414 is ~1.2:1 — the hard offset
+       shadows (the neo-brutalist signature) and the press-collapse feedback
+       on .card/.btn/.quest-box would vanish on neutral surfaces while accent
+       buttons kept their colored shadows. A dim warm gray stays visibly a
+       shadow against both --paper and --paper-hi #1f1f1f. */
+    --shadow: #3a3a3a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.5;
+  font-size: 16px;
+}
+
+::selection { background: var(--gold); color: var(--on-accent); }
+/* Ink outline, not flame: flame is invisible on .btn-flame (the primary CTA)
+   and only ~2.9:1 on paper — below the WCAG 3:1 non-text minimum. Ink flips
+   with the theme, so the ring holds contrast on paper, accent fills, and the
+   dark theme alike; the 2px offset gap shows the surface underneath as the
+   second layer of the indicator. */
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+h1, h2, h3 {
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.card {
+  background: var(--paper-hi);
+  border: 3px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: 5px 5px 0 var(--shadow);
+  padding: 1.2rem 1.4rem;
+}
+
+.btn {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  border: 3px solid var(--ink);
+  border-radius: var(--r);
+  padding: 0.7rem 1.3rem;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--paper-hi);
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+/* Hover is a 1px lean toward the pressed position with the shadow shrinking
+   to match — the same press metaphor quest rows already speak on hover, so
+   the primary CTAs give a pre-click affordance beyond the cursor. Gated off
+   disabled; :active (declared after, equal specificity) stays the stronger
+   full collapse. */
+.btn:not(:disabled):hover { transform: translate(1px, 1px); box-shadow: 3px 3px 0 var(--shadow); }
+.btn:not(:disabled):active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--shadow); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Accent surfaces take --on-accent text (see its definition above): white
+   fails WCAG AA on flame/teal/pink. Their hover/active shadows mirror the
+   base rules above at matching specificity and order so the colored shadow
+   always wins over the neutral one. */
+.btn-flame { background: var(--flame); color: var(--on-accent); box-shadow: 4px 4px 0 var(--flame-sh); }
+.btn-flame:not(:disabled):hover { box-shadow: 3px 3px 0 var(--flame-sh); }
+.btn-flame:not(:disabled):active { box-shadow: 0 0 0 var(--flame-sh); }
+.btn-gold { background: var(--gold); color: var(--on-accent); box-shadow: 4px 4px 0 var(--gold-sh); }
+.btn-gold:not(:disabled):hover { box-shadow: 3px 3px 0 var(--gold-sh); }
+.btn-gold:not(:disabled):active { box-shadow: 0 0 0 var(--gold-sh); }
+.btn-teal { background: var(--teal); color: var(--on-accent); box-shadow: 4px 4px 0 var(--teal-sh); }
+.btn-teal:not(:disabled):hover { box-shadow: 3px 3px 0 var(--teal-sh); }
+.btn-teal:not(:disabled):active { box-shadow: 0 0 0 var(--teal-sh); }
+
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }

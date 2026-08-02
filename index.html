@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Ember — build financial instincts. A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
+    <meta name="theme-color" content="#ff4b2b" />
+    <!-- Flame-mark favicon: without it browsers 404 on /favicon.ico and the
+         tab shows a generic globe — an unfinished look next to the flame
+         brand head above. SVG scales for tabs/bookmarks; the PNG covers iOS
+         add-to-home-screen (Safari ignores SVG touch icons), which matters in
+         the mobile-heavy target market. -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Social cards (WhatsApp/Facebook/Telegram are the dominant share
+         channels in the target market). Those crawlers require ABSOLUTE
+         image URLs: set VITE_SITE_URL at build time and vite.config.ts
+         rewrites the /og.png references and injects og:url.
+         Titles carry the tagline and descriptions say what the product IS
+         (a money app, manual DA logging, local-first): a card showing only
+         the bare word "Ember" plus a slogan tells a stranger nothing. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Ember" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Ember — build financial instincts" />
+    <meta property="og:description" content="A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Ember — build financial instincts" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ember — build financial instincts" />
+    <meta name="twitter:description" content="A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
+    <meta name="twitter:image" content="/og.png" />
+    <title>Ember</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
