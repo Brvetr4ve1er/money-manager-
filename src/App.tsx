@@ -19,7 +19,10 @@ import {
   type Transaction,
 } from './state/store.ts'
 import { appReducer } from './state/reducer.ts'
+import { lessonForDay } from './content/lessons.ts'
 import { HeroCard } from './components/HeroCard.tsx'
+import { LessonCard } from './components/LessonCard.tsx'
+import { CodexCard } from './components/CodexCard.tsx'
 import { XpCard } from './components/XpCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
 import { QuestCard } from './components/QuestCard.tsx'
@@ -50,6 +53,22 @@ export default function App() {
   // the same resolution useHealthDay applies, so the simulator and the score
   // can never speak from different profiles.
   const { profile, isDemo } = resolveProfile(state.profile)
+  // Deterministic pick for the hook's day — same lesson on every render,
+  // reload, and tab of that day, and stable across "Got it" (lessonForDay
+  // keeps today's own entry in the pool on purpose).
+  const todayLesson = lessonForDay(today, state.lessonsSeen)
+  const lessonReadToday = state.quests.some((q) => q.id === 'lesson' && q.done)
+
+  function readLesson() {
+    // Two dispatches, one tap: READ_LESSON collects the lesson into the codex
+    // (no XP — see the reducer), and the verified lesson quest carries the
+    // daily readLesson grant through COMPLETE_QUEST's atomic double-grant
+    // guard, exactly like SimCard's onRun does for the sim quest. The quest
+    // blip and +XP chip come from useRewards; the codex milestone sparkle
+    // fires there too when the collection crosses a multiple of five.
+    dispatch({ type: 'READ_LESSON', id: todayLesson.id, date: today })
+    dispatch({ type: 'COMPLETE_QUEST', id: 'lesson' })
+  }
 
   function logPurchase(amountDA: number, category: string, resisted: boolean) {
     const tx: Transaction = {
@@ -145,7 +164,11 @@ export default function App() {
           }
         />
         <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
-        {/* Running a simulation genuinely completes the sim quest — the one
+        {/* "Got it" genuinely completes the verified lesson quest — the tap
+            lands on today's actual lesson content, so the app observes the
+            action instead of taking it on self-report. */}
+        <LessonCard lesson={todayLesson} readToday={lessonReadToday} onRead={readLesson} />
+        {/* Running a simulation genuinely completes the sim quest — a
             daily quest the app verifies instead of taking on self-report, so
             QuestCard renders it without a tap-to-complete button. */}
         <SimCard
@@ -155,6 +178,7 @@ export default function App() {
         />
         <ProfileCard profile={state.profile} onSave={saveProfile} />
         <Ledger transactions={state.transactions} />
+        <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
       </main>
 
       <footer className="foot">

@@ -13,6 +13,7 @@ import {
   type XpState,
 } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
+import { LESSON_IDS } from '../content/lessons.ts'
 
 export interface Transaction {
   id: string
@@ -69,6 +70,18 @@ export interface Quest {
   done: boolean
 }
 
+/**
+ * One collected codex lesson. The date is the FIRST day the lesson was read —
+ * lessonForDay excludes ids seen strictly before today, so keeping the
+ * earliest date everywhere (sanitize, merge, reducer) is what makes "no
+ * repeats until all seen" hold across tabs and reloads.
+ */
+export interface LessonSeen {
+  id: string
+  /** Local day (YYYY-MM-DD) the lesson was first read. */
+  date: string
+}
+
 export interface AppState {
   transactions: Transaction[]
   xp: XpState
@@ -80,6 +93,8 @@ export interface AppState {
   healthDate: string
   quests: Quest[]
   questsDate: string
+  /** Codex collection — every lesson ever read, unioned by id across tabs. */
+  lessonsSeen: LessonSeen[]
   muted: boolean
   /** Real numbers from the setup card; null = demo profile still in use. */
   profile: ProfileData | null
@@ -90,10 +105,16 @@ const KEY = 'ember-state-v1'
 export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense' },
   // Every quest must be an action the app actually supports today — a quest
-  // promising nonexistent content (e.g. a daily lesson) pays XP for a claim
-  // the user cannot perform. The sim quest even self-verifies: running a
-  // simulation completes it (see SimCard's onRun in App) — and because it is
-  // verified, QuestCard renders it without a tap-to-complete button.
+  // promising nonexistent content pays XP for a claim the user cannot
+  // perform. The lesson quest exists BECAUSE lessons.ts now ships real
+  // content; it is verified (pressing "Got it" on today's actual lesson
+  // dispatches completion — see App), and it is the sole XP vehicle for
+  // reading: LessonCard's tap itself grants nothing extra, so one read pays
+  // readLesson exactly once per day.
+  { id: 'lesson', text: "Read today's lesson", xpAction: 'readLesson', verified: true },
+  // The sim quest self-verifies the same way: running a simulation completes
+  // it (see SimCard's onRun in App) — and because it is verified, QuestCard
+  // renders it without a tap-to-complete button.
   { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', verified: true },
   // The Ledger's "Recent" list is the surface this quest points at. It must
   // not promise a yesterday view (dates, day grouping) the app doesn't have —
@@ -157,6 +178,7 @@ export function defaultState(): AppState {
     healthDate: '',
     quests: freshQuests(),
     questsDate: todayISO(),
+    lessonsSeen: [],
     muted: false,
     profile: null,
   }
@@ -191,6 +213,21 @@ function isValidDayKey(v: string): boolean {
   if (!DAY_KEY_RE.test(v)) return false
   const [y, m, d] = v.split('-').map(Number)
   return localDayISO(new Date(y, m - 1, d)) === v
+}
+
+/**
+ * Union lesson-seen entries by id, keeping the earliest date, in canonical id
+ * order. Deterministic and commutative regardless of input order, so the
+ * sanitizer and mergeStates share it and every tab converges on one JSON
+ * string (the merge fixpoint compares strings — see mergeStates).
+ */
+function dedupeLessonsSeen(entries: LessonSeen[]): LessonSeen[] {
+  const byId = new Map<string, LessonSeen>()
+  for (const e of entries) {
+    const prev = byId.get(e.id)
+    if (!prev || e.date < prev.date) byId.set(e.id, { id: e.id, date: e.date })
+  }
+  return [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 }
 
 /** Grant id for XP earned before the grant log existed (older schemas). */
@@ -388,6 +425,25 @@ export function sanitizeState(parsed: unknown): AppState {
   if (typeof parsed.questsDate === 'string' && DAY_KEY_RE.test(parsed.questsDate)) {
     out.questsDate = parsed.questsDate
   }
+  if (Array.isArray(parsed.lessonsSeen)) {
+    // Ids must exist in the canonical roster (a hand-added 'lesson31' would
+    // inflate the codex count past its own denominator forever) and dates must
+    // be real calendar keys — lessonForDay compares them lexicographically
+    // against today. Duplicated ids keep the EARLIEST date: the first-read day
+    // is what the no-repeat rotation keys off, and taking min in any order
+    // (or twice) lands on the same list — the same idempotence rule the
+    // xpLog/transaction unions follow.
+    out.lessonsSeen = dedupeLessonsSeen(
+      parsed.lessonsSeen.filter(
+        (e): e is LessonSeen =>
+          isRecord(e) &&
+          typeof e.id === 'string' &&
+          LESSON_IDS.has(e.id) &&
+          typeof e.date === 'string' &&
+          isValidDayKey(e.date),
+      ),
+    )
+  }
   if (typeof parsed.muted === 'boolean') {
     out.muted = parsed.muted
   }
@@ -522,6 +578,10 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     healthDate: snapshot.healthDate,
     quests,
     questsDate,
+    // Codex union: a lesson collected in either tab stays collected — same
+    // survival rule as transactions. Earliest date wins on duplicates (see
+    // dedupeLessonsSeen) so both tabs converge on the identical list.
+    lessonsSeen: dedupeLessonsSeen([...local.lessonsSeen, ...incoming.lessonsSeen]),
     // Mute merges as OR: muting is the safety direction — a stale unmuted
     // peer write must never switch sound back on against this tab's explicit
     // mute (there is no timestamp to arbitrate recency), and OR is symmetric

@@ -8,6 +8,7 @@
 
 import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
+import { LESSON_IDS } from '../content/lessons.ts'
 import {
   mergeStates,
   rollQuests,
@@ -20,6 +21,7 @@ import {
 export type AppAction =
   | { type: 'LOG_TX'; tx: Transaction }
   | { type: 'COMPLETE_QUEST'; id: string }
+  | { type: 'READ_LESSON'; id: string; date: string }
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
   | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
@@ -84,6 +86,22 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           },
         ],
       }
+    }
+    case 'READ_LESSON': {
+      // Codex collection only — deliberately NO XP here. The daily readLesson
+      // grant travels through COMPLETE_QUEST('lesson') (App dispatches both on
+      // "Got it"), reusing its atomic double-grant guard and per-(quest, day)
+      // grant id; a second grant here would pay twice for one tap. Ids outside
+      // the canonical roster never persist (the sanitizer would drop them and
+      // the codex count would lie until then). Re-reading a lesson after the
+      // roster wraps keeps the ORIGINAL first-read date — lessonForDay's
+      // no-repeat rule keys off it (see LessonSeen in the store).
+      if (!LESSON_IDS.has(action.id)) return state
+      if (state.lessonsSeen.some((e) => e.id === action.id)) return state
+      const lessonsSeen = [...state.lessonsSeen, { id: action.id, date: action.date }].sort(
+        (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+      )
+      return { ...state, lessonsSeen }
     }
     case 'ROLL_DAY': {
       // Persist a once-per-day health snapshot so asymmetric smoothing and

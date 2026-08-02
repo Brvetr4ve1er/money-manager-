@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { levelTitle } from '../engine/xp.ts'
+import { LESSONS } from '../content/lessons.ts'
 import * as sfx from '../audio/chiptune.ts'
 import type { AppState } from '../state/store.ts'
 
@@ -85,6 +86,23 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     const t = setTimeout(() => setToastQueue((q) => q.slice(1)), 2600)
     return () => clearTimeout(t)
   }, [toastQueue])
+
+  // Codex collection milestones — every 5 lessons gets the rare-pull shimmer.
+  // The toast is the sparkle's visible counterpart (sound never carries the
+  // moment alone), and the CodexCard count is its persistent one.
+  const prevLessons = useRef(state.lessonsSeen.length)
+  useEffect(() => {
+    const n = state.lessonsSeen.length
+    const prev = prevLessons.current
+    prevLessons.current = n
+    // Floor-crossing, not n % 5 === 0: a multi-lesson jump (a peer-tab merge
+    // landing several collected lessons at once) must still celebrate the
+    // milestone it crossed instead of skipping it.
+    if (n > prev && Math.floor(n / 5) > Math.floor(prev / 5)) {
+      pushToast(`Codex: ${n} / ${LESSONS.length} lessons collected!`)
+      if (likelyLocalAction()) sfx.sparkle()
+    }
+  }, [state.lessonsSeen])
 
   // Quest-completion sounds, likewise driven by state changes only.
   const prevQuestsDone = useRef(state.quests.filter((q) => q.done).length)

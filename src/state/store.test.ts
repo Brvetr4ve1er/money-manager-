@@ -277,17 +277,50 @@ describe('sanitizeState', () => {
   })
 
   it('drops quest ids outside the canonical roster — no hand-added XP levers', () => {
-    // Unknown ids ('lesson' from an old schema, hand-added 'log2'…'log50')
+    // Unknown ids (hand-added 'log2'…'log50', ids from abandoned schemas)
     // would each render as a tappable self-report row granting XP once — an
     // unbounded same-day XP lever bypassing the roster.
     const state = sanitizeState({
       quests: [
         ...defaultState().quests,
-        { id: 'lesson', text: 'Daily lesson', xpAction: 'logExpense', done: false },
+        { id: 'bonus', text: 'Free XP', xpAction: 'logExpense', done: false },
         { id: 'log2', text: 'Log again', xpAction: 'logExpense', done: false },
       ],
     })
     expect(state.quests).toEqual(defaultState().quests)
+  })
+
+  it('keeps valid codex entries and drops unknown lesson ids and bad dates', () => {
+    // An id outside the roster would inflate the codex count past its own
+    // denominator; a non-calendar date breaks the lexicographic comparison
+    // lessonForDay makes against today.
+    const state = sanitizeState({
+      lessonsSeen: [
+        { id: 'budget-sketch', date: '2026-08-01' },
+        { id: 'lesson-31', date: '2026-08-01' },
+        { id: 'track-first', date: '2026-99-99' },
+        { id: 'pay-yourself-first', date: 'yesterday' },
+        'junk',
+      ],
+    })
+    expect(state.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
+  })
+
+  it('dedupes codex entries by id keeping the earliest date, in canonical order', () => {
+    // The first-read day drives the no-repeat rotation, so the earlier date
+    // must win in any order — and the sorted output is what lets the merge
+    // fixpoint compare JSON strings.
+    const state = sanitizeState({
+      lessonsSeen: [
+        { id: 'track-first', date: '2026-08-02' },
+        { id: 'budget-sketch', date: '2026-08-03' },
+        { id: 'track-first', date: '2026-08-01' },
+      ],
+    })
+    expect(state.lessonsSeen).toEqual([
+      { id: 'budget-sketch', date: '2026-08-03' },
+      { id: 'track-first', date: '2026-08-01' },
+    ])
   })
 
   it('defaults to a null profile (demo numbers) when the payload has none', () => {
@@ -505,6 +538,24 @@ describe('mergeStates', () => {
     expect(merged.quests.find((q) => q.id === 'log')?.done).toBe(true)
     expect(merged.quests.find((q) => q.id === 'sim')?.done).toBe(true)
     expect(merged.quests.find((q) => q.id === 'review')?.done).toBe(false)
+  })
+
+  it('unions the codex across tabs — a lesson collected in either tab stays collected', () => {
+    const local = base({ lessonsSeen: [{ id: 'track-first', date: '2026-08-02' }] })
+    const incoming = base({
+      lessonsSeen: [
+        { id: 'budget-sketch', date: '2026-08-01' },
+        // Same lesson recorded on different days in diverged tabs: the
+        // earliest first-read date wins in either merge order.
+        { id: 'track-first', date: '2026-08-01' },
+      ],
+    })
+    const expected = [
+      { id: 'budget-sketch', date: '2026-08-01' },
+      { id: 'track-first', date: '2026-08-01' },
+    ]
+    expect(mergeStates(local, incoming).lessonsSeen).toEqual(expected)
+    expect(mergeStates(incoming, local).lessonsSeen).toEqual(expected)
   })
 
   const mkProfile = (over: Partial<NonNullable<AppState['profile']>> = {}) => ({

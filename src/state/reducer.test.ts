@@ -76,6 +76,55 @@ describe('COMPLETE_QUEST', () => {
   })
 })
 
+describe('READ_LESSON', () => {
+  it('collects the lesson into the codex WITHOUT granting XP (the quest pays)', () => {
+    const next = appReducer(defaultState(), {
+      type: 'READ_LESSON',
+      id: 'budget-sketch',
+      date: '2026-08-01',
+    })
+    expect(next.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
+    // No direct grant: the daily readLesson XP travels through
+    // COMPLETE_QUEST('lesson') so one tap can never pay twice.
+    expect(next.xp.totalXp).toBe(0)
+    expect(next.xpLog).toEqual([])
+  })
+
+  it('keeps the original first-read date on a repeat read (rotation keys off it)', () => {
+    const s = appReducer(defaultState(), {
+      type: 'READ_LESSON',
+      id: 'budget-sketch',
+      date: '2026-08-01',
+    })
+    const again = appReducer(s, { type: 'READ_LESSON', id: 'budget-sketch', date: '2026-08-02' })
+    expect(again).toBe(s)
+    expect(again.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
+  })
+
+  it('ignores ids outside the canonical roster — no hand-crafted codex entries', () => {
+    const s = defaultState()
+    expect(appReducer(s, { type: 'READ_LESSON', id: 'lesson-31', date: '2026-08-01' })).toBe(s)
+  })
+
+  it('stores entries in canonical id order for the merge fixpoint', () => {
+    let s = defaultState()
+    s = appReducer(s, { type: 'READ_LESSON', id: 'track-first', date: '2026-08-01' })
+    s = appReducer(s, { type: 'READ_LESSON', id: 'budget-sketch', date: '2026-08-02' })
+    expect(s.lessonsSeen.map((e) => e.id)).toEqual(['budget-sketch', 'track-first'])
+  })
+
+  it('pays readLesson XP once per day via the verified lesson quest', () => {
+    const s = defaultState()
+    const once = appReducer(s, { type: 'COMPLETE_QUEST', id: 'lesson' })
+    expect(once.xp.totalXp).toBe(15)
+    expect(once.xpLog).toEqual([
+      { id: `quest:lesson:${s.questsDate}`, action: 'readLesson', amount: 15, date: s.questsDate },
+    ])
+    // Second dispatch the same day is the standard quest no-op.
+    expect(appReducer(once, { type: 'COMPLETE_QUEST', id: 'lesson' })).toBe(once)
+  })
+})
+
 describe('ROLL_DAY', () => {
   it('returns the same state when both dates already match (render-free no-op)', () => {
     const s = { ...defaultState(), healthDate: '2026-08-01', questsDate: '2026-08-01' }

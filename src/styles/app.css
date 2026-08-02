@@ -303,6 +303,88 @@ button.quest-row:not([aria-disabled='true']):active .quest-box { transform: tran
   flex-shrink: 0;
 }
 
+/* Daily lesson card. */
+.lesson-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.lesson-head h2 { margin-bottom: 0.7rem; }
+/* Persistent collected marker — same family as .quest-alldone: the visual
+   state that outlives the quest blip and +XP chip. */
+.lesson-collected {
+  background: var(--gold);
+  color: var(--on-accent);
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  box-shadow: 2px 2px 0 var(--gold-sh);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+/* The lesson title is an h3 under the card's h2 — sub-heading scale, not the
+   uppercase card-title rhythm, so the 2–3 sentence body reads as one unit. */
+.card .lesson-title { font-size: 1.05rem; margin-bottom: 0.35rem; }
+.lesson-body { margin: 0 0 0.9rem; font-size: 0.92rem; }
+
+/* Codex — the lesson collection. */
+.codex-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.codex-head h2 { margin-bottom: 0.7rem; }
+.codex-count { font-size: 0.8rem; font-weight: 700; }
+.codex-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.7rem;
+}
+/* Collected tile: a mini gold card — the gacha pull made permanent. Tiles are
+   non-interactive display, card-family shadows (like .card/.sim-result), so
+   they never borrow the pressable-row language of quest buttons. */
+.codex-tile {
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  background: var(--gold);
+  color: var(--on-accent);
+  box-shadow: 3px 3px 0 var(--gold-sh);
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.codex-tile-title {
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+}
+.codex-tile-line { font-size: 0.74rem; }
+/* Locked silhouette: flat + dashed — the same "pending, not pressable"
+   language the verified quest box speaks. No dates, no countdowns: locked is
+   a neutral state, never a fear-of-missing-out lever. */
+.codex-locked {
+  border-style: dashed;
+  background: var(--paper-dim);
+  color: var(--ink);
+  box-shadow: none;
+  opacity: 0.7;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.2rem;
+}
+.codex-locked .codex-tile-title { font-size: 1rem; }
+
 .sim-card { padding: 0; overflow: hidden; }
 .window-bar {
   background: var(--ink);
