@@ -1,12 +1,16 @@
 # The 288-test suite and the type-checked build are the release floor for this
 # repo. Without CI they only ever ran on a contributor's machine, so a red
 # branch could reach main unnoticed. Both jobs are cheap; run them on every
-# push and pull request.
+# pull request and on main.
 name: CI
 
 on:
+  # Only main on push. Branch pushes are already covered by the pull_request
+  # trigger, and listening to both fires two identical runs per push — they do
+  # not dedupe, because push and pull_request resolve to different refs and so
+  # land in different concurrency groups.
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
 
 # A new push to the same branch makes the in-flight run obsolete — cancel it
@@ -23,7 +27,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Must stay >= 22, and must match .nvmrc and the `engines` field in
+          # package.json. jsdom 30 pulls undici 8, whose CacheStorage calls
+          # webidl.util.markAsUncloneable — that only exists on Node >= 21. On
+          # Node 20 the require throws, the jsdom environment never
+          # initialises, and the DOM test file does not run at all: the suite
+          # reports 243 passing tests instead of 288 and still looks healthy
+          # apart from one unhandled error. Pinning the floor here is what
+          # keeps the 45 component tests from vanishing quietly.
+          node-version: '22'
           # Vite 5 and Vitest resolve from the lockfile; caching it keeps the
           # install step off the critical path.
           cache: npm

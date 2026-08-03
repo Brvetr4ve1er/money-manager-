@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "description": "Ember — a behavioral money app. Don't teach budgeting; build financial instincts.",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
