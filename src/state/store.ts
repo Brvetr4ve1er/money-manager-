@@ -13,6 +13,10 @@ import {
   type XpState,
 } from '../engine/xp.ts'
 import type { Stage } from '../engine/healthScore.ts'
+import { LESSON_IDS } from '../content/lessons.ts'
+// Runtime-safe despite achievements.ts importing store types: type imports
+// erase at build, so only this direction carries code (same shape as boss.ts).
+import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 
 export interface Transaction {
   id: string
@@ -29,6 +33,34 @@ export interface Transaction {
   impulseFlagged?: boolean
 }
 
+export interface ProfileGoal {
+  /** Display name only — engines see target/current/contribution. */
+  name: string
+  target: number
+  current: number
+  monthlyContribution: number
+}
+
+/**
+ * The user's real numbers from the setup card, persisted as entered. This is
+ * deliberately NOT the engine-facing UserProfile: fields the user never
+ * answered stay null here (blank ≠ zero — a blank emergency fund is excluded
+ * from the Health Score, a typed 0 is real data scoring 0), and the engine
+ * shape is derived in resolveProfile. `null` at the AppState level means
+ * setup never completed and the engines run on DEMO_PROFILE.
+ */
+export interface ProfileData {
+  monthlyIncome: number
+  monthlyEssentials: number
+  /** null = not entered: the EF component stays structurally excluded. */
+  efBalance: number | null
+  /** null = not entered: the DT component stays structurally excluded. */
+  debt: { balance: number; minimum: number } | null
+  goal: ProfileGoal | null
+  /** Local day (YYYY-MM-DD) this profile was saved — newer wins in mergeStates. */
+  savedDate: string
+}
+
 export interface Quest {
   id: string
   text: string
@@ -39,6 +71,30 @@ export interface Quest {
    *  verified. */
   verified?: boolean
   done: boolean
+}
+
+/**
+ * One collected codex lesson. The date is the FIRST day the lesson was read —
+ * lessonForDay excludes ids seen strictly before today, so keeping the
+ * earliest date everywhere (sanitize, merge, reducer) is what makes "no
+ * repeats until all seen" hold across tabs and reloads.
+ */
+export interface LessonSeen {
+  id: string
+  /** Local day (YYYY-MM-DD) the lesson was first read. */
+  date: string
+}
+
+/**
+ * One earned achievement badge. The date is the local day the predicate first
+ * held on this device; a peer tab earning the same badge merges by id keeping
+ * the EARLIEST date — a badge, once shown as earned on some day, must never
+ * drift to a later date after a merge.
+ */
+export interface AchievementUnlock {
+  id: string
+  /** Local day (YYYY-MM-DD) the badge was earned. */
+  date: string
 }
 
 export interface AppState {
@@ -52,7 +108,13 @@ export interface AppState {
   healthDate: string
   quests: Quest[]
   questsDate: string
+  /** Codex collection — every lesson ever read, unioned by id across tabs. */
+  lessonsSeen: LessonSeen[]
   muted: boolean
+  /** Real numbers from the setup card; null = demo profile still in use. */
+  profile: ProfileData | null
+  /** Earned achievement badges (ids + dates), unioned by id across tabs. */
+  achievements: AchievementUnlock[]
 }
 
 const KEY = 'ember-state-v1'
@@ -60,10 +122,16 @@ const KEY = 'ember-state-v1'
 export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense' },
   // Every quest must be an action the app actually supports today — a quest
-  // promising nonexistent content (e.g. a daily lesson) pays XP for a claim
-  // the user cannot perform. The sim quest even self-verifies: running a
-  // simulation completes it (see SimCard's onRun in App) — and because it is
-  // verified, QuestCard renders it without a tap-to-complete button.
+  // promising nonexistent content pays XP for a claim the user cannot
+  // perform. The lesson quest exists BECAUSE lessons.ts now ships real
+  // content; it is verified (pressing "Got it" on today's actual lesson
+  // dispatches completion — see App), and it is the sole XP vehicle for
+  // reading: LessonCard's tap itself grants nothing extra, so one read pays
+  // readLesson exactly once per day.
+  { id: 'lesson', text: "Read today's lesson", xpAction: 'readLesson', verified: true },
+  // The sim quest self-verifies the same way: running a simulation completes
+  // it (see SimCard's onRun in App) — and because it is verified, QuestCard
+  // renders it without a tap-to-complete button.
   { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', verified: true },
   // The Ledger's "Recent" list is the surface this quest points at. It must
   // not promise a yesterday view (dates, day grouping) the app doesn't have —
@@ -127,7 +195,10 @@ export function defaultState(): AppState {
     healthDate: '',
     quests: freshQuests(),
     questsDate: todayISO(),
+    lessonsSeen: [],
     muted: false,
+    profile: null,
+    achievements: [],
   }
 }
 
@@ -160,6 +231,23 @@ function isValidDayKey(v: string): boolean {
   if (!DAY_KEY_RE.test(v)) return false
   const [y, m, d] = v.split('-').map(Number)
   return localDayISO(new Date(y, m - 1, d)) === v
+}
+
+/**
+ * Union {id, date} entries by id, keeping the earliest date, in canonical id
+ * order. Deterministic and commutative regardless of input order, so the
+ * sanitizer and mergeStates share it and every tab converges on one JSON
+ * string (the merge fixpoint compares strings — see mergeStates). Shared by
+ * the codex (LessonSeen) and the achievement shelf (AchievementUnlock): both
+ * collections key their UI off the FIRST day the entry landed.
+ */
+function dedupeEarliestById(entries: { id: string; date: string }[]): { id: string; date: string }[] {
+  const byId = new Map<string, { id: string; date: string }>()
+  for (const e of entries) {
+    const prev = byId.get(e.id)
+    if (!prev || e.date < prev.date) byId.set(e.id, { id: e.id, date: e.date })
+  }
+  return [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 }
 
 /** Grant id for XP earned before the grant log existed (older schemas). */
@@ -204,6 +292,65 @@ function isTransaction(v: unknown): v is Transaction {
     isOptionalBoolean(v.resistedImpulse) &&
     isOptionalBoolean(v.impulseFlagged)
   )
+}
+
+/** Finite and non-negative — the validity rule for every profile amount. */
+function isMoney(v: unknown): v is number {
+  return isFiniteNumber(v) && v >= 0
+}
+
+/**
+ * Validate an untrusted profile payload into ProfileData, or null when any
+ * field is malformed. All-or-nothing on purpose: the profile is one atomic
+ * user entry, and salvaging half of it (say, real income next to a NaN-turned-
+ * default essentials) would feed the Health Score a mixture the user never
+ * stated. Optional sections accept undefined as null (older payloads), and the
+ * result is rebuilt field by field so every stored profile carries one
+ * canonical key order — mergeStates compares profiles as JSON strings.
+ * Shared by sanitizeState and the PROFILE_SET reducer path.
+ */
+export function sanitizeProfile(v: unknown): ProfileData | null {
+  if (!isRecord(v)) return null
+  if (!isMoney(v.monthlyIncome) || !isMoney(v.monthlyEssentials)) return null
+  const ef = v.efBalance ?? null
+  if (ef !== null && !isMoney(ef)) return null
+  const rawDebt = v.debt ?? null
+  let debt: ProfileData['debt'] = null
+  if (rawDebt !== null) {
+    if (!isRecord(rawDebt) || !isMoney(rawDebt.balance) || !isMoney(rawDebt.minimum)) return null
+    debt = { balance: rawDebt.balance, minimum: rawDebt.minimum }
+  }
+  const rawGoal = v.goal ?? null
+  let goal: ProfileData['goal'] = null
+  if (rawGoal !== null) {
+    if (
+      !isRecord(rawGoal) ||
+      typeof rawGoal.name !== 'string' ||
+      !isMoney(rawGoal.target) ||
+      !isMoney(rawGoal.current) ||
+      !isMoney(rawGoal.monthlyContribution)
+    ) {
+      return null
+    }
+    goal = {
+      name: rawGoal.name,
+      target: rawGoal.target,
+      current: rawGoal.current,
+      monthlyContribution: rawGoal.monthlyContribution,
+    }
+  }
+  // Same calendar-validity rule as transaction dates: savedDate arbitrates
+  // profile recency lexicographically in mergeStates, so an impossible key
+  // ('2026-99-99') would make a hand-edited profile unbeatable forever.
+  if (typeof v.savedDate !== 'string' || !isValidDayKey(v.savedDate)) return null
+  return {
+    monthlyIncome: v.monthlyIncome,
+    monthlyEssentials: v.monthlyEssentials,
+    efBalance: ef,
+    debt,
+    goal,
+    savedDate: v.savedDate,
+  }
 }
 
 /**
@@ -298,8 +445,48 @@ export function sanitizeState(parsed: unknown): AppState {
   if (typeof parsed.questsDate === 'string' && DAY_KEY_RE.test(parsed.questsDate)) {
     out.questsDate = parsed.questsDate
   }
+  if (Array.isArray(parsed.lessonsSeen)) {
+    // Ids must exist in the canonical roster (a hand-added 'lesson31' would
+    // inflate the codex count past its own denominator forever) and dates must
+    // be real calendar keys — lessonForDay compares them lexicographically
+    // against today. Duplicated ids keep the EARLIEST date: the first-read day
+    // is what the no-repeat rotation keys off, and taking min in any order
+    // (or twice) lands on the same list — the same idempotence rule the
+    // xpLog/transaction unions follow.
+    out.lessonsSeen = dedupeEarliestById(
+      parsed.lessonsSeen.filter(
+        (e): e is LessonSeen =>
+          isRecord(e) &&
+          typeof e.id === 'string' &&
+          LESSON_IDS.has(e.id) &&
+          typeof e.date === 'string' &&
+          isValidDayKey(e.date),
+      ),
+    )
+  }
   if (typeof parsed.muted === 'boolean') {
     out.muted = parsed.muted
+  }
+  // All-or-nothing (see sanitizeProfile): a malformed profile falls back to
+  // null — the engines return to the honestly-disclosed demo numbers rather
+  // than run on a half-default mixture.
+  out.profile = sanitizeProfile(parsed.profile)
+  if (Array.isArray(parsed.achievements)) {
+    // Same gatekeeping as the codex: ids must exist in the canonical roster
+    // (a hand-added id would inflate the earned count past the shelf's own
+    // denominator) and dates must be real calendar keys. Dropping an invalid
+    // unlock costs nothing — the predicate still holds, so useAchievements
+    // simply re-earns the badge (stamped with today) at next render.
+    out.achievements = dedupeEarliestById(
+      parsed.achievements.filter(
+        (e): e is AchievementUnlock =>
+          isRecord(e) &&
+          typeof e.id === 'string' &&
+          ACHIEVEMENT_IDS.has(e.id) &&
+          typeof e.date === 'string' &&
+          isValidDayKey(e.date),
+      ),
+    )
   }
   return out
 }
@@ -401,6 +588,24 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     quests = local.quests
     questsDate = local.questsDate
   }
+  // Profile: any profile beats null (setup completing in one tab must survive
+  // the other's write), and the newer savedDate wins across days. Same-day
+  // edits from two tabs carry no recency signal at all — the greater JSON
+  // string wins, an arbitrary but SYMMETRIC tie-break: both tabs converging on
+  // the same edit matters more than which edit survives, and "keep local"
+  // would leave crossed writes swapping profiles forever.
+  let profile: ProfileData | null
+  if (local.profile === null || incoming.profile === null) {
+    profile = local.profile ?? incoming.profile
+  } else if (local.profile.savedDate !== incoming.profile.savedDate) {
+    profile =
+      local.profile.savedDate > incoming.profile.savedDate ? local.profile : incoming.profile
+  } else {
+    profile =
+      JSON.stringify(incoming.profile) > JSON.stringify(local.profile)
+        ? incoming.profile
+        : local.profile
+  }
   const merged: AppState = {
     transactions,
     xp,
@@ -410,12 +615,24 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     healthDate: snapshot.healthDate,
     quests,
     questsDate,
+    // Codex union: a lesson collected in either tab stays collected — same
+    // survival rule as transactions. Earliest date wins on duplicates (see
+    // dedupeEarliestById) so both tabs converge on the identical list.
+    lessonsSeen: dedupeEarliestById([...local.lessonsSeen, ...incoming.lessonsSeen]),
     // Mute merges as OR: muting is the safety direction — a stale unmuted
     // peer write must never switch sound back on against this tab's explicit
     // mute (there is no timestamp to arbitrate recency), and OR is symmetric
     // so crossed writes still converge. The cost — an unmute can be re-muted
     // by a still-muted background tab's next write — errs silent, never loud.
     muted: local.muted || incoming.muted,
+    // AFTER muted, matching defaultState's key order: the fixpoint check below
+    // and the storage-echo settling both compare JSON strings, so a merged
+    // object with a different key order than a sanitized load would never
+    // string-equal an identical state.
+    profile,
+    // Badge union: earned in either tab stays earned, earliest date wins on
+    // duplicates — same survival + convergence rules as the codex.
+    achievements: dedupeEarliestById([...local.achievements, ...incoming.achievements]),
   }
   // Fixpoint short-circuit: an unchanged merge returns the SAME reference, so
   // useReducer's HYDRATE hands React an identical state, the re-render bails,

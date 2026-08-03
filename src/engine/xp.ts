@@ -5,17 +5,22 @@
 
 /**
  * XP roster — the canonical reward table (the product spec defers to this).
- * Deliberate divergence from the spec draft's "daily lesson +15": no lesson
- * content ships yet, and paying XP for a claim the user cannot perform would
- * be a hollow grant, so +15 rewards running a decision simulation instead.
- * "Lesson +15" stays reserved: when lesson content lands, add `lesson: 15`
- * here and restore the lesson quest in DEFAULT_QUESTS.
+ * readLesson was reserved until real lesson content existed (paying XP for a
+ * claim the user cannot perform is a hollow grant); with src/content/lessons.ts
+ * shipped, the lesson quest in DEFAULT_QUESTS pays it — verified, since the
+ * app itself observes the "Got it" tap on today's actual lesson.
  */
 export const XP_REWARDS = {
   logExpense: 5,
   resistImpulse: 50,
   runSimulation: 15,
+  readLesson: 15,
   reviewRecent: 10,
+  // Weekly boss victory (see engine/boss.ts): paid at most once per week via
+  // the deterministic `boss:{weekStart}` grant id the BOSS_VICTORY reducer
+  // path checks — the xpLog IS the persistence, so a claimed week can never
+  // pay twice across reloads or merged tabs.
+  weeklyBoss: 150,
 } as const
 
 export type XpAction = keyof typeof XP_REWARDS

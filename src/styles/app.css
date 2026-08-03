@@ -16,10 +16,28 @@
   gap: 1rem;
 }
 
-.topbar {
+/* One header, two lives (see HeroShell.tsx): these base rules are the mobile
+   topbar — visually identical to the pre-hero layout. Every desktop-only
+   piece (nav, glow, stage line, right column) rests at display:none here so
+   the 320px single column is untouched; the ≥1024px block at the end of this
+   file turns the same DOM into the full-viewport hero. */
+.hero-frame {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+/* Flattened on mobile so the h1 and the mute button sit directly in the
+   frame's flex row, exactly as the old topbar laid them out; the wrappers
+   only become real boxes inside the desktop grid. */
+.hero-grid,
+.hero-word-col {
+  display: contents;
+}
+.hero-nav,
+.hero-glow,
+.hero-stage-line,
+.hero-side {
+  display: none;
 }
 .wordmark {
   font-family: var(--display);
@@ -27,6 +45,14 @@
   text-transform: uppercase;
   font-size: 1.6rem;
   letter-spacing: -0.02em;
+}
+/* The letters are the pull-up animation units (desktop): inline spans ignore
+   transforms entirely, so they must be inline-block for translateY to act. */
+.wm-letter { display: inline-block; }
+/* Anchor jumps (hero nav, CTA) glide; reduced-motion users get instant jumps
+   via the gate — never a crushed transition. */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
 }
 
 /* Visually-hidden-but-announced: for live regions whose text is for screen
@@ -83,10 +109,76 @@
   100% { opacity: 1; transform: translateX(-50%) translateY(0) rotate(-1deg); }
 }
 
-.hero-card {
+/* Block, not flex: .hero-main keeps the badge/info row, so the explainability
+   button + drawer below it get the card's full width. */
+.hero-card { display: block; }
+.hero-main {
   display: flex;
   align-items: center;
   gap: 1.2rem;
+}
+/* Explainability toggle — quieter than the CTAs (it opens a readout, it
+   grants nothing), but still a real pressable .btn in the family language. */
+.hero-why {
+  margin-top: 0.9rem;
+  font-size: 0.72rem;
+  padding: 0.55rem 0.9rem;
+}
+.health-breakdown { margin-top: 0.9rem; }
+.health-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.health-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+.health-bar-label { font-weight: 700; flex: 0 0 8.2rem; }
+/* Mini readout track in the xp-track family — 2px border at this scale, and
+   the same hard ink leading edge on the fill (WCAG 1.4.11: the fill/empty
+   boundary must clear 3:1 on both themes' tracks). */
+.health-track {
+  flex: 1;
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 99px;
+  background: var(--paper-dim);
+  overflow: hidden;
+}
+.health-fill {
+  height: 100%;
+  background: var(--teal);
+  border-right: 2px solid var(--ink);
+}
+.health-val { flex: 0 0 2ch; text-align: right; font-size: 0.8rem; font-weight: 700; }
+/* Excluded component: status, not failure — same voice as .profile-unset. */
+.health-unset { opacity: 0.6; font-size: 0.78rem; }
+.health-note { margin: 0.7rem 0 0; font-size: 0.75rem; opacity: 0.7; }
+/* Badge + pet strip as one column so the companions sit under the flame
+   without pushing the stage info sideways. */
+.stage-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+/* Achievement loot: earned cosmetic companions. Capped to the badge's width
+   so a full shelf wraps into rows instead of widening the hero column. */
+.pet-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.15rem;
+  max-width: 92px;
+  font-size: 1.15rem;
+  line-height: 1.2;
 }
 .stage-badge {
   width: 92px;
@@ -151,6 +243,17 @@
    the single page h1 wordmark) styled down to card scale. */
 .card h2 { font-size: 0.95rem; margin-bottom: 0.7rem; }
 
+/* Repeat chips: the user's own frequent (amount, category) pairs as one-tap
+   log buttons. min-height keeps every chip a 48px target even at the small
+   chip type size. */
+.chip-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.chip {
+  font-size: 0.78rem;
+  padding: 0.45rem 0.8rem;
+  min-height: 48px;
+  text-transform: none;
+}
+
 /* flex-end, not stretch: a sibling button (SimCard's Run) must align with
    the input's box, not stretch up alongside the caption above it. */
 .log-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end; }
@@ -185,7 +288,42 @@
    theme ink at reduced opacity instead of trusting the UA-default gray to
    clear contrast on the cream and dark surfaces. */
 .field::placeholder { color: var(--ink); opacity: 0.6; }
+/* "I bought it anyway" self-report. The whole label is the toggle and its
+   min-height makes it a 48px target; accent-color keeps the native checkbox
+   on the theme instead of UA blue. */
+.impulse-check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 48px;
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.impulse-check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--teal);
+  flex-shrink: 0;
+}
 .log-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.7rem; }
+/* Post-log Undo grace strip: mis-tap safety for the app's most-used action.
+   Neutral paper (not an accent) — it is a control surface, not a reward. */
+.undo-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+  border: 2px dashed var(--ink);
+  border-radius: var(--r);
+  padding: 0.35rem 0.35rem 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.undo-btn { font-size: 0.72rem; padding: 0.55rem 0.9rem; min-height: 44px; }
 /* Inline validation message: ink text (contrast-safe on paper in both themes)
    with a flame accent bar — the error never relies on the denial blip alone. */
 .field-error {
@@ -303,6 +441,193 @@ button.quest-row:not([aria-disabled='true']):active .quest-box { transform: tran
   flex-shrink: 0;
 }
 
+/* Weekly boss — the Impulse Monster. The HP bar reuses the xp-track pattern
+   in the monster's flame/pink palette; it is decorative (aria-hidden in
+   BossCard) because the mono numbers beside the name carry the value. */
+.boss-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.boss-head h2 { margin-bottom: 0.7rem; }
+/* Persistent claimed-win marker — same family as .quest-alldone: the visible
+   state that outlives the victory toast and fanfare. */
+.boss-won {
+  background: var(--gold);
+  color: var(--on-accent);
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  box-shadow: 2px 2px 0 var(--gold-sh);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.boss-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+.boss-name { margin: 0; font-weight: 800; }
+.boss-track {
+  height: 22px;
+  border: 3px solid var(--ink);
+  border-radius: 99px;
+  background: var(--paper-dim);
+  overflow: hidden;
+}
+.boss-fill {
+  height: 100%;
+  background: repeating-linear-gradient(45deg, var(--pink) 0 14px, var(--flame) 14px 16px);
+  /* Hard ink leading edge, same 1.4.11 rationale as .xp-fill: the fill/empty
+     boundary must clear 3:1 on both themes' tracks. */
+  border-right: 3px solid var(--ink);
+  transition: width 480ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.boss-copy { margin: 0.7rem 0 0; font-size: 0.88rem; }
+
+/* Daily lesson card. */
+.lesson-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.lesson-head h2 { margin-bottom: 0.7rem; }
+/* Persistent collected marker — same family as .quest-alldone: the visual
+   state that outlives the quest blip and +XP chip. */
+.lesson-collected {
+  background: var(--gold);
+  color: var(--on-accent);
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  box-shadow: 2px 2px 0 var(--gold-sh);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+/* The lesson title is an h3 under the card's h2 — sub-heading scale, not the
+   uppercase card-title rhythm, so the 2–3 sentence body reads as one unit. */
+.card .lesson-title { font-size: 1.05rem; margin-bottom: 0.35rem; }
+.lesson-body { margin: 0 0 0.9rem; font-size: 0.92rem; }
+
+/* Codex — the lesson collection. */
+.codex-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.codex-head h2 { margin-bottom: 0.7rem; }
+.codex-count { font-size: 0.8rem; font-weight: 700; }
+.codex-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.7rem;
+}
+/* Collected tile: a mini gold card — the gacha pull made permanent. Tiles are
+   non-interactive display, card-family shadows (like .card/.sim-result), so
+   they never borrow the pressable-row language of quest buttons. */
+.codex-tile {
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  background: var(--gold);
+  color: var(--on-accent);
+  box-shadow: 3px 3px 0 var(--gold-sh);
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.codex-tile-title {
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+}
+.codex-tile-line { font-size: 0.74rem; }
+/* Locked silhouette: flat + dashed — the same "pending, not pressable"
+   language the verified quest box speaks. No dates, no countdowns: locked is
+   a neutral state, never a fear-of-missing-out lever. */
+.codex-locked {
+  border-style: dashed;
+  background: var(--paper-dim);
+  color: var(--ink);
+  box-shadow: none;
+  opacity: 0.7;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.2rem;
+}
+.codex-locked .codex-tile-title { font-size: 1rem; }
+
+/* Achievements — the badge shelf. Earned tiles are mini gold cards in the
+   codex-tile family (non-interactive display, card shadows — never the
+   pressable-row language of quest buttons); locked tiles are flat + dashed
+   with the earning hint visible: locked is a neutral "not yet", never a
+   shame state, and nothing on the shelf is purchasable. */
+.ach-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.ach-head h2 { margin-bottom: 0.7rem; }
+.ach-count { font-size: 0.8rem; font-weight: 700; }
+.ach-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.7rem;
+}
+.ach-tile {
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  background: var(--gold);
+  color: var(--on-accent);
+  box-shadow: 3px 3px 0 var(--gold-sh);
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.ach-medal { font-size: 1.1rem; }
+.ach-name {
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+}
+.ach-date { font-size: 0.7rem; opacity: 0.8; }
+.ach-hint { font-size: 0.74rem; }
+/* Same "pending, not pressable" language as .codex-locked — 0.75 (not lower):
+   the hint text is content (it names the action), so it must stay readable
+   on --paper-dim in both themes. */
+.ach-locked {
+  border-style: dashed;
+  background: var(--paper-dim);
+  color: var(--ink);
+  box-shadow: none;
+  opacity: 0.75;
+}
+
 .sim-card { padding: 0; overflow: hidden; }
 .window-bar {
   background: var(--ink);
@@ -329,6 +654,63 @@ button.quest-row:not([aria-disabled='true']):active .quest-box { transform: tran
   font-size: 0.88rem;
 }
 
+/* Setup / "My numbers" card. Fieldsets group the optional sections (real
+   <fieldset>/<legend> so AT reads the section name with each field) with the
+   UA chrome stripped — the .field-label legend carries the visual grouping. */
+.profile-group { border: 0; margin: 0.9rem 0 0; padding: 0; min-width: 0; }
+.profile-group > legend { padding: 0; margin-bottom: 0.3rem; }
+/* Contract copy (blank ≠ 0, demo disclosure) — quiet, like the sim note. */
+.profile-note { margin: 0.7rem 0 0; font-size: 0.78rem; opacity: 0.7; }
+form > .profile-note { margin-top: 0.6rem; }
+/* Saved-numbers summary: same row rhythm as the ledger. */
+.profile-rows { list-style: none; margin: 0 0 0.9rem; padding: 0; }
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.45rem 0;
+  border-bottom: 2px solid var(--paper-dim);
+  font-size: 0.9rem;
+}
+.profile-row:last-child { border-bottom: none; }
+.profile-row > span:first-child { font-weight: 700; flex-shrink: 0; }
+/* "Not entered" reads as status, not failure: the exclusion is the honest
+   state the blank ≠ 0 contract promises, so it must never look like an error. */
+.profile-unset { opacity: 0.6; font-size: 0.82rem; text-align: right; }
+
+.ledger-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.ledger-head h2 { margin-bottom: 0.7rem; }
+/* "Kept, not spent" — resisted DA summed for the month. Teal, not gold: it is
+   a mirror of the user's own resists, not an award in the reward family. */
+.kept-chip {
+  background: var(--teal);
+  color: var(--on-accent);
+  border: 2px solid var(--ink);
+  border-radius: var(--r);
+  box-shadow: 2px 2px 0 var(--teal-sh);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+/* Yielded-impulse tag: dashed + ink like the neutral status family — the
+   flag is honest data the user volunteered, never a shame accent. */
+.tx-impulse {
+  margin-left: 0.45rem;
+  border: 2px dashed var(--ink);
+  border-radius: var(--r);
+  padding: 0.02rem 0.35rem;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+}
 .tx-list { list-style: none; margin: 0; padding: 0; }
 .tx {
   display: flex;
@@ -347,3 +729,274 @@ button.quest-row:not([aria-disabled='true']):active .quest-box { transform: tran
   flex-wrap: wrap;
 }
 .foot-note { font-size: 0.75rem; opacity: 0.6; }
+
+/* ── Desktop hero + two-column stack (≥1024px) ─────────────────────────────
+   The mobile single-column layout above is untouched below this width. */
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* The pull-up runs once on load with fill-mode: both — backwards hides each
+   piece through its stagger delay (set inline per element), forwards makes
+   the 100% frame the at-rest state. Under prefers-reduced-motion the global
+   rule crushes the DURATION, so the element lands on that final, fully
+   visible frame instantly — but the global rule never touches DELAYS, and
+   without the override below a reduced-motion user would watch the pieces
+   pop in one by one across the stagger. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise { animation-delay: 0ms !important; }
+}
+
+@media (min-width: 1024px) {
+  /* The hero goes full-bleed, so the shell stops constraining width; the
+     card stack and foot reclaim their own centered measure below. */
+  .shell {
+    max-width: none;
+    padding: 0 0 3rem;
+    gap: 1.6rem;
+  }
+
+  /* 100vh section; the padding is the inset that floats the rounded frame
+     off the viewport edge (and leaves room for its offset shadow). */
+  .topbar {
+    height: 100vh;
+    padding: 1.1rem 1.2rem;
+  }
+  .hero-frame {
+    display: block;
+    position: relative;
+    height: 100%;
+    border: 3px solid var(--line);
+    border-radius: 2rem;
+    background: linear-gradient(180deg, var(--paper-hi) 0%, var(--paper-dim) 100%);
+    box-shadow: 8px 8px 0 var(--shadow);
+    /* Clips the oversized glow and keeps the noise inside the radius. */
+    overflow: hidden;
+  }
+  /* Grain over the whole container: a tiny inline feTurbulence SVG tile —
+     no asset request, no dependency. Overlay blend reads on both themes. */
+  .hero-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
+  /* Soft radial stage glow behind the wordmark; color arrives inline from
+     STAGE_META (see HeroShell) so it always matches the health engine. */
+  .hero-glow {
+    display: block;
+    position: absolute;
+    left: 4%;
+    bottom: -14%;
+    width: 58vw;
+    height: 58vw;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .hero-rise { animation: hero-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* Ink pill bar hanging from the frame's top edge. */
+  .hero-nav {
+    display: flex;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    border-radius: 0 0 1.1rem 1.1rem;
+    padding: 0 0.6rem;
+    z-index: 2;
+  }
+  .hero-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 0.9rem;
+    color: var(--paper);
+    opacity: 0.8;
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+  }
+  .hero-nav a:hover,
+  .hero-nav a:focus-visible { opacity: 1; }
+  /* The global ink focus ring is invisible on the ink bar: paper flips with
+     the theme exactly like ink does, and the negative offset keeps the ring
+     inside the bar so it can never bleed onto paper-on-paper. */
+  .hero-nav a:focus-visible {
+    outline-color: var(--paper);
+    outline-offset: -6px;
+  }
+
+  .hero-mute {
+    position: absolute;
+    top: 1.1rem;
+    right: 1.3rem;
+    z-index: 2;
+  }
+
+  /* Bottom-anchored 12-col grid: 8 cols wordmark, 4 cols thesis + CTA. */
+  .hero-grid {
+    display: grid;
+    position: absolute;
+    left: 2.4rem;
+    right: 2.4rem;
+    bottom: 1.6rem;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.5rem 2rem;
+    align-items: end;
+    z-index: 1;
+  }
+  .hero-word-col {
+    display: block;
+    grid-column: 1 / span 8;
+    min-width: 0;
+  }
+  .hero-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    grid-column: 9 / span 4;
+    padding-bottom: 0.6rem;
+  }
+
+  /* Giant display wordmark. 15.2vw, not the reference's ~18vw: EMBER's five
+     Arial Black caps run ~3.9em wide at -0.07em tracking, and 18vw pushes
+     that past the 8-col track at every viewport — 15.2vw is the largest
+     size that keeps the word inside the frame without clipping. */
+  .wordmark {
+    font-size: clamp(7rem, 15.2vw, 16rem);
+    line-height: 0.85;
+    letter-spacing: -0.07em;
+    white-space: nowrap;
+  }
+
+  /* Stage readout above the wordmark — the hero owns it at this width
+     (HeroCard sheds its duplicate below). Same badge language as mobile:
+     stage color fill, ink border, colored offset shadow, 🔥. */
+  .hero-stage-line {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+  }
+  .hero-stage-badge {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 4px solid var(--ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    flex-shrink: 0;
+    transition: background 240ms steps(1);
+  }
+  .hero-stage-name {
+    font-family: var(--display);
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+  }
+  .hero-pets {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+    font-size: 1.25rem;
+  }
+
+  .hero-thesis {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  .hero-health {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    opacity: 0.75;
+  }
+
+  /* Rounded-full CTA in the .btn-gold family: gold fill, ink border, offset
+     shadow that leans on hover and collapses on press. The gap transition
+     is the reference's widening arrow affordance. */
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 48px;
+    padding: 0.55rem 0.7rem 0.55rem 1.4rem;
+    background: var(--gold);
+    color: var(--on-accent);
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    box-shadow: 5px 5px 0 var(--gold-sh);
+    font-weight: 800;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: gap 160ms ease;
+  }
+  .hero-cta:hover {
+    gap: 1.05rem;
+    transform: translate(1px, 1px);
+    box-shadow: 4px 4px 0 var(--gold-sh);
+  }
+  .hero-cta:active {
+    transform: translate(5px, 5px);
+    box-shadow: 0 0 0 var(--gold-sh);
+  }
+  /* Chip on --on-accent/gold, not ink/paper: those flip in the dark theme
+     while the gold fill does not (see --on-accent in tokens.css), so the
+     chip must use the fixed pair to stay legible on gold in both themes. */
+  .hero-cta-chip {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--on-accent);
+    color: var(--gold);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Below the hero the card stack becomes a centered 2-col grid; the wide
+     list/collection cards span both tracks. align-items: start keeps short
+     cards from stretching to their row partner's height. */
+  .main-stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+    align-items: start;
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+  .ledger-card,
+  #codex,
+  #badges { grid-column: 1 / -1; }
+
+  /* The hero owns the stage badge/name/score at this width: HeroCard sheds
+     its duplicate readout (never two sources for one number) and keeps its
+     unique job — the explainability drawer. */
+  .hero-card .hero-main { display: none; }
+  .hero-card .hero-why { margin-top: 0; }
+
+  .foot {
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+}

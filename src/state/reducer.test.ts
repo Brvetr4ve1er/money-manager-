@@ -51,6 +51,48 @@ describe('LOG_TX', () => {
   })
 })
 
+describe('UNDO_TX', () => {
+  it('removes the transaction AND its XP grant — log→undo cycles farm nothing', () => {
+    const logged = appReducer(defaultState(), { type: 'LOG_TX', tx: tx() })
+    const next = appReducer(logged, { type: 'UNDO_TX', id: 't1' })
+    expect(next.transactions).toHaveLength(0)
+    expect(next.xp.totalXp).toBe(0)
+    expect(next.xpLog).toEqual([])
+  })
+
+  it('is a same-reference no-op for an unknown id', () => {
+    const logged = appReducer(defaultState(), { type: 'LOG_TX', tx: tx() })
+    expect(appReducer(logged, { type: 'UNDO_TX', id: 'nope' })).toBe(logged)
+  })
+
+  it('rebuilds the level from the reduced total — an undone level-up collapses', () => {
+    let s = defaultState()
+    // Two resists = 100 XP = exactly level 2.
+    for (const id of ['r0', 'r1']) {
+      s = appReducer(s, { type: 'LOG_TX', tx: tx({ id, amountDA: 0, resistedImpulse: true }) })
+    }
+    expect(s.xp.level).toBe(2)
+    const next = appReducer(s, { type: 'UNDO_TX', id: 'r1' })
+    expect(next.xp).toEqual({ level: 1, xpIntoLevel: 50, totalXp: 50 })
+    expect(next.xpLog).toHaveLength(1)
+  })
+
+  it('removes only the row for a capped resist that never granted XP', () => {
+    let s = defaultState()
+    for (let i = 0; i < 3; i++) {
+      s = appReducer(s, {
+        type: 'LOG_TX',
+        tx: tx({ id: `r${i}`, amountDA: 0, resistedImpulse: true }),
+      })
+    }
+    // r2 was past the daily cap: no grant to remove, XP stays at 2 × 50.
+    const next = appReducer(s, { type: 'UNDO_TX', id: 'r2' })
+    expect(next.transactions).toHaveLength(2)
+    expect(next.xp.totalXp).toBe(100)
+    expect(next.xpLog).toHaveLength(2)
+  })
+})
+
 describe('COMPLETE_QUEST', () => {
   it('marks the quest done and grants its XP atomically', () => {
     const s = defaultState()
@@ -73,6 +115,55 @@ describe('COMPLETE_QUEST', () => {
   it('ignores an unknown quest id', () => {
     const s = defaultState()
     expect(appReducer(s, { type: 'COMPLETE_QUEST', id: 'nope' })).toBe(s)
+  })
+})
+
+describe('READ_LESSON', () => {
+  it('collects the lesson into the codex WITHOUT granting XP (the quest pays)', () => {
+    const next = appReducer(defaultState(), {
+      type: 'READ_LESSON',
+      id: 'budget-sketch',
+      date: '2026-08-01',
+    })
+    expect(next.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
+    // No direct grant: the daily readLesson XP travels through
+    // COMPLETE_QUEST('lesson') so one tap can never pay twice.
+    expect(next.xp.totalXp).toBe(0)
+    expect(next.xpLog).toEqual([])
+  })
+
+  it('keeps the original first-read date on a repeat read (rotation keys off it)', () => {
+    const s = appReducer(defaultState(), {
+      type: 'READ_LESSON',
+      id: 'budget-sketch',
+      date: '2026-08-01',
+    })
+    const again = appReducer(s, { type: 'READ_LESSON', id: 'budget-sketch', date: '2026-08-02' })
+    expect(again).toBe(s)
+    expect(again.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
+  })
+
+  it('ignores ids outside the canonical roster — no hand-crafted codex entries', () => {
+    const s = defaultState()
+    expect(appReducer(s, { type: 'READ_LESSON', id: 'lesson-31', date: '2026-08-01' })).toBe(s)
+  })
+
+  it('stores entries in canonical id order for the merge fixpoint', () => {
+    let s = defaultState()
+    s = appReducer(s, { type: 'READ_LESSON', id: 'track-first', date: '2026-08-01' })
+    s = appReducer(s, { type: 'READ_LESSON', id: 'budget-sketch', date: '2026-08-02' })
+    expect(s.lessonsSeen.map((e) => e.id)).toEqual(['budget-sketch', 'track-first'])
+  })
+
+  it('pays readLesson XP once per day via the verified lesson quest', () => {
+    const s = defaultState()
+    const once = appReducer(s, { type: 'COMPLETE_QUEST', id: 'lesson' })
+    expect(once.xp.totalXp).toBe(15)
+    expect(once.xpLog).toEqual([
+      { id: `quest:lesson:${s.questsDate}`, action: 'readLesson', amount: 15, date: s.questsDate },
+    ])
+    // Second dispatch the same day is the standard quest no-op.
+    expect(appReducer(once, { type: 'COMPLETE_QUEST', id: 'lesson' })).toBe(once)
   })
 })
 
@@ -127,9 +218,118 @@ describe('HYDRATE', () => {
   })
 })
 
+describe('PROFILE_SET', () => {
+  const profile = {
+    monthlyIncome: 75_000,
+    monthlyEssentials: 40_000,
+    efBalance: 20_000,
+    debt: null,
+    goal: null,
+    savedDate: '2026-08-01',
+  }
+
+  it('stores a valid profile', () => {
+    const next = appReducer(defaultState(), { type: 'PROFILE_SET', profile })
+    expect(next.profile).toEqual(profile)
+  })
+
+  it('replaces an existing profile on edit', () => {
+    const s = appReducer(defaultState(), { type: 'PROFILE_SET', profile })
+    const next = appReducer(s, {
+      type: 'PROFILE_SET',
+      profile: { ...profile, monthlyIncome: 90_000, savedDate: '2026-08-02' },
+    })
+    expect(next.profile?.monthlyIncome).toBe(90_000)
+  })
+
+  it('rejects a payload with a smuggled non-finite number — state unchanged', () => {
+    // The form validates first, but a NaN that slipped through would persist,
+    // fail sanitizeState at next load, and silently revert the user to demo.
+    const s = defaultState()
+    expect(
+      appReducer(s, { type: 'PROFILE_SET', profile: { ...profile, monthlyIncome: NaN } }),
+    ).toBe(s)
+    expect(
+      appReducer(s, {
+        type: 'PROFILE_SET',
+        profile: { ...profile, efBalance: Infinity },
+      }),
+    ).toBe(s)
+  })
+
+  it('rejects an invalid savedDate — merge recency must stay comparable', () => {
+    const s = defaultState()
+    expect(
+      appReducer(s, { type: 'PROFILE_SET', profile: { ...profile, savedDate: '2026-99-99' } }),
+    ).toBe(s)
+  })
+})
+
 describe('TOGGLE_MUTE', () => {
   it('flips the muted flag', () => {
     const s = defaultState()
     expect(appReducer(s, { type: 'TOGGLE_MUTE' }).muted).toBe(true)
+  })
+})
+
+describe('BOSS_VICTORY', () => {
+  const claim = { type: 'BOSS_VICTORY', weekStart: '2026-07-27', date: '2026-08-03' } as const
+
+  it('grants weeklyBoss XP with a deterministic per-week grant id', () => {
+    const next = appReducer(defaultState(), claim)
+    expect(next.xp.totalXp).toBe(150)
+    expect(next.xpLog).toEqual([
+      { id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-03' },
+    ])
+  })
+
+  it('pays at most once per week — a duplicate claim is a no-op returning the same state', () => {
+    const s = appReducer(defaultState(), claim)
+    // StrictMode double-dispatch, a re-fired mount effect on reload, or a
+    // later day of the same week must all hit the grant-id guard.
+    expect(appReducer(s, claim)).toBe(s)
+    expect(appReducer(s, { ...claim, date: '2026-08-05' })).toBe(s)
+  })
+
+  it('pays again for a different week — one grant per battle, not per lifetime', () => {
+    const s = appReducer(defaultState(), claim)
+    const next = appReducer(s, { type: 'BOSS_VICTORY', weekStart: '2026-08-03', date: '2026-08-10' })
+    expect(next.xp.totalXp).toBe(300)
+    expect(next.xpLog).toHaveLength(2)
+  })
+})
+
+describe('UNLOCK_ACHIEVEMENTS', () => {
+  const unlock = (ids: string[], date = '2026-08-01') =>
+    ({ type: 'UNLOCK_ACHIEVEMENTS', ids, date }) as const
+
+  it('persists new unlocks with the given date, in canonical id order — and no XP', () => {
+    const s = appReducer(defaultState(), unlock(['first-resist', 'first-log']))
+    expect(s.achievements).toEqual([
+      { id: 'first-log', date: '2026-08-01' },
+      { id: 'first-resist', date: '2026-08-01' },
+    ])
+    // Badges are their own reward: the XP economy must stay untouched.
+    expect(s.xp.totalXp).toBe(0)
+    expect(s.xpLog).toEqual([])
+  })
+
+  it('drops ids outside the canonical roster — the sanitizer would evict them at next load', () => {
+    const s = appReducer(defaultState(), unlock(['nope', 'first-log']))
+    expect(s.achievements).toEqual([{ id: 'first-log', date: '2026-08-01' }])
+  })
+
+  it('is a same-reference no-op when every id is already earned (StrictMode double-dispatch)', () => {
+    const s = appReducer(defaultState(), unlock(['first-log']))
+    expect(appReducer(s, unlock(['first-log'], '2026-08-05'))).toBe(s)
+  })
+
+  it('keeps the original earn date when a later dispatch repeats an earned id', () => {
+    const s = appReducer(defaultState(), unlock(['first-log']))
+    const next = appReducer(s, unlock(['first-log', 'ten-logs'], '2026-08-09'))
+    expect(next.achievements).toEqual([
+      { id: 'first-log', date: '2026-08-01' },
+      { id: 'ten-logs', date: '2026-08-09' },
+    ])
   })
 })

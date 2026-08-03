@@ -3,7 +3,16 @@ import { runSimulation, describeResult } from '../engine/simulator.ts'
 import { buildSimProfile, type UserProfile } from '../engine/profile.ts'
 import * as sfx from '../audio/chiptune.ts'
 
-export function SimCard({ profile, onRun }: { profile: UserProfile; onRun: () => void }) {
+export function SimCard({
+  profile,
+  isDemo,
+  onRun,
+}: {
+  profile: UserProfile
+  /** True while the projection still runs on DEMO_PROFILE (setup incomplete). */
+  isDemo: boolean
+  onRun: () => void
+}) {
   const [simAmount, setSimAmount] = useState('')
   const [simText, setSimText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -25,15 +34,18 @@ export function SimCard({ profile, onRun }: { profile: UserProfile; onRun: () =>
   }
 
   return (
-    <section className="card sim-card">
+    // id: hero nav anchor target (desktop).
+    <section className="card sim-card" id="simulator">
       <div className="window-bar mono">DECISION_SIM.EXE</div>
       <div className="sim-body">
-        {/* Honesty gap guard: the result copy speaks in second person, but the
-            projection runs on the demo profile until onboarding ships — the
-            card must say so, or it claims a personalization it doesn't have. */}
+        {/* Honesty gap guard: the result copy speaks in second person, so the
+            card must always say whose numbers it projects — the demo profile
+            until setup completes, the user's own after. Claiming
+            personalization it doesn't have would break the trust rules. */}
         <p className="sim-note mono">
-          Projected on the demo profile ({profile.monthlyIncome.toLocaleString()} DA/mo
-          income) — your own numbers arrive with setup.
+          {isDemo
+            ? `Projected on the demo profile (${profile.monthlyIncome.toLocaleString()} DA/mo income) — your own numbers arrive with setup.`
+            : `Projected on your numbers (${profile.monthlyIncome.toLocaleString()} DA/mo income) — edit them any time in My Numbers.`}
         </p>
         <form
           onSubmit={(e) => {

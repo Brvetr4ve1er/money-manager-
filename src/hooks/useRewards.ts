@@ -7,6 +7,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { levelTitle } from '../engine/xp.ts'
+import { achievementById } from '../engine/achievements.ts'
+import { LESSONS } from '../content/lessons.ts'
 import * as sfx from '../audio/chiptune.ts'
 import type { AppState } from '../state/store.ts'
 
@@ -40,6 +42,20 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     setToastQueue((q) => [...q, message])
   }
 
+  // One fanfare per moment, shared by the level-up and boss-victory effects:
+  // a boss win's +150 XP usually crosses a level boundary in the same commit,
+  // and both effects firing sfx.fanfare 0ms apart would stack every note into
+  // doubled gain. Only the SOUND dedupes — both toasts still queue, so each
+  // moment keeps its visible announcement.
+  const lastFanfareAt = useRef(0)
+  function playFanfare() {
+    if (!likelyLocalAction()) return
+    const now = Date.now()
+    if (now - lastFanfareAt.current < 500) return
+    lastFanfareAt.current = now
+    sfx.fanfare()
+  }
+
   // Level-up fanfare/toast as a reaction to xp changes. The same effect
   // derives the transient +XP chip from the totalXp delta, so every grant —
   // whatever action produced it — gets a visible moment.
@@ -60,10 +76,28 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
       setXpGain((cur) => ({ amount: gained + (cur?.amount ?? 0), at: Date.now() }))
     }
     if (state.xp.level > prev.level) {
-      if (likelyLocalAction()) sfx.fanfare()
+      playFanfare()
       pushToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
     }
   }, [state.xp])
+
+  // Weekly boss victories land as xpLog grants (deterministic `boss:{week}`
+  // ids — see the BOSS_VICTORY reducer path), so diffing the grant count is
+  // origin-agnostic like every effect here: a peer tab's claim still toasts,
+  // while the ref initializer keeps long-persisted wins from re-celebrating
+  // on every mount. The fanfare (its doc comment reserves "boss defeated")
+  // never carries the win alone: the toast announces it through the live
+  // region and BossCard shows the persistent beaten chip.
+  const prevBossWins = useRef(state.xpLog.filter((g) => g.action === 'weeklyBoss').length)
+  useEffect(() => {
+    const n = state.xpLog.filter((g) => g.action === 'weeklyBoss').length
+    const prev = prevBossWins.current
+    prevBossWins.current = n
+    if (n > prev) {
+      pushToast('Impulse Monster beaten — lighter week than last!')
+      playFanfare()
+    }
+  }, [state.xpLog])
 
   // Chip dismissal owns its own timer, keyed on the gain (same pattern and
   // rationale as the toast timer below).
@@ -85,6 +119,44 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     const t = setTimeout(() => setToastQueue((q) => q.slice(1)), 2600)
     return () => clearTimeout(t)
   }, [toastQueue])
+
+  // Codex collection milestones — every 5 lessons gets the rare-pull shimmer.
+  // The toast is the sparkle's visible counterpart (sound never carries the
+  // moment alone), and the CodexCard count is its persistent one.
+  const prevLessons = useRef(state.lessonsSeen.length)
+  useEffect(() => {
+    const n = state.lessonsSeen.length
+    const prev = prevLessons.current
+    prevLessons.current = n
+    // Floor-crossing, not n % 5 === 0: a multi-lesson jump (a peer-tab merge
+    // landing several collected lessons at once) must still celebrate the
+    // milestone it crossed instead of skipping it.
+    if (n > prev && Math.floor(n / 5) > Math.floor(prev / 5)) {
+      pushToast(`Codex: ${n} / ${LESSONS.length} lessons collected!`)
+      if (likelyLocalAction()) sfx.sparkle()
+    }
+  }, [state.lessonsSeen])
+
+  // Achievement unlocks — the rare-pull shimmer with its visible counterpart:
+  // one toast PER badge names it and its pet (the queue takes turns in the
+  // live region), and AchievementsCard/the pet strip are the persistent
+  // state, so the sparkle never carries the moment alone. Diffing persisted
+  // ids keeps this origin-agnostic (a peer tab's unlock still toasts here)
+  // while the ref initializer keeps long-held badges from re-celebrating on
+  // every mount. One sparkle per batch — a merge landing several badges at
+  // once must not stack the shimmer into doubled gain.
+  const prevAchievements = useRef(new Set(state.achievements.map((a) => a.id)))
+  useEffect(() => {
+    const prev = prevAchievements.current
+    const added = state.achievements.filter((a) => !prev.has(a.id))
+    prevAchievements.current = new Set(state.achievements.map((a) => a.id))
+    if (added.length === 0) return
+    for (const u of added) {
+      const a = achievementById(u.id)
+      if (a) pushToast(`${a.name} earned — ${a.pet.emoji} ${a.pet.name} joins you!`)
+    }
+    if (likelyLocalAction()) sfx.sparkle()
+  }, [state.achievements])
 
   // Quest-completion sounds, likewise driven by state changes only.
   const prevQuestsDone = useRef(state.quests.filter((q) => q.done).length)

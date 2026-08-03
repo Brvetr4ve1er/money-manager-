@@ -277,17 +277,116 @@ describe('sanitizeState', () => {
   })
 
   it('drops quest ids outside the canonical roster — no hand-added XP levers', () => {
-    // Unknown ids ('lesson' from an old schema, hand-added 'log2'…'log50')
+    // Unknown ids (hand-added 'log2'…'log50', ids from abandoned schemas)
     // would each render as a tappable self-report row granting XP once — an
     // unbounded same-day XP lever bypassing the roster.
     const state = sanitizeState({
       quests: [
         ...defaultState().quests,
-        { id: 'lesson', text: 'Daily lesson', xpAction: 'logExpense', done: false },
+        { id: 'bonus', text: 'Free XP', xpAction: 'logExpense', done: false },
         { id: 'log2', text: 'Log again', xpAction: 'logExpense', done: false },
       ],
     })
     expect(state.quests).toEqual(defaultState().quests)
+  })
+
+  it('keeps valid codex entries and drops unknown lesson ids and bad dates', () => {
+    // An id outside the roster would inflate the codex count past its own
+    // denominator; a non-calendar date breaks the lexicographic comparison
+    // lessonForDay makes against today.
+    const state = sanitizeState({
+      lessonsSeen: [
+        { id: 'budget-sketch', date: '2026-08-01' },
+        { id: 'lesson-31', date: '2026-08-01' },
+        { id: 'track-first', date: '2026-99-99' },
+        { id: 'pay-yourself-first', date: 'yesterday' },
+        'junk',
+      ],
+    })
+    expect(state.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
+  })
+
+  it('dedupes codex entries by id keeping the earliest date, in canonical order', () => {
+    // The first-read day drives the no-repeat rotation, so the earlier date
+    // must win in any order — and the sorted output is what lets the merge
+    // fixpoint compare JSON strings.
+    const state = sanitizeState({
+      lessonsSeen: [
+        { id: 'track-first', date: '2026-08-02' },
+        { id: 'budget-sketch', date: '2026-08-03' },
+        { id: 'track-first', date: '2026-08-01' },
+      ],
+    })
+    expect(state.lessonsSeen).toEqual([
+      { id: 'budget-sketch', date: '2026-08-03' },
+      { id: 'track-first', date: '2026-08-01' },
+    ])
+  })
+
+  it('defaults to a null profile (demo numbers) when the payload has none', () => {
+    expect(sanitizeState({ muted: true }).profile).toBeNull()
+  })
+
+  it('keeps a valid profile, including blank (null) optional sections', () => {
+    const profile = {
+      monthlyIncome: 75_000,
+      monthlyEssentials: 40_000,
+      efBalance: null,
+      debt: { balance: 12_000, minimum: 800 },
+      goal: { name: 'Laptop', target: 200_000, current: 30_000, monthlyContribution: 8_000 },
+      savedDate: '2026-08-01',
+    }
+    expect(sanitizeState({ profile }).profile).toEqual(profile)
+  })
+
+  it('treats missing optional profile sections as not-entered, never zero', () => {
+    const state = sanitizeState({
+      profile: { monthlyIncome: 75_000, monthlyEssentials: 40_000, savedDate: '2026-08-01' },
+    })
+    expect(state.profile).toEqual({
+      monthlyIncome: 75_000,
+      monthlyEssentials: 40_000,
+      efBalance: null,
+      debt: null,
+      goal: null,
+      savedDate: '2026-08-01',
+    })
+  })
+
+  it('drops the whole profile when a required number is non-finite or negative', () => {
+    // All-or-nothing: salvaging real income next to a NaN-turned-default
+    // essentials would score a mixture the user never stated.
+    const base = { monthlyIncome: 75_000, monthlyEssentials: 40_000, savedDate: '2026-08-01' }
+    for (const bad of [
+      { ...base, monthlyIncome: NaN },
+      { ...base, monthlyIncome: Infinity },
+      { ...base, monthlyEssentials: -1 },
+      { ...base, monthlyIncome: '75000' },
+      { ...base, efBalance: -5 },
+    ]) {
+      expect(sanitizeState({ profile: bad }).profile).toBeNull()
+    }
+  })
+
+  it('drops the whole profile on a malformed debt or goal group', () => {
+    const base = { monthlyIncome: 75_000, monthlyEssentials: 40_000, savedDate: '2026-08-01' }
+    expect(
+      sanitizeState({ profile: { ...base, debt: { balance: 5_000 } } }).profile,
+    ).toBeNull() // minimum missing
+    expect(
+      sanitizeState({
+        profile: { ...base, goal: { name: 7, target: 1_000, current: 0, monthlyContribution: 0 } },
+      }).profile,
+    ).toBeNull()
+  })
+
+  it('drops a profile whose savedDate is not a real calendar day', () => {
+    // savedDate arbitrates recency lexicographically in mergeStates: an
+    // impossible key like '2026-99-99' would make the profile unbeatable.
+    const base = { monthlyIncome: 75_000, monthlyEssentials: 40_000 }
+    for (const savedDate of ['2026-99-99', 'yesterday', '2026-08-01T10:00:00Z', undefined]) {
+      expect(sanitizeState({ profile: { ...base, savedDate } }).profile).toBeNull()
+    }
   })
 
   it('preserves same-day done flags by id while refreshing text from the roster', () => {
@@ -441,6 +540,58 @@ describe('mergeStates', () => {
     expect(merged.quests.find((q) => q.id === 'review')?.done).toBe(false)
   })
 
+  it('unions the codex across tabs — a lesson collected in either tab stays collected', () => {
+    const local = base({ lessonsSeen: [{ id: 'track-first', date: '2026-08-02' }] })
+    const incoming = base({
+      lessonsSeen: [
+        { id: 'budget-sketch', date: '2026-08-01' },
+        // Same lesson recorded on different days in diverged tabs: the
+        // earliest first-read date wins in either merge order.
+        { id: 'track-first', date: '2026-08-01' },
+      ],
+    })
+    const expected = [
+      { id: 'budget-sketch', date: '2026-08-01' },
+      { id: 'track-first', date: '2026-08-01' },
+    ]
+    expect(mergeStates(local, incoming).lessonsSeen).toEqual(expected)
+    expect(mergeStates(incoming, local).lessonsSeen).toEqual(expected)
+  })
+
+  const mkProfile = (over: Partial<NonNullable<AppState['profile']>> = {}) => ({
+    monthlyIncome: 75_000,
+    monthlyEssentials: 40_000,
+    efBalance: null,
+    debt: null,
+    goal: null,
+    savedDate: '2026-08-01',
+    ...over,
+  })
+
+  it('a completed setup survives a peer write that still carries null', () => {
+    const withProfile = base({ profile: mkProfile() })
+    const without = base()
+    expect(mergeStates(withProfile, without).profile).toEqual(mkProfile())
+    expect(mergeStates(without, withProfile).profile).toEqual(mkProfile())
+  })
+
+  it('the newer savedDate wins across profile edits in different tabs', () => {
+    const older = base({ profile: mkProfile({ monthlyIncome: 60_000, savedDate: '2026-07-20' }) })
+    const newer = base({ profile: mkProfile({ savedDate: '2026-08-01' }) })
+    expect(mergeStates(older, newer).profile?.monthlyIncome).toBe(75_000)
+    expect(mergeStates(newer, older).profile?.monthlyIncome).toBe(75_000)
+  })
+
+  it('same-day profile edits converge on one deterministic winner in both tabs', () => {
+    // No recency signal within a day: the tie-break is arbitrary but must be
+    // symmetric, or crossed writes swap profiles forever without settling.
+    const a = base({ profile: mkProfile({ monthlyIncome: 60_000 }) })
+    const b = base({ profile: mkProfile({ monthlyIncome: 75_000 }) })
+    const merged = mergeStates(a, b)
+    expect(merged).toEqual(mergeStates(b, a))
+    expect(mergeStates(merged, b)).toEqual(merged) // idempotent fixpoint
+  })
+
   it('takes the newer quest day and health snapshot across a midnight roll', () => {
     // Tab B rolled midnight already; tab A is still on yesterday.
     const local = base({
@@ -462,5 +613,88 @@ describe('mergeStates', () => {
     expect(merged.healthDate).toBe('2026-08-01')
     expect(merged.prevHealthScore).toBe(44)
     expect(merged.stage).toBe('hearth')
+  })
+})
+
+describe('weekly boss grant persistence', () => {
+  it('sanitizeState keeps a weeklyBoss grant and folds its 150 XP into the counter', () => {
+    // The xpLog IS the once-per-week persistence for boss victories: a
+    // sanitizer that dropped the grant would let a reload re-claim the week.
+    const out = sanitizeState({
+      xpLog: [{ id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-03' }],
+    })
+    expect(out.xpLog).toEqual([
+      { id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-03' },
+    ])
+    expect(out.xp.totalXp).toBe(150)
+  })
+
+  it('two tabs claiming the same week merge to a single grant', () => {
+    const grant = { id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-03' } as const
+    const a: AppState = { ...defaultState(), xpLog: [grant], xp: xpStateFromTotal(150) }
+    const b: AppState = { ...defaultState(), xpLog: [{ ...grant }], xp: xpStateFromTotal(150) }
+    const merged = mergeStates(a, b)
+    expect(merged.xpLog).toHaveLength(1)
+    expect(merged.xp.totalXp).toBe(150)
+  })
+})
+
+describe('achievement persistence', () => {
+  it('sanitizeState keeps valid unlocks and defaults to none', () => {
+    expect(sanitizeState({}).achievements).toEqual([])
+    const out = sanitizeState({
+      achievements: [{ id: 'first-log', date: '2026-08-01' }],
+    })
+    expect(out.achievements).toEqual([{ id: 'first-log', date: '2026-08-01' }])
+  })
+
+  it('drops unlock ids outside the canonical roster and calendar-invalid dates', () => {
+    const out = sanitizeState({
+      achievements: [
+        { id: 'hand-added', date: '2026-08-01' }, // no roster entry — no shelf inflation
+        { id: 'first-resist', date: '2026-99-99' }, // impossible calendar day
+        { id: 'first-resist', date: 'yesterday' },
+        { id: 'streak-7', date: '2026-08-02' },
+      ],
+    })
+    expect(out.achievements).toEqual([{ id: 'streak-7', date: '2026-08-02' }])
+  })
+
+  it('dedupes unlocks by id keeping the earliest date, in canonical order', () => {
+    const out = sanitizeState({
+      achievements: [
+        { id: 'first-resist', date: '2026-08-05' },
+        { id: 'first-log', date: '2026-08-03' },
+        { id: 'first-resist', date: '2026-08-02' },
+      ],
+    })
+    expect(out.achievements).toEqual([
+      { id: 'first-log', date: '2026-08-03' },
+      { id: 'first-resist', date: '2026-08-02' },
+    ])
+  })
+
+  it('merges the badge shelf as a union — earned in either tab stays earned', () => {
+    const a: AppState = {
+      ...defaultState(),
+      achievements: [
+        { id: 'first-log', date: '2026-08-01' },
+        { id: 'first-resist', date: '2026-08-04' },
+      ],
+    }
+    const b: AppState = {
+      ...defaultState(),
+      achievements: [
+        { id: 'first-resist', date: '2026-08-02' }, // earlier earn wins the date
+        { id: 'ten-logs', date: '2026-08-05' },
+      ],
+    }
+    const expected = [
+      { id: 'first-log', date: '2026-08-01' },
+      { id: 'first-resist', date: '2026-08-02' },
+      { id: 'ten-logs', date: '2026-08-05' },
+    ]
+    expect(mergeStates(a, b).achievements).toEqual(expected)
+    expect(mergeStates(b, a).achievements).toEqual(expected)
   })
 })

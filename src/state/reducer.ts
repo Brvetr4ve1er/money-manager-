@@ -6,16 +6,31 @@
  * them in dev, and sounds/toasts fire from effects that watch the results.
  */
 
-import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS } from '../engine/xp.ts'
+import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS, xpStateFromTotal } from '../engine/xp.ts'
+import { bossGrantId } from '../engine/boss.ts'
+import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 import type { Stage } from '../engine/healthScore.ts'
-import { mergeStates, rollQuests, type AppState, type Transaction } from './store.ts'
+import { LESSON_IDS } from '../content/lessons.ts'
+import {
+  mergeStates,
+  rollQuests,
+  sanitizeProfile,
+  type AppState,
+  type ProfileData,
+  type Transaction,
+} from './store.ts'
 
 export type AppAction =
   | { type: 'LOG_TX'; tx: Transaction }
+  | { type: 'UNDO_TX'; id: string }
   | { type: 'COMPLETE_QUEST'; id: string }
+  | { type: 'READ_LESSON'; id: string; date: string }
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
+  | { type: 'BOSS_VICTORY'; weekStart: string; date: string }
+  | { type: 'UNLOCK_ACHIEVEMENTS'; ids: string[]; date: string }
   | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
+  | { type: 'PROFILE_SET'; profile: ProfileData }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -52,6 +67,26 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           : state.xpLog,
       }
     }
+    case 'UNDO_TX': {
+      // Mis-tap grace: LogCard offers a short-lived Undo after every log. The
+      // XP grant leaves WITH the transaction — its deterministic `tx:{id}`
+      // grant id makes the removal exact — so log→undo cycles farm nothing,
+      // and the counter is rebuilt from the reduced total so it still matches
+      // the grant evidence (sanitizeState reconciles the two at every load).
+      // A resist past the daily cap granted nothing, so only the row leaves.
+      // Multi-tab: a peer still holding the tx re-adds it via the union merge;
+      // a second undo works the same way. Quest flags and badges earned off
+      // the logged state stay — neither is money data, and badges pay no XP.
+      if (!state.transactions.some((t) => t.id === action.id)) return state
+      const grantId = `tx:${action.id}`
+      const grant = state.xpLog.find((g) => g.id === grantId)
+      return {
+        ...state,
+        transactions: state.transactions.filter((t) => t.id !== action.id),
+        xp: grant ? xpStateFromTotal(Math.max(0, state.xp.totalXp - grant.amount)) : state.xp,
+        xpLog: grant ? state.xpLog.filter((g) => g.id !== grantId) : state.xpLog,
+      }
+    }
     case 'COMPLETE_QUEST': {
       // Quest flag and XP grant happen in one atomic transition: a second
       // dispatch before re-render sees done === true and is a no-op, so rapid
@@ -77,6 +112,22 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ],
       }
     }
+    case 'READ_LESSON': {
+      // Codex collection only — deliberately NO XP here. The daily readLesson
+      // grant travels through COMPLETE_QUEST('lesson') (App dispatches both on
+      // "Got it"), reusing its atomic double-grant guard and per-(quest, day)
+      // grant id; a second grant here would pay twice for one tap. Ids outside
+      // the canonical roster never persist (the sanitizer would drop them and
+      // the codex count would lie until then). Re-reading a lesson after the
+      // roster wraps keeps the ORIGINAL first-read date — lessonForDay's
+      // no-repeat rule keys off it (see LessonSeen in the store).
+      if (!LESSON_IDS.has(action.id)) return state
+      if (state.lessonsSeen.some((e) => e.id === action.id)) return state
+      const lessonsSeen = [...state.lessonsSeen, { id: action.id, date: action.date }].sort(
+        (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+      )
+      return { ...state, lessonsSeen }
+    }
     case 'ROLL_DAY': {
       // Persist a once-per-day health snapshot so asymmetric smoothing and
       // stage hysteresis actually compound day over day. Keyed on healthDate:
@@ -94,6 +145,41 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             healthDate: action.today,
           }
     }
+    case 'BOSS_VICTORY': {
+      // Weekly boss win (computed by the boss engine, dispatched from
+      // useBossBattle). The xpLog is the once-per-week persistence: the
+      // deterministic per-week grant id makes this a pure state check, so a
+      // StrictMode double-dispatch, a re-fired mount effect on reload, or two
+      // tabs claiming the same week (grant logs union by id in mergeStates)
+      // all pay exactly once. No new state field — the evidence log carries it.
+      const id = bossGrantId(action.weekStart)
+      if (state.xpLog.some((g) => g.id === id)) return state
+      return {
+        ...state,
+        xp: grantXp(state.xp, 'weeklyBoss').next,
+        xpLog: [
+          ...state.xpLog,
+          { id, action: 'weeklyBoss', amount: XP_REWARDS.weeklyBoss, date: action.date },
+        ],
+      }
+    }
+    case 'UNLOCK_ACHIEVEMENTS': {
+      // Badges pay NO XP — the toast/sparkle and the permanent shelf row are
+      // the whole reward (see the achievements engine), so there is no grant
+      // to guard. Already-earned ids drop out here, making a StrictMode
+      // double-dispatch or a re-fired mount effect a no-op after the first;
+      // ids outside the roster never persist (the sanitizer would drop them
+      // and the badge would flicker back to locked at next load).
+      const fresh = action.ids.filter(
+        (id) => ACHIEVEMENT_IDS.has(id) && !state.achievements.some((a) => a.id === id),
+      )
+      if (fresh.length === 0) return state
+      const achievements = [
+        ...state.achievements,
+        ...fresh.map((id) => ({ id, date: action.date })),
+      ].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      return { ...state, achievements }
+    }
     case 'HYDRATE':
       // Another tab wrote the store key. Merge instead of replace: replacing
       // would drop this tab's unsaved-in-peer transactions, and ignoring the
@@ -101,5 +187,14 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return mergeStates(state, action.incoming)
     case 'TOGGLE_MUTE':
       return { ...state, muted: !state.muted }
+    case 'PROFILE_SET': {
+      // Re-validated even though the setup form validates first: the payload
+      // originates from free-text fields, and a smuggled NaN/negative would
+      // persist, fail sanitizeState at next load, and silently revert the
+      // user to the demo profile. sanitizeProfile also rebuilds the object in
+      // canonical key order — mergeStates compares profiles as JSON strings.
+      const profile = sanitizeProfile(action.profile)
+      return profile === null ? state : { ...state, profile }
+    }
   }
 }

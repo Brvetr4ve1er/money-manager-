@@ -7,7 +7,7 @@
 
 import { useEffect, useReducer } from 'react'
 import { RESIST_XP_DAILY_CAP } from './engine/xp.ts'
-import { DEMO_PROFILE } from './engine/profile.ts'
+import { resolveProfile } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
@@ -19,13 +19,23 @@ import {
   type Transaction,
 } from './state/store.ts'
 import { appReducer } from './state/reducer.ts'
+import { unlockedPets } from './engine/achievements.ts'
+import { lessonForDay } from './content/lessons.ts'
+import { HeroShell } from './components/HeroShell.tsx'
 import { HeroCard } from './components/HeroCard.tsx'
+import { LessonCard } from './components/LessonCard.tsx'
+import { CodexCard } from './components/CodexCard.tsx'
+import { AchievementsCard } from './components/AchievementsCard.tsx'
 import { XpCard } from './components/XpCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
 import { QuestCard } from './components/QuestCard.tsx'
+import { BossCard } from './components/BossCard.tsx'
 import { SimCard } from './components/SimCard.tsx'
+import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
 import { Ledger } from './components/Ledger.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
+import { useBossBattle } from './hooks/useBossBattle.ts'
+import { useAchievements } from './hooks/useAchievements.ts'
 import { useRewards } from './hooks/useRewards.ts'
 import './styles/tokens.css'
 import './styles/app.css'
@@ -44,9 +54,47 @@ export default function App() {
   useEffect(() => sfx.setMuted(state.muted), [state.muted])
 
   const { today, health } = useHealthDay(state, dispatch)
+  // The hook's `today` (like logPurchase uses), so the battle week can never
+  // disagree with the day every other card believes it is. The hook also
+  // claims a just-completed winning week — the toast/fanfare react to the
+  // resulting grant in useRewards.
+  const { battle, wonLastWeek } = useBossBattle(state, dispatch, today)
+  // Badge predicates run over the same state every card renders from; the
+  // hook persists any newly-earned ids stamped with the hook's `today` (the
+  // day every other write in this render believes it is), and the unlock
+  // toast + sparkle react to the persisted change in useRewards.
+  useAchievements(state, dispatch, today)
   const { toast, xpGain } = useRewards(state)
+  // Real numbers once the setup card completed, DEMO_PROFILE until then —
+  // the same resolution useHealthDay applies, so the simulator and the score
+  // can never speak from different profiles.
+  const { profile, isDemo } = resolveProfile(state.profile)
+  // Computed once: the hero shell and the hero card both show the companions
+  // and must always agree on the shelf.
+  const pets = unlockedPets(state.achievements)
+  // Deterministic pick for the hook's day — same lesson on every render,
+  // reload, and tab of that day, and stable across "Got it" (lessonForDay
+  // keeps today's own entry in the pool on purpose).
+  const todayLesson = lessonForDay(today, state.lessonsSeen)
+  const lessonReadToday = state.quests.some((q) => q.id === 'lesson' && q.done)
 
-  function logPurchase(amountDA: number, category: string, resisted: boolean) {
+  function readLesson() {
+    // Two dispatches, one tap: READ_LESSON collects the lesson into the codex
+    // (no XP — see the reducer), and the verified lesson quest carries the
+    // daily readLesson grant through COMPLETE_QUEST's atomic double-grant
+    // guard, exactly like SimCard's onRun does for the sim quest. The quest
+    // blip and +XP chip come from useRewards; the codex milestone sparkle
+    // fires there too when the collection crosses a multiple of five.
+    dispatch({ type: 'READ_LESSON', id: todayLesson.id, date: today })
+    dispatch({ type: 'COMPLETE_QUEST', id: 'lesson' })
+  }
+
+  function logPurchase(
+    amountDA: number,
+    category: string,
+    resisted: boolean,
+    impulseFlagged: boolean,
+  ): string {
     const tx: Transaction = {
       // newId, not bare crypto.randomUUID: randomUUID is undefined outside
       // secure contexts (plain-http hosting), and a throw here would fail the
@@ -62,9 +110,35 @@ export default function App() {
       // label just said was capped (or vice versa).
       date: today,
       resistedImpulse: resisted,
+      // "I bought it anyway" — the yielded side of Impulse Control. Same XP,
+      // same blip as any log: self-reporting against yourself is never
+      // punished, and the flag is what makes IC genuine two-sided data.
+      impulseFlagged,
     }
     dispatch({ type: 'LOG_TX', tx })
     if (resisted) sfx.sparkle()
+    else sfx.blip()
+    // The id is LogCard's undo handle for the grace window.
+    return tx.id
+  }
+
+  function undoLog(id: string) {
+    // Row and XP grant leave together (see UNDO_TX in the reducer). The blip
+    // reinforces the visible change — the ledger row and undo strip vanish.
+    dispatch({ type: 'UNDO_TX', id })
+    sfx.blip()
+  }
+
+  function saveProfile(draft: ProfileDraft) {
+    const firstSetup = state.profile === null
+    // The hook's `today` for the same reason logPurchase uses it: savedDate
+    // arbitrates profile recency in mergeStates, and it must agree with the
+    // day every other write in this render believes it is.
+    dispatch({ type: 'PROFILE_SET', profile: { ...draft, savedDate: today } })
+    // Sparkle only on the setup that retires the demo profile — the bigger
+    // visible change (sim note flips, EF/DT join the score); edits get the
+    // ordinary confirmation blip.
+    if (firstSetup) sfx.sparkle()
     else sfx.blip()
   }
 
@@ -80,19 +154,17 @@ export default function App() {
 
   return (
     <div className="shell">
-      <header className="topbar">
-        {/* The wordmark is the page's h1: without it the accessibility outline
-            starts at the dynamic stage label with no page-level heading. */}
-        <h1 className="wordmark">Ember</h1>
-        <button
-          className="btn"
-          onClick={() => dispatch({ type: 'TOGGLE_MUTE' })}
-          aria-pressed={state.muted}
-          aria-label="Mute sound"
-        >
-          <span aria-hidden="true">{state.muted ? '🔇' : '🔊'}</span>
-        </button>
-      </header>
+      {/* The header carries the page's h1 wordmark: without it the
+          accessibility outline starts at the dynamic stage label with no
+          page-level heading. Mobile topbar and desktop full-viewport hero
+          are the same DOM — see HeroShell. */}
+      <HeroShell
+        stage={health.stage}
+        score={health.score}
+        pets={pets}
+        muted={state.muted}
+        onToggleMute={() => dispatch({ type: 'TOGGLE_MUTE' })}
+      />
 
       {/* Permanently mounted live region: most screen readers only announce
           text CHANGES inside an existing live region, so the element must not
@@ -117,21 +189,40 @@ export default function App() {
           foot as sibling landmarks. .main-stack carries the shell's column
           rhythm inside the landmark. */}
       <main className="main-stack">
-        <HeroCard stage={health.stage} score={health.score} />
+        <HeroCard
+          stage={health.stage}
+          score={health.score}
+          pets={pets}
+          components={health.components}
+        />
         <XpCard xp={state.xp} gain={xpGain} />
         <LogCard
+          transactions={state.transactions}
           onLog={logPurchase}
+          onUndo={undoLog}
           resistXpCapped={
             state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
             RESIST_XP_DAILY_CAP
           }
         />
         <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
-        {/* Running a simulation genuinely completes the sim quest — the one
+        <BossCard battle={battle} wonLastWeek={wonLastWeek} />
+        {/* "Got it" genuinely completes the verified lesson quest — the tap
+            lands on today's actual lesson content, so the app observes the
+            action instead of taking it on self-report. */}
+        <LessonCard lesson={todayLesson} readToday={lessonReadToday} onRead={readLesson} />
+        {/* Running a simulation genuinely completes the sim quest — a
             daily quest the app verifies instead of taking on self-report, so
             QuestCard renders it without a tap-to-complete button. */}
-        <SimCard profile={DEMO_PROFILE} onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })} />
-        <Ledger transactions={state.transactions} />
+        <SimCard
+          profile={profile}
+          isDemo={isDemo}
+          onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
+        />
+        <ProfileCard profile={state.profile} onSave={saveProfile} />
+        <Ledger transactions={state.transactions} today={today} />
+        <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
+        <AchievementsCard unlocks={state.achievements} />
       </main>
 
       <footer className="foot">
