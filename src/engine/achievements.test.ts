@@ -141,7 +141,7 @@ describe('roster and loot', () => {
     expect(ACHIEVEMENT_IDS.size).toBe(ACHIEVEMENTS.length)
     for (const a of ACHIEVEMENTS) {
       expect(a.hint.length).toBeGreaterThan(0)
-      expect(a.pet.emoji.length).toBeGreaterThan(0)
+      expect(a.pet.glyph.length).toBeGreaterThan(0)
       expect(a.pet.name.length).toBeGreaterThan(0)
     }
   })
@@ -151,6 +151,6 @@ describe('roster and loot', () => {
       { id: 'nope', date: '2026-08-02' },
       { id: 'first-log', date: '2026-08-01' },
     ])
-    expect(pets.map((p) => p.emoji)).toEqual(['🐣', '🐢'])
+    expect(pets.map((p) => p.glyph)).toEqual(['kit', 'sabr'])
   })
 })

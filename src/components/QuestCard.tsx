@@ -5,11 +5,17 @@ export function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete:
   return (
     // id: hero nav anchor target (desktop).
     <section className="card" id="quests">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
+      <span className="spec-label" aria-hidden="true">QST—04</span>
       <div className="quest-head">
         <h2>Today's quests</h2>
         {/* Persistent visual counterpart to the completion arpeggio — sound
             never carries the moment alone. */}
-        {allDone && <span className="quest-alldone">All complete ✓</span>}
+        {/* No trailing ✓: the mark is not aria-hidden here, so a screen
+            reader read it as "All complete check mark" — a glyph inside
+            announced text, which §7.4 bans and §8 has no place for. The chip
+            plate is the visual marker; the words are the whole message. */}
+        {allDone && <span className="quest-alldone">All complete</span>}
       </div>
       <ul className="quest-list">
         {quests.map((q) => (

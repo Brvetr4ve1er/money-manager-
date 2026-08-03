@@ -97,8 +97,11 @@ describe('quest completion', () => {
     fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(screen.getByText(/All complete/)).toBeTruthy()
+    // §7.4 bans exclamation marks outright, and this string is announced
+    // through a live region — the toast rewrite is deliberate, and the
+    // assertion stays exact-equality so the ban cannot regress unnoticed.
     expect(screen.getByRole('status', { name: 'Announcements' }).textContent).toBe(
-      'All quests complete!',
+      'All quests complete.',
     )
   })
 })
@@ -241,6 +244,19 @@ describe('logging quick wins', () => {
 })
 
 describe('health explainability drawer', () => {
+  it('states the calibration period instead of projecting unearned confidence', () => {
+    // Trust Rule 5. The disclosure is NOT behind the drawer and not inside
+    // .hero-main (which app.css hides at >=1024px): a calibration state that
+    // blinks out at a breakpoint, or waits for a tap, is not a disclosure.
+    render(<App />)
+    expect(screen.getByText(/Score still calibrating/)).toBeTruthy()
+    expect(screen.getByText(/Day 0 \/ 90/)).toBeTruthy()
+    // A logged day is day 1 of 90, never day 0 and never "ready".
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '900' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(screen.getByText(/Day 1 \/ 90/)).toBeTruthy()
+  })
+
   it('expands a component breakdown that explains, never advises', () => {
     render(<App />)
     const why = screen.getByRole('button', { name: /Why this stage/ })
@@ -312,7 +328,7 @@ describe('daily lesson + codex', () => {
     expect(sfx.sparkle).toHaveBeenCalled()
     expect(
       screen.getByRole('status', { name: 'Announcements' }).textContent,
-    ).toBe('Codex: 5 / 30 lessons collected!')
+    ).toBe('Codex: 5 / 30 lessons collected.')
   })
 
   it('shows locked lessons as silhouettes without leaking their titles', () => {
@@ -587,7 +603,7 @@ describe('level-up toast lifecycle', () => {
     )
     // The actions above also earned three badges (first sim, first purchase,
     // ten purchases), each queued at its own moment — drain their turns first.
-    for (const badge of [/^Future Sight earned/, /^First Spark earned/, /^Ten in the Ledger earned/]) {
+    for (const badge of [/^First Run earned/, /^First Spark earned/, /^Ten in the Ledger earned/]) {
       expect(toast().textContent).toMatch(badge)
       act(() => {
         vi.advanceTimersByTime(2600)
@@ -597,7 +613,7 @@ describe('level-up toast lifecycle', () => {
     act(() => {
       vi.advanceTimersByTime(2600)
     })
-    expect(toast().textContent).toBe('All quests complete!')
+    expect(toast().textContent).toBe('All quests complete.')
     act(() => {
       vi.advanceTimersByTime(2600)
     })
@@ -675,7 +691,7 @@ describe('weekly boss battle', () => {
   it('shows the honest sizing-up state instead of fake numbers under two weeks of data', () => {
     render(<App />)
     expect(screen.getByText(/still sizing you up/)).toBeTruthy()
-    expect(screen.getByText(/no numbers on you yet/)).toBeTruthy()
+    expect(screen.getByText(/no numbers on you yet/i)).toBeTruthy()
     // No invented opponent total anywhere on the card.
     expect(screen.queryByText(/\/ 0 DA/)).toBeNull()
   })
@@ -694,7 +710,7 @@ describe('weekly boss battle', () => {
     )
     render(<App />)
     expect(screen.getByText('1,500 / 6,000 DA')).toBeTruthy()
-    expect(screen.getByText(/Stay under that through Sunday and he goes down/)).toBeTruthy()
+    expect(screen.getByText(/Stay under it through Sunday\. He goes down/)).toBeTruthy()
     // Trust rule: the card never shames.
     expect(screen.queryByText(/wasted/i)).toBeNull()
   })
@@ -727,7 +743,9 @@ describe('weekly boss battle', () => {
     act(() => {
       vi.advanceTimersByTime(2600)
     })
-    expect(toast().textContent).toBe('Impulse Monster beaten — lighter week than last!')
+    // Still stated about the monster, never re-framed as praise of the user:
+    // the two-track rule keeps engagement copy out of financial judgement.
+    expect(toast().textContent).toBe('Impulse Monster beaten. Lighter week than last.')
     // The card carries the persistent claimed-win marker past the toast.
     expect(screen.getByText('Beaten last week +150 XP')).toBeTruthy()
     // A reload (remount over the persisted grant) never pays the week twice.

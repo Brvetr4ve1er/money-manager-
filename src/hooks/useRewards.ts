@@ -29,6 +29,18 @@ function likelyLocalAction(): boolean {
   )
 }
 
+/**
+ * TOAST VOICE (§7.4, hard ban on exclamation marks). Every message pushed
+ * below is a two-fragment spec statement — the §7 success exemplar is
+ * "Done. Batch 07 confirmed.", not a cheer. These land in the permanently
+ * mounted role="status" region, so the punctuation is not decoration: a
+ * screen reader gets the same flat, factual sentence a sighted user reads.
+ *
+ * The engagement/financial split (Trust Rule 1) constrains the wording too.
+ * A boss win is stated about the monster, never re-framed as praise of the
+ * user — "You beat the Impulse Monster" would put an engagement event in the
+ * register the Health Score speaks in.
+ */
 export function useRewards(state: AppState): { toast: string | null; xpGain: number | null } {
   // Toasts QUEUE instead of overwrite: completing the final quest can cross a
   // level boundary in the same commit, and both effects below then announce
@@ -77,7 +89,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     }
     if (state.xp.level > prev.level) {
       playFanfare()
-      pushToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
+      pushToast(`Level ${state.xp.level}. ${levelTitle(state.xp.level)}.`)
     }
   }, [state.xp])
 
@@ -94,7 +106,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     const prev = prevBossWins.current
     prevBossWins.current = n
     if (n > prev) {
-      pushToast('Impulse Monster beaten — lighter week than last!')
+      pushToast('Impulse Monster beaten. Lighter week than last.')
       playFanfare()
     }
   }, [state.xpLog])
@@ -112,7 +124,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
   // for logging a purchase) would run that effect's cleanup, cancel the
   // dismiss timer, and strand the toast — and the role="status" live region
   // content — on screen until the next level-up. Shifting (not clearing)
-  // lets a queued second message ("All quests complete!") take its own turn
+  // lets a queued second message ("All quests complete.") take its own turn
   // in the live region after the current one dismisses.
   useEffect(() => {
     if (toastQueue.length === 0) return
@@ -132,7 +144,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     // landing several collected lessons at once) must still celebrate the
     // milestone it crossed instead of skipping it.
     if (n > prev && Math.floor(n / 5) > Math.floor(prev / 5)) {
-      pushToast(`Codex: ${n} / ${LESSONS.length} lessons collected!`)
+      pushToast(`Codex: ${n} / ${LESSONS.length} lessons collected.`)
       if (likelyLocalAction()) sfx.sparkle()
     }
   }, [state.lessonsSeen])
@@ -153,7 +165,9 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     if (added.length === 0) return
     for (const u of added) {
       const a = achievementById(u.id)
-      if (a) pushToast(`${a.name} earned — ${a.pet.emoji} ${a.pet.name} joins you!`)
+      // Name only: the companion's mark is a drawn glyph now (§8), and an
+      // announcement is text — a live region cannot read a vector.
+      if (a) pushToast(`${a.name} earned. ${a.pet.name} joins you.`)
     }
     if (likelyLocalAction()) sfx.sparkle()
   }, [state.achievements])
@@ -170,7 +184,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
       if (state.quests.every((q) => q.done)) {
         // The arpeggio never carries the moment alone: the toast announces it
         // through the live region and QuestCard shows a persistent badge.
-        pushToast('All quests complete!')
+        pushToast('All quests complete.')
         if (local) {
           const t = setTimeout(sfx.arpeggio, 180)
           return () => clearTimeout(t)

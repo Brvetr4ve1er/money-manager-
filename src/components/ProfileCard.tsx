@@ -93,6 +93,13 @@ export function ProfileCard({
     sfx.deny()
   }
 
+  /**
+   * Every error below leads with the field's own name (§7 rule 1) and splits
+   * into fragments under nine words (§7 rule 2). The "Blank is fine." /
+   * "Blank clears the goal." tails are NOT filler that compression may drop:
+   * they are the blank ≠ 0 contract this whole card runs on, restated at the
+   * moment the user is most likely to type a 0 to make an error go away.
+   */
   function submit() {
     const incomeN = parseMoney(income)
     if (incomeN === null || incomeN === 'invalid') {
@@ -104,35 +111,35 @@ export function ProfileCard({
     }
     const efN = parseMoney(ef)
     if (efN === 'invalid') {
-      return fail('ef', 'Emergency fund needs a number 0 or more — or leave it blank.')
+      return fail('ef', 'Emergency fund needs a number, 0 or more. Blank is fine.')
     }
     const debtBalanceN = parseMoney(debtBalance)
     if (debtBalanceN === 'invalid') {
-      return fail('debtBalance', 'Debt balance needs a number 0 or more — or leave it blank.')
+      return fail('debtBalance', 'Debt balance needs a number, 0 or more. Blank is fine.')
     }
     const debtMinimumN = parseMoney(debtMinimum)
     if (debtMinimumN === 'invalid') {
-      return fail('debtMinimum', 'Minimum payment needs a number 0 or more — or leave it blank.')
+      return fail('debtMinimum', 'Minimum payment needs a number, 0 or more. Blank is fine.')
     }
     if (debtBalanceN === null && debtMinimumN !== null) {
-      return fail('debtBalance', 'Add the debt balance too, or clear the minimum payment.')
+      return fail('debtBalance', 'Debt balance is missing. Add it, or clear the minimum.')
     }
     const goalTargetN = parseMoney(goalTarget)
     if (goalTargetN === 'invalid') {
-      return fail('goalTarget', 'Goal target needs a number 0 or more — or leave the goal blank.')
+      return fail('goalTarget', 'Goal target needs a number, 0 or more. Blank clears the goal.')
     }
     const goalCurrentN = parseMoney(goalCurrent)
     if (goalCurrentN === 'invalid') {
-      return fail('goalCurrent', 'Saved so far needs a number 0 or more — or leave it blank.')
+      return fail('goalCurrent', 'Saved so far needs a number, 0 or more. Blank is fine.')
     }
     const goalContributionN = parseMoney(goalContribution)
     if (goalContributionN === 'invalid') {
-      return fail('goalContribution', 'Monthly contribution needs a number 0 or more — or leave it blank.')
+      return fail('goalContribution', 'Monthly contribution needs a number, 0 or more. Blank is fine.')
     }
     const goalTouched =
       goalName.trim() !== '' || goalTargetN !== null || goalCurrentN !== null || goalContributionN !== null
     if (goalTouched && goalTargetN === null) {
-      return fail('goalTarget', 'A goal needs a target amount — or clear the other goal fields.')
+      return fail('goalTarget', 'A goal needs a target amount. Or clear the goal fields.')
     }
     setError(null)
     onSave({
@@ -149,7 +156,7 @@ export function ProfileCard({
           }
         : null,
     })
-    setSavedMsg('Numbers saved — your Health Score and simulator now use them.')
+    setSavedMsg('Numbers saved. Health Score and simulator use them now.')
     setEditing(false)
     setFocusTarget('edit')
   }
@@ -167,6 +174,8 @@ export function ProfileCard({
 
   return (
     <section className="card">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
+      <span className="spec-label" aria-hidden="true">NUM—08</span>
       <h2>My numbers</h2>
       {/* Permanently mounted status region (same announce-on-change rule as
           the toast/XP regions in App): the visible save confirmation is the
@@ -176,9 +185,13 @@ export function ProfileCard({
       {showForm ? (
         <>
           {profile === null && (
+            /* Three fragments, three commitments, none of them droppable:
+               Trust 5 (the numbers on screen are demo numbers, said plainly),
+               the two-field floor that makes setup finishable, and Trust 7
+               (nothing leaves the device). */
             <p className="profile-note">
-              Your Health Score and simulator run on demo numbers until you replace
-              them. Two amounts are enough to start — everything stays on this device.
+              Health Score and simulator run on demo numbers. Two amounts
+              replace them. Everything stays on this device.
             </p>
           )}
           <form
@@ -362,10 +375,12 @@ export function ProfileCard({
                 </button>
               )}
             </div>
-            {/* Blank ≠ 0 is the contract the whole card runs on — say it. */}
+            {/* Blank ≠ 0 is the contract the whole card runs on — say it.
+                Two fragments, both load-bearing: the first is the exclusion
+                rule, the second is why a 0 is not a shortcut past it. */}
             <p className="profile-note">
-              Leave an optional section blank and it stays out of your Health Score.
-              A typed 0 counts as real data.
+              Blank sections stay out of the Health Score. A typed 0 counts as
+              real data.
             </p>
           </form>
         </>

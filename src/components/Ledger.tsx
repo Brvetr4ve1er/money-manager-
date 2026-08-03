@@ -1,4 +1,5 @@
 import type { Transaction } from '../state/store.ts'
+import { Glyph } from './Glyph.tsx'
 
 export function Ledger({ transactions, today }: { transactions: Transaction[]; today: string }) {
   // "Kept, not spent": resisted amounts finally compound into one visible
@@ -12,10 +13,15 @@ export function Ledger({ transactions, today }: { transactions: Transaction[]; t
     .reduce((s, t) => s + t.amountDA, 0)
   return (
     <section className="card ledger-card">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
+      <span className="spec-label" aria-hidden="true">LDG—09</span>
       <div className="ledger-head">
         <h2>Recent</h2>
+        {/* INDEX ROLL (§9 move 4): the kept total clicks up with each resist. */}
         {keptDA > 0 && (
-          <span className="kept-chip mono">{keptDA.toLocaleString()} DA kept this month</span>
+          <span className="kept-chip mono index-roll" key={keptDA}>
+            {keptDA.toLocaleString()} DA kept this month
+          </span>
         )}
       </div>
       {transactions.length === 0 ? (
@@ -25,11 +31,17 @@ export function Ledger({ transactions, today }: { transactions: Transaction[]; t
           {transactions.slice(0, 8).map((t) => (
             <li key={t.id} className="tx">
               <span>
-                {/* aria-hidden emoji, matching the mute button and stage
-                    flame — screen readers must not read "shield Resisted". */}
+                {/* aria-hidden mark, matching the mute button and stage
+                    flame — screen readers must not read "shield Resisted";
+                    the word beside it is the alternative. */}
                 {t.resistedImpulse ? (
                   <>
-                    <span aria-hidden="true">🛡 </span>Resisted
+                    {/* .mark: §1 trait 01 — the shield sits in a keyline
+                        badge instead of floating in the row. */}
+                    <span className="mark" aria-hidden="true">
+                      <Glyph name="shield" />
+                    </span>{' '}
+                    Resisted
                   </>
                 ) : (
                   <>
@@ -40,7 +52,8 @@ export function Ledger({ transactions, today }: { transactions: Transaction[]; t
                   </>
                 )}
               </span>
-              <span className="mono">
+              {/* INDEX ROLL (§9 move 4): a new row's amount indexes in. */}
+              <span className="mono index-roll">
                 {/* A resist logged with a typed amount records what the tap
                     avoided spending — shown, not silently dropped. */}
                 {t.resistedImpulse

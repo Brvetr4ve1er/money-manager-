@@ -313,50 +313,52 @@ export function runSimulation(
 /**
  * Trust rules, encoded: the copy states specific tradeoffs, never a verdict,
  * and always pairs the month-1 dip with the month-12 position.
+ *
+ * VOICE (§7): every part below is a fragment stack under nine words per
+ * sentence, leading with the object it measures — the parts join into a
+ * paragraph, so a 15-word clause here compounds into a 60-word one on screen.
+ * What compression may NOT touch: the hedges. "about", "worth double-checking"
+ * and the conditional recovery branch are anti-false-confidence machinery, not
+ * padding — "You lose 12 points." asserts precision this model does not have,
+ * and §7.1 forbids that as firmly as it forbids blame.
  */
 export function describeResult(r: SimResult): string {
   const parts: string[] = []
   const horizon = r.baseline.length
   const finalDelta = r.healthDeltaFinal
   if (Math.abs(finalDelta) < 3) {
-    // Neutral projection statement, not reassurance: "doesn't leave a mark"
-    // reads as a verdict one step from "you can afford it".
-    parts.push(
-      `By month ${horizon} the buy and wait paths land within 3 points of each other.`,
-    )
+    // Neutral projection statement, not reassurance: "doesn't leave a mark" —
+    // and equally "no real difference" — reads as a verdict one step from
+    // "you can afford it". Naming both paths and the band keeps it a
+    // measurement.
+    parts.push(`Buy and wait land within 3 points. Month ${horizon}.`)
   } else if (finalDelta < 0) {
-    parts.push(
-      `By the end of the projection your overall position sits about ${Math.abs(finalDelta).toFixed(0)} points lower than if you wait.`,
-    )
+    parts.push(`Buy path ends lower. About ${Math.abs(finalDelta).toFixed(0)} points below waiting.`)
   } else {
     // Mirror the negative branch: state the number, keep the hedge. Hiding
     // the magnitude behind "slightly" drifts toward soft reassurance.
     parts.push(
-      `By the end of the projection your position sits about ${finalDelta.toFixed(0)} points ahead — likely via debt or cash-flow effects worth double-checking.`,
+      `Buy path ends about ${finalDelta.toFixed(0)} points ahead. Worth double-checking against the debt and cash-flow lines.`,
     )
   }
   if (r.goalMissesHorizon) {
-    parts.push(
-      `Your goal no longer completes within the ${horizon}-month projection — on the wait path it does.`,
-    )
+    parts.push(`Goal: no longer completes within the ${horizon}-month projection. The wait path finishes it.`)
   } else if (r.goalDelayMonths !== null && r.goalDelayMonths > 0) {
     parts.push(`Your goal slips about ${r.goalDelayMonths} month${r.goalDelayMonths === 1 ? '' : 's'}.`)
   }
   if (r.debtMissesHorizon) {
-    parts.push(
-      `Your card balance doesn't clear within the ${horizon}-month projection — on the wait path it does.`,
-    )
+    parts.push(`Card balance: doesn't clear within the ${horizon}-month projection. The wait path clears it.`)
   } else if (r.debtDelayMonths !== null && r.debtDelayMonths > 0) {
-    parts.push(`You'd carry your card balance about ${r.debtDelayMonths} month${r.debtDelayMonths === 1 ? '' : 's'} longer.`)
+    parts.push(`Card balance: about ${r.debtDelayMonths} month${r.debtDelayMonths === 1 ? '' : 's'} longer.`)
   }
   if (r.healthDeltaMonth1 < -10) {
     // Only claim recovery when the projection actually shows it: asserting
     // "and recover from there" while healthDeltaFinal stays deep in the red
     // is exactly the soft reassurance the trust rules forbid.
     if (r.healthDeltaFinal > r.healthDeltaMonth1 + 5) {
-      parts.push('The rough part is month one — your numbers dip hard right after the purchase and recover from there.')
+      parts.push('Month one takes the hit. Numbers dip hard, then recover from there.')
     } else {
-      parts.push('The dip lands in month one and the projection shows it persisting.')
+      parts.push('Month one takes the hit. The projection shows it persisting.')
     }
   }
   return parts.join(' ')

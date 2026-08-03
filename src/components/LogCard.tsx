@@ -107,6 +107,8 @@ export function LogCard({
   return (
     // id: hero nav / CTA anchor target (desktop).
     <section className="card" id="log">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
+      <span className="spec-label" aria-hidden="true">LOG—03</span>
       <h2>Log it</h2>
       {chips.length > 0 && (
         <div className="chip-row" role="group" aria-label="Repeat a recent purchase">

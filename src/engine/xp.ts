@@ -44,11 +44,20 @@ export interface XpState {
   totalXp: number
 }
 
+/**
+ * Level titles — §7.3, specify rather than adjectivise. The old ladder
+ * (Sage / Strategist / Explorer / Apprentice) flattered the user about
+ * financial skill it had no evidence for, which is also a two-track leak:
+ * these titles are paid for by app engagement, and only the Health Score may
+ * speak about money. A trade ladder names the work instead of the person.
+ * 'Spark' survives from the old set — one word, on-voice, and the only rung
+ * that was already right.
+ */
 export const LEVEL_TITLES: Array<{ min: number; title: string }> = [
-  { min: 30, title: 'Financial Sage' },
-  { min: 20, title: 'Financial Strategist' },
-  { min: 10, title: 'Financial Explorer' },
-  { min: 5, title: 'Money Apprentice' },
+  { min: 30, title: 'Fabricator' },
+  { min: 20, title: 'Machinist' },
+  { min: 10, title: 'Ledger Hand' },
+  { min: 5, title: 'Logger' },
   { min: 1, title: 'Spark' },
 ]
 

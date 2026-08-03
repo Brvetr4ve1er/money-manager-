@@ -3,39 +3,94 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Ember — build financial instincts. A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
-    <meta name="theme-color" content="#ff4b2b" />
-    <!-- Flame-mark favicon: without it browsers 404 on /favicon.ico and the
-         tab shows a generic globe — an unfinished look next to the flame
-         brand head above. SVG scales for tabs/bookmarks; the PNG covers iOS
+    <meta name="description" content="Ember — a money app that runs on your phone, not on your bank. Manual logging in dinars, a health score that explains itself, and a simulator that states the tradeoff. No account, no bank link, full export." />
+    <!-- Browser chrome, per scheme. Flare is the brand field (§2: 45% of all
+         surface) and is literally the first paint a new visitor gets — the
+         landing's brick wall. Dark takes the ground swap (§2.2: light ground
+         Bone, dark ground Espresso), so the chrome follows the page into the
+         dark theme instead of staying orange in both. Both hexes are the
+         current palette; the old #ff4b2b predates it. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F93E06" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#2A1E18" />
+    <!-- The mark (§4): the EMB stack in a superellipse container, generated
+         from the same geometry the app renders — see scripts/brand-assets.ts.
+         SVG scales for tabs and bookmarks; the PNG covers iOS
          add-to-home-screen (Safari ignores SVG touch icons), which matters in
-         the mobile-heavy target market. -->
+         the mobile-heavy target market where add-to-home-screen IS the
+         distribution channel. -->
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Add-to-home-screen: name, standalone display, the icon set and the
+         splash colours. Without it Android gets a bookmark with no identity
+         and iOS gets a chrome-framed one. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
     <!-- Social cards (WhatsApp/Facebook/Telegram are the dominant share
          channels in the target market). Those crawlers require ABSOLUTE
          image URLs: set VITE_SITE_URL at build time and vite.config.ts
-         rewrites the /og.png references and injects og:url.
-         Titles carry the tagline and descriptions say what the product IS
-         (a money app, manual DA logging, local-first): a card showing only
-         the bare word "Ember" plus a slogan tells a stranger nothing. -->
+         rewrites the /og.png references and injects og:url + canonical.
+
+         og.png IS THE ONE ASSET STILL OFF-BRAND. The card is authored as
+         public/og.svg (THE BRICK WALL, current palette, one 38° shear, mono
+         spec labels) but every one of these crawlers rejects SVG, and this
+         repo carries no rasteriser and takes no new dependency to get one. So
+         the committed PNG — a pre-design-system flame card — stays referenced
+         because a working card beats no card, and re-rasterising og.svg to
+         1200x630 is a checklist item in README "Deploying". Point this at the
+         new PNG the moment it exists; do not point it at the SVG. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Ember" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="Ember — build financial instincts" />
-    <meta property="og:description" content="A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
+    <meta property="og:description" content="A money app that runs on your phone, not on your bank. Log the spend in DA, read the numbers. No account, no bank link, full export." />
     <meta property="og:image" content="/og.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Ember — build financial instincts" />
+    <meta property="og:image:alt" content="The Ember mark and wordmark on an orange field, over the line: built flat, logged in DA." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Ember — build financial instincts" />
-    <meta name="twitter:description" content="A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
+    <meta name="twitter:description" content="A money app that runs on your phone, not on your bank. Log the spend in DA, read the numbers. No account, no bank link, full export." />
     <meta name="twitter:image" content="/og.png" />
-    <title>Ember</title>
+    <meta name="twitter:image:alt" content="The Ember mark and wordmark on an orange field, over the line: built flat, logged in DA." />
+    <!-- The tab, the bookmark, the SERP line and every Slack/Teams unfurl
+         headline read this. The bare word "Ember" told a stranger nothing. -->
+    <title>Ember — build financial instincts</title>
   </head>
   <body>
     <div id="root"></div>
+    <!-- The page is 100% client-rendered, so with scripting off #root stays an
+         empty rectangle: JS-off users, text-mode previews and low-end share
+         contexts got a blank page and no way to tell what they were looking
+         at. This block costs nothing and says the one useful thing.
+
+         Literal hexes, not tokens: browsers ignore noscript CONTENT entirely
+         when scripting is on, so nothing here can leak into the app — and when
+         scripting is off there is no guarantee about what else has loaded. The
+         values are §2's Flare / Graphite / Bone. Copy under 24px sits on the
+         Bone plate, never on the Flare field (§2.1 rule 1). -->
+    <noscript>
+      <style>
+        .ns { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+              background: #F93E06; padding: 40px 24px; margin: 0;
+              font-family: "Space Grotesk", Helvetica, Arial, sans-serif; }
+        .ns-plate { max-width: 560px; background: #F5E6E0; color: #2A2D2C;
+                    border: 2px solid #2A2D2C; border-radius: 28px; padding: 32px; }
+        .ns-plate h1 { margin: 0 0 16px; font-size: 56px; line-height: 0.78;
+                       letter-spacing: -0.045em; text-transform: uppercase;
+                       font-family: "Archivo Black", "Arial Black", sans-serif; }
+        .ns-plate p { margin: 0 0 8px; font-size: 17px; line-height: 1.5; }
+        .ns-spec { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+                   font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+      </style>
+      <div class="ns">
+        <div class="ns-plate">
+          <h1>Ember</h1>
+          <p><strong>A money app that runs on your phone, not on your bank.</strong></p>
+          <p>Ember needs JavaScript. It runs entirely in your browser — there is no server to fall back to.</p>
+          <p class="ns-spec">No account · No bank link · Export always</p>
+        </div>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

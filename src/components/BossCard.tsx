@@ -1,5 +1,6 @@
 import type { BossBattle } from '../engine/boss.ts'
 import { XP_REWARDS } from '../engine/xp.ts'
+import { Glyph } from './Glyph.tsx'
 
 const fmt = (n: number): string => n.toLocaleString()
 
@@ -19,6 +20,8 @@ export function BossCard({
 }) {
   return (
     <section className="card">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
+      <span className="spec-label" aria-hidden="true">BOS—05</span>
       <div className="boss-head">
         <h2>Weekly boss</h2>
         {/* Persistent marker for a claimed win — the fanfare/toast's visible
@@ -28,22 +31,35 @@ export function BossCard({
       {battle.kind === 'sizing-up' ? (
         <>
           <p className="boss-name">
-            {/* aria-hidden emoji, matching the stage flame and ledger shield —
-                screen readers must not read "ogre The Impulse Monster". */}
-            <span aria-hidden="true">👹 </span>The Impulse Monster is still sizing you up
+            {/* aria-hidden mark, matching the stage flame and ledger shield —
+                screen readers must not read the glyph before "The Impulse
+                Monster"; the sentence beside it is the alternative. .mark puts
+                it in a keyline badge: §1 trait 01, nothing floats. */}
+            <span className="mark" aria-hidden="true">
+              <Glyph name="monster" />
+            </span>{' '}
+            The Impulse Monster is still sizing you up
           </p>
+          {/* Trust 5 in four fragments. "No numbers on you yet" is the honest
+              cold start and cannot be compressed away — without it the card
+              would have to invent an opponent number to fill the sentence. */}
           <p className="boss-copy">
-            He feeds on impulse spending, and he has no numbers on you yet. Log a week of
-            purchases and he steps into the ring on Monday.
+            He feeds on impulse spending. No numbers on you yet. Log a week of
+            purchases. He steps into the ring Monday.
           </p>
         </>
       ) : (
         <>
           <div className="boss-row">
             <span className="boss-name">
-              <span aria-hidden="true">👹 </span>Impulse Monster
+              <span className="mark" aria-hidden="true">
+                <Glyph name="monster" />
+              </span>{' '}
+              Impulse Monster
             </span>
-            <span className="mono">
+            {/* INDEX ROLL (§9 move 4): this week's total clicks up against
+                last week's as purchases land. */}
+            <span className="mono index-roll" key={battle.thisWeekSpend}>
               {fmt(battle.thisWeekSpend)} / {fmt(battle.lastWeekSpend)} DA
             </span>
           </div>
@@ -73,9 +89,12 @@ export function BossCard({
                 // down instead of promising a prize the rules can't pay.
                 'He went hungry last week — 0 DA. Keep his plate empty and he stays down.'
               : battle.thisWeekSpend < battle.lastWeekSpend
-                ? `Last week he ate ${fmt(battle.lastWeekSpend)} DA. Stay under that through Sunday and he goes down (+${XP_REWARDS.weeklyBoss} XP).`
-                : // Past the line: his round, zero cost, rematch framing.
-                  `He's past last week's ${fmt(battle.lastWeekSpend)} DA — this round is his. Fresh fight starts Monday.`}
+                ? `Last week he ate ${fmt(battle.lastWeekSpend)} DA. Stay under it through Sunday. He goes down (+${XP_REWARDS.weeklyBoss} XP).`
+                : // Past the line: his round, zero cost, rematch framing. The
+                  // subject stays HE in every fragment — §7.1's punitive
+                  // example ("You blew the budget again") is exactly what a
+                  // second-person rewrite of this line would become.
+                  `He's past last week's ${fmt(battle.lastWeekSpend)} DA. This round is his. Fresh fight Monday.`}
           </p>
         </>
       )}

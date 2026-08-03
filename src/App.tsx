@@ -5,9 +5,9 @@
  * it anyway") add modules instead of effects in one growing file.
  */
 
-import { useEffect, useReducer } from 'react'
+import { useEffect, useReducer, type RefObject } from 'react'
 import { RESIST_XP_DAILY_CAP } from './engine/xp.ts'
-import { resolveProfile } from './engine/profile.ts'
+import { resolveProfile, historyDays } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
@@ -40,7 +40,17 @@ import { useRewards } from './hooks/useRewards.ts'
 import './styles/tokens.css'
 import './styles/app.css'
 
-export default function App() {
+export default function App({
+  /**
+   * Handed down by the cold-start gate (Root.tsx) so it can move focus into
+   * the app after the landing that had focus is unmounted. Optional, and every
+   * test renders <App /> without it: the app must stand alone, and nothing in
+   * here may depend on being gated.
+   */
+  mainRef,
+}: {
+  mainRef?: RefObject<HTMLElement>
+} = {}) {
   const [state, dispatch] = useReducer(appReducer, undefined, loadState)
 
   useEffect(() => saveState(state), [state])
@@ -188,12 +198,20 @@ export default function App() {
           the card stack is the page's primary content, with the topbar and
           foot as sibling landmarks. .main-stack carries the shell's column
           rhythm inside the landmark. */}
-      <main className="main-stack">
+      {/* tabIndex -1 makes the landmark programmatically focusable without
+          putting it in the tab order — the target Root.tsx moves focus to when
+          the cold-start gate dismisses and the button that had focus goes
+          away. It is inert for every other user of this component. */}
+      <main className="main-stack" ref={mainRef} tabIndex={-1}>
         <HeroCard
           stage={health.stage}
           score={health.score}
           pets={pets}
           components={health.components}
+          // Trust Rule 5: the score names its own calibration state under 90
+          // days. The hook's `today`, like every other date in this render —
+          // a fresh wall-clock read could age the count by a day mid-render.
+          historyDays={historyDays(state.transactions, today)}
         />
         <XpCard xp={state.xp} gain={xpGain} />
         <LogCard
@@ -227,7 +245,9 @@ export default function App() {
 
       <footer className="foot">
         <button className="btn" onClick={downloadExport}>Export my data</button>
-        <span className="foot-note">Your data leaves when you do — full export, always.</span>
+        {/* Trust Rule 7, verbatim in substance. Fragmented for §7 rule 2;
+            "always" is the promise, not an intensifier, so it stays. */}
+        <span className="foot-note">Your data leaves when you do. Full export, always.</span>
       </footer>
     </div>
   )

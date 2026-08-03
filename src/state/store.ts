@@ -491,6 +491,30 @@ export function sanitizeState(parsed: unknown): AppState {
   return out
 }
 
+/**
+ * Has this browser ever run Ember? The cold-start gate (Root.tsx) shows the
+ * landing surface to a first-time visitor and the app to everyone else, and
+ * this is the whole test.
+ *
+ * Deliberately NOT `loadState()` compared against `defaultState()`: loadState
+ * returns a default state both when the key is missing AND when it is present
+ * but corrupt, so that comparison would throw a returning user whose payload
+ * got mangled back onto a marketing page instead of into their app. The
+ * PRESENCE of the key is the honest signal — App's save effect writes it on
+ * mount, so entering the app once is what retires the landing for good.
+ *
+ * Same try/catch as the rest of the store: localStorage getters throw outright
+ * in some privacy modes, and a marketing gate must never be the thing that
+ * stops the app from booting. Unreadable storage reads as "first visit".
+ */
+export function hasSavedState(): boolean {
+  try {
+    return localStorage.getItem(KEY) !== null
+  } catch {
+    return false
+  }
+}
+
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(KEY)

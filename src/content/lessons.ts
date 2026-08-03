@@ -4,6 +4,12 @@
  * cycle. Voice rules for every lesson: playful-but-honest, money examples in
  * DA, tradeoffs never verdicts, and no medical or therapeutic claims (impulse
  * lessons speak in everyday behavioral terms only).
+ *
+ * The design system's §7 fragment rule applies to titles and one-liners, NOT
+ * to bodies: a lesson has to teach, and teaching needs sentences. What §7
+ * does bind everywhere here is the word list (§7.5) and the exclamation ban
+ * (§7.4) — both are guarded in lessons.test.ts so a new lesson cannot quietly
+ * reintroduce them.
  */
 
 export interface Lesson {
@@ -171,7 +177,10 @@ export const LESSONS: ReadonlyArray<Lesson> = [
     id: 'cheapest-insurance',
     title: 'The fund is cheap insurance',
     oneLiner: 'Cheaper than the loan the surprise demands.',
-    body: 'Without a cushion, surprises get funded by borrowing at whatever rate the emergency accepts — usually the worst one on offer. The fund is insurance you pay yourself, at a premium you keep.',
+    // "premium" was the insurance sense, not the marketing one — but §7.5's
+    // ban is worded absolutely, and "a rate you set yourself" says the same
+    // thing in the register the rest of the roster already uses.
+    body: 'Without a cushion, surprises get funded by borrowing at whatever rate the emergency accepts — usually the worst one on offer. The fund is insurance you pay yourself, at a rate you set yourself.',
   },
   // — Impulse psychology —
   {

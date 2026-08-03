@@ -1,0 +1,519 @@
+/* THE MARKETING SURFACE (see Landing.tsx). §5's signature layouts, in order:
+   A. THE BRICK WALL · B. THE SPEC SHEET · D. THE SHEAR · E. THE OBJECT ·
+   C. THE PLATE.
+
+   WHY THIS FILE PINS ITS COLOURS INSTEAD OF USING --ground/--ink.
+   The app is a themed surface and swaps grounds (§2.2). This page is a POSTER:
+   its fields are Flare, Espresso, Sand and Marigold in both themes, exactly as
+   the hero's Flare field already is, and every ratio that makes the
+   composition legal — 11.4:1 graphite/bone, 13.4:1 bone/espresso, 9.4:1
+   graphite/sand, 6.2:1 graphite/marigold, 7.4:1 marigold/espresso, and the two
+   large-text-only pairs on Flare (3.79 / 3.01) — is computed for those exact
+   hexes. An --ink that flipped to Bone in the dark theme would put Bone type on
+   a Bone plate. So the brand triad tokens (--brand-field/-form/-counter, which
+   §2.2 pins in both themes) carry this page, and the three extra fields name
+   their raw palette entries. This is the same argument the hero block in
+   app.css already makes; it is not an oversight and must not be "fixed" by
+   pointing these at the semantic tokens.
+
+   THE CONTRAST LAW IS THE LAYOUT (§2.1 rule 1). Flare is a FIELD, not a text
+   background: only the d1 wordmark, the ≥24px shear line, the mark and the
+   keylines touch it. Every string under 24px on this page sits on a plate.
+   That constraint is what produces the plates — remove a plate and you remove
+   the only thing making its text legal. */
+
+.landing {
+  /* The page's own three fields. Named here rather than inline so a section
+     cannot quietly invent a fourth (§1 trait 06: three tones per surface). */
+  --lp-flare: var(--brand-field);
+  --lp-form: var(--brand-form);
+  --lp-counter: var(--brand-counter);
+  --lp-espresso: var(--espresso);
+  --lp-sand: var(--sand);
+  --lp-gold: var(--marigold);
+
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  /* The sections carry their own fields, but a short viewport would otherwise
+     let the app's --ground (Espresso in dark) show through below the fold. */
+  min-height: 100vh;
+}
+
+/* Focus rings inside a pinned surface cannot use the global --ink: it is Bone
+   in the dark theme, and every focusable thing on this page sits on Bone or
+   Marigold, where a Bone ring is invisible. Trust Rule 8 — focus stays
+   visible — so the ring is pinned to the form colour like everything else
+   here. 3px and never lower, matching tokens.css.
+   Checked against every focusable element on the page: the two CTAs and the
+   spec-sheet anchor sit on Bone plates (Graphite ring, 11.4:1), the footer
+   links on Marigold (6.2:1). The Graphite .btn-flame plate gets its ring from
+   the 2px offset, which falls on the Bone plate behind it. A future control on
+   the Espresso section would need --lp-counter and its own rule. */
+.landing :focus-visible { outline: 3px solid var(--lp-form); outline-offset: 2px; }
+
+/* THE STACK (§9 move 1) at every width. app.css only attaches .hero-rise's
+   animation at ≥1024px (the mobile topbar has nothing to stage); this page is
+   a poster at 320px too, so it attaches its own. The keyframes and the
+   reduced-motion delay reset both live in app.css and are shared — transform
+   only, no opacity, so a dropped animation can never leave a blank section
+   (§9: nothing may become invisible at rest). */
+@media (prefers-reduced-motion: no-preference) {
+  .landing .hero-rise { animation: hero-rise var(--t-slow) var(--ease-entrance) both; }
+}
+
+/* Every section is a full-bleed field with one centred measure inside it. */
+.lp-measure {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* Section headings: d2 tier (§3), stacked hard. h2 already carries the display
+   family and uppercase from tokens.css. */
+.lp-section-h {
+  font-size: var(--fs-d2);
+  line-height: var(--lh-d2);
+  letter-spacing: var(--tr-d2);
+  margin-bottom: var(--s2);
+}
+
+/* ── A. THE BRICK WALL (§5A) ──────────────────────────────────────────────
+   Full-bleed colour, a single centred container, ~60% negative field. The
+   COLOUR runs to the frame edge and the rounded containers stand in it — so
+   the field itself takes no radius and no inset. */
+.lp-wall {
+  position: relative;
+  background: var(--lp-flare);
+  border-bottom: var(--keyline-w) solid var(--lp-form);
+  padding: var(--s6) var(--s3) var(--s5);
+  /* Keeps the shear and the grain inside the field. */
+  overflow: hidden;
+  /* Six-second read, in order: mark → name → what it is → what it costs →
+     one button. min-height, never a fixed 100vh: a 100vh wall on a 568px
+     phone in landscape pushes the CTA below the fold, and the CTA is the
+     point of the section. */
+  min-height: min(100vh, 900px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* THE SHEAR inside the wall — the one 38° diagonal that cuts the composition
+   (§1 trait 09; §8 "centre everything, then break it once with a diagonal").
+   It runs the full field and passes BEHIND the centred container, so the
+   container is what breaks it. rotate(), not a percentage polygon: a polygon
+   shears with the box and the angle would drift with the viewport — 38° has to
+   stay 38°. This transform is LAYOUT, not motion, so reduced motion must not
+   take it (same reason --press is a token instead of a blanket
+   `transform: none`). A hard-edged bar, never a gradient band. */
+.lp-wall::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -30%;
+  width: 160%;
+  height: var(--keyline-heavy);
+  background: var(--lp-form);
+  transform: translateY(-50%) rotate(-38deg);
+  pointer-events: none;
+}
+/* §8's fine offset-print grain at 6%, the same inline feTurbulence tile the
+   hero uses — no asset request, no dependency. This and the halftone inside
+   the display letterforms are the only two textures in the product, which is
+   the whole §8 texture budget. */
+.lp-wall::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.lp-wall-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+}
+
+/* Mono spec labels in the corners (§8), each on its own Graphite plate. §2.1
+   rule 1 is absolute: an 11px mono string may not sit on a 3.79:1 field, and a
+   spec label is exactly the "form help text" that rule names. On the plate it
+   reads at 11.4:1. */
+.lp-corner {
+  position: absolute;
+  z-index: 2;
+  background: var(--lp-form);
+  color: var(--lp-counter);
+  border-radius: var(--r-sm);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s1) var(--s2);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+.lp-corner-tl { top: var(--s3); left: var(--s3); }
+.lp-corner-tr { top: var(--s3); right: var(--s3); }
+
+/* Mark + wordmark travel as one unit; both scale off the lockup's font-size in
+   em, so the brick and the word can never drift apart. */
+.lp-lockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  font-size: var(--fs-d1);
+}
+/* Height only — the viewBox supplies the width, so the brick keeps its 1:2.1
+   aspect at every size (§4 forbids stretching). */
+.lp-brick { height: 1.62em; }
+
+/* The d1 stack, DIRECTLY on the Flare field. This is the one string on this
+   page allowed to do that, and only because it is display type: Bone on Flare
+   is 3.01:1, which clears WCAG's 3:1 large-text floor and nothing else. The
+   --fs-d1 clamp bottoms out at 56px, comfortably inside the ≥24px allowance.
+   DO NOT shrink this below the clamp — it stops being legal, it does not just
+   get smaller. */
+/* Descendant-qualified so it cannot lose a specificity tie to app.css's
+   `.wordmark` (the mobile-topbar sizing) on stylesheet-order alone — both
+   classes land on the same element, and which file the bundler emits last is
+   not something this rule should depend on. */
+.landing .lp-wordmark {
+  display: flex;
+  flex-direction: column;
+  font-size: 1em;
+  line-height: var(--lh-d1);
+  letter-spacing: var(--tr-d1);
+  color: var(--lp-counter);
+}
+/* Rows justify to a common measure so "Emb" and "er" carry equal optical mass
+   — §4's row rule applied to the display lockup. The h1 takes its width from
+   the widest row and the shorter row tracks out to match; the letters are
+   never scaled, which would be the stretching §4 forbids. The base .wm-row
+   rule in app.css is `display: inline` for the mobile topbar, so this has to
+   restate the flex box at every width. */
+.landing .lp-wordmark .wm-row {
+  display: flex;
+  justify-content: space-between;
+}
+/* The halftone screen that app.css puts inside the desktop hero letterforms is
+   deliberately NOT repeated here: it screens Void over a GRAPHITE letter, and
+   these letters are Bone. A dark screen on Bone type would drag the 3.01:1
+   pair below the large-text floor — the one pair on this page with no
+   headroom. */
+
+/* The one centred container (§5A). Bone, because everything inside it is under
+   24px and therefore illegal on the field. It is also what interrupts the
+   shear. */
+.lp-plate {
+  position: relative;
+  width: 100%;
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s3);
+}
+.lp-thesis {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--tr-h2);
+  margin-bottom: var(--s2);
+}
+.lp-lede {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: 700;
+}
+.lp-sub { margin: var(--s1) 0 0; font-size: var(--fs-body); }
+.lp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+/* .btn is styled for an inline <button>; an <a> needs the box turned on before
+   its 48px floor means anything (§11: touch targets stay ≥48px). */
+.lp-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s1) var(--s3);
+  text-decoration: none;
+}
+/* .btn's default fill is --field/--ink, which ground-swap; on this pinned
+   plate that would render a Graphite button with Bone type in dark mode, on a
+   Bone plate, inverted from its light-mode twin. Pin both. .btn-flame is
+   already pinned in tokens.css (Graphite plate, Bone label, Flare keyline) and
+   needs nothing here. */
+.lp-plate .btn:not(.btn-flame) {
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  border-color: var(--lp-form);
+}
+.lp-plate .btn:not(.btn-flame):not(:disabled):hover:not(:focus-visible) {
+  outline-color: var(--lp-form);
+}
+
+/* The three facts — the entire competitive position against every bank-linked
+   budgeting app — above the fold on its own ink plate. Under 24px, so it
+   cannot sit on the field. */
+.lp-facts {
+  margin: 0;
+  background: var(--lp-form);
+  color: var(--lp-counter);
+  border-radius: var(--r-pill);
+  padding: var(--s1) var(--s3);
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* ── B. THE SPEC SHEET (§5B) ──────────────────────────────────────────────
+   4-up grid of badges on Espresso, captioned with mono index labels. Bone on
+   Espresso is 13.4:1 — the strongest pair in the table — so this is the
+   surface that carries the product explanation. */
+.lp-spec {
+  background: var(--lp-espresso);
+  color: var(--lp-counter);
+  border-bottom: var(--keyline-w) solid var(--lp-form);
+  padding: var(--s5) var(--s3);
+}
+.lp-spec-lede {
+  margin: 0 0 var(--s3);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+}
+.lp-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* 4-up where there is room, 2-up on a tablet, 1-up on a phone — the badge
+     count is fixed at four, the columns are not. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s2);
+}
+/* Each badge is a Bone plate: the body copy inside is 17px, and 17px Bone on
+   Espresso would be legal — but a badge (§5B) is a container, and §1 trait 01
+   says nothing floats. The plate is the badge. */
+.lp-badge {
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+/* The mono index caption (§1 trait 10 / §5B). Full form colour on the Bone
+   badge — 11.4:1. It is NOT tinted with the section accent: Marigold reads
+   7.4:1 on the Espresso ground (computed, since §2.1's table does not list the
+   pair and rule 3 requires computing anything it omits) but only 2.0:1 on the
+   Bone badge these captions actually sit on. A 2.0:1 caption is not a caption,
+   so the accent stays off this surface entirely — which also keeps the badge
+   inside the three-tone cap (§1 trait 06). */
+.lp-index {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+.lp-badge-h {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--tr-h3);
+}
+.lp-badge-body { margin: 0; font-size: var(--fs-body); }
+
+/* ── D. THE SHEAR (§5D) ───────────────────────────────────────────────────
+   One 38° Flare band splits the canvas and the type sits parallel to it. Sand
+   ground (aged paper, spec sheets) — Graphite on Sand is 9.4:1, so the rules
+   below read at full body weight. */
+.lp-shear {
+  position: relative;
+  background: var(--lp-sand);
+  color: var(--lp-form);
+  border-bottom: var(--keyline-w) solid var(--lp-form);
+  padding: var(--s5) var(--s3);
+  overflow: hidden;
+}
+/* The band. Type PARALLEL to the diagonal, which is the whole layout — so the
+   band is a rotated bar with the line set inside it, not a bar with a caption
+   beside it. Set at --fs-h2, whose clamp floors at 24px: Graphite on Flare is
+   3.79:1, legal for large text (≥24px, or ≥18.66px bold) and illegal for
+   anything smaller. This size is a contrast requirement, not a style choice.
+   The rotation is layout, not motion — see .lp-wall::before. */
+.lp-band {
+  position: absolute;
+  top: 50%;
+  left: -20%;
+  width: 140%;
+  margin: 0;
+  transform: translateY(-50%) rotate(-38deg);
+  background: var(--lp-flare);
+  border-top: var(--keyline-w) solid var(--lp-form);
+  border-bottom: var(--keyline-w) solid var(--lp-form);
+  padding: var(--s2) 0;
+  text-align: center;
+  pointer-events: none;
+  /* Behind the rule plates: the composition is centred, then broken once by
+     the diagonal — the plates are what break it. */
+  z-index: 0;
+}
+.lp-band-text {
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--tr-h2);
+  color: var(--lp-form);
+  white-space: nowrap;
+}
+.lp-rules-body { position: relative; z-index: 1; }
+.lp-spec-lede-dark { max-width: 46ch; }
+.lp-rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--s2);
+}
+/* Bone plates over the band. Sand would also carry this copy at 9.4:1, but the
+   plates are what interrupt the diagonal — and where a rule crosses the Flare
+   band, the plate is the only thing keeping 17px type off a 3.79:1 field. */
+.lp-rule {
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
+
+/* ── E. THE OBJECT (§5E) ──────────────────────────────────────────────────
+   Single hard-lit specimen, dead-centre on flat Flare, no shadow, no context,
+   cropping the frame. */
+.lp-object {
+  position: relative;
+  background: var(--lp-flare);
+  border-bottom: var(--keyline-w) solid var(--lp-form);
+  padding: var(--s5) var(--s3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s4);
+}
+/* The mark alone, one colour, cropping the frame in one place (§8: let the
+   container touch the frame edge once per layout). Graphite on Flare is
+   3.79:1 — over the 3:1 non-text minimum, and the mark is non-text: the h1
+   above already carries the name. Decorative by construction (aria-hidden
+   lives on the <svg> in Monogram.tsx). */
+.lp-object-mark {
+  height: clamp(11rem, 34vw, 20rem);
+  color: var(--lp-form);
+  /* Bleeds off the top edge — the one place per layout where the container
+     touches (here, crosses) the frame (§8). The section's overflow does the
+     cropping; 104px against 64px of padding leaves ~40px outside the frame. */
+  margin-top: calc(-1 * var(--s6));
+  flex-shrink: 0;
+}
+.lp-object-plate {
+  max-width: 640px;
+  text-align: center;
+}
+.lp-object-plate .lp-actions { justify-content: center; }
+
+/* ── C. THE PLATE (§5C) ───────────────────────────────────────────────────
+   Footer as a horizontal subway-proportion lockup on Marigold with a hard
+   keyline. Graphite on Marigold is 6.2:1 — the only accent in this palette
+   that carries body copy, which is why the accent surface is the footer and
+   not a section above it. --on-accent, never Bone (§2.1 rule 2). */
+.lp-foot {
+  background: var(--lp-gold);
+  color: var(--on-accent);
+  border-top: var(--keyline-heavy) solid var(--lp-form);
+  padding: var(--s3);
+}
+.lp-foot-inner {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+}
+/* §4 minimum size is 32px tall; 48px keeps the letterform slots resolving well
+   clear of it. currentColor, so the knockout takes the footer's ink. */
+.lp-foot-mark { height: 48px; flex-shrink: 0; }
+.lp-signoff {
+  margin: 0;
+  flex: 1 1 14rem;
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--tr-h3);
+}
+.lp-foot-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+/* Underlined, not colour-coded: a link distinguished by hue alone fails WCAG
+   1.4.1, and there is no second legal ink on Marigold anyway. inline-flex +
+   min-height is the §11 48px target. */
+.lp-foot-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  color: var(--on-accent);
+  font-weight: 700;
+  font-size: var(--fs-cap);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  transition: transform var(--t-quick) var(--ease-pop);
+}
+/* THE PRESS reaches every interactive control (§9 move 5) — an anchor that
+   navigates is one. --press is `none` under reduced motion, where the focus
+   ring and the underline carry the affordance instead. */
+.lp-foot-links a:active { transform: var(--press); }
+
+/* ≥720px: the wall's plate stops running full-bleed and the composition gets
+   its 60% negative field back. */
+@media (min-width: 720px) {
+  .lp-wall { padding: var(--s6) var(--s5) var(--s5); }
+  .lp-plate { padding: var(--s4); }
+  .lp-spec,
+  .lp-shear,
+  .lp-object { padding: var(--s6) var(--s5); }
+}

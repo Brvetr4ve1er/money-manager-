@@ -2,7 +2,25 @@
   "name": "ember",
   "private": true,
   "version": "0.1.0",
-  "description": "Ember — a behavioral money app. Don't teach budgeting; build financial instincts.",
+  "description": "Ember — a money app that runs on your phone, not on your bank. Local-first, manual logging in DA, no account and no bank link.",
+  "keywords": [
+    "budgeting",
+    "personal-finance",
+    "local-first",
+    "offline-first",
+    "algeria",
+    "react",
+    "typescript"
+  ],
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Brvetr4ve1er/money-manager-#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Brvetr4ve1er/money-manager-.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Brvetr4ve1er/money-manager-/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -12,7 +30,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "brand": "node --experimental-strip-types scripts/brand-assets.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

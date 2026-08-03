@@ -37,6 +37,20 @@ describe('lesson roster', () => {
     // DA-denominated examples appear across the roster, not just once.
     expect(LESSONS.filter((l) => /\d[\d,]*\s?DA\b/.test(l.body)).length).toBeGreaterThanOrEqual(12)
   })
+
+  it('holds the §7 voice bans across every lesson', () => {
+    // §7.5's list is worded absolutely ("Never say"), so it is checked as a
+    // word boundary and not by intent — 'premium' shipped here once in the
+    // insurance sense and still had to go. §7.4 bans exclamation marks
+    // outright. Titles and one-liners are in scope alongside bodies; the
+    // fragment-length rule is not, since a lesson body has to teach.
+    const banned = /\b(premium|curated|elevated|seamless|journey|unlock(ed|s)?|crafted)\b/i
+    for (const l of LESSONS) {
+      const all = `${l.title} ${l.oneLiner} ${l.body}`
+      expect(all).not.toMatch(banned)
+      expect(all).not.toContain('!')
+    }
+  })
 })
 
 describe('lessonForDay rotation', () => {

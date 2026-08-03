@@ -1,5 +1,6 @@
 import { ACHIEVEMENTS } from '../engine/achievements.ts'
 import type { AchievementUnlock } from '../state/store.ts'
+import { Glyph } from './Glyph.tsx'
 
 /**
  * The badge shelf — earn-only, like everything on the engagement track: no
@@ -16,18 +17,28 @@ export function AchievementsCard({ unlocks }: { unlocks: AchievementUnlock[] }) 
   return (
     // id: hero nav anchor target (desktop).
     <section className="card" id="badges">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
+      <span className="spec-label" aria-hidden="true">ACH—11</span>
       <div className="ach-head">
         <h2>Achievements</h2>
-        <span className="ach-count mono">{count} / {ACHIEVEMENTS.length} earned</span>
+        {/* INDEX ROLL (§9 move 4) — the `33/36` index label from §1 trait 10. */}
+        <span className="ach-count mono index-roll" key={count}>
+          {count} / {ACHIEVEMENTS.length} earned
+        </span>
       </div>
       <ul className="ach-grid">
         {ACHIEVEMENTS.map((a) => {
           const date = dateById.get(a.id)
           return date !== undefined ? (
             <li key={a.id} className="ach-tile">
-              {/* Medal + pet are decoration: the sr prefix + name + date carry
-                  the state, so AT never depends on emoji vocalization. */}
-              <span className="ach-medal" aria-hidden="true">🏅 {a.pet.emoji}</span>
+              {/* Medal + companion are decoration: the sr prefix + name + date
+                  carry the state, so AT never depends on the marks. Drawn
+                  glyphs (§8), inheriting the tile's --on-accent ink — an emoji
+                  brought its own colours and no contrast anyone could measure. */}
+              <span className="ach-medal" aria-hidden="true">
+                <Glyph name="medal" />
+                <Glyph name={a.pet.glyph} />
+              </span>
               <span className="ach-name">
                 <span className="sr-only">Earned: </span>
                 {a.name}

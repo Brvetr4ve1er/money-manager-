@@ -36,16 +36,21 @@ export function SimCard({
   return (
     // id: hero nav anchor target (desktop).
     <section className="card sim-card" id="simulator">
+      {/* §11 corner mark. Rides in the window bar — this card's top edge is
+          the plate, not the reserved strip the other cards use. */}
+      <span className="spec-label" aria-hidden="true">SIM—07</span>
       <div className="window-bar mono">DECISION_SIM.EXE</div>
       <div className="sim-body">
         {/* Honesty gap guard: the result copy speaks in second person, so the
             card must always say whose numbers it projects — the demo profile
             until setup completes, the user's own after. Claiming
             personalization it doesn't have would break the trust rules. */}
-        <p className="sim-note mono">
+        {/* Grotesk, not mono: this is a sentence, not an index label — see
+            .sim-note in app.css. */}
+        <p className="sim-note">
           {isDemo
-            ? `Projected on the demo profile (${profile.monthlyIncome.toLocaleString()} DA/mo income) — your own numbers arrive with setup.`
-            : `Projected on your numbers (${profile.monthlyIncome.toLocaleString()} DA/mo income) — edit them any time in My Numbers.`}
+            ? `Projected on the demo profile. ${profile.monthlyIncome.toLocaleString()} DA/mo income. Your own numbers arrive with setup.`
+            : `Projected on your numbers. ${profile.monthlyIncome.toLocaleString()} DA/mo income. Edit them any time in My numbers.`}
         </p>
         <form
           onSubmit={(e) => {

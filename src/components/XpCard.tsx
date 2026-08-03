@@ -3,6 +3,8 @@ import { xpForLevel, levelTitle, type XpState } from '../engine/xp.ts'
 export function XpCard({ xp, gain }: { xp: XpState; gain: number | null }) {
   return (
     <section className="card">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
+      <span className="spec-label" aria-hidden="true">XP—02</span>
       <div className="xp-head">
         <h2>Level {xp.level} · {levelTitle(xp.level)}</h2>
         <span className="xp-numbers">
@@ -10,8 +12,14 @@ export function XpCard({ xp, gain }: { xp: XpState; gain: number | null }) {
               state swap, not an animation, so it reads under reduced motion
               and with sound muted — the bar nudge (sub-pixel at high levels)
               and the blip never carry the reward alone. */}
-          {gain !== null && <span className="xp-gain mono">+{gain} XP</span>}
-          <span className="mono">{xp.xpIntoLevel} / {xpForLevel(xp.level)} XP</span>
+          {gain !== null && <span className="xp-gain mono index-roll">+{gain} XP</span>}
+          {/* INDEX ROLL (§9 move 4): keyed on the value so the counter
+              re-indexes on every grant. Level is in the key too — the bar
+              resets to 0 on a level-up, and 0 → 0 across the boundary must
+              still click over. */}
+          <span className="mono index-roll" key={`${xp.level}:${xp.xpIntoLevel}`}>
+            {xp.xpIntoLevel} / {xpForLevel(xp.level)} XP
+          </span>
         </span>
       </div>
       <div className="xp-track" role="progressbar"

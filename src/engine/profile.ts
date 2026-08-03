@@ -86,6 +86,39 @@ export const DEMO_PROFILE_CONFIDENCE = 0.3
 export const USER_PROFILE_CONFIDENCE = 0.8
 
 /**
+ * Days of logged history the Health Score wants behind it before it stops
+ * describing itself as calibrating. Trust Rule 5, made into a number the UI
+ * can print: under this many days the app says so rather than projecting
+ * confidence it hasn't earned.
+ */
+export const CALIBRATION_DAYS = 90
+
+/** Days since a local day key, as a plain count (DST-proof via UTC math). */
+function dayIndex(dayISO: string): number {
+  const [y, m, d] = dayISO.split('-').map(Number)
+  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000)
+}
+
+/**
+ * How many days of history stand behind the score, first logged day counted
+ * as day 1. Measured from the earliest transaction, not from a profile save
+ * or an install stamp: the log is the only history the score actually reads,
+ * and a profile saved and then never logged against has backed nothing.
+ *
+ * Future-dated rows are ignored for the same reason deriveHealthInputs bounds
+ * its window on both ends — a skewed device clock must not be able to age the
+ * app past its own calibration period.
+ */
+export function historyDays(transactions: Transaction[], today: string): number {
+  let earliest: string | null = null
+  for (const t of transactions) {
+    if (t.date <= today && (earliest === null || t.date < earliest)) earliest = t.date
+  }
+  if (earliest === null) return 0
+  return dayIndex(today) - dayIndex(earliest) + 1
+}
+
+/**
  * What the active profile can honestly back: the confidence its numbers carry
  * and which components exist at all. Travels alongside the UserProfile the
  * engines consume (see resolveProfile) instead of being baked into it, so

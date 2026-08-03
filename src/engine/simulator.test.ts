@@ -233,7 +233,9 @@ describe('financed purchase', () => {
     )
     expect(noRevolving.debtDelayMonths).toBe(0)
     expect(noRevolving.debtMissesHorizon).toBe(false)
-    expect(describeResult(noRevolving)).not.toContain('card balance')
+    // Case-insensitive: the §7 rewrite leads that clause with the object
+    // ("Card balance: …"), and a case-sensitive match would pass vacuously.
+    expect(describeResult(noRevolving).toLowerCase()).not.toContain('card balance')
     expect(noRevolving.scenario[0].debtBalance).toBeGreaterThan(100_000)
   })
   it('never treats financedMonths: 0 as a free purchase', () => {
@@ -324,7 +326,10 @@ describe('describeResult trust rules', () => {
     const r = runSimulation(yasmine, { amount: 180_000, funding: 'lump' })
     const text = describeResult(r)
     if (r.healthDeltaMonth1 < -10) {
-      expect(text).toContain('month one')
+      // Case-insensitive: the §7 rewrite leads the clause with the object
+      // ("Month one takes the hit."), which is the point of the assertion —
+      // that the dip is named — not the casing it is named in.
+      expect(text.toLowerCase()).toContain('month one')
     }
   })
   it('states the magnitude when the projection lands ahead, never "slightly"', () => {

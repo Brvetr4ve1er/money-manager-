@@ -10,9 +10,14 @@
 
 import { addDaysISO } from './boss.ts'
 import type { AchievementUnlock, AppState, Transaction } from '../state/store.ts'
+// Type-only, so the engine still compiles to zero imports: the roster has to
+// name a glyph from the drawn set (§8 retires emoji as UI iconography), and a
+// bare string would let a typo ship a companion with no mark at all.
+import type { GlyphName } from '../components/Glyph.tsx'
 
 export interface PixelPet {
-  emoji: string
+  /** Which drawn glyph this companion is. Was an emoji until §8 retired them. */
+  glyph: GlyphName
   name: string
 }
 
@@ -66,63 +71,67 @@ export const ACHIEVEMENTS: ReadonlyArray<Achievement> = [
     id: 'first-log',
     name: 'First Spark',
     hint: 'Log your first purchase.',
-    pet: { emoji: '🐣', name: 'Kit' },
+    pet: { glyph: 'kit', name: 'Kit' },
     earned: (s) => s.transactions.some(isPurchase),
   },
   {
     id: 'first-resist',
     name: 'Held the Line',
     hint: 'Use the resist button once.',
-    pet: { emoji: '🐢', name: 'Sabr' },
+    pet: { glyph: 'sabr', name: 'Sabr' },
     earned: (s) => s.transactions.some((t) => t.resistedImpulse === true),
   },
   {
     id: 'ten-logs',
     name: 'Ten in the Ledger',
     hint: 'Log 10 purchases.',
-    pet: { emoji: '🐝', name: 'Nahla' },
+    pet: { glyph: 'nahla', name: 'Nahla' },
     earned: (s) => s.transactions.filter(isPurchase).length >= 10,
   },
   {
     id: 'first-sim',
-    name: 'Future Sight',
+    // §7.3: 'Future Sight' promised prophecy the projection cannot deliver.
+    // The badge is for making the run — so it names the run.
+    name: 'First Run',
     hint: 'Run one decision simulation.',
-    pet: { emoji: '🦉', name: 'Hakim' },
+    pet: { glyph: 'hakim', name: 'Hakim' },
     earned: (s) => s.xpLog.some((g) => g.action === 'runSimulation'),
   },
   {
     id: 'streak-7',
     name: 'Seven-Day Flame',
     hint: 'Log something 7 days in a row.',
-    pet: { emoji: '🐉', name: 'Jamra' },
+    pet: { glyph: 'jamra', name: 'Jamra' },
     earned: (s) => longestLogStreak(s.transactions) >= 7,
   },
   {
     id: 'codex-5',
     name: 'Codex Collector',
     hint: 'Collect 5 codex lessons.',
-    pet: { emoji: '🦋', name: 'Farasha' },
+    pet: { glyph: 'farasha', name: 'Farasha' },
     earned: (s) => s.lessonsSeen.length >= 5,
   },
   {
     id: 'boss-win',
     name: 'Monster Tamer',
     hint: 'Beat the weekly Impulse Monster.',
-    pet: { emoji: '🐺', name: 'Dib' },
+    pet: { glyph: 'dib', name: 'Dib' },
     earned: (s) => s.xpLog.some((g) => g.action === 'weeklyBoss'),
   },
   {
     id: 'level-5',
-    name: 'Apprentice Badge',
+    // §7.3: 'Apprentice Badge' / 'Explorer Badge' adjectivised the user; the
+    // hints beside them were already the sharper copy. The index IS the name.
+    name: 'Level Five',
     hint: 'Reach level 5.',
-    pet: { emoji: '🐱', name: 'Mishmish' },
+    pet: { glyph: 'mishmish', name: 'Mishmish' },
     earned: (s) => s.xp.level >= 5,
   },
   {
     id: 'level-10',
-    name: 'Explorer Badge',
+    name: 'Level Ten',
     hint: 'Reach level 10.',
-    pet: { emoji: '🦁', name: 'Sultan' },
+    pet: { glyph: 'sultan', name: 'Sultan' },
     earned: (s) => s.xp.level >= 10,
   },
 ]

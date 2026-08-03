@@ -1,44 +1,211 @@
-/* Ember design tokens — neo-brutalist × gacha. See design-system artifact. */
+/* Ember design tokens — "industrial signage, poured soft."
+   Implements docs/brand/DESIGN-SYSTEM.md §2 (colour), §3 (type), §5 (layout),
+   §6 (token set), §9 (motion), §11 (component law).
+
+   Two layers, and the split is load-bearing:
+     RAW      — the 12 palette hexes from §2. Nothing outside this file may
+                name a hex, and components must never consume a raw name
+                either: a raw token has no theme behaviour.
+     SEMANTIC — role names (--ground, --ink, --field, …). These are the only
+                colour tokens components are allowed to reference, because
+                these are the ones the ground swap (§2.2) rewrites. */
 
 :root {
   /* Native controls (select popups, spinners, scrollbars) follow the active
      theme instead of staying light over the dark UI. */
   color-scheme: light dark;
-  --ink: #141414;
-  --paper: #f6efdc;
-  --paper-hi: #fffcf3;
-  --paper-dim: #ece2c8;
-  --flame: #ff4b2b; --flame-sh: #c4300f;
-  --gold: #ffc93c; --gold-sh: #c79415;
-  --pink: #ff2d78; --pink-sh: #c4104f;
-  --teal: #00b4b0; --teal-sh: #067e7b;
-  --violet: #4b2e83; --violet-sh: #331d5c;
-  --good: #2f9e44; --good-sh: #1d6b2f;
-  /* Text on accent fills (flame/gold/pink/teal/--good). Deliberately NOT
-     --ink, and it never flips in the dark theme: accent surfaces keep their
-     light-theme colors in dark mode, so the ink that passes WCAG AA on them
-     stays fixed — white fails AA on every one of them. */
-  --on-accent: #141414;
-  --line: var(--ink);
-  --shadow: var(--ink);
-  --display: "Arial Black", "Helvetica Neue", -apple-system, "Segoe UI", sans-serif;
-  --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --r: 7px;
+
+  /* ── RAW PALETTE (§2) — do not consume directly ─────────────────────── */
+  /* CORE */
+  --flare: #f93e06;    /* hero field. 45% of surface. NOT a text background */
+  --graphite: #2a2d2c; /* the form. never pure black */
+  --bone: #f5e6e0;     /* the counter. replaces white — #fff is banned */
+  /* STRUCTURAL NEUTRALS */
+  --espresso: #2a1e18; /* dark warm ground, badge backdrops */
+  --sand: #dfd5bc;     /* aged paper, spec sheets */
+  --fog: #e9e9e7;      /* UI surface, disabled states */
+  --void: #121312;     /* max contrast only. keep under 5% of surface */
+  /* ACCENTS — one per surface, never two */
+  --acid: #dff205;
+  --marigold: #e9a20b;
+  --cobalt: #16224e;
+  --signal: #e31e24;
+  --moss: #3a4a2a;
+
+  /* ── SEMANTIC COLOUR ────────────────────────────────────────────────── */
+  /* Light theme = Bone ground. Dark is a GROUND SWAP (§2.2), not an
+     inversion: Flare, Graphite and every accent keep their hex in both. */
+  --ground: var(--bone);      /* the page */
+  --field: var(--bone);       /* container fill (cards, inputs) */
+  --sunken: var(--sand);      /* recessed surfaces: track backgrounds, rules */
+  --ink: var(--graphite);     /* the form: body text, glyphs, keylines */
+  --counter: var(--bone);     /* foreground ON an --ink fill (§1 trait 02) */
+  /* Quiet text (spec labels, notes, disclosures). Mixed rather than dimmed
+     with opacity so the value is a real colour we can measure: 4.6:1 on
+     --ground in light, 7.2:1 in dark — both clear AA for body text. */
+  --spec: color-mix(in srgb, var(--ink) 70%, var(--ground));
+  /* §2.1 rule 2, verbatim: the foreground on ANY accent fill is Graphite —
+     never Bone, never white. This is the one token that must NOT flip in the
+     dark theme: accent fills keep their light-theme hex, so the ink that
+     passes AA on them is fixed. Do not add a dark-mode override. */
+  --on-accent: var(--graphite);
+  --keyline: var(--ink);
+
+  /* Accent roles. Trust Rule 1 (two tracks, never crossed) is drawn in
+     colour: --reward is the engagement track (XP, quests, codex, badges),
+     --data is the financial-reality track (health score, simulator, kept).
+     They are never the same hue, so a reward can never be misread as a
+     score. Both take --on-accent text (6.2:1 and 9.7:1, §2.1). */
+  --reward: var(--marigold);
+  --data: var(--acid);
+  --alert: var(--flare); /* validation bars, the Impulse Monster field */
+
+  /* Primary CTA. §2.1 rule 1 forbids sub-24px strings on a Flare field, and
+     a 24px button label is absurd — so the primary action is a Graphite
+     plate with Bone type (11.4:1) and Flare is relegated to its keyline.
+     Fixed values, not theme-flipping: the plate reads identically on both
+     grounds and the contrast pair stays pinned. */
+  --cta-field: var(--graphite);
+  --cta-ink: var(--bone);
+  --cta-keyline: var(--flare);
+
+  /* THE BRAND SURFACE — the three tones of §4's mark and of §5 layout A's
+     full-bleed hero field: field FLARE, form GRAPHITE, counter BONE. These do
+     NOT participate in the ground swap, and that is not an oversight: §2.2
+     keeps all three hexes identical in both themes, so a mark or a hero that
+     flipped --ink under them would put an unmeasured pair on a field whose
+     contrast (3.79:1 graphite, 3.01:1 bone) is computed for these three
+     exactly. Anything drawn on --brand-field takes --brand-form or
+     --brand-counter, never --ink. */
+  --brand-field: var(--flare);
+  --brand-form: var(--graphite);
+  --brand-counter: var(--bone);
+  /* The halftone line screen (§8's second and only other texture, allowed
+     inside display letterforms only). Void, i.e. DARKER than the form it
+     screens: a lighter line would pull the letterform's measured pair toward
+     its field, and this is the one texture that lands on type. Void is capped
+     at "under 5% of surface" (§2) — 1px lines inside a wordmark is the kind of
+     use that cap was written for. */
+  --brand-screen: var(--void);
+
+  /* ── BORDER (§5: always 2px, never 1px) ─────────────────────────────── */
+  --keyline-w: 2px;
+  --keyline-heavy: 6px; /* §6 border.keyline — signal bars and mark contours */
+
+  /* ── RADIUS (§5: 4 / 12 / 28 / 999. Nothing between) ────────────────── */
+  --r-xs: 4px;
+  --r-sm: 12px;
+  --r-lg: 28px;
+  --r-pill: 999px;
+
+  /* §6 radius.squircle — the n=4.2 superellipse, as a whole-box cut for the
+     plates that clear §11's aspect gate (see .card in this file for where the
+     gate applies and where corner-shape takes over instead).
+
+     A percentage polygon, not path(): path() takes absolute px and would pin
+     the shape to one box size. 48 vertices sampled off |x|^4.2 + |y|^4.2 = 1
+     — the chord error peaks at 0.11% of the half-box (~0.3px on the widest
+     plate), below a hairline. Every element that uses this has had its
+     content measured against the cut; a plate that grows past aspect 1.5
+     must be re-measured or moved onto the radius token set. */
+  --se-42: polygon(100.00% 50.00%, 99.80% 68.96%, 99.18% 76.27%, 98.15% 81.65%, 96.69% 85.94%, 94.78% 89.48%, 92.39% 92.39%, 89.48% 94.78%, 85.94% 96.69%, 81.65% 98.15%, 76.27% 99.18%, 68.96% 99.80%, 50.00% 100.00%, 31.04% 99.80%, 23.73% 99.18%, 18.35% 98.15%, 14.06% 96.69%, 10.52% 94.78%, 7.61% 92.39%, 5.22% 89.48%, 3.31% 85.94%, 1.85% 81.65%, 0.82% 76.27%, 0.20% 68.96%, 0.00% 50.00%, 0.20% 31.04%, 0.82% 23.73%, 1.85% 18.35%, 3.31% 14.06%, 5.22% 10.52%, 7.61% 7.61%, 10.52% 5.22%, 14.06% 3.31%, 18.35% 1.85%, 23.73% 0.82%, 31.04% 0.20%, 50.00% 0.00%, 68.96% 0.20%, 76.27% 0.82%, 81.65% 1.85%, 85.94% 3.31%, 89.48% 5.22%, 92.39% 7.61%, 94.78% 10.52%, 96.69% 14.06%, 98.15% 18.35%, 99.18% 23.73%, 99.80% 31.04%);
+
+  /* ── SPACE (§6, 8px baseline grid) ──────────────────────────────────── */
+  --s1: 8px;
+  --s2: 16px;
+  --s3: 24px;
+  --s4: 40px;
+  --s5: 64px;
+  --s6: 104px;
+  --s7: 168px;
+
+  /* ── ELEVATION (§5 / §11) ───────────────────────────────────────────── */
+  /* Depth comes from colour offset and keylines only. The token exists so a
+     stale `box-shadow: var(--shadow)` degrades to nothing rather than to an
+     invalid declaration — but nothing in the app may set a box-shadow. */
+  --shadow: none;
+
+  /* ── TYPE (§3) ──────────────────────────────────────────────────────── */
+  /* Self-hosted or system-stacked only — no font CDN, the app renders fully
+     offline. BLOKFORM / Space Grotesk / JetBrains Mono are named first so a
+     machine that has them uses them; until a self-hosted woff2 ships, the
+     effective faces are the system fallbacks after each name. */
+  --display: "BLOKFORM", "Archivo Black", "Arial Black", "Helvetica Neue",
+    -apple-system, "Segoe UI", sans-serif;
+  --ui: "Space Grotesk", "Archivo", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "JetBrains Mono", "Martian Mono", ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+
+  /* Scale: 1.333 perfect fourth, clamped. Display tiers clamp because 112px
+     overflows a 320px viewport by 3×; the text tiers below h2 are already
+     small enough to stay fixed. */
+  --fs-d1: clamp(3.5rem, 14vw, 7rem);        /* 56 → 112 */
+  --fs-d2: clamp(2.5rem, 9vw, 4.5rem);       /* 40 → 72  */
+  --fs-h1: clamp(2rem, 6vw, 2.625rem);       /* 32 → 42  */
+  --fs-h2: clamp(1.5rem, 4.2vw, 1.875rem);   /* 24 → 30  */
+  --fs-h3: 1.375rem;                          /* 22 */
+  --fs-body: 1.0625rem;                       /* 17 */
+  --fs-cap: 0.8125rem;                        /* 13 */
+  --fs-spec: 0.6875rem;                       /* 11 */
+
+  --lh-d1: 0.78;
+  --lh-d2: 0.82;
+  --lh-h1: 0.95;
+  --lh-h2: 1.05;
+  --lh-h3: 1.15;
+  --lh-body: 1.5;
+  --lh-cap: 1.3;
+  --lh-spec: 1.2;
+
+  --tr-d1: -0.045em;
+  --tr-d2: -0.04em;
+  --tr-h1: -0.02em;
+  --tr-h2: -0.015em;
+  --tr-h3: -0.01em;
+  --tr-body: 0;
+  --tr-cap: 0.1em;
+  --tr-spec: 0.14em;
+
+  /* ── MOTION (§9) ────────────────────────────────────────────────────── */
+  --t-instant: 90ms;  /* hover */
+  --t-quick: 180ms;   /* tap */
+  --t-base: 280ms;    /* component */
+  --t-slow: 460ms;    /* page */
+  --t-epic: 820ms;    /* hero */
+  --ease-primary: cubic-bezier(0.83, 0, 0.17, 1);   /* heavy in, hard out */
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);   /* arrives and stops dead */
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);    /* 8% overshoot max */
+  --ease-index: steps(6, end);                      /* counters / numerals */
+
+  /* THE PRESS (§9 move 5) as a token, not a literal, so the reduced-motion
+     block below can neutralise every press transform in one place. A blanket
+     `transform: none` cannot be used: .toast and .hero-nav centre themselves
+     with translateX(-50%), and killing that would fling them off-screen. */
+  --press: scale(0.96);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #f3ecd8;
-    --paper: #141414;
-    --paper-hi: #1f1f1f;
-    --paper-dim: #0c0c0c;
-    /* NOT #000: pure black on --paper #141414 is ~1.2:1 — the hard offset
-       shadows (the neo-brutalist signature) and the press-collapse feedback
-       on .card/.btn/.quest-box would vanish on neutral surfaces while accent
-       buttons kept their colored shadows. A dim warm gray stays visibly a
-       shadow against both --paper and --paper-hi #1f1f1f. */
-    --shadow: #3a3a3a;
+    /* Ground swap only (§2.2). The accents, --on-accent and the CTA plate
+       deliberately have no override here. */
+    --ground: var(--espresso);
+    /* Cards step off the ground onto Graphite rather than lightening it —
+       there is nothing lighter than Bone in this palette and white is banned,
+       so in dark the card is the cool tone and the ground is the warm one. */
+    --field: var(--graphite);
+    --sunken: var(--void);
+    --ink: var(--bone);
+    --counter: var(--espresso);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    /* §9: reduced motion keeps every colour change and drops every
+       transform. Zeroing the token does that for presses without touching
+       the layout transforms that centre fixed elements. */
+    --press: none;
   }
 }
 
@@ -46,19 +213,22 @@
 
 body {
   margin: 0;
-  background: var(--paper);
+  background: var(--ground);
   color: var(--ink);
-  font-family: var(--sans);
-  line-height: 1.5;
-  font-size: 16px;
+  font-family: var(--ui);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  letter-spacing: var(--tr-body);
 }
 
-::selection { background: var(--gold); color: var(--on-accent); }
-/* Ink outline, not flame: flame is invisible on .btn-flame (the primary CTA)
-   and only ~2.9:1 on paper — below the WCAG 3:1 non-text minimum. Ink flips
-   with the theme, so the ring holds contrast on paper, accent fills, and the
-   dark theme alike; the 2px offset gap shows the surface underneath as the
-   second layer of the indicator. */
+::selection { background: var(--reward); color: var(--on-accent); }
+/* Ink outline, not Flare: Flare is only ~2.9:1 on the Bone ground — below the
+   WCAG 3:1 non-text minimum — and it vanishes on any Flare field. Ink flips
+   with the ground, so the ring holds contrast on every surface in both
+   themes; the 2px offset gap shows the surface underneath as the second layer
+   of the indicator. Held at 3px rather than the §5 2px border width: this is
+   an outline, not a border, and Trust Rule 8 (focus stays visible) outranks
+   the style rule. Never lower it. */
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -73,51 +243,180 @@ h1, h2, h3 {
   font-family: var(--display);
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tr-h3);
+  line-height: var(--lh-h3);
   margin: 0;
 }
 
+/* THE CONTAINER (§11), and the one place the shape law needs reading rather
+   than transcribing.
+
+   §11 wants superellipse containers cut with clip-path "wherever aspect >
+   1.5". That aspect gate is not decoration — a percentage clip-path scales
+   the whole curve with the box, so the corner cut grows with the container.
+   Measured against this app's real boxes: a 520x120 card is safe, a 520x340
+   card loses the bottom 15px of its content, and the ProfileCard form at
+   520x800 loses ~90px at each end. A card's height is content-driven and
+   unbounded, so it can never be shown to clear the gate — which is exactly
+   why the gate is written the way it is.
+
+   So the law splits, and both halves are in §11's own sentence:
+     aspect structurally > 1.5  → clip-path superellipse (.toast, the status
+                                  plates in app.css) — every one measured
+                                  content-safe before it shipped.
+     everything else            → "border-radius from the token set", with
+                                  corner-shape upgrading that radius from a
+                                  circular arc to the same n=4.2 curve. Fixed
+                                  28px corner, so it cannot eat content at any
+                                  height, and the 2px keyline follows the
+                                  shape instead of being clipped away.
+
+   corner-shape is a progressive enhancement: where it is not supported the
+   card is the plain 28px round-rect it has always been. The keyword line
+   below is the guaranteed fallback (squircle is n=4); the numeric line
+   overrides it with the exact §4 value where the parser accepts it, since
+   corner-shape's parameter k is the exponent's log2 — n = 2^k, so n=4.2 is
+   superellipse(2.07). */
 .card {
-  background: var(--paper-hi);
-  border: 3px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: 5px 5px 0 var(--shadow);
-  padding: 1.2rem 1.4rem;
+  position: relative;
+  background: var(--field);
+  border: var(--keyline-w) solid var(--keyline);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  /* §11: every card carries a mono spec label in its top-right corner. The
+     extra top padding is the reserved strip it hangs in — absolute-positioning
+     it over the content would collide with the right-aligned status chips
+     (.quest-alldone, .kept-chip, .codex-count) that already live on that
+     line. 40px = --s4, still on the 8px grid. */
+  padding: var(--s4) var(--s3) var(--s3);
 }
 
-.btn {
-  font-family: var(--sans);
-  font-weight: 800;
-  font-size: 0.85rem;
+/* Same squircle corner on every other radiused box — controls, tiles and the
+   status plates. Pills are left out on purpose: a 999px radius is already a
+   stadium and re-shaping its ends would fight the radius token. :where()
+   keeps specificity at zero so every component rule still wins on colour,
+   size and the radius the press animates. */
+:where(
+  .btn, .field, .quest-box, .codex-tile, .ach-tile, .undo-strip, .sim-result,
+  .window-bar, .quest-alldone, .boss-won, .lesson-collected, .kept-chip,
+  .xp-gain, .quest-auto, .tx-impulse
+) {
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+}
+
+/* §11 / §1 trait 10. Decorative truth-telling: the index is the card's real
+   position in the stack, so it stays accurate as long as App's order does.
+   aria-hidden at every call site — it is a printed corner mark, not content,
+   and a screen reader reading "L-O-G dash zero three" before every card would
+   be noise. */
+.spec-label {
+  position: absolute;
+  top: var(--s2);
+  right: var(--s3);
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
   text-transform: uppercase;
-  border: 3px solid var(--ink);
-  border-radius: var(--r);
-  padding: 0.7rem 1.3rem;
+  color: var(--spec);
+  pointer-events: none;
+}
+
+/* Buttons stay on border-radius even though a label plate clears aspect 1.5:
+   §9 move 5 specifies the press as a radius change (28 -> 12), and a clip-path
+   polygon has no radius to animate. The two rules collide and the motion spec
+   is the more specific one, so the superellipse stops at the containers
+   (.card, .toast, .hero-frame) and the controls inside them keep the radius
+   token set — which is also what §11's "border-radius from the token set
+   elsewhere" asks for. */
+.btn {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: var(--fs-cap);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  border: var(--keyline-w) solid var(--keyline);
+  border-radius: var(--r-lg);
+  padding: var(--s1) var(--s2);
+  /* §11: touch targets stay >=48px regardless of visual density. The 13px cap
+     label plus 8px padding only reaches ~40px, so the floor is explicit. */
+  min-height: 48px;
   cursor: pointer;
   color: var(--ink);
-  background: var(--paper-hi);
-  box-shadow: 4px 4px 0 var(--shadow);
+  background: var(--field);
+  /* Release snaps back on `pop`; the :active rule below overrides both the
+     duration and the curve for the compression itself (§9 move 5). */
+  transition: transform var(--t-quick) var(--ease-pop),
+    border-radius var(--t-quick) var(--ease-pop),
+    background var(--t-instant) var(--ease-primary);
 }
-/* Hover is a 1px lean toward the pressed position with the shadow shrinking
-   to match — the same press metaphor quest rows already speak on hover, so
-   the primary CTAs give a pre-click affordance beyond the cursor. Gated off
-   disabled; :active (declared after, equal specificity) stays the stronger
-   full collapse. */
-.btn:not(:disabled):hover { transform: translate(1px, 1px); box-shadow: 3px 3px 0 var(--shadow); }
-.btn:not(:disabled):active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--shadow); }
+/* Hover is a second contour offset from the field (§1 trait 05), not a lift —
+   buttons in this system never float. An outline is used rather than a
+   thicker border so the box never resizes, and rather than a box-shadow,
+   which §11 bans outright. Suppressed while focused so the 3px focus ring is
+   never replaced by the thinner hover ring. */
+.btn:not(:disabled):hover:not(:focus-visible) {
+  outline: var(--keyline-w) solid var(--keyline);
+  outline-offset: 2px;
+}
+/* THE PRESS (§9 move 5): buttons compress, they do not lift. scale(0.96) plus
+   radius 28 → 12 in 90ms. --press is `none` under prefers-reduced-motion, so
+   the radius change carries the whole affordance there — a state change that
+   is still visible, never an invisible control. */
+.btn:not(:disabled):active {
+  transform: var(--press);
+  border-radius: var(--r-sm);
+  transition: transform var(--t-instant) var(--ease-primary),
+    border-radius var(--t-instant) var(--ease-primary);
+}
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-/* Accent surfaces take --on-accent text (see its definition above): white
-   fails WCAG AA on flame/teal/pink. Their hover/active shadows mirror the
-   base rules above at matching specificity and order so the colored shadow
-   always wins over the neutral one. */
-.btn-flame { background: var(--flame); color: var(--on-accent); box-shadow: 4px 4px 0 var(--flame-sh); }
-.btn-flame:not(:disabled):hover { box-shadow: 3px 3px 0 var(--flame-sh); }
-.btn-flame:not(:disabled):active { box-shadow: 0 0 0 var(--flame-sh); }
-.btn-gold { background: var(--gold); color: var(--on-accent); box-shadow: 4px 4px 0 var(--gold-sh); }
-.btn-gold:not(:disabled):hover { box-shadow: 3px 3px 0 var(--gold-sh); }
-.btn-gold:not(:disabled):active { box-shadow: 0 0 0 var(--gold-sh); }
-.btn-teal { background: var(--teal); color: var(--on-accent); box-shadow: 4px 4px 0 var(--teal-sh); }
-.btn-teal:not(:disabled):hover { box-shadow: 3px 3px 0 var(--teal-sh); }
-.btn-teal:not(:disabled):active { box-shadow: 0 0 0 var(--teal-sh); }
+/* Primary action. See --cta-field: a Flare fill would put a 13px label on a
+   3.79:1 field, which §2.1 rule 1 forbids, so Flare is the keyline and the
+   plate is Graphite. */
+.btn-flame {
+  background: var(--cta-field);
+  color: var(--cta-ink);
+  border-color: var(--cta-keyline);
+}
+.btn-flame:not(:disabled):hover:not(:focus-visible) { outline-color: var(--cta-keyline); }
+/* Accent fills take --on-accent (§2.1 rule 2). Marigold 6.2:1, Acid 9.7:1 —
+   both clear AA for body text, so these two may carry a 13px label where
+   Flare may not. */
+.btn-gold { background: var(--reward); color: var(--on-accent); border-color: var(--keyline); }
+.btn-teal { background: var(--data); color: var(--on-accent); border-color: var(--keyline); }
 
-.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+/* §11: all numerals render in the mono stack, uppercase, +0.14em. tabular-nums
+   is what stops a rolling counter from reflowing its neighbours mid-index. */
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-spec);
+}
+/* Typed content is the user's, never restyled: uppercasing an input would
+   shout its placeholder back at them and misrepresent what they entered.
+   Digits have no case, so the numeral rule loses nothing here. */
+input.mono { text-transform: none; }
+
+/* INDEX ROLL (§9 move 4). Numerals index into place like an odometer — six
+   discrete clicks, never a smooth tween. The travel is a transform only, so
+   the rendered text is the final value from the first frame: the number is
+   never mid-count, only mid-motion. Retriggered by a `key` on the numeral
+   (see the call sites), which remounts the span and restarts the animation.
+
+   Gated on no-preference rather than neutralised afterwards: §9 says reduced
+   motion drops every transform, and a gate means the transform is never
+   applied at all rather than crushed to a 0.001ms frame. */
+/* inline-block sits OUTSIDE the gate on purpose: an inline box ignores
+   transforms, but flipping the display only for motion-enabled users would
+   hand the two audiences different layouts. Same box, one of them moves. */
+.index-roll { display: inline-block; }
+@media (prefers-reduced-motion: no-preference) {
+  .index-roll { animation: index-roll var(--t-base) var(--ease-index); }
+}
+@keyframes index-roll {
+  from { transform: translateY(-0.32em); }
+  to { transform: translateY(0); }
+}

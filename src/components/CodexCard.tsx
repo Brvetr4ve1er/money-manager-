@@ -12,9 +12,14 @@ export function CodexCard({ collectedIds }: { collectedIds: ReadonlySet<string> 
   return (
     // id: hero nav anchor target (desktop).
     <section className="card" id="codex">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
+      <span className="spec-label" aria-hidden="true">CDX—10</span>
       <div className="codex-head">
         <h2>Lesson codex</h2>
-        <span className="codex-count mono">{count} / {LESSONS.length} collected</span>
+        {/* INDEX ROLL (§9 move 4) — the literal `33/36` case from §1 trait 10. */}
+        <span className="codex-count mono index-roll" key={count}>
+          {count} / {LESSONS.length} collected
+        </span>
       </div>
       <ul className="codex-grid">
         {LESSONS.map((l) =>

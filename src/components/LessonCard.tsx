@@ -12,11 +12,15 @@ export function LessonCard({
 }) {
   return (
     <section className="card">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
+      <span className="spec-label" aria-hidden="true">LSN—06</span>
       <div className="lesson-head">
         <h2>Today's lesson</h2>
         {/* Persistent collected marker — the visual state the quest blip and
             +XP chip reinforce, still readable after both fade. */}
-        {readToday && <span className="lesson-collected">Collected ✓</span>}
+        {/* Same rule as QuestCard's all-done chip: no glyph inside announced
+            text (§7.4). The chip plate carries the visual state. */}
+        {readToday && <span className="lesson-collected">Collected</span>}
       </div>
       <h3 className="lesson-title">{lesson.title}</h3>
       <p className="lesson-body">{lesson.body}</p>
