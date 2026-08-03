@@ -145,7 +145,24 @@ export function HeroShell({
           >
             <Glyph name="flame" />
           </span>
-          <span className="hero-stage-name">{meta.label}</span>
+          {/* An h2, not a span. At ≥1024px app.css hides .hero-card .hero-main
+              — which is where HeroCard's stage <h2> and its rating live — so a
+              span here made the heading outline gain a level-2 heading on
+              mobile and lose it on desktop, the exact per-breakpoint fork this
+              file's one-DOM rule exists to prevent. The .hero-stage-name rule
+              carries the plate-scale treatment, so nothing changes visually.
+              Only one of the two is ever in the tree: the other side of the
+              breakpoint has display:none, which removes it from it. */}
+          <h2 className="hero-stage-name">{meta.label}</h2>
+          {/* The rating had no desktop equivalent at all, so assistive tech
+              lost it entirely above 1024px. Same wrapper and same label as
+              HeroCard's — role="img" because a generic element cannot take an
+              accessible name, and the marks are drawn glyphs (§8). */}
+          <span className="stars" role="img" aria-label={`${meta.stars} of 4 stars`}>
+            {Array.from({ length: meta.stars }, (_, i) => (
+              <Glyph name="star" key={i} />
+            ))}
+          </span>
           {pets.length > 0 && (
             <span
               className="hero-pets"

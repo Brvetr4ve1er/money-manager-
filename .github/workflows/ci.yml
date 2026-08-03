@@ -1,4 +1,4 @@
-# The 288-test suite and the type-checked build are the release floor for this
+# The 307-test suite and the type-checked build are the release floor for this
 # repo. Without CI they only ever ran on a contributor's machine, so a red
 # branch could reach main unnoticed. Both jobs are cheap; run them on every
 # pull request and on main.
@@ -32,9 +32,10 @@ jobs:
           # webidl.util.markAsUncloneable — that only exists on Node >= 21. On
           # Node 20 the require throws, the jsdom environment never
           # initialises, and the DOM test file does not run at all: the suite
-          # reports 243 passing tests instead of 288 and still looks healthy
+          # reports 249 passing tests instead of 307 and still looks healthy
           # apart from one unhandled error. Pinning the floor here is what
-          # keeps the 45 component tests from vanishing quietly.
+          # keeps the 58 component tests (App 46 + Root 12) from vanishing
+          # quietly.
           node-version: '22'
           # Vite 5 and Vitest resolve from the lockfile; caching it keeps the
           # install step off the critical path.

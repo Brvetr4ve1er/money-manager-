@@ -1,11 +1,10 @@
 {
-  "name": "Ember — build financial instincts",
+  "name": "Ember — a money app that runs on your phone, not on your bank",
   "short_name": "Ember",
   "description": "A money app that runs on your phone, not on your bank. Manual logging in dinars, a health score that explains itself, and full export. No account, no bank link.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "lang": "en",
   "dir": "ltr",
   "categories": ["finance", "productivity"],

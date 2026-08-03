@@ -326,10 +326,10 @@ describe('describeResult trust rules', () => {
     const r = runSimulation(yasmine, { amount: 180_000, funding: 'lump' })
     const text = describeResult(r)
     if (r.healthDeltaMonth1 < -10) {
-      // Case-insensitive: the §7 rewrite leads the clause with the object
-      // ("Month one takes the hit."), which is the point of the assertion —
-      // that the dip is named — not the casing it is named in.
-      expect(text.toLowerCase()).toContain('month one')
+      // Case-exact against the shipped copy: describeResult emits "Month one
+      // takes the hit." for this fixture, so lowercasing bought nothing except
+      // permission for the casing to drift.
+      expect(text).toContain('Month one')
     }
   })
   it('states the magnitude when the projection lands ahead, never "slightly"', () => {

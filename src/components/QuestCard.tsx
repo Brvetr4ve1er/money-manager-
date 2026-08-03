@@ -1,4 +1,5 @@
 import type { Quest } from '../state/store.ts'
+import { Glyph } from './Glyph.tsx'
 
 export function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete: (id: string) => void }) {
   const allDone = quests.length > 0 && quests.every((q) => q.done)
@@ -27,7 +28,10 @@ export function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete:
                  so this is a static status row, not a disabled button (which
                  would imply it might enable). */
               <div className="quest-row">
-                <span className="quest-box" aria-hidden="true">{q.done ? '✓' : ''}</span>
+                {/* Drawn mark, not '✓' (§8 retires character glyphs as UI
+                    iconography). The box is aria-hidden either way — the row's
+                    own label carries "— done". */}
+                <span className="quest-box" aria-hidden="true">{q.done && <Glyph name="check" />}</span>
                 <span className="quest-text">{q.text}</span>
                 {/* Visible "auto" tag: the row deliberately lacks the
                     pressable shadow (see app.css), and this names why — it
@@ -52,7 +56,7 @@ export function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete:
                 aria-disabled={q.done}
                 aria-label={q.done ? `${q.text} — done` : `Mark done: ${q.text}`}
               >
-                <span className="quest-box" aria-hidden="true">{q.done ? '✓' : ''}</span>
+                <span className="quest-box" aria-hidden="true">{q.done && <Glyph name="check" />}</span>
                 <span className="quest-text">{q.text}</span>
               </button>
             )}

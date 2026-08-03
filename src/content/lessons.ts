@@ -199,7 +199,11 @@ export const LESSONS: ReadonlyArray<Lesson> = [
     id: 'stores-are-designed',
     title: 'Stores are designed',
     oneLiner: 'A list is armor in an engineered arena.',
-    body: 'End-of-aisle displays, "only 2 left", sweets at the register — shop layouts are engineered by professionals to shrink the gap between seeing and buying. You are not weak; you are outnumbered. A written list is armor.',
+    // "You are not weak; you are outnumbered" is cut: §7.1's soft/coddling
+    // failure mode. It asserts something about the reader's character the app
+    // has no evidence for, and it only works by presupposing they already
+    // believe the first half. Every other lesson stays on the object.
+    body: 'End-of-aisle displays, "only 2 left", sweets at the register — shop layouts are engineered by professionals to shrink the gap between seeing and buying. A written list is armor.',
   },
   {
     id: 'discount-math',

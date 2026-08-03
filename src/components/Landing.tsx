@@ -20,6 +20,14 @@ import { Wordmark } from './Wordmark.tsx'
  *      nothing honest to show them. Every number on this page is either an
  *      index label or a rule of the product. Trust Rule 5.
  *
+ * VOICE. §7 rule 2 wants sentences under nine words, fragments preferred, and
+ * the lede is the split form of the positioning line for that reason: "Runs on
+ * your phone. Not on your bank." The metadata surfaces (index.html <title>,
+ * og:title, the manifest name, package.json) deliberately keep the unsplit
+ * sentence — they arrive with no page around them and have to name the
+ * category before they name the differentiator. That is a recorded exemption,
+ * not an oversight; it does not need re-litigating on the next voice pass.
+ *
  * EVERY CLAIM MAPS TO SHIPPED CODE. The spec-sheet grid names four mechanics
  * that exist today (healthScore.ts, the resist path in reducer.ts + Ledger's
  * kept stat, simulator.ts, boss.ts); the rules band restates the Trust Rules
@@ -51,7 +59,13 @@ const MECHANICS = [
   },
   {
     title: 'The resist',
-    body: 'Kept, not spent. Summed for the month. Never fed into the score.',
+    // "Never fed into the score" was false: profile.ts counts capped resists
+    // and yielded impulses and feeds both to impulseControlScore, one of the
+    // five weighted health components. Only the kept-DA TOTAL is excluded
+    // (Ledger.tsx). The claim is scoped to the thing that is actually
+    // excluded — on a page whose whole subject is the trust boundary, this is
+    // the one badge that must not overstate it.
+    body: 'Kept, not spent. Summed for the month. The total is not a score input.',
   },
   {
     title: 'The simulator',
@@ -107,7 +121,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
               <h2 id="lp-thesis" className="lp-thesis">
                 Built flat. Logged in DA.
               </h2>
-              <p className="lp-lede">A money app that runs on your phone, not on your bank.</p>
+              <p className="lp-lede">Runs on your phone. Not on your bank.</p>
               <p className="lp-sub">
                 Manual logging in dinars. Everything stays in this browser.
               </p>

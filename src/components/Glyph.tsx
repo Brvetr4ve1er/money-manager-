@@ -1,5 +1,5 @@
 import { useId, type CSSProperties } from 'react'
-import { bandPath, boxPath } from './shape.ts'
+import { bandPath, boxPath, dotPath, segPath, starPath } from './shape.ts'
 
 /**
  * The glyph set (§8): flat vector marks on squircle geometry, replacing the
@@ -24,6 +24,8 @@ import { bandPath, boxPath } from './shape.ts'
  * the meaning in real text — the emoji were doing that job and it does not
  * get dropped:
  *   flame          → the stage name beside it (HeroCard / HeroShell)
+ *   star           → role="img" + "N of 4 stars" on the rating row
+ *   check          → the quest's own label ("… — done") on the row button
  *   pets           → role="img" + "Companions: …" on the strip
  *   monster        → "The Impulse Monster" in the sentence it prefixes
  *   shield         → the word "Resisted" beside it (Ledger)
@@ -34,6 +36,8 @@ import { bandPath, boxPath } from './shape.ts'
 
 export type GlyphName =
   | 'flame'
+  | 'star'
+  | 'check'
   | 'monster'
   | 'shield'
   | 'medal'
@@ -68,6 +72,27 @@ const GLYPHS: Record<GlyphName, GlyphShape> = {
   flame: {
     ink: [boxPath(7, 11, 18, 18, 9), boxPath(12, 2, 8, 12, 4)],
     cut: [boxPath(12, 17, 8, 9, 4)],
+  },
+  // The stage rating mark. Was '★'.repeat(n) — a character, which §8 retires
+  // as UI iconography, and specifically U+2605, which several Android and
+  // Windows stacks substitute with an emoji-presentation glyph in a vendor's
+  // own yellow. That made the measured "Flare on card field, 3.02:1" pair
+  // fiction on those machines. Drawn, it is currentColor and the ink is
+  // whatever the row was measured at. Every vertex radiused, outer points and
+  // inner notches alike (§1 trait 04).
+  star: {
+    ink: [starPath(16, 16.5, 14.5, 6.4, 5, 2.4)],
+  },
+  // The completion mark, likewise: was '✓'. Two bars with dot caps, so the
+  // terminals are soft-serve rather than mitred.
+  check: {
+    ink: [
+      segPath(7, 16.5, 13.5, 23, 5),
+      segPath(13.5, 23, 25, 8.5, 5),
+      dotPath(7, 16.5, 2.5),
+      dotPath(13.5, 23, 2.5),
+      dotPath(25, 8.5, 2.5),
+    ],
   },
   // The Impulse Monster. Horns and a squared grin: beatable, never a threat —
   // Trust Rule 6 lives in the drawing as well as the copy.

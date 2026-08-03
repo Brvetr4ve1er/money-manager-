@@ -101,9 +101,14 @@ export function HeroCard({
           <h2>{meta.label}</h2>
           {/* role="img": a generic div prohibits accessible naming, so without
               it the aria-label may be ignored and screen readers read the raw
-              glyphs ("black star black star…") — or nothing. */}
+              marks — or nothing. Drawn stars, not '★' (§8): the character got
+              emoji-presentation substitution on several Android and Windows
+              font stacks, which put the mark in a vendor's colour and made the
+              contrast pair measured in app.css fiction. */}
           <div className="stars" role="img" aria-label={`${meta.stars} of 4 stars`}>
-            <span aria-hidden="true">{'★'.repeat(meta.stars)}</span>
+            {Array.from({ length: meta.stars }, (_, i) => (
+              <Glyph name="star" key={i} />
+            ))}
           </div>
           {/* INDEX ROLL (§9 move 4). The key is the rendered value, so a
               changed score remounts the readout and re-runs the stepped

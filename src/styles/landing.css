@@ -68,9 +68,13 @@
   margin: 0 auto;
 }
 
-/* Section headings: d2 tier (§3), stacked hard. h2 already carries the display
-   family and uppercase from tokens.css. */
+/* Section headings: d2 tier (§3), stacked hard. The d2 tier IS Tier 1, so the
+   display face is named here rather than inherited — tokens.css now sets
+   h1/h2/h3 in Tier 2 (Grotesk), because a card title is not a wordmark. A 72px
+   section brick is, so it says so. */
 .lp-section-h {
+  font-family: var(--display);
+  font-weight: 900;
   font-size: var(--fs-d2);
   line-height: var(--lh-d2);
   letter-spacing: var(--tr-d2);
@@ -126,7 +130,14 @@
   inset: 0;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
   opacity: 0.06;
-  mix-blend-mode: overlay;
+  /* multiply, not overlay — the grain sits directly behind the d1 wordmark,
+     the one string on this page legally on Flare at 3.01:1, i.e. with 0.02 of
+     headroom. Overlay lightens as well as darkens, and on the brightest noise
+     pixels it lifts the local field enough to push Bone-on-Flare to ~2.88:1,
+     under the large-text floor. multiply can only darken: worst case
+     Bone-on-Flare ~3.39:1, Graphite-on-Flare ~3.38:1. Same change in app.css
+     behind the desktop hero lockup, same reason. */
+  mix-blend-mode: multiply;
   pointer-events: none;
 }
 .lp-wall-inner {
@@ -150,8 +161,16 @@
   background: var(--lp-form);
   color: var(--lp-counter);
   border-radius: var(--r-sm);
+  /* Whole-box superellipse (§11: clip-path, not border-radius, wherever
+     aspect > 1.5). corner-shape ships in Chromium only, so on every other
+     engine the shape law was silently absent and this plate was a plain
+     circular arc; the clip holds everywhere. Safe here where it is not safe on
+     .card: this plate is one line of 11px mono at a fixed height, free-
+     standing in the corner, with its longest string ("LOCAL/FIRST") measured
+     clear of the cut. corner-shape stays as the fallback. */
   corner-shape: squircle;
   corner-shape: superellipse(2.07);
+  clip-path: var(--se-42);
   padding: var(--s1) var(--s2);
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
@@ -268,7 +287,11 @@
 
 /* The three facts — the entire competitive position against every bank-linked
    budgeting app — above the fold on its own ink plate. Under 24px, so it
-   cannot sit on the field. */
+   cannot sit on the field.
+   No superellipse cut, unlike .lp-corner: this plate is a PILL, and a 999px
+   radius is already a stadium — re-cutting it with the n=4.2 whole-box
+   polygon would replace that stadium with an elliptical-cornered rectangle.
+   tokens.css leaves pills out of the corner-shape list for the same reason. */
 .lp-facts {
   margin: 0;
   background: var(--lp-form);
@@ -505,8 +528,12 @@
 }
 /* THE PRESS reaches every interactive control (§9 move 5) — an anchor that
    navigates is one. --press is `none` under reduced motion, where the focus
-   ring and the underline carry the affordance instead. */
-.lp-foot-links a:active { transform: var(--press); }
+   ring and the underline carry the affordance instead. 90ms on `primary` for
+   the compression; the 180ms `pop` on the resting rule is the release. */
+.lp-foot-links a:active {
+  transform: var(--press);
+  transition: transform var(--t-instant) var(--ease-primary);
+}
 
 /* ≥720px: the wall's plate stops running full-bleed and the composition gets
    its 60% negative field back. */

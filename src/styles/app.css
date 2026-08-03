@@ -1,7 +1,9 @@
 /* Component styles. Every colour here goes through a SEMANTIC token from
    tokens.css — no raw palette name, no hex. Spacing uses the 8px scale
-   (--s1…--s7) for structural rhythm; the fine typographic margins are still
-   ad-hoc rem and are on the list for the component passes. */
+   (--s1…--s7), including the fine typographic margins — the chip family's
+   sub-8px padding is expressed as calc(var(--s1) / 2) rather than as a loose
+   rem, so it is a half-step OF the scale and not a value beside it. Type sizes
+   go through the §3 tier tokens (--fs-*); there is no ad-hoc rem here. */
 
 .shell {
   max-width: 520px;
@@ -22,15 +24,52 @@
 }
 
 /* One header, two lives (see HeroShell.tsx): these base rules are the mobile
-   topbar — visually identical to the pre-hero layout. Every desktop-only
-   piece (nav, stage line, right column) rests at display:none here so
-   the 320px single column is untouched; the ≥1024px block at the end of this
-   file turns the same DOM into the full-viewport hero. */
+   topbar. Every desktop-only piece (nav, stage line, right column) rests at
+   display:none here so the 320px single column stays a single column; the
+   ≥1024px block at the end of this file turns the same DOM into the
+   full-viewport hero.
+
+   THE FIELD IS NOT DESKTOP-ONLY. §2's ratio law wants 60% Flare or Espresso
+   and 30% Bone, and until now Flare only existed inside the ≥1024px block —
+   so on the app's stated primary device (a phone) the light theme was Bone
+   ground, Bone cards and Graphite keylines: ~0% of the colour the law puts
+   first. The topbar is §5 layout A at 320px, sized as a band rather than a
+   100vh field, which is what landing.css already ships for the same DOM.
+
+   Full-bleed, so it takes the shell's 16px inset back as negative margin and
+   re-spends it as its own padding: in layout A the COLOUR runs to the frame
+   edge and the things standing in it are what have inset. The ≥1024px block
+   resets the margin, where .shell carries no padding to cancel. */
 .hero-frame {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: var(--brand-field);
+  border-bottom: var(--keyline-w) solid var(--brand-form);
+  padding: var(--s2);
 }
+.topbar { margin: calc(var(--s2) * -1) calc(var(--s2) * -1) 0; }
+/* Pinned to the brand triad, not --ink/--field: the field under them is Flare
+   in BOTH themes (§2.2), and the only ratios that make type on it legal —
+   3.79:1 Graphite, 3.01:1 Bone — are computed for exactly those three. An
+   --ink that flipped to Bone in the dark theme would put 3.01:1 body-weight
+   type where 3.79:1 large type is already the ceiling. Same reasoning as the
+   desktop block; see --brand-* in tokens.css. */
+.hero-frame .hero-lockup { color: var(--brand-form); }
+/* The mute button is a plate standing on the field, so it takes the fixed
+   pair rather than the ground-swapping one for the same reason. Bone plate on
+   Flare is 3.01:1 — over the 3:1 non-text floor, so the plate's own edge is
+   legal — and the Graphite label on it reads at 11.4:1. */
+.hero-mute {
+  background: var(--brand-counter);
+  color: var(--brand-form);
+  border-color: var(--brand-form);
+}
+.hero-mute:not(:disabled):hover:not(:focus-visible) { outline-color: var(--brand-form); }
+/* Trust Rule 8 — focus stays visible. The global ring is --ink, which is Bone
+   in the dark theme and lands at 3.01:1 on this field; Graphite holds 3.79:1
+   on it in both themes, so the field names its own ring. */
+.hero-frame :focus-visible { outline-color: var(--brand-form); }
 /* Flattened on mobile so the lockup and the mute button sit directly in the
    frame's flex row, exactly as the old topbar laid them out; the wrappers
    only become real boxes inside the desktop composition. */
@@ -235,14 +274,19 @@
   display: flex;
   align-items: center;
   gap: var(--s1);
-  font-size: 0.82rem;
+  font-size: var(--fs-cap);
 }
 .health-bar-label { font-weight: 700; flex: 0 0 8.2rem; }
-/* Mini readout track in the xp-track family. --data (Acid), not --reward:
-   Trust Rule 1 — the health score is financial reality and must never wear
-   the engagement track's colour. The hard ink leading edge on the fill is a
-   WCAG 1.4.11 fix (the fill/empty boundary must clear 3:1 on both themes'
-   tracks); Acid on the Sand track is ~1.3:1 without it. */
+/* Mini readout track in the xp-track family. The fill is INK on the --sunken
+   track, not Acid: the Health card already carries one accent — the stage
+   badge, whose fill is a checked pair out of STAGE_META — and Marigold badge
+   plus Acid bars plus a Flare star row put three accents and five tones on one
+   surface, against §2's "more than one accent per surface" ban and §1 trait
+   06's three-tone cap. Trust Rule 1 is untouched by the swap: it forbids the
+   score wearing the ENGAGEMENT track's colour, and ink is neither track.
+   Ink on --sunken is 9.4:1 light / 15:1 dark, so the fill/empty boundary
+   clears WCAG 1.4.11 on its own and the hard leading-edge keyline the Acid
+   fill needed is gone with it. */
 .health-track {
   flex: 1;
   height: 12px;
@@ -255,8 +299,7 @@
    long, so it indexes in six discrete clicks rather than sliding. */
 .health-fill {
   height: 100%;
-  background: var(--data);
-  border-right: var(--keyline-w) solid var(--keyline);
+  background: var(--ink);
   transition: width var(--t-base) var(--ease-index);
 }
 .health-val { flex: 0 0 2ch; text-align: right; font-size: var(--fs-cap); font-weight: 700; }
@@ -298,17 +341,22 @@
   transition: background var(--t-base) var(--ease-index);
 }
 .stage-flame { font-size: 2.6rem; }
-/* .card scope keeps this heavier than the generic .card h2 title rule below
-   regardless of source order — the stage label is the hero, not a card title. */
-.card .stage-info h2 { font-size: var(--fs-h3); }
 /* §1 trait 01 — nothing floats. Every loose glyph in the app sits in one of
    these: a 1:1 keyline badge. Square aspect, so it takes a radius token, not
    the clip-path superellipse (§11 draws that line at aspect 1.5).
    No fill on purpose. These marks land on four different surfaces (--field,
    --sunken, the Marigold achievement tile, the Flare toast) and a fill would
-   have to clear 3:1 against all of them; a keyline container is legal on
-   every field in the palette and keeps each surface inside the three-tone
-   cap (trait 06). */
+   have to clear 3:1 against all of them; a keyline container keeps each
+   surface inside the three-tone cap (trait 06).
+
+   A keyline container is NOT legal on every field in the palette, which an
+   earlier version of this comment claimed. --keyline is --ink, which is Bone
+   in the dark theme: Bone on Marigold is 1.79:1 and Bone on Acid is 1.03:1,
+   both under the 3:1 non-text floor, and on an accent fill there is no
+   surrounding field for the ring to work against (the way .xp-gain's ring
+   separates its Marigold from the CARD at 11.44:1). So any mark that lands ON
+   an accent fill takes the accent's fixed ink instead — Graphite on Marigold
+   is 6.38:1 in both themes, and --on-accent never flips. */
 .mark {
   display: inline-flex;
   align-items: center;
@@ -326,24 +374,36 @@
      opens a gap above the row; middle centres it on the text instead. */
   vertical-align: middle;
 }
-/* Flare glyphs on the Bone/Graphite card field measure 3.02:1 and 3.85:1 —
-   under the 4.5:1 text minimum but over the 3:1 non-text one, which is the
-   applicable rule: the row is role="img" with an aria-label, so the stars are
-   never read as text. Keep them decorative or this pair stops being legal.
-   The plate is a keyline over the card's own --field, NOT over --sunken:
-   Flare on Sand measures 2.51:1 and would drop the stars under the non-text
-   floor. A container may never cost a mark its contrast. */
+/* Pre-empting the same trap for any future mark placed on the accent tiles.
+   Declared after .mark so it wins on source order — the :where() contributes
+   no specificity, and :not()'s does not apply to what it excludes. The locked
+   tiles are excluded on purpose: they are RECESSED (--sunken), not accent
+   fills, and --sunken is Void in the dark theme, where Graphite would be
+   1.4:1. There the ground-swapping --keyline is the correct ring. */
+:where(.ach-tile, .codex-tile):not(.ach-locked, .codex-locked) .mark {
+  border-color: var(--on-accent);
+}
+/* Ink, not Flare, and drawn rather than typed. Two changes, one cause:
+   Flare-on-card measured 3.02:1 light and 3.79:1 dark, which is legal ONLY
+   while the row counts as a graphical object (role="img") and only with 0.02
+   of headroom — and the mark was U+2605, which several Android and Windows
+   stacks substitute with an emoji-presentation glyph, at which point the ink
+   is a vendor's yellow and the measured pair is fiction. §8 retired character
+   glyphs as UI iconography anyway. The stars are <Glyph name="star"> now, so
+   currentColor guarantees the ink is the measured one: --ink is 11.44:1 on the
+   card field in both themes, and it leaves the stage badge as this card's
+   single accent (§2). Sized off --fs-body because the 1em glyph box is what
+   sets the mark's size. */
 .stars {
   display: inline-flex;
   align-items: center;
-  gap: 0.1rem;
-  padding: 0.15rem var(--s1);
-  margin: 0.15rem 0;
+  gap: calc(var(--s1) / 2);
+  padding: calc(var(--s1) / 2) var(--s1);
+  margin: calc(var(--s1) / 2) 0;
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-pill);
-  color: var(--flare);
-  font-size: 1.05rem;
-  letter-spacing: 0.1rem;
+  color: var(--ink);
+  font-size: var(--fs-body);
   line-height: 1;
 }
 .score-line { font-size: var(--fs-cap); color: var(--spec); font-weight: 700; }
@@ -370,7 +430,6 @@
   flex-wrap: wrap;
   margin-bottom: var(--s1);
 }
-.xp-head h2 { font-size: 0.95rem; }
 .xp-numbers { display: inline-flex; align-items: baseline; gap: var(--s1); }
 /* Transient +XP chip (see XpCard): a non-audio, non-motion confirmation of a
    gain — visible to muted and reduced-motion users, and in --reward like the
@@ -381,7 +440,11 @@
   color: var(--on-accent);
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-sm);
-  padding: 0.05rem 0.4rem;
+  /* §5: everything snaps to the 8px baseline. The chip family (this,
+     .quest-alldone, .boss-won, .lesson-collected, .kept-chip, .tx-impulse,
+     .quest-auto, .ach-medal) all ran ad-hoc rem padding between 0.02 and
+     0.15rem; they share one half-step-of-the-scale value now. */
+  padding: calc(var(--s1) / 2) var(--s1);
   font-size: var(--fs-spec);
   font-weight: 700;
 }
@@ -409,8 +472,16 @@
 }
 
 /* Card titles are h2 (siblings of the hero stage label in the outline, under
-   the single page h1 wordmark) styled down to card scale. */
-.card h2 { font-size: 0.95rem; margin-bottom: var(--s1); }
+   the single page h1 wordmark) set at §3's h3 tier rather than h2's: 30px is a
+   page-section size and a card is not a page section, but "somewhere around
+   15px" is not a tier at all — which is what 0.95rem was. One token, whole
+   tier: 22 / 1.15 / -0.01em. */
+.card h2 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--tr-h3);
+  margin-bottom: var(--s1);
+}
 
 /* Repeat chips: the user's own frequent (amount, category) pairs as one-tap
    log buttons. The .btn min-height keeps every chip a 48px target even at the
@@ -430,13 +501,16 @@
    keystroke and a bare select value reads as an unlabeled word, so every
    field carries a small persistent bold caption via a wrapping <label>. */
 .field-wrap { flex: 1; min-width: 120px; display: flex; flex-direction: column; }
+/* Tier 2, not the display face: §3 restricts Tier 1 to 1–3 stacked words in a
+   container, and "Amount (DA)" is a form caption. Grotesk 700 at cap tracking
+   is what §3 specifies for exactly this string. */
 .field-label {
-  font-family: var(--display);
-  font-weight: 900;
+  font-family: var(--ui);
+  font-weight: 700;
   text-transform: uppercase;
   font-size: var(--fs-spec);
   letter-spacing: var(--tr-cap);
-  margin-bottom: 0.3rem;
+  margin-bottom: var(--s1);
 }
 .field-wrap > .field { flex: none; width: 100%; min-width: 0; }
 .field {
@@ -467,7 +541,7 @@
   align-items: center;
   gap: var(--s1);
   min-height: 48px;
-  margin-top: 0.2rem;
+  margin-top: var(--s1);
   font-size: var(--fs-cap);
   font-weight: 600;
   cursor: pointer;
@@ -480,12 +554,30 @@
   flex-shrink: 0;
   transition: transform var(--t-quick) var(--ease-pop);
 }
+/* With accent-color set, Chromium draws the CHECKED box as a bare accent fill
+   and no border — and Acid on the Bone card field is 1.03:1, so the control's
+   whole boundary dissolves into the field and only the UA checkmark survives.
+   WCAG 1.4.11 is measured on luminance, not hue, so "obviously a different
+   colour" does not answer it. The keyline gives the box its own 11.44:1 edge
+   at rest while --data keeps the Trust-Rule-1 colour coding above.
+   :not(:focus-visible) is load-bearing: a bare `.impulse-check input` is
+   (0,1,1) and would outrank the global `:focus-visible` outline (0,1,0) in
+   tokens.css, silently killing the focus ring on this one control. */
+.impulse-check input:not(:focus-visible) {
+  outline: var(--keyline-w) solid var(--keyline);
+  outline-offset: 0;
+}
 /* THE PRESS reaches every interactive control, not just the ones that look
    like buttons (§9 move 5). The whole label is the 48px target, so pressing
    anywhere on it compresses the box the user is actually aiming at. No radius
    half of the move here: a 22px native checkbox has no radius to give, and
-   accent-color is what keeps it on-theme. */
-.impulse-check:active input { transform: var(--press); }
+   accent-color is what keeps it on-theme. The transition override is the
+   compression itself — 90ms on `primary`, per §9 move 5; the 180ms `pop`
+   declared on the resting rule above is the RELEASE. */
+.impulse-check:active input {
+  transform: var(--press);
+  transition: transform var(--t-instant) var(--ease-primary);
+}
 .log-actions { display: flex; gap: var(--s1); flex-wrap: wrap; margin-top: var(--s1); }
 /* Post-log Undo grace strip: mis-tap safety for the app's most-used action.
    Neutral field (not an accent) — it is a control surface, not a reward. */
@@ -531,7 +623,7 @@
   color: var(--on-accent);
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-sm);
-  padding: 0.1rem 0.5rem;
+  padding: calc(var(--s1) / 2) var(--s1);
   font-size: var(--fs-spec);
   font-weight: 700;
   letter-spacing: var(--tr-cap);
@@ -613,7 +705,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
    measured 4.6:1 value keeps it readable where ink at 0.5 fell to ~3.4:1.
    The line-through plus the filled box carry the de-emphasis. */
 .quest.done .quest-text { text-decoration: line-through; color: var(--spec); }
-.quest-text { font-size: 0.9rem; font-weight: 600; }
+.quest-text { font-size: var(--fs-cap); font-weight: 600; }
 /* "Auto" tag on the verified quest: names WHY the row has no press
    affordance — the app completes it itself when a simulation actually runs.
    Dashed like the pending box so the whole row reads as one status family. */
@@ -621,7 +713,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   margin-left: auto;
   border: var(--keyline-w) dashed var(--keyline);
   border-radius: var(--r-sm);
-  padding: 0.05rem 0.4rem;
+  padding: calc(var(--s1) / 2) var(--s1);
   font-size: var(--fs-spec);
   font-weight: 700;
   text-transform: uppercase;
@@ -648,7 +740,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   color: var(--on-accent);
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-sm);
-  padding: 0.1rem 0.5rem;
+  padding: calc(var(--s1) / 2) var(--s1);
   font-size: var(--fs-spec);
   font-weight: 700;
   letter-spacing: var(--tr-cap);
@@ -661,7 +753,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   gap: var(--s1);
   flex-wrap: wrap;
   margin-bottom: var(--s1);
-  font-size: 0.9rem;
+  font-size: var(--fs-cap);
 }
 .boss-name { margin: 0; font-weight: 700; }
 .boss-track {
@@ -680,7 +772,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   border-right: var(--keyline-w) solid var(--keyline);
   transition: width var(--t-base) var(--ease-index);
 }
-.boss-copy { margin: var(--s1) 0 0; font-size: 0.88rem; }
+.boss-copy { margin: var(--s1) 0 0; font-size: var(--fs-body); }
 
 /* Daily lesson card. */
 .lesson-head {
@@ -698,7 +790,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   color: var(--on-accent);
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-sm);
-  padding: 0.1rem 0.5rem;
+  padding: calc(var(--s1) / 2) var(--s1);
   font-size: var(--fs-spec);
   font-weight: 700;
   letter-spacing: var(--tr-cap);
@@ -706,8 +798,8 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
 }
 /* The lesson title is an h3 under the card's h2 — sub-heading scale, not the
    uppercase card-title rhythm, so the 2–3 sentence body reads as one unit. */
-.card .lesson-title { font-size: 1.05rem; margin-bottom: 0.35rem; }
-.lesson-body { margin: 0 0 var(--s1); font-size: 0.92rem; }
+.card .lesson-title { font-size: var(--fs-h3); margin-bottom: var(--s1); }
+.lesson-body { margin: 0 0 var(--s1); font-size: var(--fs-body); }
 
 /* Codex — the lesson collection. */
 .codex-head {
@@ -738,14 +830,16 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   padding: var(--s1);
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--s1);
 }
+/* Tier 2 at cap tracking, not the display face: §3 keeps Tier 1 for 1–3
+   stacked words in a container, and an 11px tile caption is neither. */
 .codex-tile-title {
-  font-family: var(--display);
-  font-weight: 900;
+  font-family: var(--ui);
+  font-weight: 700;
   text-transform: uppercase;
   font-size: var(--fs-spec);
-  letter-spacing: var(--tr-h3);
+  letter-spacing: var(--tr-cap);
 }
 .codex-tile-line { font-size: var(--fs-cap); }
 /* Locked silhouette: recessed + dashed — the same "pending, not pressable"
@@ -794,27 +888,38 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   padding: var(--s1);
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--s1);
 }
 /* Wider than a 1:1 .mark because it holds two glyphs (badge + companion), but
    still under aspect 1.5 — radius token, not clip-path. */
 .ach-medal {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: calc(var(--s1) / 2);
   align-self: flex-start;
-  padding: 0.15rem var(--s1);
+  padding: calc(var(--s1) / 2) var(--s1);
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-pill);
-  font-size: 1.1rem;
-  line-height: 1.1;
+  /* An icon box, not type: the two glyphs inside are 1em squares, so this
+     font-size IS their size. On the scale anyway, so it cannot drift. */
+  font-size: var(--fs-body);
+  line-height: 1;
 }
+/* The ring is --keyline (= --ink), which is Bone in the dark theme — and this
+   medal sits INSIDE .ach-tile, whose fill is Marigold in both themes. Bone on
+   Marigold is 1.79:1, under the 3:1 non-text floor, and unlike the accent
+   chips there is no card field on the other side of the ring for it to work
+   against. Pinned to the accent's fixed ink: Graphite on Marigold is 6.38:1 in
+   both themes, and the tile stays inside §1 trait 06's three-tone cap. Same
+   fix as .hero-stage-line .mark, same cause. */
+.ach-tile .ach-medal { border-color: var(--on-accent); }
+/* Tier 2 at cap tracking, for the same reason as .codex-tile-title. */
 .ach-name {
-  font-family: var(--display);
-  font-weight: 900;
+  font-family: var(--ui);
+  font-weight: 700;
   text-transform: uppercase;
   font-size: var(--fs-spec);
-  letter-spacing: var(--tr-h3);
+  letter-spacing: var(--tr-cap);
 }
 .ach-date { font-size: var(--fs-spec); }
 .ach-hint { font-size: var(--fs-cap); }
@@ -831,7 +936,13 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
    other cards reserve for the spec label. overflow:hidden is what pulls the
    bar's top corners into the card's squircle. */
 .sim-card { padding: 0; overflow: hidden; }
-/* Ink plate with a bone counter — 11.4:1 light, 13.4:1 dark. */
+/* Ink plate with a bone counter — 11.4:1 light, 13.4:1 dark.
+   Deliberately NOT cut with the whole-box superellipse the way .toast and the
+   free-standing corner plates are, even though it clears §11's aspect gate:
+   this bar IS the card's top edge, and a percentage cut on a 520x36 box draws
+   an elliptical corner ~160px wide, which would peel the bar away from the
+   card's own 28px corner and open the field through the gap. corner-shape (in
+   tokens.css's :where list) reshapes the radius without detaching anything. */
 .window-bar {
   background: var(--ink);
   color: var(--counter);
@@ -867,14 +978,14 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-sm);
   padding: var(--s2);
-  font-size: 0.88rem;
+  font-size: var(--fs-body);
 }
 
 /* Setup / "My numbers" card. Fieldsets group the optional sections (real
    <fieldset>/<legend> so AT reads the section name with each field) with the
    UA chrome stripped — the .field-label legend carries the visual grouping. */
 .profile-group { border: 0; margin: var(--s1) 0 0; padding: 0; min-width: 0; }
-.profile-group > legend { padding: 0; margin-bottom: 0.3rem; }
+.profile-group > legend { padding: 0; margin-bottom: var(--s1); }
 /* Contract copy (blank ≠ 0, demo disclosure) — quiet, like the sim note. */
 .profile-note { margin: var(--s1) 0 0; font-size: var(--fs-cap); color: var(--spec); }
 form > .profile-note { margin-top: var(--s1); }
@@ -889,7 +1000,7 @@ form > .profile-note { margin-top: var(--s1); }
   gap: var(--s1);
   padding: var(--s1) 0;
   border-bottom: var(--keyline-w) solid var(--keyline);
-  font-size: 0.9rem;
+  font-size: var(--fs-cap);
 }
 .profile-row:last-child { border-bottom: none; }
 .profile-row > span:first-child { font-weight: 700; flex-shrink: 0; }
@@ -913,17 +1024,17 @@ form > .profile-note { margin-top: var(--s1); }
   color: var(--on-accent);
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-sm);
-  padding: 0.1rem 0.5rem;
+  padding: calc(var(--s1) / 2) var(--s1);
   font-size: var(--fs-spec);
   font-weight: 700;
 }
 /* Yielded-impulse tag: dashed + ink like the neutral status family — the
    flag is honest data the user volunteered, never a shame accent. */
 .tx-impulse {
-  margin-left: 0.45rem;
+  margin-left: var(--s1);
   border: var(--keyline-w) dashed var(--keyline);
   border-radius: var(--r-sm);
-  padding: 0.02rem 0.35rem;
+  padding: calc(var(--s1) / 2) var(--s1);
   font-size: var(--fs-spec);
   font-weight: 700;
   text-transform: uppercase;
@@ -939,10 +1050,10 @@ form > .profile-note { margin-top: var(--s1); }
   gap: var(--s1);
   padding: var(--s1) 0;
   border-bottom: var(--keyline-w) solid var(--keyline);
-  font-size: 0.9rem;
+  font-size: var(--fs-cap);
 }
 .tx:last-child { border-bottom: none; }
-.empty { font-size: 0.88rem; color: var(--spec); margin: 0; }
+.empty { font-size: var(--fs-body); color: var(--spec); margin: 0; }
 
 .foot {
   display: flex;
@@ -1004,13 +1115,16 @@ form > .profile-note { margin-top: var(--s1); }
      is something placed on it. Flat, hard-edged, no elevation, no gradient:
      §5 puts depth in colour offset and keylines only, and §2 bans any gradient
      over an 8% value shift. */
-  .topbar { height: 100vh; }
+  /* The band becomes the full-viewport field. The field colour, the bottom
+     keyline and the pinned focus ring are already on the base rule — this
+     block only changes the BOX. The negative margin goes: .shell carries no
+     padding at this width, so there is nothing to bleed back out of. */
+  .topbar { height: 100vh; margin: 0; }
   .hero-frame {
     display: block;
     position: relative;
     height: 100%;
-    background: var(--brand-field);
-    border-bottom: var(--keyline-w) solid var(--brand-form);
+    padding: 0;
     /* Keeps the shear, the grain and the hanging nav plate inside the field. */
     overflow: hidden;
   }
@@ -1044,7 +1158,14 @@ form > .profile-note { margin-top: var(--s1); }
     inset: 0;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
     opacity: 0.06;
-    mix-blend-mode: overlay;
+    /* multiply, not overlay. Overlay moves the field in BOTH directions, and
+       the one pair under this grain with no headroom is Bone-on-Flare at
+       3.01:1 — on the brightest noise pixels overlay lifts the local field
+       enough to push that under the 3:1 large-text floor. multiply can only
+       darken: Bone-on-Flare rises to ~3.39:1 worst case and Graphite-on-Flare
+       holds at ~3.38:1, so both clear 3:1 on every noise pixel rather than on
+       average. §8's texture and its 6% budget are untouched. */
+    mix-blend-mode: multiply;
     pointer-events: none;
   }
 
@@ -1105,13 +1226,18 @@ form > .profile-note { margin-top: var(--s1); }
   /* THE PRESS applies to every interactive control (§9 move 5) — an anchor
      that navigates is one. No radius half of the move: these links have no
      box of their own, they are cut out of the plate. */
-  .hero-nav a:active { transform: var(--press); }
+  /* 90ms on `primary` for the compression; the 180ms `pop` on the resting
+     rule above is the release (§9 move 5). Without the override the press
+     eased IN on an overshoot curve at double the specified time. */
+  .hero-nav a:active {
+    transform: var(--press);
+    transition: transform var(--t-instant) var(--ease-primary);
+  }
 
   /* Focus rings inside the hero cannot use the global --ink: it is Bone in the
      dark theme and every plate in here stays Bone-on-Graphite or the reverse.
      Trust Rule 8 — focus stays visible — so each surface names the ring that
      contrasts against it. */
-  .hero-frame :focus-visible { outline-color: var(--brand-form); }
   .hero-nav a:focus-visible {
     outline-color: var(--brand-counter);
     /* Negative offset keeps the ring inside the plate so it can never bleed
@@ -1119,16 +1245,14 @@ form > .profile-note { margin-top: var(--s1); }
     outline-offset: -6px;
   }
 
+  /* Colours are on the base rule — the field is the same Flare at both
+     widths, so only the position changes here. */
   .hero-mute {
     position: absolute;
     top: var(--s3);
     right: var(--s3);
     z-index: 3;
-    background: var(--brand-counter);
-    color: var(--brand-form);
-    border-color: var(--brand-form);
   }
-  .hero-mute:not(:disabled):hover:not(:focus-visible) { outline-color: var(--brand-form); }
   /* The glyph carries the button, so it is sized off the target rather than
      off the 13px cap label the .btn family sets. */
   .hero-mute .glyph { font-size: 1.5rem; }
@@ -1147,8 +1271,13 @@ form > .profile-note { margin-top: var(--s1); }
     background: var(--brand-form);
     color: var(--brand-counter);
     border-radius: var(--r-sm);
+    /* Whole-box superellipse, see .window-bar: a fixed-height single-line
+       plate at aspect ~5:1 with no border to lose, measured against its
+       longest string ("HEALTH 100/100"). corner-shape stays declared as the
+       fallback for engines that ignore the polygon. */
     corner-shape: squircle;
     corner-shape: superellipse(2.07);
+    clip-path: var(--se-42);
     padding: var(--s1) var(--s2);
     font-family: var(--mono);
     font-variant-numeric: tabular-nums;
@@ -1279,9 +1408,9 @@ form > .profile-note { margin-top: var(--s1); }
   }
   .hero-thesis {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: var(--fs-h3);
     font-weight: 700;
-    line-height: 1.4;
+    line-height: var(--lh-h3);
     max-width: 34ch;
   }
 
@@ -1316,21 +1445,27 @@ form > .profile-note { margin-top: var(--s1); }
     /* §9 move 4: the stage indexes, it does not fade between colours. */
     transition: background var(--t-base) var(--ease-index);
   }
+  /* An <h2> since the desktop hero owns the stage label (see HeroShell) —
+     styled down to plate scale, but Tier 2 like every other heading: §3 keeps
+     the display face for 1–3 stacked words in a container. */
   .hero-stage-name {
-    font-family: var(--display);
-    font-weight: 900;
-    text-transform: uppercase;
-    font-size: 1rem;
-    letter-spacing: var(--tr-h3);
+    font-size: var(--fs-cap);
+    line-height: var(--lh-cap);
+    letter-spacing: var(--tr-cap);
   }
   .hero-pets {
     display: inline-flex;
     flex-wrap: wrap;
     gap: var(--keyline-w);
   }
-  /* .mark rings itself in --keyline (= --ink), which is Bone in the dark
-     theme — invisible on this Bone plate. Pin it like everything else here. */
-  .hero-stage-line .mark { border-color: var(--brand-form); }
+  /* .mark and .stars ring themselves in --keyline (= --ink) and ink their
+     contents in --ink, which is Bone in the dark theme — invisible on this
+     Bone plate. Pin both like everything else here. */
+  .hero-stage-line .mark,
+  .hero-stage-line .stars {
+    border-color: var(--brand-form);
+    color: var(--brand-form);
+  }
 
   /* Pill CTA in the .btn-gold family: --reward fill, ink keyline, and THE
      PRESS instead of a lift. Marigold takes --on-accent at 6.2:1, so this is
@@ -1347,7 +1482,7 @@ form > .profile-note { margin-top: var(--s1); }
     border: var(--keyline-w) solid var(--on-accent);
     border-radius: var(--r-pill);
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: var(--fs-cap);
     letter-spacing: var(--tr-cap);
     text-transform: uppercase;
     text-decoration: none;

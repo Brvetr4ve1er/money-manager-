@@ -117,6 +117,83 @@ export function bandPath(
   return `M${corners.map(([x, y]) => `${round(x)} ${round(y)}`).join('L')}Z`
 }
 
+/**
+ * A round dot. boxPath clamps its radius to half the box, so a square asked
+ * for a radius of half its side comes back as the squircle's circle — which
+ * keeps the terminal caps below on the same curve family as every other form
+ * in the set rather than introducing a true circle primitive.
+ */
+export function dotPath(cx: number, cy: number, r: number): string {
+  return boxPath(cx - r, cy - r, r * 2, r * 2, r)
+}
+
+/**
+ * A bar between two points, as a band. bandPath is parameterised by centre,
+ * length and angle because the shear is defined by its angle; a stroke is
+ * defined by its endpoints, so this is the same primitive addressed the other
+ * way. Terminals are square — cap them with dotPath where the glyph needs the
+ * soft-serve terminal §1 trait 04 asks for.
+ */
+export function segPath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  w: number,
+): string {
+  const [dx, dy] = [x2 - x1, y2 - y1]
+  return bandPath(
+    (x1 + x2) / 2,
+    (y1 + y2) / 2,
+    Math.hypot(dx, dy),
+    w,
+    (Math.atan2(dy, dx) * 180) / Math.PI,
+  )
+}
+
+/**
+ * An n-pointed star with every vertex radiused — the outer points AND the
+ * inner notches, because §1 trait 04 admits no sharp miter anywhere, not just
+ * on the silhouette. Vertices alternate rOuter/rInner starting straight up.
+ *
+ * Each corner is cut back along both of its edges by `corner` and rejoined
+ * with a quadratic through the original apex: the curve is tangent to both
+ * edges at the cut points, so the terminal reads as a fillet rather than as a
+ * bevel. The cut is clamped to half the shorter edge so the fillets of two
+ * adjacent corners can never cross and turn the outline inside out.
+ */
+export function starPath(
+  cx: number,
+  cy: number,
+  rOuter: number,
+  rInner: number,
+  points = 5,
+  corner = 2,
+): string {
+  const pts: Array<[number, number]> = []
+  for (let i = 0; i < points * 2; i++) {
+    const t = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2
+    const r = i % 2 === 0 ? rOuter : rInner
+    pts.push([cx + Math.cos(t) * r, cy + Math.sin(t) * r])
+  }
+  const n = pts.length
+  let d = ''
+  for (let i = 0; i < n; i++) {
+    const [vx, vy] = pts[i]
+    const [px, py] = pts[(i - 1 + n) % n]
+    const [nx, ny] = pts[(i + 1) % n]
+    const lp = Math.hypot(px - vx, py - vy)
+    const ln = Math.hypot(nx - vx, ny - vy)
+    const c = Math.min(corner, lp / 2, ln / 2)
+    const a: [number, number] = [vx + ((px - vx) / lp) * c, vy + ((py - vy) / lp) * c]
+    const b: [number, number] = [vx + ((nx - vx) / ln) * c, vy + ((ny - vy) / ln) * c]
+    d +=
+      (i === 0 ? `M${round(a[0])} ${round(a[1])}` : `L${round(a[0])} ${round(a[1])}`) +
+      `Q${round(vx)} ${round(vy)} ${round(b[0])} ${round(b[1])}`
+  }
+  return `${d}Z`
+}
+
 /** Two decimals: at the §4 minimum size one unit of a 100-wide viewBox is a
     third of a pixel, so more precision only inflates the bundle. */
 function round(n: number): number {

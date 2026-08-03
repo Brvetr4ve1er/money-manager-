@@ -396,14 +396,20 @@ everywhere.
 | Favicon | `public/icon.svg` | Generated from the mark. Current. |
 | Maskable icon | `public/icon-maskable.svg` | Generated. Mark at 62% inside the safe zone. |
 | Social card (master) | `public/og.svg` | Generated. THE BRICK WALL, current palette. |
-| Social card (raster) | `public/og.png` | **Stale.** Pre-system flame card. Must be re-rasterised from `og.svg` — crawlers reject SVG. |
-| iOS touch icon | `public/apple-touch-icon.png` | **Stale.** Re-rasterise from `icon-maskable.svg` at 180×180. |
+| Social card (raster) | `public/og.png` | Generated, 1200×630. §5E THE OBJECT — the mark alone on flat Flare, one 38° shear, no type. Crawlers reject SVG, so this is the one crawlers get. |
+| iOS touch icon | `public/apple-touch-icon.png` | Generated, 180×180. Maskable badge; the mark clears the iOS corner mask. |
 | Manifest | `public/manifest.webmanifest` | Current. Flare theme, Bone splash. |
 | Display / mono woff2 | — | **Missing.** See §3. |
 
-Regenerate the vector assets with `npm run brand`. The two PNGs need a
-rasteriser this repo deliberately does not depend on; converting them is an
-out-of-band step and a deploy-checklist item in the README.
+Regenerate every asset with `npm run brand` — vectors and PNGs alike. The
+rasteriser is `scripts/raster.ts`, written on `node:zlib` and `node:buffer`
+only, so the PNGs cost this repo no dependency. Output is byte-stable across
+runs: regenerating without changing the mark leaves the files identical.
+
+The raster card carries no type, because `raster.ts` has no font engine and
+shipping one is not proportionate. `og.svg` keeps the typeset BRICK WALL for
+surfaces that render SVG; the words a crawler needs live in `og:title` and
+`og:description`, which are rendered as text beside the image.
 
 ---
 

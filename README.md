@@ -16,7 +16,7 @@
 NO ACCOUNT  ·  NO BANK LINK  ·  EXPORT ALWAYS
 ```
 
-Built for Algeria and the wider MENA region. Manual logging in dinars. Every
+Built for Algeria. Manual logging in dinars. Every
 byte lives in your browser's local storage — there is no server, no sign-up
 and nothing to connect. Close the tab and Ember has nothing on you.
 
@@ -33,7 +33,7 @@ tells you the tradeoff.
 
 ```
 01/04  HEALTH SCORE    Five components. Shrunk for thin data. Explains; never advises.
-02/04  THE RESIST      Kept, not spent. Summed for the month. Never fed into the score.
+02/04  THE RESIST      Kept, not spent. Summed for the month. The total is not a score input.
 03/04  THE SIMULATOR   Baseline against scenario. States the tradeoff. Never the verdict.
 04/04  THE MONSTER     Last week's spend is its HP. Beatable. Never shaming.
 ```
@@ -73,12 +73,20 @@ Vite 5 · React 18 · TypeScript strict · Vitest. No runtime dependency beyond
 ```bash
 npm test        # the engine, state and component suites
 npm run build   # type-check and produce a production build
-npm run brand   # regenerate public/icon.svg, icon-maskable.svg and og.svg
+npm run brand   # regenerate every asset in public/ from the mark's geometry
 ```
 
-`npm run brand` emits the favicon, the maskable icon and the social card from
-`src/components/monogramGeometry.ts` — the same path data the app renders its
-mark with, so a shipped asset cannot drift from the mark in the product.
+`npm run brand` emits the favicon, the maskable icon, the social card and both
+PNGs from `src/components/monogramGeometry.ts` — the same path data the app
+renders its mark with, so a shipped asset cannot drift from the mark in the
+product. The two PNGs (`og.png`, `apple-touch-icon.png`) exist because social
+crawlers reject SVG and Safari ignores SVG touch icons; they are rasterised by
+`scripts/raster.ts`, which is Node built-ins only — no rasteriser dependency,
+runtime or otherwise. That writer has no font engine, so `og.png` renders §5
+layout E (THE OBJECT — the mark alone on flat Flare, one 38° shear, no type)
+while `og.svg` keeps layout A with its typeset lines. The words the card used
+to carry are in `og:title`/`og:description`, which every crawler renders as
+text beside the image.
 
 ## Install it
 
@@ -107,13 +115,10 @@ Deploy checklist:
       `og:url` tag and a `<link rel="canonical">`
 - [ ] `dist/robots.txt` and `dist/sitemap.xml` present and pointing at that origin
 - [ ] `/manifest.webmanifest`, `/icon.svg`, `/icon-maskable.svg` served
-- [ ] **`/og.png` re-rasterised from `public/og.svg` at 1200×630.** The
-      committed PNG predates `docs/brand/DESIGN-SYSTEM.md` and is off-brand
-      (old palette, drop shadow, horizontal wordmark, no diagonal). `og.svg` is
-      the correct card; the crawlers above all reject SVG and this repo takes
-      no rasteriser dependency to convert it, so the conversion is a deliberate
-      out-of-band step. Same applies to `/apple-touch-icon.png` (180×180),
-      which should be re-rasterised from `public/icon-maskable.svg`.
+- [ ] `/og.png` (1200×630) and `/apple-touch-icon.png` (180×180) served, and
+      regenerated with `npm run brand` if the mark changed — both are emitted
+      from the mark's geometry and the output is byte-stable, so a re-run on an
+      unchanged mark produces no diff
 
 ## Design
 

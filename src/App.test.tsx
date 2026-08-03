@@ -176,7 +176,10 @@ describe('logging quick wins', () => {
 
   it('flags a yielded impulse via the checkbox — honesty pays the normal +5, never less', () => {
     render(<App />)
-    const box = () => screen.getByLabelText('This was an impulse I gave in to') as HTMLInputElement
+    // Copy change, deliberate: the checkbox label is "I bought it anyway" —
+    // the Trust Rule 3 phrasing Landing and README already quote. The old
+    // label made the user write a concession verb about themselves.
+    const box = () => screen.getByLabelText('I bought it anyway') as HTMLInputElement
     fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '300' } })
     fireEvent.click(box())
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
@@ -333,10 +336,16 @@ describe('daily lesson + codex', () => {
 
   it('shows locked lessons as silhouettes without leaking their titles', () => {
     render(<App />)
-    const locked = screen.getAllByLabelText('Locked lesson')
+    // Queried by TEXT, not by aria-label: the locked tile now names its state
+    // with an .sr-only prefix inside the <li> instead of an aria-label on it.
+    // aria-label on a listitem is inconsistently honoured, and where it is
+    // ignored the tile computed an empty name — this asserts the mechanism
+    // that works everywhere. The "no title leaked" half is unchanged: the
+    // whole tile still reads as the state marker plus the "?" silhouette.
+    const locked = screen.getAllByText('Locked lesson')
     expect(locked).toHaveLength(30)
-    for (const tile of locked.slice(0, 3)) {
-      expect(tile.textContent).toBe('?')
+    for (const label of locked.slice(0, 3)) {
+      expect(label.closest('li')?.textContent).toBe('Locked lesson?')
     }
   })
 })
@@ -691,7 +700,10 @@ describe('weekly boss battle', () => {
   it('shows the honest sizing-up state instead of fake numbers under two weeks of data', () => {
     render(<App />)
     expect(screen.getByText(/still sizing you up/)).toBeTruthy()
-    expect(screen.getByText(/no numbers on you yet/i)).toBeTruthy()
+    // Case-exact: the shipped line is "No numbers on you yet." and this is a
+    // Trust Rule 5 assertion — the /i flag would let a shouted or lowercased
+    // rewrite pass an honest-cold-start check.
+    expect(screen.getByText(/No numbers on you yet/)).toBeTruthy()
     // No invented opponent total anywhere on the card.
     expect(screen.queryByText(/\/ 0 DA/)).toBeNull()
   })

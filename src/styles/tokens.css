@@ -239,13 +239,36 @@ body {
   }
 }
 
+/* §3's three tiers, one heading level each. The rule this replaces set every
+   heading in the Tier 1 display face at 900 and gave all three levels h3's
+   leading and tracking — which put "Level 4 · Kindling" and "My numbers" in
+   Archivo Black. Tier 1 is for 1–3 words, stacked, inside a container: the
+   wordmark, the toast, the landing's shear band. A card title is none of
+   those, so headings run in Tier 2 (Grotesk) and each level takes the tokens
+   that were minted for it — --fs-h1 in particular had zero uses in src/.
+   Uppercase stays: it is the app's heading voice and §3 does not forbid it. */
 h1, h2, h3 {
-  font-family: var(--display);
-  font-weight: 900;
+  font-family: var(--ui);
   text-transform: uppercase;
-  letter-spacing: var(--tr-h3);
-  line-height: var(--lh-h3);
   margin: 0;
+}
+h1 {
+  font-weight: 700;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  letter-spacing: var(--tr-h1);
+}
+h2 {
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--tr-h2);
+}
+h3 {
+  font-weight: 500;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--tr-h3);
 }
 
 /* THE CONTAINER (§11), and the one place the shape law needs reading rather
@@ -371,7 +394,21 @@ h1, h2, h3 {
   transition: transform var(--t-instant) var(--ease-primary),
     border-radius var(--t-instant) var(--ease-primary);
 }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Every inert control in the app uses aria-disabled plus an onClick guard, so
+   nothing reaches this rule today — but it is live on the shared class, and
+   the first `disabled` attribute anyone adds would have shipped an unmeasured
+   pair: ink at 40% over Bone is 2.22:1, and a dimmed .btn-flame label is
+   1.42:1. §2.1 rule 3 has no inactive-component carve-out, so the dim is
+   replaced by a measured pair — --spec on --sunken is 4.78:1 light / 6.17:1
+   dark — and the dashed keyline says "pending, not pressable" in the same
+   language .codex-locked and .quest-auto already speak. Never put `opacity` on
+   a control whose foreground and field are both tokenised. */
+.btn:disabled {
+  color: var(--spec);
+  background: var(--sunken);
+  border-style: dashed;
+  cursor: not-allowed;
+}
 /* Primary action. See --cta-field: a Flare fill would put a 13px label on a
    3.79:1 field, which §2.1 rule 1 forbids, so Flare is the keyline and the
    plate is Graphite. */

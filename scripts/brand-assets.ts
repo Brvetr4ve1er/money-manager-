@@ -6,6 +6,8 @@
  *   public/icon-maskable.svg  the Android maskable icon — the badge inside a
  *                             full-bleed Flare field, mark held in the safe zone
  *   public/og.svg             the 1200x630 social card — §5A, THE BRICK WALL
+ *   public/og.png             the same card as a raster — §5E, THE OBJECT
+ *   public/apple-touch-icon.png  the iOS home-screen icon, 180x180
  *
  * WHY A SCRIPT AND NOT HAND-DRAWN SVG. Every previous Ember brand asset was
  * drawn by hand and every one of them drifted: the old favicon was a gold flame
@@ -15,9 +17,11 @@
  * same path data.
  *
  * NOT A RUNTIME DEPENDENCY AND NOT A BUILD STEP. It runs on bare Node's type
- * stripping (`npm run brand`, Node >= 22), produces plain text, and nothing in
- * the app or the build imports it. The outputs are committed; re-run it only
- * when the mark or the card copy changes.
+ * stripping (`npm run brand`, Node >= 22) over Node built-ins only — the two
+ * PNGs go through scripts/raster.ts, which is a scan converter and a PNG
+ * writer in about 400 lines rather than a native rasteriser package. Nothing
+ * in the app or the build imports any of it. The outputs are committed and
+ * byte-stable; re-run it only when the mark or the card copy changes.
  *
  * COLOURS ARE INLINE HEXES HERE, which is the one place in this repo that is
  * allowed. These files are loaded OUTSIDE the document — a favicon and an
@@ -30,6 +34,16 @@ import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { GEOMETRY } from '../src/components/monogramGeometry.ts'
+import { bandPath } from '../src/components/shape.ts'
+import {
+  createSurface,
+  encodePng,
+  fillPath,
+  grain,
+  strokePath,
+  type Surface,
+} from './raster.ts'
+import type { Buffer } from 'node:buffer'
 
 /** §2 CORE. The only three tones the mark is built from (§4). */
 const FLARE = '#F93E06'
@@ -171,6 +185,75 @@ function og(): string {
   )
 }
 
+/* ── The two rasters ──────────────────────────────────────────────────────
+   og.png and apple-touch-icon.png cannot be SVG: every social crawler that
+   matters rejects SVG, and Safari ignores SVG touch icons. Both were drawn by
+   hand before the design system existed and both had drifted — the card still
+   read "BUILD FINANCIAL INSTINCTS", a claim HeroShell deleted from the product
+   for naming a faculty the app cannot measure (§12.4). They are generated from
+   the same GEOMETRY as everything above now, so they cannot drift again.
+
+   scripts/raster.ts does the scan conversion in Node built-ins only; see its
+   header for why no rasteriser package was taken. It has no font engine, which
+   is the one real constraint on what these can be — so the card drops from §5
+   layout A (og.svg, which keeps it, because README renders the SVG where a
+   font engine exists) to §5 layout E, THE OBJECT: "single hard-lit product on
+   flat Flare, centered, no shadow, no context". No type on it at all. The
+   words live in og:title and og:description, which every crawler renders as
+   text beside the image anyway — and §7's brief is to say less than you want
+   to. The landing page already ships this exact composition as .lp-object. */
+
+/** The mark, painted into a surface. Mirrors markBody's layer order exactly:
+    field, ink, counters, the one diagonal, then the keyline outside the clip
+    (a clipped stroke loses its outer half). */
+function paintMark(
+  s: Surface,
+  variant: 'badge' | 'brick',
+  place: { tx: number; ty: number; k: number },
+): void {
+  const g = GEOMETRY[variant]
+  const clip = g.container
+  fillPath(s, g.container, FLARE, place)
+  for (const d of g.ink) fillPath(s, d, GRAPHITE, place, { clip })
+  for (const d of g.counters) fillPath(s, d, BONE, place, { clip })
+  fillPath(s, g.band, BONE, place, { clip })
+  // 2px in OUTPUT pixels, not scaled by `place.k` — the raster equivalent of
+  // the SVGs' vector-effect="non-scaling-stroke" (§5: always 2px, never 1px,
+  // and it does not grow with the artwork).
+  strokePath(s, g.keyline, GRAPHITE, 2, place)
+}
+
+function ogPng(): Buffer {
+  const W = 1200
+  const H = 630
+  const brick = GEOMETRY.brick
+  const s = createSurface(W, H, FLARE)
+  // THE SHEAR — the one 38° diagonal (§1 trait 09), full-bleed and BEHIND the
+  // object, so the mark is what breaks it. Overshoot the box diagonal so it
+  // always reaches both edges.
+  fillPath(s, bandPath(W / 2, H / 2, Math.hypot(W, H) * 1.4, 8, -38), GRAPHITE)
+  // The object, dead-centre, at 80% of the frame height — macro-tight, the way
+  // §8 frames a specimen. Clearspace is 25% of container width (§4) = 60px;
+  // there is 480px of field on each side, so the ~60% negative field §5 asks
+  // for is comfortably there.
+  const k = (H * 0.8) / brick.h
+  paintMark(s, 'brick', { tx: (W - brick.w * k) / 2, ty: (H - brick.h * k) / 2, k })
+  grain(s)
+  return encodePng(s)
+}
+
+/* The iOS touch icon. Same construction as maskable() above: a full-bleed
+   field with the badge held at 62%, because iOS applies its own corner mask
+   and only the centre survives a crop. 180x180 is the size iOS asks for. */
+function touchIconPng(): Buffer {
+  const S = 180
+  const badge = GEOMETRY.badge
+  const s = createSurface(S, S, FLARE)
+  const k = (S * 0.62) / badge.w
+  paintMark(s, 'badge', { tx: (S - badge.w * k) / 2, ty: (S - badge.h * k) / 2, k })
+  return encodePng(s)
+}
+
 function round(n: number): number {
   return Math.round(n * 100) / 100
 }
@@ -182,5 +265,12 @@ for (const [name, body] of [
   ['og.svg', og()],
 ] as const) {
   writeFileSync(join(OUT, name), body + '\n')
+  console.log(`[ember] wrote public/${name}`)
+}
+for (const [name, body] of [
+  ['og.png', ogPng()],
+  ['apple-touch-icon.png', touchIconPng()],
+] as const) {
+  writeFileSync(join(OUT, name), body)
   console.log(`[ember] wrote public/${name}`)
 }

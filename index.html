@@ -22,39 +22,62 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- Add-to-home-screen: name, standalone display, the icon set and the
          splash colours. Without it Android gets a bookmark with no identity
-         and iOS gets a chrome-framed one. -->
+         and iOS gets a chrome-framed one.
+
+         The manifest carries NO "orientation" key, and that is a decision, not
+         an omission (JSON takes no comments, so it is recorded here). Locking
+         it to portrait fails WCAG 2.1 SC 1.3.4 — orientation is not essential
+         to a ledger — and it would strand the installed app on the ≥1024px
+         two-column layout app.css already ships. The spec default is "any". -->
+
     <link rel="manifest" href="/manifest.webmanifest" />
     <!-- Social cards (WhatsApp/Facebook/Telegram are the dominant share
          channels in the target market). Those crawlers require ABSOLUTE
          image URLs: set VITE_SITE_URL at build time and vite.config.ts
          rewrites the /og.png references and injects og:url + canonical.
 
-         og.png IS THE ONE ASSET STILL OFF-BRAND. The card is authored as
-         public/og.svg (THE BRICK WALL, current palette, one 38° shear, mono
-         spec labels) but every one of these crawlers rejects SVG, and this
-         repo carries no rasteriser and takes no new dependency to get one. So
-         the committed PNG — a pre-design-system flame card — stays referenced
-         because a working card beats no card, and re-rasterising og.svg to
-         1200x630 is a checklist item in README "Deploying". Point this at the
-         new PNG the moment it exists; do not point it at the SVG. -->
+         og.png is now GENERATED, by `npm run brand`, from the same geometry
+         the app draws its mark with — it is no longer the hand-drawn
+         pre-design-system card. It renders §5 layout E (THE OBJECT) rather
+         than og.svg's layout A, and that split is deliberate: the repo owns no
+         rasteriser and takes no dependency to get one, so the PNG writer in
+         scripts/brand-assets.ts can fill and stroke paths but cannot set type.
+         Layout E is the one signature layout that needs no type at all — the
+         mark alone, hard-lit, dead-centre on flat Flare. The words the card
+         used to carry are in og:title and og:description below, which every
+         one of these crawlers renders as text beside the image anyway.
+
+         og.svg keeps layout A (it is the README header, where a real font
+         engine is present). The alt text below describes the PNG, because the
+         PNG is what ships to a crawler. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Ember" />
     <meta property="og:locale" content="en_US" />
-    <meta property="og:title" content="Ember — build financial instincts" />
+    <meta property="og:title" content="Ember — a money app that runs on your phone, not on your bank" />
     <meta property="og:description" content="A money app that runs on your phone, not on your bank. Log the spend in DA, read the numbers. No account, no bank link, full export." />
     <meta property="og:image" content="/og.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="The Ember mark and wordmark on an orange field, over the line: built flat, logged in DA." />
+    <meta property="og:image:alt" content="The Ember mark — the EMB letter stack in a rounded container — alone and dead-centre on a flat orange field, crossed by one 38-degree graphite diagonal." />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Ember — build financial instincts" />
+    <meta name="twitter:title" content="Ember — a money app that runs on your phone, not on your bank" />
     <meta name="twitter:description" content="A money app that runs on your phone, not on your bank. Log the spend in DA, read the numbers. No account, no bank link, full export." />
     <meta name="twitter:image" content="/og.png" />
-    <meta name="twitter:image:alt" content="The Ember mark and wordmark on an orange field, over the line: built flat, logged in DA." />
+    <meta name="twitter:image:alt" content="The Ember mark — the EMB letter stack in a rounded container — alone and dead-centre on a flat orange field, crossed by one 38-degree graphite diagonal." />
     <!-- The tab, the bookmark, the SERP line and every Slack/Teams unfurl
-         headline read this. The bare word "Ember" told a stranger nothing. -->
-    <title>Ember — build financial instincts</title>
+         headline read this. The bare word "Ember" told a stranger nothing —
+         and "build financial instincts", which stood here, named a faculty the
+         app cannot measure and does not train (see HeroShell.tsx, where the
+         same string was cut from the hero for grazing §12.4). What ships here
+         is the positioning line, and it maps to code: no account, no bank
+         link, everything in this browser.
+
+         Kept as one sentence rather than the §7 rule-2 fragments the on-page
+         lede uses: a <title> and an unfurl headline arrive with no page around
+         them, so this is the one surface that has to name the category before
+         it names the differentiator. Landing.tsx records the same split. -->
+    <title>Ember — a money app that runs on your phone, not on your bank</title>
   </head>
   <body>
     <div id="root"></div>

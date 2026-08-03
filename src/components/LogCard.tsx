@@ -170,15 +170,20 @@ export function LogCard({
             </select>
           </label>
         </div>
-        {/* Neutral phrasing on purpose — a factual self-report, never a
-            confession. The whole label is the tap target (48px row). */}
+        {/* "I bought it anyway" — the string Trust Rule 3 names, and the
+            string Landing.tsx and README already quote as the app's phrasing.
+            What shipped here was "This was an impulse I gave in to": a
+            concession verb about the user, which is the failure framing §7.1
+            forbids ("blunt is fine; blame is not") and the one place in the
+            product where the user is asked to editorialise about themselves.
+            Four words, leads with the object, states the fact and stops. */}
         <label className="impulse-check">
           <input
             type="checkbox"
             checked={impulse}
             onChange={(e) => setImpulse(e.target.checked)}
           />
-          <span>This was an impulse I gave in to</span>
+          <span>I bought it anyway</span>
         </label>
         {error && (
           <p className="field-error" id="log-error" role="alert">{error}</p>

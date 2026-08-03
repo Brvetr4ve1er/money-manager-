@@ -29,9 +29,15 @@ export function CodexCard({ collectedIds }: { collectedIds: ReadonlySet<string> 
               <span className="codex-tile-line">{l.oneLiner}</span>
             </li>
           ) : (
-            /* Silhouette: no title spoiler. The "?" is decoration; the
-               aria-label names the state for AT without leaking the lesson. */
-            <li key={l.id} className="codex-tile codex-locked" aria-label="Locked lesson">
+            /* Silhouette: no title spoiler. The state is named by an .sr-only
+               prefix, not by aria-label on the <li>: role="listitem" does
+               support author naming, but AT support for it is inconsistent, and
+               where it is ignored the tile computes an EMPTY name and twenty-odd
+               locked entries announce as nothing. Name-from-contents works
+               everywhere and still leaks no lesson title — the same pattern
+               AchievementsCard uses for the same state. */
+            <li key={l.id} className="codex-tile codex-locked">
+              <span className="sr-only">Locked lesson</span>
               <span className="codex-tile-title" aria-hidden="true">?</span>
             </li>
           ),
