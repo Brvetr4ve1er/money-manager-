@@ -1,0 +1,40 @@
+# The 288-test suite and the type-checked build are the release floor for this
+# repo. Without CI they only ever ran on a contributor's machine, so a red
+# branch could reach main unnoticed. Both jobs are cheap; run them on every
+# push and pull request.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# A new push to the same branch makes the in-flight run obsolete — cancel it
+# rather than paying for a result nobody will read.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # Vite 5 and Vitest resolve from the lockfile; caching it keeps the
+          # install step off the critical path.
+          cache: npm
+
+      # `npm ci` not `npm install`: it installs the locked tree exactly and
+      # fails if package.json and the lockfile have drifted apart, which is
+      # itself a defect worth catching here.
+      - run: npm ci
+
+      - run: npm test
+
+      # `tsc -b && vite build` — this is what catches strict-mode type errors
+      # that the test run alone will not surface.
+      - run: npm run build
