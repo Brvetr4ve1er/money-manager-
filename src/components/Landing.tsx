@@ -656,11 +656,20 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
               lockups exist for exactly this (§4 LOCKUP VARIANTS). */}
           <Monogram variant="knockout" className="lp-foot-mark" />
           <p className="lp-signoff">No newsletter. We'll be here.</p>
-          <nav className="lp-foot-links" aria-label="Project">
-            <a href="https://github.com/Brvetr4ve1er/money-manager-">Source</a>
-            <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</a>
-          </nav>
         </div>
+        {/* OUTSIDE THE PLATE, on the section's Espresso field. §5C's plate is
+            the LOCKUP — mark plus sign-off — and these two are navigation
+            hanging off it, so this is the composition read literally rather
+            than a concession. CONSTRAINT §2.1b: accent is capped at 2% of the
+            document and the footer is this page's only accent surface, so the
+            plate's area IS the budget. Two 48px link targets and their wrap gap
+            were about a third of it. Bone on Espresso is 13.4:1 against the
+            6.2:1 they had on Marigold, and the focus ring moves with them —
+            see .lp-foot-links in landing.css. */}
+        <nav className="lp-foot-links" aria-label="Project">
+          <a href="https://github.com/Brvetr4ve1er/money-manager-">Source</a>
+          <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</a>
+        </nav>
       </footer>
     </div>
   )

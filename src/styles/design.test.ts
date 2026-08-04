@@ -508,6 +508,97 @@ describe('§2 — the ratio law and the palette budget', () => {
     })
   })
 
+  describe('§2.1b — the two plates, and the ground that must not run a screen', () => {
+    /** A plate's token block, by class name and by media condition. `null`
+        condition means the unconditional rule. Found by search rather than by
+        position so re-ordering tokens.css cannot make an assertion match
+        nothing — the trap the counter-sheet block above already documents. */
+    const plate = (cls: string, condition: string | null) => {
+      const re =
+        condition === null
+          ? new RegExp(`\\n\\.${cls} \\{([\\s\\S]*?)\\n\\}`)
+          : new RegExp(
+              `@media ${condition.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{\\s*\\.${cls} \\{([\\s\\S]*?)\\n  \\}`,
+            )
+      return re.exec(TOKENS)?.[1] ?? ''
+    }
+    const roles = (block: string) =>
+      Object.fromEntries(
+        ['--ground', '--field', '--sunken', '--ink', '--counter'].map((n) => [n, decl(block, n)]),
+      )
+
+    it('gives the counter plate the sheet’s own light half, declaration for declaration', () => {
+      // WHY THIS EXISTS AT ALL. §2.1b measures each VIEWPORT WINDOW, and at
+      // tree 71b5608 the phone failed 5 of 7 windows in light and 7 of 7 in
+      // dark while both document averages looked ordinary. The unit that has to
+      // alternate is smaller than a card — SimCard alone is over a viewport
+      // tall — so the plate is a ground change inside a container.
+      // Its LIGHT half is .spec-sheet's block verbatim, and that is asserted
+      // rather than described: every pair inside a counter plate in light is
+      // then a pair §5B's sheet has already shipped and measured.
+      expect(roles(plate('counter-plate', null))).toEqual(roles(sheet()))
+      expect(plate('counter-plate', null)).toMatch(
+        /--spec: color-mix\(in srgb, var\(--ink\) 70%, var\(--ground\)\)/,
+      )
+    })
+
+    it('gives the counter plate’s dark half BONE — the light theme’s own surface', () => {
+      // NOT the archive sheet's Sand, and the difference is the safety
+      // argument. §4 says "Counters are BONE" unconditionally; §2 gives Sand to
+      // "aged paper, spec sheets" and the archive is one. On Bone the plate's
+      // interior is EXACTLY the light theme's reading surface, so no foreground
+      // that lands on one is a pair this app has not already measured — Flare
+      // is 3.02:1 there against 2.51:1 on Sand, which is the pair that holds
+      // .btn-flame and .boss-fill off the archive's Sand ground.
+      const dark = plate('counter-plate', '(prefers-color-scheme: dark)')
+      expect(dark).not.toBe('')
+      expect(roles(dark)).toEqual(roles(root()))
+      // Re-declared, never inherited: a custom property's var() references are
+      // substituted where it is DECLARED (see .spec-sheet above).
+      expect(dark).toMatch(/--spec: color-mix/)
+      expect(dark).toMatch(/--spec-sunken: color-mix/)
+    })
+
+    it('makes the reading plate the page’s own ground, in both themes', () => {
+      // The dual: .reading-plate is what interrupts a run inside a container
+      // that is ALREADY on the counter, which in this app is the archive. Its
+      // two halves are the two halves of :root, so — like the counter plate's
+      // dark half — it introduces no pair the app has not shipped.
+      expect(roles(plate('reading-plate', null))).toEqual(roles(root()))
+      expect(roles(plate('reading-plate', '(prefers-color-scheme: dark), (min-width: 1400px)')))
+        .toEqual(roles(dark()))
+    })
+
+    it('keys the reading plate on the archive’s own condition, not on the theme', () => {
+      // THE COMMA IS AN OR, and it is the same OR the counter sheet uses. The
+      // archive is Sand in dark at any width and in EITHER theme from 1400px
+      // up; keyed on the theme alone, light at >=1400px left a Bone plate on a
+      // Sand sheet — two hexes, one bucket, no alternation at all. Measured in
+      // that state: app.1440x900.light.seeded window @3600 read 25.00% field /
+      // 70.27% Bone, worse than the row the plate was added to fix.
+      const archiveCondition =
+        /@media ([^{]*?) \{\s*\.spec-sheet\.archive-card \{/.exec(TOKENS)?.[1] ?? ''
+      const plateCondition =
+        /@media ([^{]*?) \{\s*\.reading-plate \{/.exec(TOKENS)?.[1] ?? ''
+      expect(plateCondition).toBe(archiveCondition)
+      expect(plateCondition).toBe('(prefers-color-scheme: dark), (min-width: 1400px)')
+    })
+
+    it('draws the counter plate with no keyline and the reading plate with one', () => {
+      // Measured, not stylistic. A counter plate's fill IS its boundary —
+      // 13.4:1 Espresso on Bone in light, 11.4:1 Bone on Espresso in dark — and
+      // a --keyline stroke there would be Bone on Bone (1:1) or Graphite on
+      // Espresso (1.16:1). The reading plate has one because one of its three
+      // placements has no fill offset to spend: at >=1400px in light the
+      // archive is Sand and Bone on Sand is 1.20:1, where the Graphite keyline
+      // is 9.5:1 outside and 11.4:1 inside.
+      expect(plate('counter-plate', null)).not.toMatch(/\n  border:/)
+      expect(plate('reading-plate', null)).toMatch(
+        /border: var\(--keyline-w\) solid var\(--keyline\)/,
+      )
+    })
+  })
+
   it('recesses the input off the card it sits in', () => {
     expect(APP).toMatch(/\.field \{[^}]*background: var\(--sunken\)/)
     // …and the placeholder takes the mix measured against THAT surface: --spec
@@ -720,11 +811,17 @@ describe('§12.8 / Trust Rule 1 — the month strip states, it does not judge', 
   })
 
   it('cuts the macro-break above the card that OPENS the archive', () => {
-    // --s3 gap + --s4 margin = a whole step of the scale between the act-now
-    // half of the stack and the read-only half. It rides on the ARCHIVE card,
-    // which now holds the month figures and the days together — so there is no
-    // longer a seam inside the archive for the page's loudest gap to fall into.
-    expect(APP).toMatch(/\n\.archive-card \{ margin-top: var\(--s4\); \}/)
+    // A WHOLE STEP of the scale between the act-now half of the stack and the
+    // read-only half, and the arithmetic is `stack gap + this margin`. It rides
+    // on the ARCHIVE card, which now holds the month figures and the days
+    // together — so there is no longer a seam inside the archive for the page's
+    // loudest gap to fall into.
+    // TWO VALUES, because the stack gap has two: the phone runs --s4 between
+    // cards (CONSTRAINT §2.1b — see .main-stack) and from 768px up it runs
+    // --s3. --s4 + --s5 = --s6 and --s3 + --s4 = --s5, so the break is a step
+    // of §6's scale at both widths rather than a number that happens to be big.
+    expect(APP).toMatch(/\n\.archive-card \{ margin-top: var\(--s5\); \}/)
+    expect(APP).toMatch(/\n  \.archive-card \{ margin-top: var\(--s4\); \}/)
     expect(APP).not.toMatch(/\.ledger-card \{ margin-top/)
     expect(APP).not.toMatch(/\.month-card \{ margin-top/)
   })
@@ -1282,7 +1379,10 @@ describe('§2.2 — the counter sheet re-grounds the archive without drifting', 
  */
 describe('§5A — the landing badge stops being a slab on the phone', () => {
   it('drops the fill and keeps the keyline below 720px', () => {
-    const phone = /@media \(max-width: 719px\) \{\s*\.lp-badge \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
+    const phone =
+      /@media \(max-width: 719px\) \{\s*\.lp-badge:not\(:nth-child\(3n\)\) \{([^}]*)\}/.exec(
+        LANDING,
+      )?.[1] ?? ''
     expect(phone).not.toBe('')
     // §1 trait 05's optical outline replaces the fill: no background, and the
     // ink and the ring both move to the counter so they read on the Espresso
@@ -1293,6 +1393,13 @@ describe('§5A — the landing badge stops being a slab on the phone', () => {
     expect(phone).toMatch(/color: var\(--lp-counter\)/)
     expect(phone).toMatch(/border-color: var\(--lp-counter\)/)
     expect(phone).not.toMatch(/border-radius|corner-shape|padding|border-width/)
+    // …AND IT IS NOT EVERY BADGE. CONSTRAINT §2.1b: eight keyline badges in a
+    // 1-up column is 1487px of unbroken Espresso on a 375px phone, which put
+    // window @3248 at 89.77% field / 4.89% Bone at tree 71b5608 — over the 85
+    // cap and under the 15 floor on one screen. Every third badge keeps its
+    // fill, so the longest keyline run is two badges. The :not() is the whole
+    // mechanism; a bare .lp-badge here would reinstate the breach.
+    expect(LANDING).toMatch(/\.lp-badge:not\(:nth-child\(3n\)\)/)
   })
 
   it('leaves the badge a filled plate at the width where it is an object', () => {

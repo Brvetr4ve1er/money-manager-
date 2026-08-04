@@ -34,14 +34,22 @@
    --s3 rather than --s2 on purpose — it is the STAGE showing beside the
    containers, and at 375px that is 12.8% of the page: real field, not a
    hairline inset. The foot carries the same measure as a plate.
-   RHYTHM: --s3 between cards, not --s2. Nine cards at one 16px gap read as a
-   single undifferentiated ribbon, and §5's grid is 8px-snapped at every step.
+   RHYTHM: --s4 between cards, and it was --s3 until the plates landed. Nine
+   cards at one 16px gap read as a single undifferentiated ribbon, and §5's grid
+   is 8px-snapped at every step. The step up is CONSTRAINT §2.1b, measured: the
+   gap is the only pure-field length in the whole stack (100% Flare, against
+   12.80% on a card row), so it is the one lever that raises field and dilutes
+   the accent budget at the same time. At --s3 the phone measured accent 2.01%
+   in dark and 2.03% in light against §2.1b's 2% document cap, and the dark
+   mean-of-windows Bone at 36.71% against a 30±6 tolerance; the accent AREA did
+   not change, the document it is measured against did.
    The macro-break that separates the act-now cards from the archive is on
-   .archive-card below — one gap value for a whole page is not rhythm. */
+   .archive-card below — one gap value for a whole page is not rhythm — and it
+   moves with this one so the break stays a whole step of the scale. */
 .main-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
+  gap: var(--s4);
   width: 100%;
   max-width: calc(520px + var(--s3) * 2);
   margin-inline: auto;
@@ -51,9 +59,10 @@
    boss, lesson, simulator, setup); the archive card below is the archive —
    you read it, you do not act on it. (It used to be two cards: the collection
    sheet sat here too, and it was the one thing in the read half that was not
-   a record. It is deleted.) --s3 gap +
-   --s4 margin = --s5 of stage between the two halves, so the break is a whole
-   step of the scale and reads as one at a glance.
+   a record. It is deleted.) --s4 gap +
+   --s5 margin = --s6 of stage between the two halves, so the break is a whole
+   step of the scale and reads as one at a glance. Both halves moved up one
+   step together when the stack gap did — see .main-stack above.
 
    IT IS NOT THE SAME LINE AS THE GROUND, and the two are easy to confuse now
    that BossCard stands on .spec-sheet above it. This break is a
@@ -65,7 +74,24 @@
    It rides on whichever card OPENS the archive, which is the archive card
    itself — the month figures and the days under them are one surface now, so
    there is no longer a seam inside the archive for this break to fall into. */
-.archive-card { margin-top: var(--s4); }
+.archive-card { margin-top: var(--s5); }
+
+/* THE PLATES' BOX, where the component's own rule already sets padding.
+   .counter-plate and .reading-plate declare `padding: var(--s2)` in tokens.css,
+   but tokens.css is imported FIRST (see App.tsx) and every selector here is
+   (0,1,0) too — so a later `padding: 0` on the same element would win the
+   cascade on equal specificity and the plate would render as a bare fill with
+   its text touching the edge. Listed rather than fixed at each site so the
+   set of elements that need the override is one readable list, and so removing
+   a plate class cannot silently leave a component without the padding its own
+   rule was written to zero (list resets, fieldset defaults).
+   CONSTRAINT: §2.1b's per-window band — see .counter-plate in tokens.css. */
+.note-pad.counter-plate,
+.quest-list.counter-plate,
+.profile-rows.counter-plate,
+.decision.counter-plate {
+  padding: var(--s2);
+}
 
 /* One header, two lives (see HeroShell.tsx): these base rules are the phone
    and tablet band, the ≥1024px block at the end of this file turns the SAME
@@ -1111,6 +1137,19 @@ button.quest-row:not([aria-disabled='true']) { cursor: pointer; }
 div.quest-row .quest-box { border-style: dashed; }
 .quest.done div.quest-row .quest-box { border-style: solid; }
 button.quest-row:not([aria-disabled='true']):hover .quest-box { background: var(--sunken); }
+/* …AND THE SAME STATE ON A COUNTER PLATE, WHICH HAS NO RECESS TO SHOW.
+   CONSTRAINT §2.1b put the quest list on .counter-plate (see QuestCard), and a
+   plate declares --sunken as its OWN ground for the reason .spec-sheet does —
+   so the hover fill above resolves to Espresso on Espresso in light, 1:1, and
+   the app's most-tapped list loses its hover state on the one theme. The
+   distinction moves to §1 trait 05's second contour, which is what .btn:hover
+   already draws and what the plate does have: --keyline is Bone here, 13.4:1
+   on the plate's field. Offset by 2px like every other hover ring in this
+   file, and outside the box, so nothing reflows under the pointer. */
+.counter-plate button.quest-row:not([aria-disabled='true']):hover .quest-box {
+  outline: var(--keyline-w) solid var(--keyline);
+  outline-offset: 2px;
+}
 /* §9 move 5, scaled to a 32px box: --press is `none` under reduced motion, so
    the background swap above carries the feedback there. */
 button.quest-row:not([aria-disabled='true']):active .quest-box {
@@ -1367,13 +1406,20 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   margin: 0 0 var(--s1);
 }
 .decision-list { list-style: none; margin: 0; padding: 0; }
-/* Ink rule between rows, same family as .tx and .profile-row: §11 has exactly
-   one border and it is 2px graphite. */
-.decision {
-  padding: var(--s1) 0;
-  border-bottom: var(--keyline-w) solid var(--keyline);
-}
-.decision:last-child { border-bottom: none; }
+/* EACH RECORD IS A PLATE, and the ink rule between rows went with the change.
+   It used to be a 2px --keyline rule in the .tx / .profile-row family. The row
+   now carries .counter-plate (see SimCard) — §2.1b, and §1 trait 01 into the
+   bargain: the record stops being a run of lines and becomes a stack of
+   objects. A border-bottom inside the plate would be drawn in the PLATE's own
+   ink (Bone in light) along its bottom edge, i.e. a stroke marking nothing;
+   the --s1 gap between plates is the separator now, and the fill offset that
+   opens it is 13.4:1 rather than a 2px line.
+   PER ROW, NOT PER LIST: one plate over the whole record is itself a single
+   ground running longer than a viewport — the defect §2.1b's window band
+   measures — because on a 375px phone the record is ~700px tall on the seeded
+   fixture. Measured with one plate over .decision-record, window @3248 read
+   65.76% Bone in dark against the 65 cap and 78.30% field in light. */
+.decision + .decision { margin-top: var(--s1); }
 .decision-head {
   display: flex;
   align-items: baseline;
@@ -1869,7 +1915,18 @@ form > .profile-note { margin-top: var(--s1); }
     grid-template-columns: 1fr 1fr;
     align-items: start;
     max-width: calc(760px + var(--s3) * 2);
+    /* BACK TO --s3, and the phone keeps --s4 (see .main-stack above). The step
+       up is a field lever and the field it buys is only scarce on a phone: from
+       768px the grid opens a second gutter down the middle and the stage runs
+       either side of a measure that stops growing, so the same 16px costs the
+       desktop rows field they already have too much of. Measured with --s4 at
+       every width: app.1440x900.light.seeded ran mean-of-windows field 69.32
+       against the 60±8 tolerance and window @2700 at 83.52 over the 80 band. */
+    gap: var(--s3);
   }
+  /* --s3 gap + --s4 margin = --s5 of stage again at this width, the same whole
+     step the phone gets from --s4 + --s5. */
+  .archive-card { margin-top: var(--s4); }
   .foot { max-width: 760px; }
   /* The archive spans both tracks — a day-grouped list and a per-day bar
      strip are wide content, and the macro-break above it stays a full-width step

@@ -36,7 +36,10 @@ export function QuestCard({
     <section className="card" id="quests" tabIndex={-1} aria-labelledby="quests-title">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
       <span className="spec-label" aria-hidden="true">QST—03</span>
-      <div className="quest-head">
+      {/* CONSTRAINT §2.1b — see .counter-plate in tokens.css. .quest-alldone
+          rides here and stays legal: it is §1 trait 06's event chip, the same
+          exemption .kept-chip has on the archive sheet. */}
+      <div className="quest-head counter-plate">
         <h2 id="quests-title">Today's quests</h2>
         {/* Persistent visual counterpart to the completion arpeggio — sound
             never carries the moment alone. */}
@@ -80,7 +83,10 @@ export function QuestCard({
           />
         )}
       </div>
-      <ul className="quest-list">
+      {/* CONSTRAINT §2.1b — see .counter-plate. The XP bar above stays on the
+          reading ground: its Marigold fill is delimited by a --keyline stroke
+          measured against the Sand recess, which the plate does not have. */}
+      <ul className="quest-list counter-plate">
         {quests.map((q) => (
           <li key={q.id} className={q.done ? 'quest done' : 'quest'}>
             {q.verified ? (

@@ -335,9 +335,9 @@ It reads each page **twice**. The document reading is the whole-page average and
 is comparable with every figure the project published before the tool existed.
 The second reading, `scrollingForm`, cuts the document into viewport-height
 windows and measures each one, because a document average is not something
-anybody looks at: `app.375x812.light.seeded` averages 41.70% field over the
-document while its seven windows run 40.92, 15.79, 45.60, 15.46, 21.30, 89.12 and
-92.09 — a vector that appears on no screen. (Those are the committed rows at this
+anybody looks at: `app.375x812.light.seeded` averages 56.93% field over the
+document while its eight windows run 52.95, 44.03, 68.08, 47.75, 47.49, 72.11,
+56.53 and 74.07 — a vector that appears on no screen. (Those are the committed rows at this
 tree, quoted the way §2.1b requires. An earlier draft of this paragraph said
 "averaged 56% while its windows ran 15% at the head and 91% at the tail" with no
 tree on it, which was a figure from a tree that still had a ninth card — on the

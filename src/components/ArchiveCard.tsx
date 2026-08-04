@@ -263,8 +263,24 @@ export function ArchiveCard({
               pushing every day down to h4 for a sub-head that named the same
               rows the card is already about. */}
           <ul className="ledger-days" id="ledger-days">
-            {shown.map((day) => (
-              <li key={day.date} className="ledger-day">
+            {/* CONSTRAINT §2.1b, the tail half of it: the archive is 957px of
+                ONE ground (Espresso in light, Sand in dark) and owned two of
+                the phone's seven windows outright — 89.12% and 92.09% field in
+                light at tree 71b5608. Each day group takes the READING plate,
+                the opposite ground to the sheet around it, so the tail
+                alternates instead of running flat. Per DAY rather than per
+                list: one plate over the whole list is itself a single ground
+                running longer than a viewport, which is the defect the window
+                band measures — plating every day was measured too and window
+                @4872 came back at 59.58% Bone in light against the 55 band,
+                87% of its rows being one plate. So the days ALTERNATE, which
+                is also the oldest device a ledger has. See .reading-plate in
+                tokens.css. */}
+            {shown.map((day, i) => (
+              <li
+                key={day.date}
+                className={i % 2 === 0 ? 'ledger-day reading-plate' : 'ledger-day'}
+              >
                 {/* h3, under the card's own h2 — the page keeps its single h1
                     wordmark and the outline gains a real day level. The total
                     sits INSIDE the heading on purpose: a screen-reader user

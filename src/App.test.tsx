@@ -560,6 +560,127 @@ describe('daily lesson + codex', () => {
     expect(quests.querySelector(PERSISTENT_ACCENT)).toBeNull()
   })
 
+  /** A state with everything the plate set covers: a profile (so NUM—07 shows
+      its read view), decisions (SIM—06's record) and rows across three days
+      (ARC—08's day groups). Every one of those regions is a plate, and a plate
+      that is not rendered cannot be asserted. */
+  const seedPlated = () => {
+    const day = (n: number) => addDaysISO(todayISO(), -n)
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        profile: {
+          monthlyIncome: 60_000,
+          monthlyEssentials: 30_000,
+          monthlyDiscretionary: 10_000,
+          budgeted: 40_000,
+          efBalance: 20_000,
+          debtStart: 0,
+          debtNow: 0,
+          liquidBalance: 20_000,
+          debtMinimum: 0,
+          extraDebtPayment: 0,
+          revolvingApr: 0,
+          goal: null,
+          savedDate: todayISO(),
+        },
+        decisions: [0, 1, 2, 3].map((i) => ({
+          id: `d${i}`,
+          date: day(i),
+          amountDA: 12_000,
+          line: 'Buy path ends lower. About 6 points below waiting.',
+          demo: false,
+          outcome: 'open',
+        })),
+        transactions: [0, 1, 2].map((i) => ({
+          id: `t${i}`,
+          amountDA: 1_000,
+          category: 'Food',
+          date: day(i),
+        })),
+      }),
+    )
+  }
+
+  it('interrupts every ground run with a plate, and puts no accent ink on one', () => {
+    seedPlated()
+    render(<App />)
+    // CONSTRAINT §2.1b — the WINDOW band, which is where round 5's census found
+    // this product broken. docs/brand/census.json at tree 71b5608 read
+    // app.375x812.light.seeded with 5 of its 7 viewport windows outside the
+    // 35-80 field band and app.375x812.dark.seeded with 7 of 7, while both
+    // document averages looked ordinary — 45.75/43.91 and 63.35/24.71. A reader
+    // never sees a document average.
+    //
+    // WHY A PLATE AND NOT A CARD. Windows are 812px; the stack's cards are
+    // 314-1249px, so a window can sit entirely INSIDE one card (SimCard does
+    // this on a phone) and no reordering or re-grounding of whole cards reaches
+    // it. The unit that alternates has to be smaller than a card. .counter-plate
+    // is the counter ground (Espresso in light, Bone in dark) and .reading-plate
+    // is the reading ground (Bone in light, Espresso in dark); see tokens.css.
+    //
+    // Identified by their card's §11 corner mark, like the sheet test above:
+    // the index is the card's own printed name and does not drift when a
+    // styling class is renamed.
+    const card = (el: Element) =>
+      el.closest('.card')?.querySelector('.spec-label')?.textContent ?? '?'
+    const plated = (sel: string) =>
+      [...document.querySelectorAll(`main ${sel}`)].map((el) => `${card(el)} ${el.tagName.toLowerCase()}`)
+    // An equality, so a plate silently joining or leaving fails here. Every one
+    // of these is a REGION of a card, never the card: the cards themselves are
+    // held on the reading ground by the accent rule asserted below.
+    expect(plated('.counter-plate')).toEqual([
+      'HLT—01 h2',
+      'HLT—01 div', // the score readout; .stage-col beside it holds the accent
+      'LOG—02 h2',
+      'LOG—02 fieldset', // the note keypad — the form's one accent-free panel
+      'QST—03 div',
+      'QST—03 ul',
+      'LSN—05 p',
+      'SIM—06 h2',
+      'SIM—06 p',
+      // …and the record rows, which ALTERNATE (asserted below).
+      'SIM—06 li',
+      'SIM—06 li',
+      'NUM—07 h2',
+      'NUM—07 ul',
+    ])
+    expect(plated('.reading-plate')).toEqual(['ARC—08 li', 'ARC—08 li'])
+    // THE SAME ARITHMETIC THAT KEEPS CARDS OFF THE SHEET, one level down. §2.1
+    // rule 2 pins the ink on any accent fill to Graphite and never flips it, so
+    // on a counter plate's Espresso half an accent CONTROL spends a third hue
+    // on its fill and a fourth on its mandatory ink — and Graphite on Espresso
+    // is 1.16:1, so that ink cannot be re-roled away. Bare accent fills are
+    // exempt (.sim-result is a keyline bar with nothing drawn ON it, .xp-fill is
+    // a bar) and so are §1 trait 06's event chips (.quest-alldone).
+    const PERSISTENT_ACCENT = '.btn-gold, .btn-data, .btn-flame, .stage-badge'
+    for (const el of document.querySelectorAll('.counter-plate, .reading-plate')) {
+      expect(`${card(el)}: ${el.querySelector(PERSISTENT_ACCENT) !== null}`).toBe(
+        `${card(el)}: false`,
+      )
+    }
+  })
+
+  it('alternates the two lists a plate cannot cover in one piece', () => {
+    seedPlated()
+    render(<App />)
+    // A PLATE IS A GROUND, AND A RUN OF PLATE IS A RUN. Both of these lists are
+    // longer than a viewport on a phone, so plating them whole merely inverted
+    // the defect rather than fixing it — measured on the tree that did:
+    // window @3248 came back at 65.62% Bone in dark against the 65 cap (the
+    // decision record, 773 of the window's 812 rows one plate) and window @4872
+    // at 59.58% Bone in light against the 55 band (the day list, 87%).
+    // So they stripe. Every boundary between two rows has a plate on one side
+    // of it, which is also what replaced the record's old 2px rule.
+    const striped = (sel: string, plate: string) => {
+      const rows = [...document.querySelectorAll(sel)]
+      expect(rows.length).toBeGreaterThan(1)
+      return rows.map((el, i) => `${i}:${el.classList.contains(plate)}`)
+    }
+    expect(striped('.decision', 'counter-plate')).toEqual(['0:true', '1:false', '2:true', '3:false'])
+    expect(striped('.ledger-day', 'reading-plate')).toEqual(['0:true', '1:false', '2:true'])
+  })
+
   it('collects the lesson into the codex and persists it', () => {
     render(<App />)
     // The count line on LessonCard is all that is left of the codex surface —

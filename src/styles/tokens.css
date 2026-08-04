@@ -888,6 +888,161 @@ h3 {
    what the tree actually measures after the deletion; nothing in this file
    claims to know. */
 
+/* ─── THE TWO PLATES: a ground change INSIDE a container ──────────────────
+
+   CONSTRAINT: §2.1b's per-window band, which the card stack could not satisfy
+   at card granularity. At tree 71b5608 (docs/brand/census.json, the artifact
+   this repo commits) app.375x812.light.seeded ran 5 of its 7 viewport windows
+   outside the 35-80 field band and app.375x812.dark.seeded ran 7 of 7 — while
+   the DOCUMENT averages, 45.75/43.91 and 63.35/24.71, looked ordinary. Nobody
+   sees a document average.
+
+   WHY THE CARD IS THE WRONG GRANULARITY. A window is 812px. The stack's cards
+   are 314-1058px, so a window holds one or two of them and a window sitting
+   inside SimCard (1058px, one card) holds exactly one ground no matter how the
+   stack is ordered or re-grounded. Reordering was modelled and moves the
+   breach rather than clearing it; the mid-document is short of field ground by
+   roughly 450px in light and short of Bone ground by about the same in dark,
+   and neither is available anywhere else in the stack. The unit that has to
+   alternate is therefore SMALLER than a card:
+
+     NO RUN OF ONE GROUND MAY BE LONGER THAN ONE VIEWPORT.
+
+   With Flare gutters either side, a Bone run fails the 35% field floor once it
+   passes ~605px and a field run fails the 15% Bone floor once it passes
+   ~702px. Every breaching window in the artifact sits inside such a run.
+
+   WHY TWO PLATES AND NOT ONE. Light needs field mass mid-document; dark needs
+   Bone mass in exactly the same place. One construction serves both only if it
+   is the ground's OPPOSITE rather than a fixed hex — which is what §1 trait 06
+   calls the counter. So .counter-plate is the counter ground (Espresso in
+   light, Bone in dark) and .reading-plate is the reading ground (Bone in light,
+   Espresso in dark). They are duals: a .reading-plate is what interrupts a
+   run inside a card that is already on the counter, which is the archive.
+
+   .counter-plate's LIGHT half is .spec-sheet's own token block, verbatim
+   (design.test.ts pins the two against each other) — same Espresso field, same
+   Bone ink, same recess-on-the-ground, same 70/80 quiet mixes at 7.19:1 and
+   the pairs §5B already ships.
+
+   .counter-plate's DARK half is BONE, not the archive sheet's Sand, and the
+   choice is the whole safety argument. §4 says "Counters are BONE"
+   unconditionally; §2 gives Sand to "aged paper, SPEC SHEETS" and the archive
+   is a spec sheet, which is why that card took Sand and this plate does not.
+   The consequence is that a dark .counter-plate's interior is EXACTLY the
+   light theme's reading surface — Bone ground, Graphite ink, Sand recess — so
+   every foreground that lands on one is a pair this app has shipped and
+   measured since round 1. Nothing new is introduced. On Sand it would not be:
+   Flare is 2.51:1 there against 3.02:1 on Bone, which is what holds the
+   .btn-flame CTA and .boss-fill off the archive's Sand ground.
+
+   THE HONEST COST is the one the counter sheet above already states: Bone-
+   family pixels are bright pixels, and there is no way to pay §2's 30% Bone in
+   dark without emitting more light. Bone's relative luminance is 0.8136
+   against Sand's 0.6690, so a Bone plate emits ~22% more than the same area of
+   Sand would. The plates are regions inside cards, not cards, which is what
+   bounds it — read the `bone` figure of app.375x812.dark.seeded for the total.
+
+   WHAT MAY NOT GO ON A COUNTER PLATE, and it is the same arithmetic that keeps
+   cards off .spec-sheet: §2.1 rule 2 pins the ink on any accent fill to
+   Graphite and never flips it, so on the Espresso half an accent CONTROL
+   spends a third hue on its fill and a fourth on its mandatory ink, and
+   Graphite on Espresso is 1.16:1 so that ink cannot be re-roled away. Bare
+   accent fills are fine (.xp-fill, .sim-result's keyline bar — nothing is
+   drawn ON them) and §1 trait 06's event chips are fine (.quest-alldone,
+   .kept-chip). A persistent accent-INKED control is not, and App.test.tsx
+   asserts that over the rendered tree with the same selector list the sheet
+   uses.
+
+   NO KEYLINE ON .counter-plate, and that is measured rather than lazy: the
+   fill offset IS the boundary at 13.4:1 (Espresso on Bone) in light and 11.4:1
+   (Bone on Espresso) in dark, both far over WCAG 1.4.11's 3:1 — §5's "depth
+   comes from colour offset + keylines" spending its first half. A --keyline
+   stroke there would be Bone-on-Bone (light) or Graphite-on-Espresso (dark),
+   i.e. 1:1 and 1.16:1: an invisible border is not a border.
+
+   .reading-plate DOES take one, because one of its three placements has no
+   fill offset to spend: inside the archive it is Bone on Espresso (13.4:1) in
+   light at <1400px and Espresso on Sand (9.4:1) in dark, but at >=1400px in
+   light the archive itself is Sand and Bone on Sand is 1.20:1. The 2px
+   --keyline is Graphite there — 9.5:1 on the Sand outside, 11.4:1 on the Bone
+   inside — so the boundary clears 3:1 in every one of the three cases.
+
+   Both blocks re-declare every derived token for the reason .spec-sheet does:
+   a custom property's var() references are substituted where it is DECLARED,
+   so an inherited --spec is already a resolved hex measured against the wrong
+   ground. */
+.counter-plate {
+  --ground: var(--espresso);
+  --field: var(--espresso);
+  /* The recess is the plate's own ground showing back through, exactly as on
+     .spec-sheet: --sunken is Void in dark and a recess drawn in a fourth
+     surface colour is how the Graphite budget got spent 6.6x over once
+     already. .decision-checkback is the only recess that lands on a plate and
+     it carries its own 2px keyline, so it stays a recess without one. */
+  --sunken: var(--espresso);
+  --ink: var(--bone);
+  --counter: var(--espresso);
+  --keyline: var(--ink);
+  --spec: color-mix(in srgb, var(--ink) 70%, var(--ground));
+  --spec-sunken: color-mix(in srgb, var(--ink) 80%, var(--ground));
+  background: var(--field);
+  color: var(--ink);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+}
+@media (prefers-color-scheme: dark) {
+  .counter-plate {
+    --ground: var(--bone);
+    --field: var(--bone);
+    --sunken: var(--sand);
+    --ink: var(--graphite);
+    --counter: var(--bone);
+    --keyline: var(--ink);
+    --spec: color-mix(in srgb, var(--ink) 70%, var(--ground));
+    --spec-sunken: color-mix(in srgb, var(--ink) 80%, var(--ground));
+  }
+}
+.reading-plate {
+  --ground: var(--bone);
+  --field: var(--bone);
+  --sunken: var(--sand);
+  --ink: var(--graphite);
+  --counter: var(--bone);
+  --keyline: var(--ink);
+  --spec: color-mix(in srgb, var(--ink) 70%, var(--ground));
+  --spec-sunken: color-mix(in srgb, var(--ink) 80%, var(--ground));
+  background: var(--field);
+  color: var(--ink);
+  border: var(--keyline-w) solid var(--keyline);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+}
+/* THE SAME CONDITION AS THE COUNTER SHEET ABOVE, AND THE COMMA IS THE SAME OR.
+   .reading-plate exists to be the archive sheet's opposite, and the archive is
+   Sand in dark AT ANY WIDTH and in EITHER theme from 1400px up. Keyed on the
+   theme alone this rule left one combination — light at >=1400px — with a Bone
+   plate on a Sand sheet, which is not an interruption at all: both are the
+   Bone family, so the buckets do not alternate even though the hexes differ.
+   Measured at that state: app.1440x900.light.seeded window @3600 read 25.00%
+   field / 70.27% Bone, i.e. WORSE than the row it was meant to fix. */
+@media (prefers-color-scheme: dark), (min-width: 1400px) {
+  .reading-plate {
+    --ground: var(--espresso);
+    --field: var(--espresso);
+    --sunken: var(--void);
+    --ink: var(--bone);
+    --counter: var(--espresso);
+    --keyline: var(--ink);
+    --spec: color-mix(in srgb, var(--ink) 70%, var(--ground));
+    --spec-sunken: color-mix(in srgb, var(--ink) 80%, var(--ground));
+  }
+}
+
 /* Same squircle corner on every other radiused box — controls, tiles and the
    status plates. Pills are left out on purpose: a 999px radius is already a
    stadium and re-shaping its ends would fight the radius token. :where()

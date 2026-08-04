@@ -64,6 +64,15 @@
    .hero-nav a:focus-visible uses in app.css.
    CONSTRAINT: Trust Rule 8 / WCAG 2.4.7 — focus stays visible. */
 .lp-spec:focus-visible { outline-color: var(--lp-counter); outline-offset: -6px; }
+/* THE SECOND ELEMENT ON THE ESPRESSO FIELD, and the enumeration above predicted
+   it in so many words: "a future control on the Espresso section would need
+   --lp-counter and its own rule". The footer links moved off the Marigold plate
+   onto the footer's own Espresso field (see .lp-foot below), where the page's
+   Graphite ring is 1.16:1. Bone is 13.4:1. No negative offset here — these are
+   inline controls with the section's padding around them, not a full-bleed
+   section whose ring would fall off the viewport.
+   CONSTRAINT: Trust Rule 8 / WCAG 2.4.7 — focus stays visible. */
+.lp-foot-links a:focus-visible { outline-color: var(--lp-counter); }
 
 /* THE STACK (§9 move 1) at every width. app.css only attaches .hero-rise's
    animation at ≥1024px (the mobile topbar has nothing to stage); this page is
@@ -103,7 +112,16 @@
   position: relative;
   background: var(--lp-flare);
   border-bottom: var(--keyline-w) solid var(--lp-form);
-  padding: var(--s6) var(--s3) var(--s5);
+  /* --s7 at the top, one step over the --s5 at the foot, and the asymmetry is
+     CONSTRAINT §2.1b rather than taste. The wall's plate is 1018px tall on a
+     375px phone — taller than the viewport — so window @0 is the top of the
+     Flare field plus the top of the plate and nothing else: measured 32.40%
+     field / 55.20% Bone at tree 71b5608, under the 35 floor and over the 55
+     band on the FIRST screen anyone sees. §5A asks for "~60% negative field"
+     around the container; 104px of it above a full-measure plate is not that.
+     The step buys 64px of field before the plate starts and costs the fold
+     nothing — the wall is min-height capped, so the CTA does not move. */
+  padding: var(--s7) var(--s3) var(--s5);
   /* Keeps the shear and the grain inside the field. */
   overflow: hidden;
   /* Six-second read, in order: mark → name → what it is → what it costs →
@@ -314,6 +332,34 @@
   margin: var(--s2) 0 0;
   border-left: var(--keyline-heavy) solid var(--lp-flare);
   padding-left: var(--s2);
+}
+/* THE HAND-OFF TAKES THE COUNTER GROUND ON THE PHONE, and the paragraph above
+   argued against exactly this until §2.1b was measured over the wall. The
+   argument it made — "a second ink plate inside the wall's plate would make the
+   composition four boxes deep" — is a composition preference; the window band
+   is a law, and §12 style rules lose to it the same way §2 loses to a Trust
+   Rule. THE MEASUREMENT: .lp-plate is 1018px tall on a 375px phone and the
+   viewport is 812, so the plate is a single ground running longer than a
+   screen — the defect the window band exists to catch. It put window @0 at
+   49.3% Bone and @812 at 46.4% with the page's mean-of-windows Bone at 41.19
+   (dark) against a 30±6 tolerance: the wall plate IS this poster's Bone budget.
+   From 720px up the wall's plate is 583px, inside a 900px viewport, so the
+   composition round 3 verified on pixels at 768/1024/1440 is untouched — the
+   same breakpoint and the same reasoning as .lp-badge's.
+   CONTRAST, all four pairs: the copy is Bone on Espresso at 13.4:1 (against
+   11.4:1 Graphite on Bone), the §6 Flare signal bar is 4.41:1 on Espresso
+   (against 3.01:1 on Bone), the plate's own boundary is Espresso on Bone at
+   13.4:1 so it needs no keyline, and nothing focusable lives inside it. Every
+   one of those is better than what it replaces. */
+@media (max-width: 719px) {
+  .lp-share {
+    background: var(--lp-espresso);
+    color: var(--lp-counter);
+    border-radius: var(--r-lg);
+    corner-shape: squircle;
+    corner-shape: superellipse(2.07);
+    padding: var(--s2);
+  }
 }
 /* THE ROW'S INDEX. Same mono spec register as every other index on this poster
    (.lp-index, .lp-corner, .lp-facts, .lp-shot-tag) — this one labels the fold's
@@ -642,8 +688,33 @@
    stops running its plate full-bleed and "the composition gets its 60%
    negative field back" (see the block at the end of this file). This is the
    same sentence applied to the same section's containers. */
+/* THE BADGES ALTERNATE, and the nth-child is CONSTRAINT §2.1b rather than
+   decoration. The block above gives the phone badge a keyline instead of a
+   fill, for §5A's reason, and that argument still stands for the badge it is
+   about — but applied to ALL EIGHT it produced 1487px of unbroken Espresso in a
+   column whose viewport is 812px. Measured at tree 71b5608: window @3248 read
+   89.77% field / 4.89% Bone in BOTH themes, over the 85 cap and under the 15
+   floor at once. A grid of keyline badges is one ground running longer than a
+   screen, which is the defect §2.1b's window band exists to catch.
+   So every third badge keeps its fill: the longest keyline run is two badges
+   (~370px, against the ~605px at which a Bone-flanked run fails the 35% field
+   floor), the figure/ground relation §5A asks for is still drawn, and the
+   interval is §5B's spec-sheet rhythm — one filled badge per row of the 3-up
+   grid this same roster forms from 720px up. Contrast is unchanged on both
+   halves: Graphite on Bone 11.4:1, Bone on Espresso 13.4:1.
+   ONE IN THREE RATHER THAN ONE IN TWO, and the second number is measured too:
+   at every other badge the phone rows came back with mean-of-windows field at
+   46.75 (dark) / 48.83 (light) against §2.1b's 60±8 and Bone at 41.19 / 39.36
+   against 30±6 — the windows were inside the band and the document they average
+   to was not. Bone plates are this page's whole Bone budget; four of them in a
+   column is most of it.
+   THE NOTE STRIP DOES NOT GO WITH THEM, and that was measured both ways: it is
+   "a Bone plate like the badges below it", so taking the badges' phone
+   construction was the obvious move — and it dropped window @2436 to 12.97%
+   Bone in dark, under the 15 floor, because that window is the shot's tail and
+   the strip is the only Bone in it. It keeps its fill. */
 @media (max-width: 719px) {
-  .lp-badge {
+  .lp-badge:not(:nth-child(3n)) {
     background: none;
     color: var(--lp-counter);
     border-color: var(--lp-counter);
@@ -882,13 +953,22 @@
   grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: var(--s2);
 }
-/* Bone plates over the band. Sand would also carry this copy at 9.4:1, but the
-   plates are what interrupt the diagonal — and where a rule crosses the Flare
-   band, the plate is the only thing keeping 17px type off a 3.79:1 field. */
+/* ESPRESSO plates over the band, and they were Bone until §2.1b was measured
+   over this section. The plates are what interrupt the diagonal — and where a
+   rule crosses the Flare band, the plate is the only thing keeping 17px type
+   off a 3.79:1 field — but §5D stands the whole section on Sand, which is the
+   Bone family, so Bone plates on it were a 1175px stretch with no field in it
+   at all except the band lane. Measured at tree 71b5608: window @4872 read
+   9.18% field / 83.30% Bone, the worst window in the entire matrix at deviation
+   106.60. Espresso is the counter of the ground it stands on and the copy reads
+   BETTER on it: Bone on Espresso is 13.4:1 against the 9.4:1 Graphite on Sand
+   this replaces. The plate is delimited by its own fill at 9.4:1 against the
+   Sand section, so the 2px keyline moves to Bone with the ink rather than
+   staying a Graphite stroke nothing can see. */
 .lp-rule {
-  background: var(--lp-counter);
-  color: var(--lp-form);
-  border: var(--keyline-w) solid var(--lp-form);
+  background: var(--lp-espresso);
+  color: var(--lp-counter);
+  border: var(--keyline-w) solid var(--lp-counter);
   border-radius: var(--r-lg);
   corner-shape: squircle;
   corner-shape: superellipse(2.07);
@@ -936,16 +1016,41 @@
    keyline. Graphite on Marigold is 6.2:1 — the only accent in this palette
    that carries body copy, which is why the accent surface is the footer and
    not a section above it. --on-accent, never Bone (§2.1 rule 2). */
+/* THE LOCKUP IS THE PLATE, AND THE SECTION IS THE FIELD. §5C is satisfied more
+   literally this way, not less: "horizontal lockup ON marigold ... hard
+   keyline" describes a CONTAINER, and a container that runs to both frame
+   edges is the field rather than a thing standing in it — the same inversion
+   the .lp-badge block argues about one section up (§5A, §1 trait 01).
+   CONSTRAINT §2.1b, measured, and it is two breaches in one element. At tree
+   71b5608 the full-bleed footer put 19.22% ACCENT in window @5526 and left it
+   at 31.87% field, under the 35 floor, because Marigold counts as neither
+   field nor Bone; and it spent 2.44 of the document's measured 2.76% accent by
+   itself, against a 2% cap. The plate keeps every pair the full-bleed field
+   had — Graphite on Marigold 6.2:1, the same 3px Graphite focus ring on the
+   links, the knockout mark in currentColor — and adds one: Marigold on
+   Espresso, 7.4:1, which is the plate's own boundary and is why it needs no
+   fill offset from its keyline.
+   THE TOP RULE TURNS BONE for the same reason. §6's 6px keyline in Graphite
+   measured 1.16:1 against the Espresso field it now sits on, i.e. a fault
+   marker nobody can see; Bone is 13.4:1 on Espresso below and 3.01:1 on the
+   Flare object section above, clearing §2.1's 3:1 non-text floor on both. */
 .lp-foot {
-  background: var(--lp-gold);
-  color: var(--on-accent);
-  border-top: var(--keyline-heavy) solid var(--lp-form);
-  padding: var(--s3);
+  background: var(--lp-espresso);
+  color: var(--lp-counter);
+  border-top: var(--keyline-heavy) solid var(--lp-counter);
+  padding: var(--s4) var(--s3);
 }
 .lp-foot-inner {
   width: 100%;
   max-width: 1080px;
   margin: 0 auto;
+  background: var(--lp-gold);
+  color: var(--on-accent);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s3);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -965,6 +1070,9 @@
   letter-spacing: var(--tr-h3);
 }
 .lp-foot-links {
+  width: 100%;
+  max-width: 1080px;
+  margin: var(--s2) auto 0;
   display: flex;
   flex-wrap: wrap;
   gap: var(--s2);
@@ -976,7 +1084,10 @@
   display: inline-flex;
   align-items: center;
   min-height: 48px;
-  color: var(--on-accent);
+  /* Bone, not --on-accent: the links left the Marigold plate (see Landing.tsx)
+     and --on-accent is Graphite, which is 1.16:1 on the Espresso field they
+     stand on now. Bone is 13.4:1 there. */
+  color: var(--lp-counter);
   font-weight: 700;
   font-size: var(--fs-cap);
   letter-spacing: var(--tr-cap);

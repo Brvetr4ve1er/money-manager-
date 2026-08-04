@@ -306,7 +306,9 @@ export function LogCard({
     <section className="card" id="log" tabIndex={-1} aria-labelledby="log-title">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
       <span className="spec-label" aria-hidden="true">LOG—02</span>
-      <h2 id="log-title">Log it</h2>
+      {/* CONSTRAINT §2.1b — see .counter-plate in tokens.css. The form below
+          stays on the reading ground: it carries .btn-flame and .btn-gold. */}
+      <h2 id="log-title" className="counter-plate">Log it</h2>
       {chips.length > 0 && (
         <div className="chip-row" role="group" aria-label="Repeat a recent purchase">
           {chips.map((c) => (
@@ -400,7 +402,10 @@ export function LogCard({
             this is the one surface a user reads while logging. It also
             disambiguates against the "What was it?" row note one field below,
             which is the other thing in this form called a note. */}
-        <fieldset className="note-pad">
+        {/* CONSTRAINT §2.1b: the keypad is the one panel in this form with no
+            accent control on it, so it is where LogCard's field ground goes
+            (see .counter-plate in tokens.css). */}
+        <fieldset className="note-pad counter-plate">
           <legend className="field-label">Cash (DA)</legend>
           <div className="note-keys">
             {NOTE_DENOMINATIONS_DA.map((n) => (

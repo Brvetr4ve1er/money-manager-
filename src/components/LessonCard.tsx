@@ -43,8 +43,15 @@ export function LessonCard({
           {collected} / {total} collected
         </span>
       </div>
+      {/* CONSTRAINT §2.1b — see .counter-plate in tokens.css. The BODY takes
+          the plate and the head and title do not: the head carries
+          .lesson-collected, a Marigold fill with §2.1 rule 2's mandatory
+          Graphite ink, and "Got it" below is a .btn-gold. Plating the title as
+          well was measured and overshot — the dark phone's mean-of-windows Bone
+          came back at 36.71% against the 30±6 tolerance, because a plate is a
+          ground and too much of one is the same defect as too little. */}
       <h3 className="lesson-title">{lesson.title}</h3>
-      <p className="lesson-body">{lesson.body}</p>
+      <p className="lesson-body counter-plate">{lesson.body}</p>
       {/* One read per day: after "Got it" the button goes inert via
           aria-disabled plus an onClick guard — NOT the disabled attribute,
           which would drop keyboard focus to <body> on the button the user

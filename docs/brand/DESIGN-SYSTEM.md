@@ -93,10 +93,17 @@ each landing section, the OG image.
 An application document is not one composition. It is a sequence of them, and the
 whole-document average is a number nobody ever looks at. Measured — `app.375x812.light.seeded`
 in `docs/brand/census.json`, the committed artifact, which is what the rule below means by
-"comes from that file": the page averages **41.70% field / 47.32% Bone** over the whole
-document, while its **seven** viewport windows run 40.92, 15.79, 45.60, 15.46, 21.30, 89.12 and
-92.09 percent field — a Bone form stack at the head, a dark index sheet at the tail. That
-average appears on no screen.
+"comes from that file": the page averages **56.93% field / 33.88% Bone** over the whole
+document, while its **eight** viewport windows run 52.95, 44.03, 68.08, 47.75, 47.49, 72.11,
+56.53 and 74.07 percent field. Those eight are all inside the band below; the average they
+produce is still a number that appears on no screen, which is the point.
+
+It was not always inside the band, and the state that produced this rule is worth stamping.
+On the CLEAN TREE OF COMMIT `71b5608` the same row averaged 41.70% field / 47.32% Bone over
+seven windows running 40.92, 15.79, 45.60, 15.46, 21.30, 89.12 and 92.09 — a Bone form stack
+at the head, a dark index sheet at the tail. **Five of those seven windows breached; the dark
+row of the same page breached all seven, and its document average, 63.35 / 24.71, was the most
+respectable in the matrix.** That is the whole case for measuring windows.
 
 So for a **scrolling application document**, measure each viewport-height window:
 
@@ -113,6 +120,24 @@ Graphite is 1.16:1 on Espresso, so every Ink pixel must stand on a Bone-family g
 every Bone-family ground is a pixel not in the field bucket. Ink and field trade one for one.
 An 8%-of-document Ink budget and a 60%-of-document field budget are not simultaneously
 satisfiable on the same page. Ink is therefore measured over the paper it can be drawn on.
+
+**No single ground may run longer than one viewport.** This is not a second law; it is the
+window band restated as something a designer can build to, and it is derived. Take a 375px
+phone: `.main-stack` leaves a 24px stage gutter either side, so a card row is 12.8% field and
+75.0% Bone, and a field-grounded row is 89.5% / 5.6%. Feed those into an 812px window and the
+floors fall out as lengths — with Flare either side, a Bone run breaks the 35% field floor
+once it passes **~605px**, and a field run breaks the 15% Bone floor once it passes **~702px**.
+Every breaching window in the artifact at tree `71b5608` sat inside such a run, the longest
+being 4,070px of unbroken Espresso down the dark phone's head and 1,487px of it down the
+landing's badge grid.
+
+The consequence is that **the card is the wrong unit**. Cards on that phone run 314–1,249px,
+so a window can sit entirely inside one — no reordering and no re-grounding of whole cards
+reaches it. The unit that alternates is a REGION: `.counter-plate` (the counter ground —
+Espresso in light, Bone in dark) and `.reading-plate` (the reading ground — Bone in light,
+Espresso in dark) in `tokens.css`. A plate is a ground, so a run of plate is also a run: the
+decision record and the ledger's day groups stripe rather than plating whole, and plating them
+whole was measured to invert the defect rather than fix it.
 
 The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
 test fails when it stops describing the tree. Any figure quoted about this product's pixels

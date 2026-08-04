@@ -250,14 +250,15 @@ export function SimCard({
         DECISION_SIM.EXE{dueCount > 0 && ` · ${dueCount} DUE`}
       </div>
       <div className="sim-body">
-        <h2 id="simulator-title">Decision simulator</h2>
+        {/* CONSTRAINT §2.1b — see .counter-plate in tokens.css. */}
+        <h2 id="simulator-title" className="counter-plate">Decision simulator</h2>
         {/* Honesty gap guard: the result copy speaks in second person, so the
             card must always say whose numbers it projects — the demo profile
             until setup completes, the user's own after. Claiming
             personalization it doesn't have would break the trust rules. */}
         {/* Grotesk, not mono: this is a sentence, not an index label — see
             .sim-note in app.css. */}
-        <p className="sim-note">
+        <p className="sim-note counter-plate">
           {isDemo
             ? `Projected on the demo profile. ${profile.monthlyIncome.toLocaleString()} DA/mo income. Your own numbers arrive with setup.`
             : `Projected on your numbers. ${profile.monthlyIncome.toLocaleString()} DA/mo income. ${assumptionLine(profile)} Edit the rest in My numbers.`}
@@ -327,13 +328,29 @@ export function SimCard({
             <p className="empty">No decisions recorded. Run one above.</p>
           ) : (
             <ul className="decision-list">
-              {ordered.map((d) => {
+              {ordered.map((d, i) => {
                 const money = `${d.amountDA.toLocaleString()} DA`
                 const ran = dayLabel(d.date, today)
                 const phase = checkBackState(d, today)
                 const object = objectOf(d)
                 return (
-                  <li className="decision" key={d.id}>
+                  <li
+                    /* CONSTRAINT §2.1b — ALTERNATING, and the stripe is the
+                       whole mechanism rather than decoration. SimCard is the
+                       app's tallest card (1249px on a 375px phone at this
+                       tree), so a viewport window fits inside it and no card
+                       reordering reaches that window; the record is its one
+                       accent-inked-free region (.sim-result is a bare accent
+                       keyline, which a plate allows; the run form above carries
+                       .btn-data, which it does not). Plating EVERY row was
+                       measured and merely inverted the defect — window @3248
+                       read 65.62% Bone in dark against the 65 cap and 76.14%
+                       field in light, because 773 of the window's 812 rows were
+                       then one unbroken plate. A run of plate is a run.
+                       See .counter-plate in tokens.css. */
+                    className={i % 2 === 0 ? 'decision counter-plate' : 'decision'}
+                    key={d.id}
+                  >
                     <p className="decision-head">
                       <span className="decision-amount mono">{money}</span>{' '}
                       <span className="decision-when">Ran {ran}</span>

@@ -182,7 +182,8 @@ export function ProfileCard({
     <section className="card">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
       <span className="spec-label" aria-hidden="true">NUM—07</span>
-      <h2>My numbers</h2>
+      {/* CONSTRAINT §2.1b — see .counter-plate in tokens.css. */}
+      <h2 className="counter-plate">My numbers</h2>
       {/* Permanently mounted status region (same announce-on-change rule as
           the toast/XP regions in App): the visible save confirmation is the
           card flipping to the summary, which a screen reader won't narrate. */}
@@ -395,7 +396,7 @@ export function ProfileCard({
         </>
       ) : (
         <>
-          <ul className="profile-rows">
+          <ul className="profile-rows counter-plate">
             <li className="profile-row">
               <span>Income</span>
               <span className="mono">{DA(profile.monthlyIncome)}/mo</span>

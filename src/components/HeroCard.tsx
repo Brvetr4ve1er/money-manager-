@@ -73,7 +73,13 @@ export function HeroCard({
           "Bonfire" twice, one of them at 13px. This is the section heading the
           explainability drawer below hangs off; the stage name is a line
           inside the readout now, not a second heading. */}
-      <h2>Health score</h2>
+      {/* CONSTRAINT §2.1b: the title takes the counter plate so the head of
+          the stack is not one unbroken ground for a whole viewport (see
+          .counter-plate in tokens.css). The readout below it keeps the reading
+          ground — .stage-badge is a persistent accent fill with mandatory
+          Graphite ink, and that is the one thing a counter plate may not
+          carry. */}
+      <h2 className="counter-plate">Health score</h2>
       <div className="hero-main">
         <div className="stage-col">
           {/* No elevation (§5): the badge is a flat field with a 2px keyline.
@@ -107,7 +113,13 @@ export function HeroCard({
             </div>
           )}
         </div>
-        <div className="stage-info">
+        {/* CONSTRAINT §2.1b — the readout column takes the counter plate too.
+            The h2 alone left window @0 at 80.40% field / 11.67% Bone in dark
+            (measured, tree with the title plates only): 300px of Flare topbar
+            and an Espresso card is one ground for a whole viewport. This is the
+            hero's only accent-free block — .stage-col beside it holds the stage
+            badge, a persistent accent fill. See .counter-plate in tokens.css. */}
+        <div className="stage-info counter-plate">
           <p className="stage-name">{meta.label}</p>
           {/* role="img": a generic div prohibits accessible naming, so without
               it the aria-label may be ignored and screen readers read the raw

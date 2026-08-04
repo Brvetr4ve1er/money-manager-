@@ -534,12 +534,17 @@ describe('the fixtures do not rot', () => {
  *
  * The finding that produced it, and the reason this exists at all: the
  * document average is the arithmetic mean of regimes that never appear
- * together. app.375x812.light.seeded in docs/brand/census.json reads 41.70
- * field / 47.32 Bone over the whole document, while its seven viewport windows
- * run 40.92, 15.79, 45.60, 15.46, 21.30, 89.12 and 92.09 percent field — a
- * Bone form stack at the head and a dark index sheet at the tail. Nobody sees
- * 41/47. So the windows are measured too, and where the two disagree the
- * windows are the truth.
+ * together. app.375x812.light.seeded in docs/brand/census.json reads 56.93
+ * field / 33.88 Bone over the whole document, while its eight viewport windows
+ * run 52.95, 44.03, 68.08, 47.75, 47.49, 72.11, 56.53 and 74.07 percent field.
+ * Nobody sees 56.93/33.88. So the windows are measured too, and where the two
+ * disagree the windows are the truth.
+ *
+ * WHAT THAT ROW LOOKED LIKE WHEN THIS TOOL FOUND IT, stamped: on the clean tree
+ * of commit 71b5608 the same row read 41.70 field / 47.32 Bone over seven
+ * windows running 40.92, 15.79, 45.60, 15.46, 21.30, 89.12 and 92.09 — five of
+ * the seven outside the band, and the dark row of the same page outside it on
+ * all seven while carrying the best document deviation in the matrix.
  *
  * PROVENANCE, because §2.1b makes it binding: those figures are the committed
  * artifact at this tree, and the staleness test at the bottom of this file is
