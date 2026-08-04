@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as sfx from '../audio/chiptune.ts'
 import type { Transaction } from '../state/store.ts'
+import { addNote, NOTE_DENOMINATIONS_DA } from '../engine/keypad.ts'
 
-const CATEGORIES = ['Food', 'Transport', 'Fun', 'Bills', 'Health', 'Other']
+/** Exported for the tests only: the landing surface's product shot renders
+    sample rows through the real <Ledger>, and sampleLedger.test asserts every
+    one of their categories is a category this picker can actually produce — a
+    shot showing a category the app cannot log is a mockup. */
+export const CATEGORIES = ['Food', 'Transport', 'Fun', 'Bills', 'Health', 'Other']
 
 /** Rows the repeat-chip derivation scans (most recent first). */
 const CHIP_SCAN = 30
@@ -34,6 +39,11 @@ export function LogCard({
   const [impulse, setImpulse] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastLog, setLastLog] = useState<{ id: string; text: string } | null>(null)
+  // Mounted-empty live region content for the note pad (see the region below).
+  // A pad tap changes an input's value programmatically, and a programmatic
+  // value change is announced by nothing — without this the pad is a
+  // sighted-only input method.
+  const [padNote, setPadNote] = useState('')
 
   // Mis-taps are the number-one anxiety of manual logging: every log opens a
   // short Undo window (UNDO_TX removes the row AND its XP grant, so the grace
@@ -94,6 +104,42 @@ export function LogCard({
     })
     setAmount('')
     setImpulse(false)
+    // The field is empty again, so the pad's announcement no longer describes
+    // anything. Clearing it also keeps the NEXT identical composition audible:
+    // a live region announces text CHANGES, so leaving "Amount 1,500 DA"
+    // parked here would silence the second identical purchase of the day.
+    // Emptying a region announces nothing, so the reset itself is silent.
+    setPadNote('')
+  }
+
+  // A pad tap is an input method, not a log: it writes into the field and
+  // stops. No XP, no transaction, no sound of its own — the field changing and
+  // the live region below are the feedback, and §10 forbids a cue that carries
+  // information alone. The denial cue on a refusal rides with a visible error,
+  // exactly like submit()'s.
+  function tapNote(noteDA: number) {
+    const next = addNote(amount, noteDA)
+    if (next === null) {
+      // Typed input is never discarded to make room for a tap. The message
+      // names the adjacent control that fixes it rather than diagnosing the
+      // user's typing (§7.1: state the fact, never editorialise).
+      setError('Clear the amount first.')
+      sfx.deny()
+      return
+    }
+    setError(null)
+    setAmount(next)
+    setPadNote(`Amount ${Number(next).toLocaleString()} DA`)
+  }
+
+  function clearAmount() {
+    // Guarded no-op behind aria-disabled, the pattern every inert control in
+    // the app uses: the `disabled` attribute would drop keyboard focus to
+    // <body> the moment the field empties under the user's own finger.
+    if (amount === '') return
+    setAmount('')
+    setError(null)
+    setPadNote('Amount cleared.')
   }
 
   function quickLog(amountDA: number, chipCategory: string) {
@@ -152,6 +198,14 @@ export function LogCard({
               onChange={(e) => {
                 setAmount(e.target.value)
                 setError(null)
+                // Same reason submit() and clearAmount() empty it: a live
+                // region announces CHANGES. Backspacing the field by hand and
+                // then re-tapping the same note writes the identical string,
+                // React reconciles to the same text node, no mutation fires
+                // and the tap is silent — sighted-only input, which is the
+                // one thing this region exists to prevent. Emptying a region
+                // announces nothing, so the reset itself costs no noise.
+                setPadNote('')
               }}
               aria-invalid={error !== null}
               aria-describedby={error ? 'log-error' : undefined}
@@ -170,6 +224,52 @@ export function LogCard({
             </select>
           </label>
         </div>
+        {/* Cash-note pad. Below the field, not above it: the tab order should
+            reach the typed input first, because typing is the faster path for
+            anyone already on a keyboard, and the pad is the shortcut for the
+            box directly above it.
+            A real <fieldset>/<legend>, like ProfileCard's groups — the native
+            group role and its name come free, and AT reads "Notes, DA" before
+            each key instead of five bare numerals. */}
+        <fieldset className="note-pad">
+          <legend className="field-label">Notes (DA)</legend>
+          <div className="note-keys">
+            {NOTE_DENOMINATIONS_DA.map((n) => (
+              // §7.4: the key is a numeral. No "Add 1000 DA!", no emoji. The
+              // unit lives in the accessible name (which contains the visible
+              // string, per WCAG 2.5.3) and in the legend.
+              <button
+                key={n}
+                type="button"
+                className="btn note-key mono"
+                aria-label={`Add ${n.toLocaleString()} DA`}
+                onClick={() => tapNote(n)}
+              >
+                {n.toLocaleString()}
+              </button>
+            ))}
+            {/* Clearing is the one destructive thing on this card, so it is
+                its own deliberate press — never a side effect of tapping a
+                note. Inert (not absent) while there is nothing to clear: a
+                control that appears and disappears under the thumb moves the
+                whole key row. */}
+            <button
+              type="button"
+              className="btn note-clear"
+              aria-disabled={amount === ''}
+              onClick={clearAmount}
+            >
+              Clear
+            </button>
+          </div>
+        </fieldset>
+        {/* Permanently mounted and mounted EMPTY, for the same reason as the
+            toast and the ledger's range region: screen readers announce text
+            changes inside an EXISTING region, so one that arrives already
+            holding its message is silent. Setting an input's value from code
+            fires no announcement of its own, so without this the composed
+            amount only exists for people who can see the field. */}
+        <p className="sr-only" role="status" aria-label="Amount entered">{padNote}</p>
         {/* "I bought it anyway" — the string Trust Rule 3 names, and the
             string Landing.tsx and README already quote as the app's phrasing.
             What shipped here was "This was an impulse I gave in to": a

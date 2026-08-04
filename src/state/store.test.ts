@@ -131,6 +131,41 @@ describe('sanitizeState', () => {
     expect(state.transactions.map((t) => t.id)).toEqual(['e'])
   })
 
+  it('memoises day-key validity without ever letting a bad key inherit a good verdict', () => {
+    // The check is cached (it runs once per row on a pre-first-paint load), so
+    // the verdicts must stay per-key and stable across repeats — a cache keyed
+    // loosely, or one that returned the previous answer on a miss, would let
+    // '2026-02-30' ride in behind the '2026-02-28' validated just before it.
+    const base = { id: 'a', amountDA: 100, category: 'Food' }
+    const rows = [
+      { ...base, id: 'good1', date: '2026-02-28' },
+      { ...base, id: 'bad1', date: '2026-02-30' },
+      { ...base, id: 'good2', date: '2026-02-28' },
+      { ...base, id: 'bad2', date: '2026-02-30' },
+    ]
+    for (let i = 0; i < 3; i++) {
+      const state = sanitizeState({ transactions: rows })
+      expect(state.transactions.map((t) => t.id).sort()).toEqual(['good1', 'good2'])
+    }
+  })
+
+  it('keeps validating correctly past the day-key cache cap', () => {
+    // The cap exists so a hostile payload of all-distinct junk keys cannot
+    // grow the map without bound. Past it the check must simply stop being
+    // cached — never start guessing. 4096 is the cap; go well beyond it.
+    const rows: unknown[] = []
+    const day = new Date(2000, 0, 1)
+    for (let i = 0; i < 5000; i++) {
+      const d = new Date(day.getTime() + i * 86400000)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      rows.push({ id: `ok${i}`, amountDA: 1, category: 'Food', date: key })
+    }
+    rows.push({ id: 'nope', amountDA: 1, category: 'Food', date: '2026-02-30' })
+    const state = sanitizeState({ transactions: rows })
+    expect(state.transactions).toHaveLength(5000)
+    expect(state.transactions.some((t) => t.id === 'nope')).toBe(false)
+  })
+
   it('drops a non-string note but keeps a valid one', () => {
     const base = { id: 'a', amountDA: 100, category: 'Food', date: '2026-08-01' }
     const state = sanitizeState({

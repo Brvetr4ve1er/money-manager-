@@ -71,7 +71,12 @@ export const LESSONS: ReadonlyArray<Lesson> = [
     id: 'start-small',
     title: 'Start embarrassingly small',
     oneLiner: 'The first goal is the habit, not the balance.',
-    body: '500 DA a week feels pointless — until it is 26,000 DA a year, and more importantly a habit with momentum. The first job of saving is proving to yourself you are a person who saves.',
+    // "proving to yourself you are a person who saves" is cut, for the same
+    // §7.1 reason "You are not weak; you are outnumbered" was cut from
+    // 'stores-are-designed' eleven entries down: it asserts something about
+    // the reader's self-concept the app has no evidence for, and it only works
+    // by presupposing they already doubt it. Every lesson stays on the object.
+    body: '500 DA a week feels pointless — until it is 26,000 DA a year, and more importantly a habit with momentum. The first goal is the habit. The balance follows.',
   },
   {
     id: 'name-the-goal',

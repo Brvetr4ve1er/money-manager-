@@ -133,11 +133,17 @@ export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   // it (see SimCard's onRun in App) — and because it is verified, QuestCard
   // renders it without a tap-to-complete button.
   { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', verified: true },
-  // The Ledger's "Recent" list is the surface this quest points at. It must
-  // not promise a yesterday view (dates, day grouping) the app doesn't have —
-  // that would be the same hollow grant as the cut lesson quest. If a
-  // date-grouped ledger ships, reword toward "yesterday" and verify it like
-  // the sim quest instead of taking the tap on self-report.
+  // The Ledger's "Recent" list is the surface this quest points at, and it now
+  // genuinely groups by day with per-day totals — so the old constraint here
+  // ("must not promise a yesterday view the app doesn't have") is satisfied and
+  // the wording is free to move. It deliberately hasn't, and it stays a
+  // self-report tap rather than joining the verified quests, for one reason:
+  // the only thing the app can OBSERVE on that card is the expand control, and
+  // that control does not exist until a fourth logged day. Verifying against it
+  // would make a DAILY quest unreachable for the whole first week — and naming
+  // "yesterday" in the text would promise a heading a day-1 ledger cannot
+  // render. A quest the app cannot observe is honest as a self-report; a
+  // verified flag over an unobservable action is the hollow grant.
   { id: 'review', text: 'Look back over your recent purchases', xpAction: 'reviewRecent' },
 ]
 
@@ -227,10 +233,37 @@ const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
  * normalizes overflow: month 99 rolls into the next years) rejects anything
  * the app itself could never have written.
  */
-function isValidDayKey(v: string): boolean {
+function computeValidDayKey(v: string): boolean {
   if (!DAY_KEY_RE.test(v)) return false
   const [y, m, d] = v.split('-').map(Number)
   return localDayISO(new Date(y, m - 1, d)) === v
+}
+
+/**
+ * Memoised, and that is a startup-cost fix, not a micro-optimisation: this
+ * gate runs once per transaction, per codex entry and per badge on every
+ * load — synchronously inside App's useReducer initialiser, BEFORE first
+ * paint — and again on every peer-tab write. A year of logging holds ~365
+ * distinct keys, so at N=5000 the same few hundred strings each allocate a
+ * Date and re-format it dozens of times over; the check measured half of
+ * sanitizeState's total. Sound to cache because the answer is a pure
+ * function of the string (the local-calendar rules it round-trips through
+ * cannot change under a running tab).
+ *
+ * The cap is the part that matters for the sanitizer's contract: a hostile
+ * or corrupt payload of all-distinct junk keys must not be able to grow an
+ * unbounded map: past the cap the check simply stops being cached and
+ * behaves exactly as it did before. Cache misses cost one map probe.
+ */
+const DAY_KEY_CACHE_MAX = 4096
+const dayKeyCache = new Map<string, boolean>()
+
+function isValidDayKey(v: string): boolean {
+  const hit = dayKeyCache.get(v)
+  if (hit !== undefined) return hit
+  const ok = computeValidDayKey(v)
+  if (dayKeyCache.size < DAY_KEY_CACHE_MAX) dayKeyCache.set(v, ok)
+  return ok
 }
 
 /**
@@ -526,11 +559,28 @@ export function loadState(): AppState {
   }
 }
 
-export function saveState(state: AppState): void {
+/**
+ * Persist, and REPORT whether the write landed. The boolean is not optional
+ * politeness: setItem throws QuotaExceededError when the origin's budget is
+ * exhausted (~13,000 transactions at the measured 189 chars each) and — far
+ * more commonly — in privacy modes that grant zero quota, where every write
+ * fails from the very first tap. Swallowing that made the app confirm a save
+ * it never made: the row rendered, the undo strip read "Logged 4,200 DA",
+ * the live region announced the XP, and localStorage was byte-for-byte
+ * unchanged. For a local-first manual-logging app the write IS the product,
+ * and Trust Rule 7 ("data leaves when you do") presumes the data is there to
+ * leave with. The caller must surface a false — see App.
+ *
+ * In-memory state stays authoritative on failure: the row must not vanish
+ * from the screen it was just added to, and "Export my data" reads that same
+ * in-memory state, so export remains the honest recovery path.
+ */
+export function saveState(state: AppState): boolean {
   try {
     localStorage.setItem(KEY, JSON.stringify(state))
+    return true
   } catch {
-    // Storage full or unavailable — the app keeps working in memory.
+    return false
   }
 }
 

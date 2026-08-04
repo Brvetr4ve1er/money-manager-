@@ -41,6 +41,7 @@ export function HeroCard({
   pets,
   components,
   historyDays,
+  isDemo,
 }: {
   stage: Stage
   score: number
@@ -49,6 +50,8 @@ export function HeroCard({
   components: Partial<Record<ComponentKey, number>>
   /** Days of logged history behind the score (engine/profile historyDays). */
   historyDays: number
+  /** True while the score runs on DEMO_PROFILE rather than the user's numbers. */
+  isDemo: boolean
 }) {
   const meta = STAGE_META[stage]
   // Explainability drawer: the engine exposes its component breakdown "for
@@ -64,6 +67,13 @@ export function HeroCard({
     <section className={open ? 'card hero-card is-open' : 'card hero-card'}>
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
       <span className="spec-label" aria-hidden="true">HLT—01</span>
+      {/* The card names what it measures, not what the measurement currently
+          says. It used to title itself with the stage label — which the hero
+          plate ALSO renders as an h2 at ≥1024, so the outline carried
+          "Bonfire" twice, one of them at 13px. This is the section heading the
+          explainability drawer below hangs off; the stage name is a line
+          inside the readout now, not a second heading. */}
+      <h2>Health score</h2>
       <div className="hero-main">
         <div className="stage-col">
           {/* No elevation (§5): the badge is a flat field with a 2px keyline.
@@ -98,7 +108,7 @@ export function HeroCard({
           )}
         </div>
         <div className="stage-info">
-          <h2>{meta.label}</h2>
+          <p className="stage-name">{meta.label}</p>
           {/* role="img": a generic div prohibits accessible naming, so without
               it the aria-label may be ignored and screen readers read the raw
               marks — or nothing. Drawn stars, not '★' (§8): the character got
@@ -110,34 +120,76 @@ export function HeroCard({
               <Glyph name="star" key={i} />
             ))}
           </div>
-          {/* INDEX ROLL (§9 move 4). The key is the rendered value, so a
-              changed score remounts the readout and re-runs the stepped
-              index; the class stays on the element that already holds the
-              whole string — splitting the number into its own wrapper would
-              be an invisible change here but a real one for anything reading
-              the readout as a single run of text. */}
-          <div className="mono score-line index-roll" key={score.toFixed(1)}>
-            Health {score.toFixed(1)}
-          </div>
+          {/* THE readout, at §3's d2 display tier (see .score-value). This is
+              the most important number the product computes and it rendered at
+              13px in the quiet ink — smaller than the card's own title. At
+              ≥1024 it is also the only thing left on this card above the
+              drawer, which is what gives the five explainability bars a
+              subject to be a breakdown OF.
+
+              The label and the numeral are separate spans because they take
+              different tiers, and the numeral alone carries INDEX ROLL (§9
+              move 4): a numeral indexes, a word does not. The key is the
+              rendered value, so a changed score remounts the span and re-runs
+              the stepped index.
+
+              The split is TYPOGRAPHIC ONLY, so it must not reach the
+              accessibility tree: a label and a numeral announced as two
+              separate runs is a worse readout than the one sentence it
+              replaces. The visible halves are aria-hidden and the sr-only line
+              carries "Health 63.7" whole — one string for AT, two tiers for
+              the eye. */}
+          <p className="mono score-line">
+            <span className="sr-only">Health {score.toFixed(1)}</span>
+            <span className="score-label" aria-hidden="true">Health</span>
+            <span
+              className="score-value index-roll"
+              aria-hidden="true"
+              key={score.toFixed(1)}
+            >
+              {score.toFixed(1)}
+            </span>
+          </p>
         </div>
       </div>
-      {/* Trust Rule 5, said out loud. Under 90 days of logged history the app
-          states that the score is still calibrating instead of projecting
-          confidence it hasn't earned — the shrink toward 50 was doing that
-          work silently, and a silent hedge is not a disclosure.
-          OUTSIDE .hero-main on purpose: at ≥1024px the hero shell owns the
-          stage readout and app.css hides .hero-main, which would take this
-          line with it — the calibration state must not blink out at a
-          breakpoint. Live text, never aria-hidden: it is the disclosure. */}
-      {historyDays < CALIBRATION_DAYS && (
+      {/* Trust Rule 5, said out loud, in its two halves.
+          WHOSE numbers (isDemo) comes first, because it is the bigger claim
+          and it was missing entirely: before setup, SR/BA/EF/DT are computed
+          from DEMO_PROFILE's invented 90,000 DA income and 45,000 DA fund, so
+          a fresh install rendered "Health 59.0 / Bonfire / 3 of 4 stars" at
+          the d2 tier off numbers no user ever entered — a fabricated score
+          presented as fact, which is exactly what the cold-start gate in
+          Root.tsx refuses to do one screen earlier. It compounds: the first
+          ROLL_DAY persists that stage, and mapToStage's ±3 hysteresis then
+          defends it against the user's real numbers. SimCard and ProfileCard
+          each say it for their own surface; this is the loudest number the
+          product computes and it said nothing.
+          Then HOW MUCH HISTORY (historyDays) — the original line. It is
+          keyed separately because the two states are independent: setup can
+          land on day 3, and a user can log 90 days without ever completing
+          setup, in which case the demo half must survive the calibration
+          half dropping away.
+          Deliberately not the words "demo profile": SimCard owns that phrase
+          and a second copy of it would make the app say "demo" twice about
+          two different things.
+          OUTSIDE .hero-main on purpose: the ≥1024px block re-homes the stage
+          badge, name and rating on the hero plate, and a disclosure that
+          moved with them would blink out at a breakpoint. Live text, never
+          aria-hidden: it is the disclosure. */}
+      {(isDemo || historyDays < CALIBRATION_DAYS) && (
         <p className="calibrating">
-          {/* Grotesk for the sentence, mono only for the index — the same
-              split .sim-note makes, and §11's "all numerals render in the
-              mono stack" applied to exactly the numerals. */}
-          Score still calibrating.{' '}
-          <span className="mono">
-            Day {historyDays} / {CALIBRATION_DAYS}
-          </span>
+          {isDemo && 'Placeholder numbers until setup. '}
+          {historyDays < CALIBRATION_DAYS && (
+            <>
+              {/* Grotesk for the sentence, mono only for the index — the same
+                  split .sim-note makes, and §11's "all numerals render in the
+                  mono stack" applied to exactly the numerals. */}
+              Score still calibrating.{' '}
+              <span className="mono">
+                Day {historyDays} / {CALIBRATION_DAYS}
+              </span>
+            </>
+          )}
         </p>
       )}
       <button

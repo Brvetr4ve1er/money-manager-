@@ -17,10 +17,10 @@
    pointing these at the semantic tokens.
 
    THE CONTRAST LAW IS THE LAYOUT (§2.1 rule 1). Flare is a FIELD, not a text
-   background: only the d1 wordmark, the ≥24px shear line, the mark and the
-   keylines touch it. Every string under 24px on this page sits on a plate.
-   That constraint is what produces the plates — remove a plate and you remove
-   the only thing making its text legal. */
+   background: only the d1 wordmark, the mark and the keylines touch it. Every
+   string under 24px on this page sits on a plate. That constraint is what
+   produces the plates — remove a plate and you remove the only thing making
+   its text legal. */
 
 .landing {
   /* The page's own three fields. Named here rather than inline so a section
@@ -213,15 +213,18 @@
   letter-spacing: var(--tr-d1);
   color: var(--lp-counter);
 }
-/* Rows justify to a common measure so "Emb" and "er" carry equal optical mass
-   — §4's row rule applied to the display lockup. The h1 takes its width from
-   the widest row and the shorter row tracks out to match; the letters are
-   never scaled, which would be the stretching §4 forbids. The base .wm-row
-   rule in app.css is `display: inline` for the mobile topbar, so this has to
-   restate the flex box at every width. */
+/* Rows stack FLUSH, they do not justify to a common measure. `space-between`
+   was doing that and it is not tracking: with rows of 3 and 2 letters it
+   spreads the slack over two gaps in EMB and dumps all of it into the single
+   gap in ER, so the page's h1 rendered as `EMB` / `E   R` — a dropped letter.
+   §4 asks for equal optical MASS per row, which two rows of the same face at
+   the same size already have, and no CSS tracks a short row out to a long one
+   without scaling the letters — which §4 forbids outright.
+   app.css's base .wm-row already says exactly this; the rule stays here only
+   so the landing cannot lose a specificity tie on stylesheet order. */
 .landing .lp-wordmark .wm-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 /* The halftone screen that app.css puts inside the desktop hero letterforms is
    deliberately NOT repeated here: it screens Void over a GRAPHITE letter, and
@@ -248,6 +251,12 @@
   line-height: var(--lh-h2);
   letter-spacing: var(--tr-h2);
   margin-bottom: var(--s2);
+  /* "Built flat. Logged in DA." wrapped to an orphan "DA." on a 375px plate —
+     a two-word second line under a five-word first. Balanced wrapping splits
+     it at the sentence instead. Progressive: engines without it wrap as
+     before, and the string is short enough that the balancer's line cap is
+     never in play. */
+  text-wrap: balance;
 }
 .lp-lede {
   margin: 0;
@@ -256,6 +265,20 @@
   font-weight: 700;
 }
 .lp-sub { margin: var(--s1) 0 0; font-size: var(--fs-body); }
+/* THE HAND-OFF (see Landing.tsx) — the reason to pass this on, above the fold.
+   It gets the §6 6px keyline bar rather than a plate of its own: a second ink
+   plate inside the wall's plate would make the composition four boxes deep,
+   and the wall already carries the facts pill. Flare on Bone is 3.01:1 —
+   under the body-text floor and comfortably over the 3:1 non-text minimum,
+   which is exactly what a signal bar is. The type itself stays Graphite on
+   Bone at 11.4:1; the accent never touches a letterform. */
+.lp-share {
+  margin: var(--s2) 0 0;
+  border-left: var(--keyline-heavy) solid var(--lp-flare);
+  padding-left: var(--s2);
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
 .lp-actions {
   display: flex;
   flex-wrap: wrap;
@@ -296,7 +319,13 @@
   margin: 0;
   background: var(--lp-form);
   color: var(--lp-counter);
-  border-radius: var(--r-pill);
+  /* --r-lg below 720px, the pill above it. A 999px radius is a STADIUM, and a
+     stadium whose content has wrapped to two lines is just a rounded box with
+     bulging ends — which is what this was at 375px. The radius token set has a
+     value for a two-line plate and it is not the pill. */
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
   padding: var(--s1) var(--s3);
   font-family: var(--mono);
   font-size: var(--fs-spec);
@@ -321,6 +350,87 @@
   font-size: var(--fs-h3);
   font-weight: 700;
 }
+/* ── THE PRODUCT SHOT ─────────────────────────────────────────────────────
+   A live <Ledger>, not an image (see Landing.tsx). It therefore arrives fully
+   dressed by tokens.css/app.css and this block adds nothing to its inside —
+   restyling the card here would make the shot a lie about the product.
+
+   THE CARD IS THEMED WHERE THE PAGE IS PINNED, and that is correct. Everything
+   else on this poster keeps its hex in both themes (see the file header); the
+   card is a specimen OF the app, so it takes the app's ground swap and shows a
+   dark visitor the dark card. Both states were checked against the Espresso
+   field it stands on: light gives a Bone card (13.4:1 against the ground it
+   sits on), dark a Graphite card whose Bone keyline reads at 13.4:1 — a card
+   that is close in fill to its field is still delimited by its own 2px
+   keyline, which is the §5 rule that depth comes from colour offset AND
+   keylines. Every pair INSIDE the card is the app's own, unchanged. */
+.lp-shot { margin: 0 0 var(--s3); }
+/* Phone width, held at every viewport. The shot is a specimen: a card stretched
+   to a 1080px measure is not the card anyone will use, and the target device is
+   the phone. */
+.lp-shot-frame {
+  max-width: 560px;
+  margin: 0 auto;
+  /* THE POSTER'S PINNED INK STOPS HERE, and this line is load-bearing.
+     .lp-spec pins its foreground to Bone for the copy standing on the Espresso
+     field. A card is a PLATE on that field with its own fill, and tokens.css's
+     .card sets a background without setting a colour — so the shot would
+     inherit Bone and render Bone type on the Bone light-theme card. An
+     invisible product shot, on the developer's dark machine only. The card
+     takes the app's own ink, which is what makes it the app's card. */
+  color: var(--ink);
+}
+/* app.css cuts a macro-break above the ledger because there it opens the
+   archive row of the app's stack. There is no stack here — the card IS the
+   subject, and it is the first thing in its figure. */
+.lp-shot-frame .ledger-card { margin-top: 0; }
+/* The caption is the shot's alt text (the shot is aria-hidden), so it is real
+   body copy, not a footnote: Bone on Espresso, 13.4:1. */
+.lp-shot-cap {
+  max-width: 60ch;
+  margin: var(--s2) auto 0;
+  font-size: var(--fs-body);
+}
+/* The honesty label, in the mono spec register (§1 trait 10) so it reads as a
+   stamp on the plate rather than as the first clause of the caption.
+   Its own class rather than a second use of .lp-index, deliberately: that class
+   means "the badge's position in the four-mechanic grid" and a test reads every
+   .lp-index on the page to check the denominator is the grid's real length. A
+   caption tag borrowing the class would break that check's subject. */
+.lp-shot-tag {
+  display: block;
+  margin-bottom: calc(var(--s1) / 2);
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+
+/* The note-pad line. A Bone plate like the badges below it, because it is a
+   claim about the product and not a caption on the shot above it — and because
+   §1 trait 01 puts every mark inside a shape. */
+.lp-note-strip {
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+  margin: 0 0 var(--s3);
+  font-size: var(--fs-body);
+}
+/* §11: all numerals render in the mono stack. The denominations are the only
+   numerals in the sentence, so the mono run is scoped to exactly them — the
+   same split .calibrating makes in the app. */
+.lp-notes-keys {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: var(--tr-spec);
+}
+
 .lp-grid {
   list-style: none;
   margin: 0;
@@ -369,9 +479,8 @@
 .lp-badge-body { margin: 0; font-size: var(--fs-body); }
 
 /* ── D. THE SHEAR (§5D) ───────────────────────────────────────────────────
-   One 38° Flare band splits the canvas and the type sits parallel to it. Sand
-   ground (aged paper, spec sheets) — Graphite on Sand is 9.4:1, so the rules
-   below read at full body weight. */
+   One 38° Flare band splits the canvas. Sand ground (aged paper, spec sheets)
+   — Graphite on Sand is 9.4:1, so the rules below read at full body weight. */
 .lp-shear {
   position: relative;
   background: var(--lp-sand);
@@ -380,38 +489,44 @@
   padding: var(--s5) var(--s3);
   overflow: hidden;
 }
-/* The band. Type PARALLEL to the diagonal, which is the whole layout — so the
-   band is a rotated bar with the line set inside it, not a bar with a caption
-   beside it. Set at --fs-h2, whose clamp floors at 24px: Graphite on Flare is
-   3.79:1, legal for large text (≥24px, or ≥18.66px bold) and illegal for
-   anything smaller. This size is a contrast requirement, not a style choice.
-   The rotation is layout, not motion — see .lp-wall::before. */
+/* THE BAND IS A FIELD, NOT A TEXT BLOCK, and that is a correction.
+   It used to carry the section's line — `text-align: center` + `nowrap`,
+   rotated about the section centre, which is exactly where the rule plates
+   sit. The middle of the line was therefore occluded at EVERY width: at 1440
+   you read "…VER CROSSED.", at 375 you got orange slivers with rotated letter
+   fragments between stacked cards. On the page whose whole subject is the
+   two-track rule, the display line was permanently truncated to a fragment.
+
+   The geometry is not tuneable. A 38° line across a section wider than it is
+   tall is only inside the box within ±(H/2)/tan38 of the centre — at 1440×570
+   that is x ∈ [355, 1085], and the 1080px plate measure covers all of it.
+   There is no lane. Laying the type OVER the plates instead trades a truncated
+   headline for two rules of body copy nobody can read, which is a worse trade:
+   the plates are content and the band is decoration (aria-hidden).
+
+   So the band does the job §5D's first clause gives it — one 38° band splits
+   the canvas — and the sentence lives where it is legible, as real text in the
+   section lede. Setting the line parallel to the diagonal needs the plates
+   arranged parallel to it too (a staircase, not a grid); that is a layout
+   change, not a polish pass, and it is not pretended at here.
+
+   The rotation is layout, not motion — reduced motion drops motion transforms
+   and must not take this one. See .lp-wall::before. */
 .lp-band {
   position: absolute;
   top: 50%;
   left: -20%;
   width: 140%;
+  height: var(--s5);
   margin: 0;
   transform: translateY(-50%) rotate(-38deg);
   background: var(--lp-flare);
   border-top: var(--keyline-w) solid var(--lp-form);
   border-bottom: var(--keyline-w) solid var(--lp-form);
-  padding: var(--s2) 0;
-  text-align: center;
   pointer-events: none;
   /* Behind the rule plates: the composition is centred, then broken once by
      the diagonal — the plates are what break it. */
   z-index: 0;
-}
-.lp-band-text {
-  font-family: var(--display);
-  font-weight: 900;
-  text-transform: uppercase;
-  font-size: var(--fs-h2);
-  line-height: var(--lh-h2);
-  letter-spacing: var(--tr-h2);
-  color: var(--lp-form);
-  white-space: nowrap;
 }
 .lp-rules-body { position: relative; z-index: 1; }
 .lp-spec-lede-dark { max-width: 46ch; }
@@ -543,4 +658,8 @@
   .lp-spec,
   .lp-shear,
   .lp-object { padding: var(--s6) var(--s5); }
+  /* One line at this width, so the stadium is honest again. */
+  .lp-facts { border-radius: var(--r-pill); }
+  /* The band grows with the composition it splits. */
+  .lp-band { height: var(--s6); }
 }

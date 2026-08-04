@@ -6,14 +6,19 @@
 
 import { useEffect, useMemo, useState, type Dispatch } from 'react'
 import { computeHealthScore, type HealthResult } from '../engine/healthScore.ts'
-import { deriveHealthInputs, finalizeHealthThrough, resolveProfile } from '../engine/profile.ts'
+import {
+  deriveHealthInputs,
+  finalizeHealthThrough,
+  resolveProfile,
+  type UserProfile,
+} from '../engine/profile.ts'
 import { todayISO, type AppState } from '../state/store.ts'
 import type { AppAction } from '../state/reducer.ts'
 
 export function useHealthDay(
   state: AppState,
   dispatch: Dispatch<AppAction>,
-): { today: string; health: HealthResult } {
+): { today: string; health: HealthResult; profile: UserProfile; isDemo: boolean } {
   // The current local day lives in React state so a tab kept open past
   // midnight re-renders on its own: a timer plus visibility/focus listeners
   // notice the date change, which recomputes health and fires the rollover
@@ -38,7 +43,15 @@ export function useHealthDay(
   // The real profile once setup completed, DEMO_PROFILE (with its disclosed
   // placeholder confidence) until then — one resolution feeding both the live
   // memo and the rollover, so the snapshot can never mix profiles.
-  const { profile, meta } = useMemo(() => resolveProfile(state.profile), [state.profile])
+  // Returned to App as well as used here. App used to call resolveProfile a
+  // SECOND time in its render body for the simulator card: same inputs, same
+  // answer, but a fresh object identity on every render — including the two
+  // extra renders every XP grant schedules (the +XP chip timer and the toast
+  // shift), which re-render the whole card stack. Handing this one down keeps
+  // the "simulator and score can never speak from different profiles"
+  // invariant structural rather than coincidental, and gives SimCard a stable
+  // prop identity.
+  const { profile, meta, isDemo } = useMemo(() => resolveProfile(state.profile), [state.profile])
 
   // Live health: exactly one smoothing step from the persisted snapshot
   // (yesterday's final score) toward today's raw blend.
@@ -80,5 +93,5 @@ export function useHealthDay(
     dispatch({ type: 'ROLL_DAY', today, healthScore: finalized.score, healthStage: finalized.stage })
   }, [state.healthDate, state.questsDate, state.transactions, profile, meta, state.prevHealthScore, state.stage, health, today, dispatch])
 
-  return { today, health }
+  return { today, health, profile, isDemo }
 }

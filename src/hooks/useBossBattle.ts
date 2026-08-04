@@ -43,9 +43,13 @@ export function useBossBattle(
 
   // Persistent won-last-week marker for the card — the fanfare's visible
   // counterpart that outlives the toast, same family as .quest-alldone.
-  const wonLastWeek = state.xpLog.some(
-    (g) => g.id === bossGrantId(addDaysISO(weekStartISO(today), -7)),
-  )
+  // Memoised for the same reason the two derivations above are: it scans the
+  // whole xpLog and builds three Date objects, and App re-renders on the
+  // toast/XP-chip timers with neither input changed.
+  const wonLastWeek = useMemo(() => {
+    const id = bossGrantId(addDaysISO(weekStartISO(today), -7))
+    return state.xpLog.some((g) => g.id === id)
+  }, [state.xpLog, today])
 
   return { battle, wonLastWeek }
 }

@@ -5,50 +5,80 @@
    rem, so it is a half-step OF the scale and not a value beside it. Type sizes
    go through the §3 tier tokens (--fs-*); there is no ad-hoc rem here. */
 
+/* The shell no longer holds the measure — it is the full-width stack, and the
+   MEASURE moved down onto .main-stack and .foot (see below).
+
+   Why: .shell used to be a 520px box with 16px padding, and the topbar lived
+   inside it. Between 521 and 1023px that produced a floating orange rectangle
+   with 130–190px of bone either side — iPad portrait and every half-width
+   laptop window. §5 layout A is "full-bleed colour, the container is the thing
+   standing in it"; a field that is itself a 520px container is the inversion
+   of that. With the measure on the children, the band bleeds at every width
+   with no negative-margin/100vw trick (which overflows by the scrollbar). */
 .shell {
-  max-width: 520px;
-  margin: 0 auto;
-  padding: var(--s2) var(--s2) var(--s4);
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: var(--s3);
+  padding-bottom: var(--s4);
 }
 
-/* The <main> landmark wraps the card stack (see App.tsx): it inherits the
-   shell's column rhythm so the cards space exactly as they did as direct
-   shell children. */
+/* The <main> landmark wraps the card stack (see App.tsx).
+   THE MEASURE: 520px of container with a --s3 gutter either side. The gutter is
+   --s3 rather than --s2 on purpose — it is the STAGE showing beside the
+   containers, and at 375px that is 12.8% of the page: real field, not a
+   hairline inset. The foot carries the same measure as a plate.
+   RHYTHM: --s3 between cards, not --s2. Eleven cards at one 16px gap read as a
+   single undifferentiated ribbon, and §5's grid is 8px-snapped at every step.
+   The macro-break that separates the act-now cards from the archive is on
+   .ledger-card below — one gap value for a whole page is not rhythm. */
 .main-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: var(--s3);
+  width: 100%;
+  max-width: calc(520px + var(--s3) * 2);
+  margin-inline: auto;
+  padding-inline: var(--s3);
 }
+/* THE MACRO-BREAK. Everything above is something to do today (log, quests,
+   boss, lesson, simulator, setup); the ledger, codex and badge shelf are the
+   archive — you read them, you do not act on them. --s3 gap + --s4 margin =
+   --s5 of stage between the two halves, so the break is a whole step of the
+   scale and reads as one at a glance. */
+.ledger-card { margin-top: var(--s4); }
 
-/* One header, two lives (see HeroShell.tsx): these base rules are the mobile
-   topbar. Every desktop-only piece (nav, stage line, right column) rests at
-   display:none here so the 320px single column stays a single column; the
-   ≥1024px block at the end of this file turns the same DOM into the
-   full-viewport hero.
+/* One header, two lives (see HeroShell.tsx): these base rules are the phone
+   and tablet band, the ≥1024px block at the end of this file turns the SAME
+   DOM into the full-viewport hero. One DOM is what keeps the page at exactly
+   one h1 and stops the heading outline forking per breakpoint.
 
-   THE FIELD IS NOT DESKTOP-ONLY. §2's ratio law wants 60% Flare or Espresso
-   and 30% Bone, and until now Flare only existed inside the ≥1024px block —
-   so on the app's stated primary device (a phone) the light theme was Bone
-   ground, Bone cards and Graphite keylines: ~0% of the colour the law puts
-   first. The topbar is §5 layout A at 320px, sized as a band rather than a
-   100vh field, which is what landing.css already ships for the same DOM.
+   THE COMPOSITION IS NOT DESKTOP-ONLY, and that was the app's second-largest
+   defect. §5 layout A, §1 trait 09's one diagonal, §8's corner spec plates and
+   §3's display tier all lived inside the ≥1024 block: below it the app had no
+   diagonal at all, no display-tier mark anywhere (--fs-d1/--fs-d2 had zero
+   uses in this file), and a 64px strip of Flare. On the app's stated primary
+   device — a phone — that is the whole system missing from the whole product.
 
-   Full-bleed, so it takes the shell's 16px inset back as negative margin and
-   re-spends it as its own padding: in layout A the COLOUR runs to the frame
-   edge and the things standing in it are what have inset. The ≥1024px block
-   resets the margin, where .shell carries no padding to cancel. */
+   So the band is the same composition, sized down: full-bleed Flare field, the
+   stacked display lockup centred in it, ONE 38° shear behind, 6% grain over,
+   and mono spec plates in the corners. --s7 (168px) is the floor — the token
+   had no uses either, and a band shorter than this reads as chrome rather than
+   as a field. It is deliberately NOT 100vh: the log card is the app's most-used
+   action and a full-viewport hero on a phone pushes it under the fold. */
 .hero-frame {
+  position: relative;
+  /* Keeps the shear and the grain inside the field. */
+  overflow: hidden;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: center;
+  min-height: var(--s7);
   background: var(--brand-field);
   border-bottom: var(--keyline-w) solid var(--brand-form);
-  padding: var(--s2);
+  /* Asymmetric: the top pad clears the corner spec plate and the mute button,
+     both of which hang absolutely at --s2 and are ~48px tall. */
+  padding: var(--s5) var(--s3) var(--s4);
 }
-.topbar { margin: calc(var(--s2) * -1) calc(var(--s2) * -1) 0; }
 /* Pinned to the brand triad, not --ink/--field: the field under them is Flare
    in BOTH themes (§2.2), and the only ratios that make type on it legal —
    3.79:1 Graphite, 3.01:1 Bone — are computed for exactly those three. An
@@ -70,52 +100,188 @@
    in the dark theme and lands at 3.01:1 on this field; Graphite holds 3.79:1
    on it in both themes, so the field names its own ring. */
 .hero-frame :focus-visible { outline-color: var(--brand-form); }
-/* Flattened on mobile so the lockup and the mute button sit directly in the
-   frame's flex row, exactly as the old topbar laid them out; the wrappers
-   only become real boxes inside the desktop composition. */
-.hero-grid,
-.hero-word-col {
-  display: contents;
+/* THE SHEAR — the one 38° diagonal that cuts the composition (§1 trait 09; §8
+   "centre everything, then break it once with a diagonal"). It runs the full
+   field and passes BEHIND the centred lockup, so the lockup is what breaks it.
+   Declared HERE, not in the ≥1024 block where it used to live: §8 makes the
+   diagonal per-composition, and the phone is the app's primary composition.
+
+   rotate(), not a percentage polygon: a polygon shears with the box and the
+   angle would drift with the viewport; 38° has to stay 38°. This transform is
+   LAYOUT, not motion — reduced motion drops motion transforms and must not
+   take this one, the same reason --press is a token instead of a blanket
+   `transform: none`. A hard-edged bar, never a gradient band.
+
+   Exactly one per composition, which is why nothing else in this file rotates:
+   the card stack below is not a second composition looking for a second
+   diagonal, it is the field's contents. */
+.hero-frame::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -30%;
+  width: 160%;
+  height: var(--keyline-heavy);
+  background: var(--brand-form);
+  transform: translateY(-50%) rotate(-38deg);
+  pointer-events: none;
 }
-/* .hero-word-col generates no box here, so its keyline ring must not generate
-   one either — engines differ on whether a display:contents element's
-   pseudo-elements are boxed, and a stray 2px ring would land loose in the
-   topbar row. The desktop block turns it back on. */
-.hero-word-col::after { content: none; }
-/* Mark + wordmark travel as one unit at both widths. */
+/* Grain over the whole field: a tiny inline feTurbulence SVG tile — no asset
+   request, no dependency. 6% is the §8 texture spec exactly. This and the
+   halftone inside the letterforms are the only two textures in the app, which
+   is the whole §8 budget.
+
+   multiply, not overlay. Overlay moves the field in BOTH directions, and the
+   one pair under this grain with no headroom is Bone-on-Flare at 3.01:1 — on
+   the brightest noise pixels overlay lifts the local field enough to push that
+   under the 3:1 large-text floor. multiply can only darken: Bone-on-Flare
+   rises to ~3.39:1 worst case and Graphite-on-Flare holds at ~3.38:1, so both
+   clear 3:1 on every noise pixel rather than on average. */
+.hero-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.06;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+/* THE single centred container, in front of the shear (§5 layout A: full-bleed
+   colour, ONE centred container, ~60% negative field). It is a container at
+   every width, not only on the hero: a band with the lockup loose on the field
+   has no container at all, which is §1 trait 01 inverted — and the graphite
+   letterforms then merged into the graphite shear passing behind them, because
+   nothing was breaking the diagonal. Bone plate, so the container is what
+   interrupts the shear and the display type reads at 11.4:1 instead of the
+   3.79:1 it manages straight on Flare. */
+.hero-grid {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+}
+.hero-word-col {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--brand-counter);
+  color: var(--brand-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2) var(--s3);
+}
+/* Mark + wordmark travel as one unit at every width, and both scale off the
+   lockup's font-size in em so the brick and the word can never drift apart. */
 .hero-lockup {
   display: flex;
   align-items: center;
-  gap: var(--s1);
+  gap: var(--s2);
+  /* THE DISPLAY TIER, in the product and not only on the poster. --fs-d2
+     bottoms out at 40px, comfortably inside §2.1 rule 1's ≥24px allowance for
+     type on a Flare field, and it is what breaks the app's 144→22→17→13→11
+     scale — a 122px hole followed by four sizes inside one octave. */
+  font-size: var(--fs-d2);
 }
 .hero-nav,
-.hero-stage-line,
 .hero-side,
-.hero-spec {
+.hero-stage-line {
   display: none;
 }
-/* §4 minimum size: 32px tall digital. The brick is built to survive exactly
-   this — at 2rem the letterform slots still resolve to ~2px, and the keyline
-   is a non-scaling 2px stroke rather than a hairline that thins with the art. */
+/* The keyline is a ring on ::after rather than a border on the box, because
+   §9 move 1 makes it the last thing to arrive and a border cannot be drawn
+   progressively. Present and complete at rest and under reduced motion — the
+   draw animation is only attached inside the ≥1024 gate. */
+.hero-word-col::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: var(--keyline-w) solid var(--brand-form);
+  border-radius: inherit;
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  pointer-events: none;
+}
+/* §4 minimum size is 32px tall digital; 1.62em of --fs-d2 is 65px at the
+   clamp floor. Height only — the viewBox supplies the width, so the brick
+   keeps its 1:2.1 aspect at every size (§4 forbids stretching). */
 .hero-brick {
-  height: 2rem;
+  height: 1.62em;
   flex-shrink: 0;
 }
+/* §1 trait 03 — wordmarks compress VERTICALLY into bricks, never horizontally
+   into lines. The band used to flatten the stack back onto one 1.6rem line,
+   which is the trait inverted and the reason the app owned no display-tier
+   mark at all. d1's leading and tracking straight off the tokens. */
 .wordmark {
+  display: flex;
+  flex-direction: column;
   font-family: var(--display);
   font-weight: 900;
   text-transform: uppercase;
-  font-size: 1.6rem;
-  letter-spacing: var(--tr-h1);
-  line-height: var(--lh-h1);
+  font-size: 1em;
+  line-height: var(--lh-d1);
+  letter-spacing: var(--tr-d1);
 }
-/* The stacked rows collapse back into one line here: the topbar has 320px to
-   work with and the word has to read across, not down. The h1's text content
-   is "Ember" either way — only the boxes change. */
-.wm-row { display: inline; }
-/* The letters are the drop-in animation units (desktop): inline spans ignore
-   transforms entirely, so they must be inline-block for translateY to act. */
+/* Rows stack flush, they do NOT justify to a common measure. `space-between`
+   was doing that job and it is not tracking: with rows of 3 and 2 letters it
+   spreads the slack over two gaps in EMB and dumps all of it into the single
+   gap in ER, so the h1 rendered as `EMB` / `E   R` — a dropped letter, not a
+   lockup. §4 asks for equal optical MASS per row, which two rows of the same
+   face at the same size already have; there is no CSS that tracks a short row
+   out to a long one without scaling the letters, and scaling is what §4
+   forbids outright. Flush-left is the brick. */
+.wm-row {
+  display: flex;
+  justify-content: flex-start;
+}
+/* The letters are the drop-in animation units: inline spans ignore transforms
+   entirely, so they must be inline-block for translateY to act. */
 .wm-letter { display: inline-block; }
+
+/* Mono spec labels in the corners (§8), each on its own plate. §2.1 rule 1 is
+   not negotiable here: an 11px mono string may not sit on a 3.79:1 field, so
+   the label gets a Graphite plate and reads at 11.4:1.
+   block, not inline-flex: the health label at ≥1024 is "Health 62/100" — mixed
+   text and an .index-roll span, and in a flex container each text run becomes
+   an anonymous flex item and the space between them is dropped. */
+.hero-spec {
+  display: block;
+  position: absolute;
+  z-index: 2;
+  background: var(--brand-form);
+  color: var(--brand-counter);
+  border-radius: var(--r-sm);
+  /* Whole-box superellipse (§11: clip-path, not border-radius, wherever
+     aspect > 1.5) on a fixed-height single-line plate at aspect ~5:1 with no
+     border to lose, measured against its longest string ("HEALTH 100/100").
+     corner-shape stays declared as the fallback for engines that ignore the
+     polygon. */
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  clip-path: var(--se-42);
+  padding: var(--s1) var(--s2);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+.hero-spec-tl { top: var(--s2); left: var(--s2); }
+/* display AFTER .hero-spec, so it wins the specificity tie on source order:
+   the health index plate is the ≥1024 corner mark, and on the band the
+   HeroCard readout is the score's only home (see the desktop block). */
+.hero-spec-bl { display: none; bottom: var(--s2); left: var(--s2); }
+/* Colours are on the base .hero-mute rule above — the field is the same Flare
+   at every width, so only the position changes between the band and the hero. */
+.hero-mute {
+  position: absolute;
+  top: var(--s2);
+  right: var(--s2);
+  z-index: 3;
+}
+.hero-mute .glyph { font-size: 1.5rem; }
 
 /* §8's drawn glyph set (see Glyph.tsx), sized off the type it sits with: a 1em
    box means .stage-flame's 2.6rem and a .mark's 1rem both land without a
@@ -252,7 +418,30 @@
 .hero-main {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--s3);
+}
+/* The badge column and the readout stack were butting into each other — at
+   768 the rating pill's right edge touched the score line with no gutter. One
+   column, one gap, on the scale. */
+.stage-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s1);
+  min-width: 0;
+}
+/* Stage name as a plain line, not a second <h2>. It was a heading in BOTH the
+   hero plate and this card, so the outline carried "Bonfire" twice at ≥1024 —
+   and the card's copy rendered at 13px, a heading smaller than body. The hero
+   plate keeps the heading; the card names the thing it actually measures
+   ("Health score") and this becomes what it is: the stage's label. */
+.stage-name {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--tr-h3);
+  font-weight: 700;
+  text-transform: uppercase;
 }
 /* Explainability toggle — quieter than the CTAs (it opens a readout, it
    grants nothing), but still a real pressable .btn in the family language. */
@@ -284,12 +473,12 @@
    surface, against §2's "more than one accent per surface" ban and §1 trait
    06's three-tone cap. Trust Rule 1 is untouched by the swap: it forbids the
    score wearing the ENGAGEMENT track's colour, and ink is neither track.
-   Ink on --sunken is 9.4:1 light / 15:1 dark, so the fill/empty boundary
+   Ink on --sunken is 9.4:1 light / 13.4:1 dark, so the fill/empty boundary
    clears WCAG 1.4.11 on its own and the hard leading-edge keyline the Acid
    fill needed is gone with it. */
 .health-track {
   flex: 1;
-  height: 12px;
+  height: var(--s2);
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-pill);
   background: var(--sunken);
@@ -406,10 +595,41 @@
   font-size: var(--fs-body);
   line-height: 1;
 }
-.score-line { font-size: var(--fs-cap); color: var(--spec); font-weight: 700; }
+/* THE DISPLAY TIER, doing the one job in this product that deserves it.
+   The Health Score is the most important number Ember computes and it rendered
+   at 13px in --spec, quieter than the card's own title, while DECISION_SIM.EXE
+   got a full Graphite title bar. It is the d2 mark of the card stack now, and
+   at ≥1024 it is the ONLY thing left on this card above the drawer — which is
+   what gives the five explainability bars a subject.
 
-/* Trust Rule 5's disclosure line (see HeroCard). Spec-sheet register — mono,
-   11px, --spec ink — because it is a stated calibration state, not a warning:
+   Mono at d2, not the display face: §3 puts d2 in Tier 1 but §11 is
+   unconditional — "all numerals render in the mono stack, uppercase" — and a
+   numeral is what this is. The component law is the more specific rule, so the
+   scale comes from §3 and the face from §11. Tabular figures via .mono at the
+   call site, so an indexing score never reflows its own label. */
+.score-line {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+}
+.score-label {
+  font-size: var(--fs-cap);
+  letter-spacing: var(--tr-cap);
+  font-weight: 700;
+  color: var(--spec);
+}
+.score-value {
+  font-size: var(--fs-d2);
+  line-height: var(--lh-d2);
+  letter-spacing: var(--tr-d2);
+  font-weight: 700;
+}
+
+/* The quiet disclosure line: Trust Rule 5's two halves on HeroCard (whose
+   numbers, how much history) and the ledger's permanent scope statement.
+   Spec-sheet register — mono, 11px, --spec ink — because each is a stated
+   state, not a warning:
    Signal/Marigold here would read as an error the user has to fix, and the
    honest cold start is not a fault. --spec is a 70% mix of --ink toward the
    ground; computed against --field per §2.1 rule 3 it lands at 4.78:1 (light,
@@ -449,7 +669,7 @@
   font-weight: 700;
 }
 .xp-track {
-  height: 22px;
+  height: var(--s3);
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-pill);
   background: var(--sunken);
@@ -472,15 +692,19 @@
 }
 
 /* Card titles are h2 (siblings of the hero stage label in the outline, under
-   the single page h1 wordmark) set at §3's h3 tier rather than h2's: 30px is a
-   page-section size and a card is not a page section, but "somewhere around
-   15px" is not a tier at all — which is what 0.95rem was. One token, whole
-   tier: 22 / 1.15 / -0.01em. */
+   the single page h1 wordmark), and they now take §3's h2 tier — the tier that
+   was minted for them and had ZERO uses in this file.
+   Why the change: at h3's 22px the app's whole rendered scale was
+   144 → 22 → 17 → 13 → 11, a 122px hole followed by four sizes inside one
+   octave, with ten identical 22px headings down a 6,800px page. --fs-h2 clamps
+   24 → 30, so a card title now steps clearly off the 22px sub-headings
+   (.lesson-title) and the 17px body under it, and the display tier above it
+   (the band lockup, the health readout) has something to step down TO. */
 .card h2 {
-  font-size: var(--fs-h3);
-  line-height: var(--lh-h3);
-  letter-spacing: var(--tr-h3);
-  margin-bottom: var(--s1);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--tr-h2);
+  margin-bottom: var(--s2);
 }
 
 /* Repeat chips: the user's own frequent (amount, category) pairs as one-tap
@@ -525,17 +749,24 @@
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-sm);
   padding: var(--s1) var(--s2);
-  background: var(--field);
+  /* RECESSED, not the card fill. An input on --field was the same hex as the
+     card it sits in and as the page behind that — three nested surface levels,
+     one colour, every scrap of depth riding on the 2px keyline. §5 puts depth
+     in "colour offset + keylines"; this is the offset half. Sand under Bone in
+     light, Espresso under Graphite in dark: --ink reads 9.4:1 / 13.4:1 on it,
+     both well clear. */
+  background: var(--sunken);
   color: var(--ink);
 }
-/* Placeholders are examples, not labels (see .field-label) — pin them to the
-   measured --spec value instead of trusting the UA-default gray to clear
-   contrast on the Bone and Espresso grounds. */
-.field::placeholder { color: var(--spec); opacity: 1; }
+/* Placeholders are examples, not labels (see .field-label) — pinned to a
+   measured value rather than the UA-default gray. --spec-sunken, NOT --spec:
+   --spec is mixed toward --ground and computes to 4.02:1 on the Sand recess,
+   under the 4.5:1 body floor. The deeper mix lands at 5.04:1 / 9.03:1. */
+.field::placeholder { color: var(--spec-sunken); opacity: 1; }
 /* "I bought it anyway" self-report. The whole label is the toggle and its
    min-height makes it a 48px target; accent-color keeps the native checkbox
-   on the theme instead of UA blue, and --data (not --reward) keeps the
-   reality track's colour on a reality input. */
+   on the theme instead of UA blue (see the input rule for why it is --ink and
+   not a second accent on this card). */
 .impulse-check {
   display: flex;
   align-items: center;
@@ -546,20 +777,25 @@
   font-weight: 600;
   cursor: pointer;
 }
+/* accent-color: var(--ink), NOT --data. §2 allows one accent per surface and
+   this card already spends it on .btn-gold's Marigold resist button; Acid on
+   the same .card was the second. The label text carries the meaning, so
+   nothing about the two-track coding lives in this checkbox's fill — dropping
+   the accent reassigns no track colour, it just stops the card carrying two.
+   --ink also raises the checked fill from 1.03:1 to 11.44:1 against the card. */
 .impulse-check input {
-  width: 22px;
-  height: 22px;
+  width: var(--s3);
+  height: var(--s3);
   margin: 0;
-  accent-color: var(--data);
+  accent-color: var(--ink);
   flex-shrink: 0;
   transition: transform var(--t-quick) var(--ease-pop);
 }
 /* With accent-color set, Chromium draws the CHECKED box as a bare accent fill
-   and no border — and Acid on the Bone card field is 1.03:1, so the control's
-   whole boundary dissolves into the field and only the UA checkmark survives.
-   WCAG 1.4.11 is measured on luminance, not hue, so "obviously a different
-   colour" does not answer it. The keyline gives the box its own 11.44:1 edge
-   at rest while --data keeps the Trust-Rule-1 colour coding above.
+   and no border, so the control's whole boundary would otherwise dissolve into
+   the field at rest and only the UA checkmark would survive. WCAG 1.4.11 is
+   measured on luminance, not hue, so "obviously a different colour" does not
+   answer it. The keyline gives the box its own 11.44:1 edge at rest.
    :not(:focus-visible) is load-bearing: a bare `.impulse-check input` is
    (0,1,1) and would outrank the global `:focus-visible` outline (0,1,0) in
    tokens.css, silently killing the focus ring on this one control. */
@@ -570,7 +806,7 @@
 /* THE PRESS reaches every interactive control, not just the ones that look
    like buttons (§9 move 5). The whole label is the 48px target, so pressing
    anywhere on it compresses the box the user is actually aiming at. No radius
-   half of the move here: a 22px native checkbox has no radius to give, and
+   half of the move here: a 24px native checkbox has no radius to give, and
    accent-color is what keeps it on-theme. The transition override is the
    compression itself — 90ms on `primary`, per §9 move 5; the 180ms `pop`
    declared on the resting rule above is the RELEASE. */
@@ -578,6 +814,33 @@
   transform: var(--press);
   transition: transform var(--t-instant) var(--ease-primary);
 }
+/* Cash-note pad: the notes actually in circulation as one-tap adders on the
+   amount field. Fieldset chrome stripped the same way .profile-group does it —
+   the .field-label legend carries the visual grouping, and the native group
+   role carries the semantic one. */
+.note-pad { border: 0; margin: var(--s1) 0 0; padding: 0; min-width: 0; }
+.note-pad > legend { padding: 0; margin-bottom: var(--s1); }
+.note-keys { display: flex; gap: var(--s1); flex-wrap: wrap; }
+/* --sunken, not the card fill: the pad IS the amount input, so it takes the
+   input's recessed surface (see .field) rather than reading as a second row of
+   repeat chips. --ink on --sunken is 9.4:1 light / 13.4:1 dark, and §2.1 rule 1
+   is why the numerals may not go on the Flare field at this size. The .btn base
+   supplies the 48px floor, the 2px keyline and THE PRESS.
+   min-width, not a fixed width: "2,000" and "100" stay one tap-sized key each
+   without the row locking to a grid that breaks at 320px. */
+.note-key {
+  font-size: var(--fs-cap);
+  letter-spacing: var(--tr-spec);
+  padding: var(--s1) var(--s2);
+  min-width: 64px;
+  background: var(--sunken);
+}
+/* Inert Clear (nothing typed yet) takes the shared .btn[aria-disabled='true']
+   treatment in tokens.css — measured pair, dashed keyline, no press, no hover
+   contour. It used to be declared here for this one control, which is why the
+   collected lesson button kept its live reward plate while granting nothing. */
+.note-clear { font-size: var(--fs-spec); padding: var(--s1) var(--s2); }
+
 .log-actions { display: flex; gap: var(--s1); flex-wrap: wrap; margin-top: var(--s1); }
 /* Post-log Undo grace strip: mis-tap safety for the app's most-used action.
    Neutral field (not an accent) — it is a control surface, not a reward. */
@@ -608,6 +871,48 @@
   padding-left: var(--s1);
 }
 
+/* Storage fault banner (App.tsx). THE PLATE, for the same reason .foot became
+   one: .field-error's construction ("ink type on the ground") is only legal
+   inside a CARD, whose ground is --field. This banner is a direct child of
+   .main-stack, which paints nothing, so its ground is body's --stage — Flare
+   in the light theme. Graphite on Flare is 3.79:1 and §2.1 rule 1 forbids any
+   sub-24px string there outright, and the Flare signal bar on a Flare ground
+   was 1:1, i.e. the one marker distinguishing this message did not exist in
+   light mode. On the plate the copy reads 11.4:1 in both themes and the bar
+   measures 3.01:1 (light) / 3.78:1 (dark), clearing §2.1's non-text floor —
+   same legal Flare-on-plate keyline .field-error and .lp-share already use.
+   The fault is still carried by a word, never by colour alone (§12.8), and
+   body size, not caption: this one is not a footnote. */
+.persist-fault {
+  margin: 0;
+  background: var(--field);
+  color: var(--ink);
+  border: var(--keyline-w) solid var(--keyline);
+  border-left: var(--keyline-heavy) solid var(--alert);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s3);
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+/* While it has nothing to say it becomes .sr-only rather than display:none —
+   the region must stay mounted AND stay in the accessibility tree (an empty
+   region that disappears reads as a brand-new one when it returns, and
+   VoiceOver/NVDA then skip the announcement). Taking it out of flow is what
+   stops the empty <p> from leaving a permanent .main-stack gap; visually it
+   is simply absent. */
+.persist-fault:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+}
+
 .quest-head {
   display: flex;
   justify-content: space-between;
@@ -630,13 +935,16 @@
   text-transform: uppercase;
 }
 
-/* 20px gap: with 28px rows the vertical pitch is 48px, so the 48px extended
-   hit areas below meet without overlapping — a tap between two quests can
-   never complete the wrong (irreversible, XP-granting) one. */
-.quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 20px; }
+/* --s2, and the row itself is 48px tall (see .quest-row): the old pairing was
+   a 28px row, a 20px gap and a ±10px invisible hit-area extension — three
+   values, two of them off the 8px baseline entirely, tuned so the extended
+   targets met without overlapping. Making the row the target instead puts the
+   pitch at 64px on the grid, keeps every tap ≥48px, and closes the gap between
+   the target a user aims at and the one they hit. */
+.quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
 .quest { display: flex; align-items: center; }
 /* The whole row is the button: quest text is the natural tap target, so it
-   must carry the affordance (cursor, hover) the 28px box alone had before.
+   must carry the affordance (cursor, hover) the 32px box alone had before.
    Cursor/hover/active are gated on the aria-disabled state: a done quest is
    inert (irreversible, XP already granted), and a pointer cursor plus a press
    animation on a control that does nothing would break the "pressed =
@@ -645,8 +953,12 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--s1);
+  gap: var(--s2);
   width: 100%;
+  /* §11: touch targets stay ≥48px regardless of visual density. The row IS the
+     target — no invisible ::after extension, so what the user aims at and what
+     they hit are the same box. */
+  min-height: 48px;
   background: none;
   border: none;
   padding: 0;
@@ -661,15 +973,9 @@
    (never the disabled attribute, which would drop keyboard focus to <body>
    on the button the user just activated), so the inert styling keys off it. */
 button.quest-row:not([aria-disabled='true']) { cursor: pointer; }
-/* Invisible hit-area extension: 28px visual row, >=48px touch target. */
-.quest-row::after {
-  content: '';
-  position: absolute;
-  inset: -10px 0;
-}
 .quest-box {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-xs);
   background: var(--field);
@@ -691,7 +997,7 @@ button.quest-row:not([aria-disabled='true']) { cursor: pointer; }
 div.quest-row .quest-box { border-style: dashed; }
 .quest.done div.quest-row .quest-box { border-style: solid; }
 button.quest-row:not([aria-disabled='true']):hover .quest-box { background: var(--sunken); }
-/* §9 move 5, scaled to a 28px box: --press is `none` under reduced motion, so
+/* §9 move 5, scaled to a 32px box: --press is `none` under reduced motion, so
    the background swap above carries the feedback there. */
 button.quest-row:not([aria-disabled='true']):active .quest-box {
   transform: var(--press);
@@ -757,7 +1063,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
 }
 .boss-name { margin: 0; font-weight: 700; }
 .boss-track {
-  height: 22px;
+  height: var(--s3);
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-pill);
   background: var(--sunken);
@@ -816,8 +1122,14 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
   gap: var(--s1);
+  /* Locked tiles hold one mark and collapse to --s5; collected ones hold a
+     title and a line. Without this the whole row stretched to the tallest
+     tile, so 30 near-empty boxes inherited a collected tile's height and the
+     codex ran to ~35% of the phone page at ~10% ink coverage — against §1
+     trait 08's 85–95%. Ragged rows are what an index sheet looks like. */
+  align-items: start;
 }
 /* Collected tile: a mini --reward card — the gacha pull made permanent. Tiles
    are non-interactive display: they carry no press affordance, so they can
@@ -854,9 +1166,15 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   color: var(--ink);
   align-items: center;
   justify-content: center;
-  min-height: 3.2rem;
+  min-height: var(--s5);
 }
-.codex-locked .codex-tile-title { font-size: 1rem; }
+/* The mark fills the tile rather than floating in it — trait 08 again: the
+   container is the design, so the ink has to reach for its edges. */
+.codex-locked .mark {
+  width: var(--s4);
+  height: var(--s4);
+  font-size: var(--fs-h3);
+}
 
 /* Achievements — the badge shelf. Earned tiles are mini --reward cards in the
    codex-tile family (non-interactive display, never the pressable-row
@@ -877,7 +1195,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
   gap: var(--s1);
 }
 .ach-tile {
@@ -1041,25 +1359,88 @@ form > .profile-note { margin-top: var(--s1); }
   letter-spacing: var(--tr-cap);
   color: var(--spec);
 }
+/* Day grouping. The outer list is days, each owning its own row list — the
+   nesting is the structure the accessibility tree announces, not a wrapper. */
+.ledger-days { list-style: none; margin: 0; padding: 0; }
+/* --s3, where a row's rhythm is --s1: the gap between two days has to read
+   louder than the gap between two rows, or the group boundary is a guess.
+   That step is what separates the days, so the day head needs only the ordinary
+   2px keyline to open its own run. */
+.ledger-day + .ledger-day { margin-top: var(--s3); }
+.day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s1);
+  flex-wrap: wrap;
+  padding-bottom: var(--s1);
+  border-bottom: var(--keyline-w) solid var(--keyline);
+  /* Body size, NOT the 22px h3 tier the token set gives every other h3. Two
+     reasons: at 22px a day heading sits a hair under the 24px card title it
+     hangs off — no step at all — and the list repeats the heading once per
+     logged day, so the tier that reads as emphasis on one .lesson-title reads
+     as shouting seven times down a ledger. The scale here is 24 title / 17
+     day / 13 row, one clean step each. Never below body: a heading smaller
+     than the text it governs inverts the outline. */
+  font-size: var(--fs-body);
+}
+/* h3 is weight 500 in the token set; a day heading is the label for everything
+   under it and takes the 700 the caption tier uses. */
+.day-label { font-weight: 700; }
+/* Money, stated flat. No accent fill: --reward would put the engagement track's
+   colour on a financial number (Trust Rule 1, drawn in colour) and --data would
+   make every day look like a verdict the card is explicitly not passing. Ink on
+   --field, 11.4:1, at the row tier — the day's own rows are what it sums. */
+.day-total {
+  font-size: var(--fs-cap);
+  font-weight: 700;
+}
 .tx-list { list-style: none; margin: 0; padding: 0; }
-/* Ink rule for the same reason as .profile-row. */
+/* Ink rule for the same reason as .profile-row. §11's 48px floor is written for
+   touch TARGETS and these rows are not pressable — but the ledger is now the
+   surface a user scans to answer "did I already log that", and 13px type in
+   36px of pitch is what makes a scan a squint. */
 .tx {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--s1);
+  min-height: 48px;
   padding: var(--s1) 0;
   border-bottom: var(--keyline-w) solid var(--keyline);
   font-size: var(--fs-cap);
 }
 .tx:last-child { border-bottom: none; }
+/* Same treatment as .hero-why: a secondary control in the .btn family, so it
+   keeps the 48px floor, the focus ring and THE PRESS without competing with
+   the card's primary actions. */
+.ledger-more {
+  margin-top: var(--s2);
+  padding: var(--s1) var(--s2);
+  font-size: var(--fs-spec);
+}
 .empty { font-size: var(--fs-body); color: var(--spec); margin: 0; }
 
+/* THE PLATE (§5 layout C). The foot is the one run of copy that used to sit
+   straight on the page background, and the page background is now a Flare
+   field: --spec on Flare is 2.3:1, and §2.1 rule 1 forbids any sub-24px string
+   on it outright. So the foot becomes a container like everything else that
+   stands in the field — same fill, same 2px keyline, same corner as a card, so
+   it closes the stack instead of reading as loose text under it. */
 .foot {
   display: flex;
   align-items: center;
-  gap: var(--s1);
+  gap: var(--s2);
   flex-wrap: wrap;
+  width: calc(100% - var(--s3) * 2);
+  max-width: 520px;
+  margin-inline: auto;
+  background: var(--field);
+  border: var(--keyline-w) solid var(--keyline);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s3);
 }
 .foot-note { font-size: var(--fs-spec); color: var(--spec); }
 
@@ -1088,6 +1469,10 @@ form > .profile-note { margin-top: var(--s1); }
 @media (prefers-reduced-motion: reduce) {
   .hero-rise { animation-delay: 0ms !important; }
 }
+/* Attached at every width, not only inside the ≥1024 block: the band is a
+   real composition now, so its pieces stage in like the hero's and like the
+   landing's (landing.css attaches its own copy for the same reason). */
+.hero-rise { animation: hero-rise var(--t-slow) var(--ease-entrance) both; }
 
 /* "The container keyline draws last, 180ms" (§9 move 1). A literal clockwise
    trace needs four synchronised edge animations and a mid-corner join; this is
@@ -1100,76 +1485,48 @@ form > .profile-note { margin-top: var(--s1); }
   to { clip-path: inset(0 0 0 0); }
 }
 
-@media (min-width: 1024px) {
-  /* The hero goes full-bleed, so the shell stops constraining width; the
-     card stack and foot reclaim their own centered measure below. */
-  .shell {
-    max-width: none;
-    padding: 0 0 var(--s4);
-    gap: var(--s3);
+/* ── Tablet / split-window (≥768px) ────────────────────────────────────────
+   The real breakpoint that used to be missing. Between 521 and 1023px the app
+   was a 520px phone column marooned on a wall of field with nothing else
+   happening — iPad portrait and every half-width laptop window. The band
+   already bleeds at every width now; this gives the stack a second track and
+   a measure that matches the device, so the composition grows instead of
+   floating. The wide list/collection cards keep both tracks. */
+@media (min-width: 768px) {
+  .main-stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    max-width: calc(760px + var(--s3) * 2);
   }
+  .foot { max-width: 760px; }
+  /* The archive spans both tracks — a list and two collection grids are wide
+     content, and the macro-break above the ledger stays a full-width step
+     because the row it opens is a full-width row.
+     .persist-fault is in this list for a different reason: while empty it is
+     position:absolute and not a grid item at all, so the healthy stack packs
+     from HeroCard. The moment a write fails it becomes a real item, claims
+     cell (1,1) and shifts every card one cell over — the page rearranging
+     itself at the exact moment something has gone wrong. Spanning both tracks
+     keeps the card packing identical in both states. */
+  .persist-fault,
+  .ledger-card,
+  #codex,
+  #badges { grid-column: 1 / -1; }
+}
 
-  /* Full-bleed field, not an inset panel: in §5 layout A the COLOUR runs to
-     the frame edge and the rounded container is the thing standing in it. So
-     the field takes no radius and no inset, and every rounded box in the hero
-     is something placed on it. Flat, hard-edged, no elevation, no gradient:
-     §5 puts depth in colour offset and keylines only, and §2 bans any gradient
-     over an 8% value shift. */
-  /* The band becomes the full-viewport field. The field colour, the bottom
-     keyline and the pinned focus ring are already on the base rule — this
-     block only changes the BOX. The negative margin goes: .shell carries no
-     padding at this width, so there is nothing to bleed back out of. */
-  .topbar { height: 100vh; margin: 0; }
+@media (min-width: 1024px) {
+  /* The band becomes the full-viewport field (§5 layout A, THE BRICK WALL:
+     full-bleed colour, a single centred container, ~60% negative field). The
+     field colour, the bottom keyline, the shear, the grain, the corner plates
+     and the pinned focus ring are all on the base rules — this block only
+     changes the BOX and adds the pieces a 320px band has no room for. */
+  .topbar { height: 100vh; }
   .hero-frame {
     display: block;
-    position: relative;
     height: 100%;
     padding: 0;
-    /* Keeps the shear, the grain and the hanging nav plate inside the field. */
-    overflow: hidden;
   }
-  /* THE SHEAR — the one 38° diagonal that cuts the composition (§1 trait 09,
-     §8 "centre everything, then break it once with a diagonal"). It runs the
-     full field and passes BEHIND the centred container, so the container is
-     what breaks it.
-     rotate(), not a percentage polygon: a polygon shears with the box and the
-     angle would drift with the viewport; 38° has to stay 38°. This transform
-     is layout, not motion — reduced motion drops motion transforms and must
-     not take this one, the same reason --press is a token instead of a blanket
-     `transform: none`. A hard-edged bar, never a gradient band. */
-  .hero-frame::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: -30%;
-    width: 160%;
-    height: var(--keyline-heavy);
-    background: var(--brand-form);
-    transform: translateY(-50%) rotate(-38deg);
-    pointer-events: none;
-  }
-  /* Grain over the whole field: a tiny inline feTurbulence SVG tile — no asset
-     request, no dependency. 6% is the §8 texture spec exactly; overlay blend
-     reads on the Flare field. This and the halftone inside the letterforms are
-     the only two textures in the app, which is the §8 budget. */
-  .hero-frame::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.06;
-    /* multiply, not overlay. Overlay moves the field in BOTH directions, and
-       the one pair under this grain with no headroom is Bone-on-Flare at
-       3.01:1 — on the brightest noise pixels overlay lifts the local field
-       enough to push that under the 3:1 large-text floor. multiply can only
-       darken: Bone-on-Flare rises to ~3.39:1 worst case and Graphite-on-Flare
-       holds at ~3.38:1, so both clear 3:1 on every noise pixel rather than on
-       average. §8's texture and its 6% budget are untouched. */
-    mix-blend-mode: multiply;
-    pointer-events: none;
-  }
-
-  .hero-rise { animation: hero-rise var(--t-slow) var(--ease-entrance) both; }
 
   /* Every foreground in the hero is pinned to the brand triad rather than the
      ground-swapping --ink/--field pair: the field below them is Flare in BOTH
@@ -1206,7 +1563,7 @@ form > .profile-note { margin-top: var(--s1); }
   }
   /* The mark on the plate, knocked out to one colour — the §4 knockout variant
      exists for exactly this: a lockup on a field that already owns its ink. */
-  .hero-nav-mark { height: 30px; }
+  .hero-nav-mark { height: 32px; }
   .hero-nav a {
     display: inline-flex;
     align-items: center;
@@ -1245,92 +1602,31 @@ form > .profile-note { margin-top: var(--s1); }
     outline-offset: -6px;
   }
 
-  /* Colours are on the base rule — the field is the same Flare at both
-     widths, so only the position changes here. */
-  .hero-mute {
-    position: absolute;
-    top: var(--s3);
-    right: var(--s3);
-    z-index: 3;
-  }
-  /* The glyph carries the button, so it is sized off the target rather than
-     off the 13px cap label the .btn family sets. */
-  .hero-mute .glyph { font-size: 1.5rem; }
+  /* Colours and the corner anchoring are on the base rules — the field is the
+     same Flare at every width, so only the inset grows with the field. */
+  .hero-mute { top: var(--s3); right: var(--s3); }
 
-  /* Mono spec labels in the corners (§8), each on its own plate. §2.1 rule 1
-     is not negotiable here: an 11px mono string may not sit on a 3.79:1 field,
-     so the label gets a Graphite plate and reads at 11.4:1. */
-  /* block, not inline-flex: the health label is "Health 62/100" — mixed text
-     and an .index-roll span. In a flex container each text run becomes an
-     anonymous flex item and the space between "Health" and the numeral is
-     dropped. Absolutely positioned, so it shrink-to-fits either way. */
-  .hero-spec {
-    display: block;
-    position: absolute;
-    z-index: 2;
-    background: var(--brand-form);
-    color: var(--brand-counter);
-    border-radius: var(--r-sm);
-    /* Whole-box superellipse, see .window-bar: a fixed-height single-line
-       plate at aspect ~5:1 with no border to lose, measured against its
-       longest string ("HEALTH 100/100"). corner-shape stays declared as the
-       fallback for engines that ignore the polygon. */
-    corner-shape: squircle;
-    corner-shape: superellipse(2.07);
-    clip-path: var(--se-42);
-    padding: var(--s1) var(--s2);
-    font-family: var(--mono);
-    font-variant-numeric: tabular-nums;
-    font-size: var(--fs-spec);
-    line-height: var(--lh-spec);
-    letter-spacing: var(--tr-spec);
-    text-transform: uppercase;
-  }
+  /* The third corner plate joins the composition here: the band has no room
+     for it, and on the band the HeroCard readout is the only score on screen.
+     See HeroShell — this one is the printed index, never the live readout. */
   .hero-spec-tl { top: var(--s3); left: var(--s3); }
-  .hero-spec-bl { bottom: var(--s3); left: var(--s3); }
+  .hero-spec-bl { display: block; bottom: var(--s3); left: var(--s3); }
 
   /* The centred container. Absolute + inset so it centres in the FIELD rather
      than in the flow, and the ~60% negative field is what is left around it.
      The vertical padding is the clearance the nav plate and the corner labels
      need. */
   .hero-grid {
-    display: flex;
     position: absolute;
     inset: 0;
     align-items: center;
-    justify-content: center;
     padding: var(--s6) var(--s4);
-    z-index: 1;
   }
+  /* Same plate, room for the thesis and the CTA to join the lockup inside it. */
   .hero-word-col {
-    display: flex;
-    flex-direction: column;
     gap: var(--s3);
-    position: relative;
-    /* Bone, not Flare: display type on Flare is 3.79:1 — legal at ≥24px and
-       nowhere near legal for the thesis line and the CTA label that share this
-       box. The container is also what interrupts the shear. */
-    background: var(--brand-counter);
-    color: var(--brand-form);
-    border-radius: var(--r-lg);
-    corner-shape: squircle;
-    corner-shape: superellipse(2.07);
     padding: var(--s4) var(--s5);
     max-width: min(88vw, 1000px);
-  }
-  /* The keyline is a ring on ::after rather than a border on the box, because
-     §9 move 1 makes it the last thing to arrive and a border cannot be drawn
-     progressively. Present and complete under reduced motion — the animation
-     is only attached inside the gate below. */
-  .hero-word-col::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border: var(--keyline-w) solid var(--brand-form);
-    border-radius: inherit;
-    corner-shape: squircle;
-    corner-shape: superellipse(2.07);
-    pointer-events: none;
   }
   @media (prefers-reduced-motion: no-preference) {
     /* 490ms: after the last staggered piece of THE STACK has landed. */
@@ -1339,44 +1635,23 @@ form > .profile-note { margin-top: var(--s1); }
     }
   }
 
-  /* The lockup owns the display size; the brick and the rows both scale off it
-     in em, so the mark and the word can never drift apart. */
-  .hero-lockup {
-    align-items: center;
-    gap: var(--s3);
-    font-size: clamp(4.5rem, 10vw, 9rem);
-  }
-  /* Two rows at 0.78 leading. Height only — the viewBox supplies the width, so
-     the brick keeps its 1:2.1 aspect at every size (§4 forbids stretching). */
-  .hero-brick { height: 1.62em; }
+  /* The lockup steps from d2 (the band) up to d1 (the hero). Everything else
+     about it — the flex row, the stacked rows, the em-scaled brick — is on the
+     base rules, so the mark and the word can never drift apart. */
+  .hero-lockup { font-size: clamp(4.5rem, 10vw, 9rem); }
 
-  /* The stacked display brick (§1 trait 03). d1 leading and tracking straight
-     off the tokens — the old lockup ran a hand-tuned -0.07em to keep a
-     single-line EMBER inside an 8-column track, and stacking the word is what
-     retires that exception. */
-  .wordmark {
-    display: flex;
-    flex-direction: column;
-    font-size: 1em;
-    line-height: var(--lh-d1);
-    letter-spacing: var(--tr-d1);
-  }
-  /* Rows justify to a common measure, so "Emb" and "er" carry equal optical
-     mass — §4's row rule, applied to the display lockup. The h1 takes its
-     width from the widest row and the shorter row tracks out to match; the
-     letters are never scaled, which would be the stretching §4 forbids. */
-  .wm-row {
-    display: flex;
-    justify-content: space-between;
-  }
   /* §8's second and last texture: a 1px halftone line screen, permitted ONLY
      inside display letterforms. Void lines over the Graphite form, so the
      screen can only DARKEN the letter — a lighter screen would drift the
      11.4:1 pair with the Bone container downward, and this is the one texture
-     that lands on type. @supports-gated because -webkit-text-fill-color:
-     transparent with no working clip is an invisible wordmark. */
+     that lands on type. Held at ≥1024 and scoped to .hero-frame: at the band's
+     40px the 2px/1px screen closes the counters, and unscoped it also reached
+     the landing's BONE wordmark, whose 3.01:1 pair has no headroom for a dark
+     screen (landing.css says so and then had it applied over the top anyway).
+     @supports-gated because -webkit-text-fill-color: transparent with no
+     working clip is an invisible wordmark. */
   @supports (background-clip: text) or (-webkit-background-clip: text) {
-    .wm-letter {
+    .hero-frame .wm-letter {
       background-image: repeating-linear-gradient(
         180deg,
         var(--brand-form) 0 2px,
@@ -1390,7 +1665,7 @@ form > .profile-note { margin-top: var(--s1); }
     /* Forced-colours mode replaces backgrounds wholesale; hand the letters
        back their own colour rather than let the clip strand them transparent. */
     @media (forced-colors: active) {
-      .wm-letter {
+      .hero-frame .wm-letter {
         color: revert;
         -webkit-text-fill-color: revert;
       }
@@ -1446,12 +1721,25 @@ form > .profile-note { margin-top: var(--s1); }
     transition: background var(--t-base) var(--ease-index);
   }
   /* An <h2> since the desktop hero owns the stage label (see HeroShell) —
-     styled down to plate scale, but Tier 2 like every other heading: §3 keeps
-     the display face for 1–3 stacked words in a container. */
+     styled to plate scale, but Tier 2 like every other heading: §3 keeps the
+     display face for 1–3 stacked words in a container.
+     h3's tier, not cap's: at --fs-cap this was a HEADING RENDERED SMALLER THAN
+     BODY (13px against 17px), which inverts the outline it belongs to. 22px is
+     the smallest tier in §3 that is still a heading size. */
   .hero-stage-name {
-    font-size: var(--fs-cap);
-    line-height: var(--lh-cap);
-    letter-spacing: var(--tr-cap);
+    font-size: var(--fs-h3);
+    line-height: var(--lh-h3);
+    letter-spacing: var(--tr-h3);
+  }
+  /* Spec register for the demo disclosure, not warning colour: running on
+     placeholder numbers is a stated state, not a fault the user must fix
+     (same reasoning as .calibrating). It inherits the plate's --brand-form
+     ink at 11.4:1; --spec would mix toward the wrong ground here, because
+     this plate is pinned Bone in BOTH themes. */
+  .hero-stage-note {
+    font-size: var(--fs-spec);
+    line-height: var(--lh-spec);
+    max-width: 12ch;
   }
   .hero-pets {
     display: inline-flex;
@@ -1501,8 +1789,8 @@ form > .profile-note { margin-top: var(--s1); }
      theme while the --reward fill does not (see --on-accent in tokens.css),
      so the chip must use the fixed pair to stay legible in both themes. */
   .hero-cta-chip {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     border-radius: var(--r-pill);
     background: var(--on-accent);
     color: var(--reward);
@@ -1512,33 +1800,21 @@ form > .profile-note { margin-top: var(--s1); }
     flex-shrink: 0;
   }
 
-  /* Below the hero the card stack becomes a centered 2-col grid; the wide
-     list/collection cards span both tracks. align-items: start keeps short
-     cards from stretching to their row partner's height. */
-  .main-stack {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--s3);
-    align-items: start;
-    width: 100%;
-    max-width: 1080px;
-    margin: 0 auto;
-    padding: 0 var(--s3);
-  }
-  .ledger-card,
-  #codex,
-  #badges { grid-column: 1 / -1; }
+  /* The grid arrives at 768 (see that block); this only widens the measure.
+     The macro-break before the archive grows a step with the field. */
+  .main-stack { max-width: calc(1080px + var(--s3) * 2); }
+  .foot { max-width: 1080px; }
+  /* The macro-break grows a step with the field it is cut into. */
+  .ledger-card { margin-top: var(--s6); }
 
-  /* The hero owns the stage badge/name/score at this width: HeroCard sheds
-     its duplicate readout (never two sources for one number) and keeps its
-     unique job — the explainability drawer. */
-  .hero-card .hero-main { display: none; }
-  .hero-card .hero-why { margin-top: 0; }
-
-  .foot {
-    width: 100%;
-    max-width: 1080px;
-    margin: 0 auto;
-    padding: 0 var(--s3);
-  }
+  /* The hero plate owns the stage BADGE, name and rating at this width, so the
+     card sheds those three — never two sources for one mark. It keeps the
+     score, and the score is why: with .hero-main hidden wholesale the flagship
+     explainability surface was five labelled bars, a muted note, no heading,
+     no number and no subject — a chart of an invisible quantity. The readout
+     is the drawer's subject and it stays. */
+  .hero-card .stage-col,
+  .hero-card .stage-name,
+  .hero-card .stars { display: none; }
+  .hero-card .hero-main { gap: 0; }
 }

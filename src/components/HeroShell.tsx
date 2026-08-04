@@ -8,12 +8,14 @@ import { Glyph } from './Glyph.tsx'
 /**
  * HeroShell — the page header in both of its lives, one DOM.
  *
- * On mobile it is the compact topbar (mark + wordmark + mute). At ≥1024px the
- * SAME elements become §5 layout A, THE BRICK WALL: a full-bleed Flare field,
- * one centred container, ~60% negative field, one 38° shear, and mono spec
- * labels in the corners. Everything that differs between the two is a media
- * query in app.css — one DOM is what keeps the page at exactly one h1 and
- * stops the heading outline forking per breakpoint.
+ * Below 1024px it is a band, above it a full-viewport field — but it is the
+ * SAME composition at both, which it was not before: §5 layout A, a full-bleed
+ * Flare field with the stacked display lockup centred in it, one 38° shear
+ * passing behind, 6% grain over, and mono spec plates in the corners. The
+ * pieces a 320px band has no room for (the nav plate, the thesis and CTA, the
+ * stage plate, the third corner label) are the only things a media query in
+ * app.css adds — one DOM is what keeps the page at exactly one h1 and stops
+ * the heading outline forking per breakpoint.
  *
  * The layout it replaces aped a different reference: a giant bottom-anchored
  * wordmark, a floating pill nav and a stage-coloured radial glow. None of the
@@ -32,12 +34,15 @@ export function HeroShell({
   score,
   pets,
   muted,
+  isDemo,
   onToggleMute,
 }: {
   stage: Stage
   score: number
   pets: PixelPet[]
   muted: boolean
+  /** True while the stage on this plate runs on DEMO_PROFILE, not the user's. */
+  isDemo: boolean
   onToggleMute: () => void
 }) {
   const meta = STAGE_META[stage]
@@ -163,6 +168,15 @@ export function HeroShell({
               <Glyph name="star" key={i} />
             ))}
           </span>
+          {/* Whose numbers. At ≥1024 the hero is the full viewport, so this
+              plate carries the stage above the fold and HeroCard's disclosure
+              is a scroll away — the one width where the loudest claim can be
+              read without the sentence that qualifies it. Inside the plate,
+              not on the field beside it: .hero-stage-line is Bone with
+              Graphite type (11.4:1), and an 11px string on the Flare field
+              would break §2.1 rule 1. The line is display:none below 1024,
+              where HeroCard's copy is the only one on screen. */}
+          {isDemo && <span className="hero-stage-note mono">Placeholder until setup</span>}
           {pets.length > 0 && (
             <span
               className="hero-pets"
@@ -181,14 +195,17 @@ export function HeroShell({
         </div>
 
         {/* The live health index as a corner spec label — `62/100`, the §1
-            trait 10 fractional label doing real work. NOT aria-hidden: at
-            ≥1024px HeroCard's readout is display:none, so this is the only
-            place the score is exposed, and dropping it from the tree would
-            lose it for AT at that width. The mobile side of the split is the
-            mirror image — this label is hidden and the card carries it. */}
+            trait 10 fractional label doing real work. aria-hidden, and that is
+            a change: HeroCard's readout used to be display:none at ≥1024, so
+            this was the score's only exposure there and had to stay in the
+            tree. The card keeps its readout at every width now (it is the
+            drawer's subject), so this goes back to being what it looks like —
+            a printed corner index, rounded to whole points, beside the card's
+            precise figure. One live source for the number, one printed one. */}
         <span
           className="hero-spec hero-spec-bl mono hero-rise"
           style={{ animationDelay: '420ms' }}
+          aria-hidden="true"
         >
           {/* INDEX ROLL (§9 move 4) on the numeral only: the label beside it is
               not a numeral, and hero-rise already owns this element's

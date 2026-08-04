@@ -5,9 +5,9 @@
  * it anyway") add modules instead of effects in one growing file.
  */
 
-import { useEffect, useReducer, type RefObject } from 'react'
+import { useEffect, useMemo, useReducer, useState, type RefObject } from 'react'
 import { RESIST_XP_DAILY_CAP } from './engine/xp.ts'
-import { resolveProfile, historyDays } from './engine/profile.ts'
+import { historyDays } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
@@ -53,7 +53,20 @@ export default function App({
 } = {}) {
   const [state, dispatch] = useReducer(appReducer, undefined, loadState)
 
-  useEffect(() => saveState(state), [state])
+  // A failed write is a product failure, not a logging detail: setItem throws
+  // on an exhausted quota and in privacy modes that grant none at all, and
+  // until now the app confirmed the save anyway (row rendered, undo strip
+  // read "Logged 4,200 DA", live region announced the XP) while storage stayed
+  // untouched. State stays in memory either way — the row must not vanish out
+  // from under the user, and export reads the same in-memory state.
+  // Set unconditionally rather than guarded: React bails out of a setState
+  // that lands on the identical value, so the healthy path costs no extra
+  // render, and writing it every time is what makes the fault CLEAR itself
+  // the moment a write lands again (quota freed, private window closed).
+  const [persistFailed, setPersistFailed] = useState(false)
+  useEffect(() => {
+    setPersistFailed(!saveState(state))
+  }, [state])
   // A second open tab also saves on every change; without re-syncing, this
   // tab's next save would overwrite the peer's transactions with its own
   // stale list (silent data loss — see mergeStates in the store).
@@ -63,7 +76,11 @@ export default function App({
   )
   useEffect(() => sfx.setMuted(state.muted), [state.muted])
 
-  const { today, health } = useHealthDay(state, dispatch)
+  // Real numbers once the setup card completed, DEMO_PROFILE until then — the
+  // hook resolves it once and hands it down, so the simulator and the score
+  // cannot read different profiles and the object identity is stable across
+  // renders that changed neither.
+  const { today, health, profile, isDemo } = useHealthDay(state, dispatch)
   // The hook's `today` (like logPurchase uses), so the battle week can never
   // disagree with the day every other card believes it is. The hook also
   // claims a just-completed winning week — the toast/fanfare react to the
@@ -75,18 +92,41 @@ export default function App({
   // toast + sparkle react to the persisted change in useRewards.
   useAchievements(state, dispatch, today)
   const { toast, xpGain } = useRewards(state)
-  // Real numbers once the setup card completed, DEMO_PROFILE until then —
-  // the same resolution useHealthDay applies, so the simulator and the score
-  // can never speak from different profiles.
-  const { profile, isDemo } = resolveProfile(state.profile)
   // Computed once: the hero shell and the hero card both show the companions
   // and must always agree on the shelf.
-  const pets = unlockedPets(state.achievements)
+  // MEMOISED, like every derivation below it: useRewards holds the toast queue
+  // and the +XP chip in App-level state, so each grant schedules two further
+  // renders of this whole tree (chip clear at 1800ms, toast shift at 2600ms)
+  // in which no state field these read has changed. Un-memoised they redid a
+  // full transaction scan — and minted a fresh array/Set/object identity —
+  // three times per grant instead of once.
+  const pets = useMemo(() => unlockedPets(state.achievements), [state.achievements])
   // Deterministic pick for the hook's day — same lesson on every render,
   // reload, and tab of that day, and stable across "Got it" (lessonForDay
   // keeps today's own entry in the pool on purpose).
   const todayLesson = lessonForDay(today, state.lessonsSeen)
   const lessonReadToday = state.quests.some((q) => q.id === 'lesson' && q.done)
+  // Memoised like `pets`, and computed off the hook's `today` rather than a
+  // fresh todayISO() for the same reason every other date in this render is.
+  // Trust Rule 5's calibration count, read by the health readout — the ledger
+  // no longer takes it: a day total is an exact fact from day one, so a 90-day
+  // index on that card made accurate figures look provisional (see Ledger).
+  const loggedDays = useMemo(() => historyDays(state.transactions, today), [state.transactions, today])
+  // Counting loop with an early exit, not filter().length: the old form
+  // allocated an intermediate array over the whole ledger to answer one
+  // boolean, and it answers the same after the third resist of the day as
+  // after the three-hundredth.
+  const resistXpCapped = useMemo(() => {
+    let n = 0
+    for (const t of state.transactions) {
+      if (t.resistedImpulse && t.date === today && ++n >= RESIST_XP_DAILY_CAP) return true
+    }
+    return false
+  }, [state.transactions, today])
+  const collectedLessonIds = useMemo(
+    () => new Set(state.lessonsSeen.map((e) => e.id)),
+    [state.lessonsSeen],
+  )
 
   function readLesson() {
     // Two dispatches, one tap: READ_LESSON collects the lesson into the codex
@@ -173,6 +213,10 @@ export default function App({
         score={health.score}
         pets={pets}
         muted={state.muted}
+        // The desktop hero owns the stage badge/name/rating at ≥1024px, so it
+        // owns the "whose numbers are these" disclosure there too — see
+        // HeroCard for why the stage is not the user's until setup lands.
+        isDemo={isDemo}
         onToggleMute={() => dispatch({ type: 'TOGGLE_MUTE' })}
       />
 
@@ -203,25 +247,48 @@ export default function App({
           the cold-start gate dismisses and the button that had focus goes
           away. It is inert for every other user of this component. */}
       <main className="main-stack" ref={mainRef} tabIndex={-1}>
+        {/* Storage fault. role="status", not "alert": assertive would
+            interrupt, and the first thing it would interrupt is the app's own
+            boot announcement — in a zero-quota privacy mode this region is
+            already filled on the very first commit. The polite queue reaches
+            the user right after the tap that failed, which is when it means
+            something. ("alert" is also already spoken for by LogCard's inline
+            validation, and two of them would be one too many.)
+
+            Permanently mounted and mounted EMPTY, for the same reason as the
+            toast: screen readers announce text CHANGES inside an existing
+            region. Deliberately NOT folded into the toast region — that one is
+            a fixed-position banner in 24px display caps that clears itself
+            after 2.6s, and this condition does not clear itself. It stays in
+            flow, in reading order above the cards, until a write lands.
+
+            The message names the failure and the recovery and stops there
+            (§7.1): the log itself is fine and still on screen, so blaming the
+            tap would be a lie as well as a scold. "Export my data" in the foot
+            reads the same in-memory state and still works. */}
+        <p className="persist-fault" role="status" aria-label="Storage">
+          {persistFailed
+            ? "That didn't go through. Nothing is saving to this device. Export to keep it."
+            : ''}
+        </p>
         <HeroCard
           stage={health.stage}
           score={health.score}
           pets={pets}
           components={health.components}
-          // Trust Rule 5: the score names its own calibration state under 90
-          // days. The hook's `today`, like every other date in this render —
-          // a fresh wall-clock read could age the count by a day mid-render.
-          historyDays={historyDays(state.transactions, today)}
+          // Trust Rule 5, both halves: the score names its own calibration
+          // state under 90 days, AND names whose numbers it is scoring while
+          // the profile is still DEMO_PROFILE. Same flag SimCard reads, so
+          // the score and the simulator can never disagree about it.
+          historyDays={loggedDays}
+          isDemo={isDemo}
         />
         <XpCard xp={state.xp} gain={xpGain} />
         <LogCard
           transactions={state.transactions}
           onLog={logPurchase}
           onUndo={undoLog}
-          resistXpCapped={
-            state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
-            RESIST_XP_DAILY_CAP
-          }
+          resistXpCapped={resistXpCapped}
         />
         <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
         <BossCard battle={battle} wonLastWeek={wonLastWeek} />
@@ -238,8 +305,12 @@ export default function App({
           onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
         />
         <ProfileCard profile={state.profile} onSave={saveProfile} />
+        {/* `today` is the hook's day, not a fresh clock read: it decides which
+            group is headed "Today" and which is "Yesterday", and a list that
+            re-reads the wall clock would disagree with the day this render's
+            logs were stamped with in the minute after midnight. */}
         <Ledger transactions={state.transactions} today={today} />
-        <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
+        <CodexCard collectedIds={collectedLessonIds} />
         <AchievementsCard unlocks={state.achievements} />
       </main>
 

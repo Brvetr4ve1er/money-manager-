@@ -39,8 +39,15 @@ export function SimCard({
       {/* §11 corner mark. Rides in the window bar — this card's top edge is
           the plate, not the reserved strip the other cards use. */}
       <span className="spec-label" aria-hidden="true">SIM—07</span>
-      <div className="window-bar mono">DECISION_SIM.EXE</div>
+      {/* Chrome, not content: the bar is this card's top edge and its label is
+          a deadpan spec mark in the §1 trait 10 register. aria-hidden because
+          the card now carries a real h2 below it — every other card in the
+          stack has one, and without it this section had no accessible name and
+          the heading outline skipped it entirely. Announcing both would read
+          the card's title twice, once spelled out as an executable. */}
+      <div className="window-bar mono" aria-hidden="true">DECISION_SIM.EXE</div>
       <div className="sim-body">
+        <h2>Decision simulator</h2>
         {/* Honesty gap guard: the result copy speaks in second person, so the
             card must always say whose numbers it projects — the demo profile
             until setup completes, the user's own after. Claiming

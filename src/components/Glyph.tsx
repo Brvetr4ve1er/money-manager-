@@ -31,6 +31,7 @@ import { bandPath, boxPath, dotPath, segPath, starPath } from './shape.ts'
  *   shield         → the word "Resisted" beside it (Ledger)
  *   medal          → the .sr-only "Earned: " prefix + badge name + date
  *   sound / muted  → the mute button's own aria-label + aria-pressed
+ *   locked         → the .sr-only "Locked lesson" on the tile it sits in
  * A glyph added without one of those is a regression, not a style choice.
  */
 
@@ -43,6 +44,7 @@ export type GlyphName =
   | 'medal'
   | 'sound'
   | 'muted'
+  | 'locked'
   | 'kit'
   | 'sabr'
   | 'nahla'
@@ -124,6 +126,20 @@ const GLYPHS: Record<GlyphName, GlyphShape> = {
     // slash laid ACROSS the form would need a gutter cut through it, and at
     // 24px that severs the speaker into unreadable pieces.
     ink: [boxPath(3, 12, 8, 8, 3), boxPath(8, 7, 8, 18, 4), bandPath(23, 16, 15, 3.2, -38)],
+  },
+  // The not-yet mark on a locked codex tile. It was the character '?', which
+  // §8 retires as UI iconography along with the emoji — and a question mark
+  // reads as "unknown", which is wrong: the tile is not a mystery, it is a
+  // lesson you have not reached. A padlock body with the shackle drawn as a
+  // counter: squircle chassis, one cut, no third tone, like the rest of the
+  // set. Never a countdown or a date — locked is neutral (Trust Rule 6).
+  locked: {
+    // The shackle counter STOPS at the body's top edge (y=13). Running it to
+    // y=16, as it did, subtracted a 6-wide notch out of the top of the lock
+    // body between the shackle legs — ~3.8px deep at the 40px .codex-locked
+    // size, on every one of the 30 locked tiles.
+    ink: [boxPath(5, 13, 22, 17, 7), boxPath(9, 2, 14, 14, 6)],
+    cut: [boxPath(13, 6, 6, 7, 3), boxPath(13.6, 19, 4.8, 6, 2.4)],
   },
 
   // ── Companions ──────────────────────────────────────────────────────────

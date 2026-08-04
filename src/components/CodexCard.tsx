@@ -1,4 +1,5 @@
 import { LESSONS } from '../content/lessons.ts'
+import { Glyph } from './Glyph.tsx'
 
 /**
  * The lesson collection — a completionism hook with no FOMO mechanics: locked
@@ -38,7 +39,14 @@ export function CodexCard({ collectedIds }: { collectedIds: ReadonlySet<string> 
                AchievementsCard uses for the same state. */
             <li key={l.id} className="codex-tile codex-locked">
               <span className="sr-only">Locked lesson</span>
-              <span className="codex-tile-title" aria-hidden="true">?</span>
+              {/* A drawn mark in a keyline badge, not the character '?': §8
+                  retires character glyphs as UI iconography, and thirty '?'s
+                  down a page read as an error state rather than as an index of
+                  what is still ahead. .mark is the same 1:1 container every
+                  other loose glyph in the app sits in (§1 trait 01). */}
+              <span className="mark" aria-hidden="true">
+                <Glyph name="locked" />
+              </span>
             </li>
           ),
         )}

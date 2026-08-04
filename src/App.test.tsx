@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
 import App from './App.tsx'
 import * as sfx from './audio/chiptune.ts'
 import { computeHealthScore } from './engine/healthScore.ts'
@@ -235,14 +235,19 @@ describe('logging quick wins', () => {
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
   })
 
-  it('sums resisted amounts into a kept-this-month line — mirror, not score input', () => {
+  it('sums resisted amounts into a resisted-this-month line — mirror, not score input', () => {
     render(<App />)
-    expect(screen.queryByText(/kept this month/)).toBeNull()
+    expect(screen.queryByText(/this month/)).toBeNull()
     for (const value of ['500', '300']) {
       fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value } })
       fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
     }
-    expect(screen.getByText('800 DA kept this month')).toBeTruthy()
+    // "resisted", never "kept": this sums the prices of things the user SAYS
+    // they did not buy, so the verb must name the observed action (the tap)
+    // rather than assert an unverifiable outcome. The chip is the loudest
+    // number on the card; the noun is what makes it honest.
+    expect(screen.getByText('800 DA resisted this month')).toBeTruthy()
+    expect(screen.queryByText(/kept this month/)).toBeNull()
   })
 })
 
@@ -252,12 +257,58 @@ describe('health explainability drawer', () => {
     // .hero-main (which app.css hides at >=1024px): a calibration state that
     // blinks out at a breakpoint, or waits for a tap, is not a disclosure.
     render(<App />)
-    expect(screen.getByText(/Score still calibrating/)).toBeTruthy()
-    expect(screen.getByText(/Day 0 \/ 90/)).toBeTruthy()
+    // Scoped to the health card: the ledger now carries the SAME Day n / 90
+    // index in its own disclosure, and this assertion is about the score's.
+    const hero = () => screen.getByRole('main').querySelector('.hero-card') as HTMLElement
+    expect(within(hero()).getByText(/Score still calibrating/)).toBeTruthy()
+    expect(within(hero()).getByText(/Day 0 \/ 90/)).toBeTruthy()
     // A logged day is day 1 of 90, never day 0 and never "ready".
     fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '900' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
-    expect(screen.getByText(/Day 1 \/ 90/)).toBeTruthy()
+    expect(within(hero()).getByText(/Day 1 \/ 90/)).toBeTruthy()
+  })
+
+  it('names whose numbers it is scoring while the profile is still the demo one', () => {
+    // Trust Rule 5's other half. A fresh install renders "Health 59.0",
+    // "Bonfire" and "3 of 4 stars" at the d2 display tier off DEMO_PROFILE's
+    // invented 90,000 DA income, 45,000 DA fund and 12,000 -> 9,500 DA debt
+    // paydown — numbers no user ever entered. "Score still calibrating" speaks
+    // about logged HISTORY, not about whose figures are being scored, so the
+    // loudest number the product computes said nothing about being borrowed.
+    // It compounds: the first ROLL_DAY persists that stage, and mapToStage's
+    // +-3 hysteresis then defends it against the user's real numbers.
+    render(<App />)
+    const hero = () => screen.getByRole('main').querySelector('.hero-card') as HTMLElement
+    expect(within(hero()).getByText(/Placeholder numbers until setup/)).toBeTruthy()
+    // The demo half is INDEPENDENT of the calibration half — setup can land on
+    // day 3, and 90 days can pass with no setup at all.
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
+    expect(within(hero()).queryByText(/Placeholder numbers until setup/)).toBeNull()
+    // …and the calibration line survives the flip on its own.
+    expect(within(hero()).getByText(/Score still calibrating/)).toBeTruthy()
+  })
+
+  it('carries the same disclosure on the desktop hero plate that owns the stage', () => {
+    // At >=1024px the hero is the full viewport and the stage badge, name and
+    // rating move onto its plate (app.css), so the card's disclosure is a
+    // scroll away — the one width where the loudest claim could be read
+    // without the sentence that qualifies it. Same flag, same plate.
+    render(<App />)
+    const header = screen.getByRole('banner')
+    expect(within(header).getByText(/Placeholder until setup/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
+    expect(within(header).queryByText(/Placeholder until setup/)).toBeNull()
+  })
+
+  it('does not say "demo profile" a second time — SimCard owns that phrase', () => {
+    // Two different surfaces saying "demo" about two different things reads as
+    // two demos. The hero's disclosure uses its own words on purpose.
+    render(<App />)
+    expect(screen.getAllByText(/demo profile/i)).toHaveLength(1)
   })
 
   it('expands a component breakdown that explains, never advises', () => {
@@ -340,12 +391,17 @@ describe('daily lesson + codex', () => {
     // with an .sr-only prefix inside the <li> instead of an aria-label on it.
     // aria-label on a listitem is inconsistently honoured, and where it is
     // ignored the tile computed an empty name — this asserts the mechanism
-    // that works everywhere. The "no title leaked" half is unchanged: the
-    // whole tile still reads as the state marker plus the "?" silhouette.
+    // that works everywhere. The "no title leaked" half is unchanged and now
+    // strictly tighter: the silhouette is a drawn glyph (§8 retires character
+    // glyphs as UI iconography, and '?' read as "unknown" rather than "not
+    // reached"), so the tile's ENTIRE text is the state marker and nothing
+    // else. Exact equality, so any leaked title still fails this.
     const locked = screen.getAllByText('Locked lesson')
     expect(locked).toHaveLength(30)
     for (const label of locked.slice(0, 3)) {
-      expect(label.closest('li')?.textContent).toBe('Locked lesson?')
+      expect(label.closest('li')?.textContent).toBe('Locked lesson')
+      // …and the mark is drawn, not typed.
+      expect(label.closest('li')?.querySelector('svg.glyph')).not.toBeNull()
     }
   })
 })
@@ -645,6 +701,62 @@ describe('page heading structure', () => {
     // …while the topbar and foot stay sibling landmarks, not descendants.
     expect(main.querySelector('header, footer')).toBeNull()
   })
+
+  it('names every section once — no heading appears twice in the outline', () => {
+    render(<App />)
+    // The stage label used to be an <h2> on BOTH the hero plate and the health
+    // card, so "Bonfire" appeared twice at ≥1024px (once at 13px). The card
+    // titles itself with what it measures now and the stage name is a line
+    // inside the readout, not a second heading.
+    const titles = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    expect(new Set(titles).size).toBe(titles.length)
+  })
+
+  it('gives every card in the stack an h2 — including the simulator', () => {
+    render(<App />)
+    for (const card of screen.getByRole('main').querySelectorAll('section.card')) {
+      expect(card.querySelector('h2')).not.toBeNull()
+    }
+    // The window bar is chrome, not the card's name: it stays visible and
+    // leaves the accessibility tree, so "DECISION_SIM.EXE" is never announced
+    // alongside the heading it decorates.
+    const sim = screen.getByRole('heading', { level: 2, name: 'Decision simulator' })
+    expect(sim.closest('.sim-card')).not.toBeNull()
+    expect(document.querySelector('.window-bar')?.getAttribute('aria-hidden')).toBe('true')
+  })
+})
+
+describe('the health readout carries the display tier', () => {
+  it('splits the readout typographically without splitting it for assistive tech', () => {
+    render(<App />)
+    // One string for AT — the visible halves take two type tiers and leave the
+    // accessibility tree, so a screen reader still hears one sentence and not
+    // a label followed by a loose number.
+    const spoken = screen.getByText(/^Health \d+(\.\d)?$/)
+    expect(spoken.className).toContain('sr-only')
+    const value = document.querySelector('.score-value')
+    expect(value?.getAttribute('aria-hidden')).toBe('true')
+    // INDEX ROLL (§9 move 4) is on the numeral alone: a numeral indexes, a
+    // word does not.
+    expect(value?.className).toContain('index-roll')
+    expect(document.querySelector('.score-label')?.classList.contains('index-roll')).toBe(false)
+  })
+
+  it('keeps the readout on the same card as the breakdown it is the subject of', () => {
+    render(<App />)
+    const why = screen.getByRole('button', { name: /Why this stage/ })
+    const card = why.closest('section.card')
+    expect(card?.querySelector('.score-value')).not.toBeNull()
+    expect(card?.querySelector('h2')?.textContent).toBe('Health score')
+  })
+
+  it('exposes the score exactly once — the corner index is printed, not read', () => {
+    render(<App />)
+    // Both the hero plate and the card render the number; only one of them is
+    // in the accessibility tree, whichever width is on screen.
+    expect(screen.getAllByText(/^Health \d+(\.\d)?$/)).toHaveLength(1)
+    expect(document.querySelector('.hero-spec-bl')?.getAttribute('aria-hidden')).toBe('true')
+  })
 })
 
 describe('resist day-source consistency', () => {
@@ -765,5 +877,542 @@ describe('weekly boss battle', () => {
     render(<App />)
     expect(saved().xp.totalXp).toBe(150)
     expect(saved().xpLog).toHaveLength(1)
+  })
+})
+
+describe('the date-grouped ledger', () => {
+  /* Every case below pins the clock to Tue 4 Aug 2026 and seeds the log
+     directly, because the whole point of the feature is that "Today" and
+     "Yesterday" are computed from the day the app is HOLDING, not from a fresh
+     wall-clock read at render time. */
+  const seed = (transactions: Partial<Transaction>[]) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 4, 12, 0, 0))
+    localStorage.setItem('ember-state-v1', JSON.stringify({ transactions }))
+  }
+  const tx = (over: Partial<Transaction>): Partial<Transaction> => ({
+    amountDA: 100,
+    category: 'Food',
+    ...over,
+  })
+  const ledger = () => screen.getByRole('main').querySelector('.ledger-card') as HTMLElement
+  const dayLabels = () =>
+    [...ledger().querySelectorAll('.day-label')].map((n) => n.textContent)
+
+  // Four logged days: today, yesterday, and two older — one more than the
+  // three-day window, so the expand control exists.
+  const FOUR_DAYS = [
+    tx({ id: 'd', amountDA: 400, date: '2026-08-04' }),
+    tx({ id: 'c', amountDA: 250, date: '2026-08-04' }),
+    tx({ id: 'b', amountDA: 900, category: 'Transport', date: '2026-08-03' }),
+    tx({ id: 'a', amountDA: 120, category: 'Other', date: '2026-08-01' }),
+    tx({ id: 'z', amountDA: 700, category: 'Other', date: '2026-07-28' }),
+  ]
+
+  it('groups rows under one heading per day, newest day first', () => {
+    seed(FOUR_DAYS.slice(0, 4))
+    render(<App />)
+    // Exactly three headings for rows on three days — never an empty scaffold
+    // for the days in between, and never one heading per row.
+    expect(dayLabels()).toEqual(['Today', 'Yesterday', 'Sat 1 Aug'])
+    // …and the rows land under the right ones.
+    const groups = ledger().querySelectorAll('.ledger-day')
+    expect(groups[0].querySelectorAll('.tx')).toHaveLength(2)
+    expect(groups[1].querySelectorAll('.tx')).toHaveLength(1)
+  })
+
+  it('reads Today and Yesterday off the app day, not a fresh clock', () => {
+    seed(FOUR_DAYS.slice(0, 4))
+    render(<App />)
+    expect(dayLabels()[0]).toBe('Today')
+    // Midnight passes with the tab open. Until a day sync lands, the app is
+    // still holding 4 Aug — and so is the ledger: the row logged today must
+    // not silently re-title itself "Yesterday" while every other card, and the
+    // date the next log will be stamped with, still say the 4th.
+    vi.setSystemTime(new Date(2026, 7, 5, 0, 0, 30))
+    expect(dayLabels()[0]).toBe('Today')
+    // Once the sync lands (focus), the whole render agrees on the new day.
+    act(() => {
+      fireEvent.focus(window)
+    })
+    expect(dayLabels()).toEqual(['Yesterday', 'Mon 3 Aug', 'Sat 1 Aug'])
+  })
+
+  it('totals each day from purchases only — a resist lists but adds nothing', () => {
+    seed([
+      tx({ id: 'r', amountDA: 500, date: '2026-08-04', resistedImpulse: true }),
+      tx({ id: 'p', amountDA: 250, date: '2026-08-04' }),
+    ])
+    render(<App />)
+    // 250, not 750: the resist is money that did not leave.
+    expect(
+      within(ledger()).getByRole('heading', { level: 3, name: 'Today Spent 250 DA' }),
+    ).toBeTruthy()
+    // The resist is still visible in its day, with its avoided amount…
+    expect(screen.getByText('500 DA avoided')).toBeTruthy()
+    // …and it still feeds the month's resisted mirror, unchanged.
+    expect(screen.getByText('500 DA resisted this month')).toBeTruthy()
+  })
+
+  it('states a day of resists as 0 DA rather than dropping the day', () => {
+    seed([tx({ id: 'r', amountDA: 500, date: '2026-08-04', resistedImpulse: true })])
+    render(<App />)
+    expect(
+      within(ledger()).getByRole('heading', { level: 3, name: 'Today Spent 0 DA' }),
+    ).toBeTruthy()
+  })
+
+  it('renders two identical rows on one day as two rows that both count', () => {
+    seed([
+      tx({ id: 'x1', amountDA: 150, date: '2026-08-04' }),
+      tx({ id: 'x2', amountDA: 150, date: '2026-08-04' }),
+    ])
+    render(<App />)
+    expect(ledger().querySelectorAll('.tx')).toHaveLength(2)
+    expect(
+      within(ledger()).getByRole('heading', { level: 3, name: 'Today Spent 300 DA' }),
+    ).toBeTruthy()
+  })
+
+  it('never lets a future-dated row wear Today or outrank a real day', () => {
+    // Device clock skew or a hand-edited payload. The row is the user's data
+    // and stays visible, but it sorts below every real day — the same
+    // both-ends bound deriveHealthInputs puts on its windows.
+    seed([
+      tx({ id: 'skew', amountDA: 999, date: '2026-09-01' }),
+      tx({ id: 'now', amountDA: 250, date: '2026-08-04' }),
+    ])
+    render(<App />)
+    expect(dayLabels()).toEqual(['Today', 'Tue 1 Sep'])
+    expect(
+      within(ledger()).getByRole('heading', { level: 3, name: 'Today Spent 250 DA' }),
+    ).toBeTruthy()
+  })
+
+  it('keeps the empty copy and shows no day scaffold with nothing logged', () => {
+    render(<App />)
+    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
+    expect(dayLabels()).toEqual([])
+    expect(within(ledger()).queryAllByRole('heading', { level: 3 })).toEqual([])
+    // Nothing to scope yet, so no scope line either — it rides with the list.
+    expect(within(ledger()).queryByText(/No averages/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /earlier day/ })).toBeNull()
+  })
+
+  it('states its scope as a permanent property, never as a countdown', () => {
+    seed(FOUR_DAYS)
+    render(<App />)
+    expect(within(ledger()).getByText(/Totals only\. No averages, no comparisons\./)).toBeTruthy()
+    // No "yet", and no Day n / 90 index. Both were promises: the app has
+    // committed never to average (the assertion below is what enforces it),
+    // and a 90-day counter is Trust Rule 5's disclosure about the SCORE —
+    // attached to day totals it made exact facts look provisional.
+    expect(ledger().textContent).not.toMatch(/\byet\b/i)
+    expect(ledger().textContent).not.toMatch(/\/ 90/)
+    // §12.5: no average, no "vs your usual", no trend, no comparison to a
+    // budget — every one of those needs history the user does not have, and
+    // would be exactly the unearned confidence the scope line rules out.
+    expect(ledger().textContent).not.toMatch(
+      /on average|average day|your usual|typical|trend|compared|over budget/i,
+    )
+  })
+
+  it('windows to three days and expands to the rest from a real button', () => {
+    seed(FOUR_DAYS)
+    render(<App />)
+    expect(dayLabels()).toEqual(['Today', 'Yesterday', 'Sat 1 Aug'])
+    const more = screen.getByRole('button', { name: 'Show 1 earlier day' })
+    expect(more.tagName).toBe('BUTTON')
+    expect(more.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(more)
+    expect(dayLabels()).toEqual(['Today', 'Yesterday', 'Sat 1 Aug', 'Tue 28 Jul'])
+    expect(screen.getByRole('button', { name: 'Show fewer days' }).getAttribute('aria-expanded'))
+      .toBe('true')
+  })
+
+  it('keeps focus on the expand control instead of stranding it on <body>', () => {
+    seed(FOUR_DAYS)
+    render(<App />)
+    const more = screen.getByRole('button', { name: 'Show 1 earlier day' })
+    more.focus()
+    expect(document.activeElement).toBe(more)
+    fireEvent.click(more)
+    // Same element, relabelled — not a swapped control that takes focus with
+    // it when it unmounts.
+    const fewer = screen.getByRole('button', { name: 'Show fewer days' })
+    expect(fewer).toBe(more)
+    expect(document.activeElement).toBe(fewer)
+    expect(document.activeElement).not.toBe(document.body)
+  })
+
+  it('announces the expansion through a mounted live region, not just visually', () => {
+    seed(FOUR_DAYS)
+    render(<App />)
+    // Mounted EMPTY: a region that arrives already holding its text is silent.
+    const region = screen.getByRole('status', { name: 'Ledger range' })
+    expect(region.textContent).toBe('')
+    fireEvent.click(screen.getByRole('button', { name: 'Show 1 earlier day' }))
+    expect(region.textContent).toBe('Showing all 4 days.')
+    fireEvent.click(screen.getByRole('button', { name: 'Show fewer days' }))
+    expect(region.textContent).toBe('Showing 3 of 4 days.')
+  })
+
+  it('adds no second h1 and keeps day headings under the card heading', () => {
+    seed(FOUR_DAYS)
+    render(<App />)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Ember')
+    // The card still names itself once at h2; the days hang off it at h3.
+    expect(within(ledger()).getByRole('heading', { level: 2 }).textContent).toBe('Recent')
+    expect(within(ledger()).getAllByRole('heading', { level: 3 })).toHaveLength(3)
+  })
+
+  it('carries no engagement number into the money surface (Trust Rule 1)', () => {
+    seed(FOUR_DAYS)
+    render(<App />)
+    const before = xpNow()
+    const health = screen.getByText(/^Health \d+(\.\d)?$/).textContent
+    for (const heading of within(ledger()).getAllByRole('heading', { level: 3 })) {
+      // A day total is money. No XP, no streak, no level in the header.
+      expect(heading.textContent).not.toMatch(/xp|level|streak/i)
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Show 1 earlier day' }))
+    // Looking at the ledger is not an action the app pays for, and it moves
+    // nothing on the financial track either.
+    expect(xpNow()).toBe(before)
+    expect(screen.getByText(/^Health \d+(\.\d)?$/).textContent).toBe(health)
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.xpLog).toEqual([])
+    expect(saved.xp.totalXp).toBe(0)
+  })
+
+  it('files a freshly logged purchase under Today and moves that day total', () => {
+    seed([tx({ id: 'a', amountDA: 120, date: '2026-08-01' })])
+    render(<App />)
+    expect(dayLabels()).toEqual(['Sat 1 Aug'])
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '640' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(dayLabels()).toEqual(['Today', 'Sat 1 Aug'])
+    expect(
+      within(ledger()).getByRole('heading', { level: 3, name: 'Today Spent 640 DA' }),
+    ).toBeTruthy()
+  })
+})
+
+describe('the cash-note keypad', () => {
+  /* Every case renders a cleared localStorage — i.e. day zero. That is the
+     honest cold start for this feature: the pad has no data dependency at all,
+     so it is at full value on the very first log and degrades to exactly the
+     previous typing behaviour if ignored. There is no state in which it shows
+     an empty room, which is why none of these cases seed history. */
+  const amount = () => screen.getByLabelText('Amount (DA)') as HTMLInputElement
+  const note = (n: string) => screen.getByRole('button', { name: `Add ${n} DA` })
+  const saved = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
+
+  it('composes an amount from two taps and logs it once, for exactly one grant', () => {
+    render(<App />)
+    fireEvent.click(note('1,000'))
+    fireEvent.click(note('500'))
+    // Plain digits in the field: it is read back with Number(), and
+    // Number('1,500') is NaN.
+    expect(amount().value).toBe('1500')
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(xpNow()).toBe(5)
+    expect(saved().transactions).toHaveLength(1)
+    expect(saved().transactions[0].amountDA).toBe(1500)
+    // Faster entry must not change what a log PAYS (Trust Rule 1): still one
+    // tx:{id} grant, still +5, no matter how the amount got there.
+    expect(saved().xpLog).toHaveLength(1)
+    expect(saved().xpLog[0].amount).toBe(5)
+    expect(saved().xpLog[0].id).toBe(`tx:${saved().transactions[0].id}`)
+    expect(screen.getByText('1,500 DA')).toBeTruthy()
+  })
+
+  it('logs a purchase in exactly two taps — the count the landing surface claims', () => {
+    // Landing.tsx's above-the-fold hand-off line says "A purchase is two
+    // taps." These are the two: one note key, then Log. Nothing else is
+    // required — the category arrives defaulted, the amount is composed by the
+    // tap, and no field needs focusing. If the form ever grows a required
+    // control, this fails and the claim on the landing page has to change with
+    // it, which is the only reason this case exists next to the composition
+    // tests above.
+    render(<App />)
+    fireEvent.click(note('1,000'))
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(saved().transactions).toHaveLength(1)
+    expect(saved().transactions[0].amountDA).toBe(1000)
+    expect(saved().transactions[0].category).toBe('Food')
+    expect(screen.getByText('1,000 DA')).toBeTruthy()
+  })
+
+  it('composes with typing in both directions and discards no keystroke', () => {
+    render(<App />)
+    // Typed first, then tapped.
+    fireEvent.change(amount(), { target: { value: '150' } })
+    fireEvent.click(note('1,000'))
+    expect(amount().value).toBe('1150')
+    // Tapped first, then typed over — the field stays authoritative.
+    fireEvent.change(amount(), { target: { value: '1160' } })
+    fireEvent.click(note('100'))
+    expect(amount().value).toBe('1260')
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(saved().transactions[0].amountDA).toBe(1260)
+  })
+
+  it('refuses to overwrite typed text it cannot add to, and logs nothing', () => {
+    render(<App />)
+    fireEvent.change(amount(), { target: { value: '1e999' } })
+    fireEvent.click(note('2,000'))
+    // The typed string survives — the pad never silently replaces input, and
+    // the Infinity row LogCard's isFinite guard rejects is never composed.
+    expect(amount().value).toBe('1e999')
+    expect(screen.getByRole('alert').textContent).toBe('Clear the amount first.')
+    expect(sfx.deny).toHaveBeenCalled()
+    expect(xpNow()).toBe(0)
+    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
+  })
+
+  it('clears only the amount — never the category, the flag, or anything logged', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'Transport' } })
+    fireEvent.click(screen.getByLabelText('I bought it anyway'))
+    fireEvent.click(note('500'))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(amount().value).toBe('')
+    expect((screen.getByLabelText('Category') as HTMLSelectElement).value).toBe('Transport')
+    expect((screen.getByLabelText('I bought it anyway') as HTMLInputElement).checked).toBe(true)
+    expect(xpNow()).toBe(0)
+    expect(saved().transactions).toHaveLength(0)
+    expect(saved().xpLog).toEqual([])
+  })
+
+  it('renders Clear inert rather than absent while there is nothing to clear', () => {
+    // aria-disabled + an onClick guard, never the `disabled` attribute: the
+    // control empties the field under the user's own finger, and disabling it
+    // at that moment would drop focus to <body>. Absent-then-present would
+    // move the whole key row instead.
+    render(<App />)
+    const clear = screen.getByRole('button', { name: 'Clear' })
+    expect(clear.getAttribute('aria-disabled')).toBe('true')
+    expect((clear as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(clear)
+    expect(xpNow()).toBe(0)
+    fireEvent.click(note('100'))
+    expect(clear.getAttribute('aria-disabled')).toBe('false')
+    expect(screen.getByRole('button', { name: 'Clear' })).toBe(clear)
+  })
+
+  it('pays nothing for tapping: the pad is an input method, not an action', () => {
+    render(<App />)
+    for (let i = 0; i < 6; i++) fireEvent.click(note('2,000'))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    for (let i = 0; i < 3; i++) fireEvent.click(note('100'))
+    expect(amount().value).toBe('300')
+    // Two tracks, never crossed: no XP, no rows, no health movement from
+    // eleven taps on the keypad.
+    expect(xpNow()).toBe(0)
+    expect(saved().transactions).toEqual([])
+    expect(saved().xpLog).toEqual([])
+    expect(saved().xp.totalXp).toBe(0)
+  })
+
+  it('resists a composed amount, records it as avoided, and still honours the cap', () => {
+    render(<App />)
+    const resist = () => screen.getByRole('button', { name: /I resisted an impulse/ })
+    fireEvent.click(note('2,000'))
+    fireEvent.click(note('500'))
+    fireEvent.click(resist())
+    expect(screen.getByText('2,500 DA avoided')).toBeTruthy()
+    expect(xpNow()).toBe(50)
+    expect(amount().value).toBe('')
+    // Second resist of the day is the last paid one. Total, not the bar:
+    // 2 × 50 XP is level 2 exactly, so the within-level progressbar reads 0.
+    fireEvent.click(note('1,000'))
+    fireEvent.click(resist())
+    expect(saved().xp.totalXp).toBe(100)
+    expect(resist().textContent).toContain('XP capped today')
+    // …and the third still logs, at zero, with the composed amount intact.
+    fireEvent.click(note('200'))
+    fireEvent.click(resist())
+    expect(screen.getByText('200 DA avoided')).toBeTruthy()
+    expect(saved().xp.totalXp).toBe(100)
+    expect(saved().transactions).toHaveLength(3)
+  })
+
+  it('still resists at zero from an untouched pad', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(xpNow()).toBe(50)
+    expect(screen.getByText('—')).toBeTruthy()
+  })
+
+  it('names every key with its unit inside a named group', () => {
+    render(<App />)
+    const pad = screen.getByRole('group', { name: 'Notes (DA)' })
+    const keys = within(pad).getAllByRole('button')
+    // Five notes plus Clear. Every one a real button, never a click-handling
+    // div, so all six are keyboard-reachable and take the focus ring.
+    expect(keys).toHaveLength(6)
+    for (const key of keys) expect(key.tagName).toBe('BUTTON')
+    expect(keys.map((k) => k.getAttribute('aria-label') ?? k.textContent)).toEqual([
+      'Add 2,000 DA',
+      'Add 1,000 DA',
+      'Add 500 DA',
+      'Add 200 DA',
+      'Add 100 DA',
+      'Clear',
+    ])
+    // WCAG 2.5.3: the accessible name contains the visible string, so voice
+    // control ("tap 2,000") still reaches the key.
+    for (const key of keys.slice(0, 5)) {
+      expect(key.getAttribute('aria-label')).toContain(key.textContent!)
+    }
+    // §7.4: numerals, no hype, no emoji, no exclamation marks on the keys.
+    expect(pad.textContent).not.toMatch(/[!\u{1F300}-\u{1FAFF}]/u)
+  })
+
+  it('announces the composed amount through a mounted live region', () => {
+    render(<App />)
+    // Mounted EMPTY: setting an input's value from code announces nothing on
+    // its own, and a region that arrives already holding its text is silent.
+    const region = screen.getByRole('status', { name: 'Amount entered' })
+    expect(region.textContent).toBe('')
+    fireEvent.click(note('1,000'))
+    expect(region.textContent).toBe('Amount 1,000 DA')
+    fireEvent.click(note('500'))
+    expect(region.textContent).toBe('Amount 1,500 DA')
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(region.textContent).toBe('Amount cleared.')
+  })
+
+  it('resets the announcement on submit so the next identical amount is audible', () => {
+    render(<App />)
+    const region = screen.getByRole('status', { name: 'Amount entered' })
+    fireEvent.click(note('1,000'))
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    // Emptied, not left parked: a live region announces CHANGES, so the same
+    // 1,000 DA purchase logged twice in a day would otherwise be announced
+    // once and then silently.
+    expect(region.textContent).toBe('')
+    fireEvent.click(note('1,000'))
+    expect(region.textContent).toBe('Amount 1,000 DA')
+  })
+
+  it('resets the announcement on a manual edit too, not just Clear and submit', () => {
+    // The hole the other two resets left: emptying the field BY HAND (rather
+    // than with the Clear key) left the old string parked in the region, so
+    // re-tapping the same note wrote an identical value, React reconciled to
+    // the same text node, no mutation fired and the tap announced nothing.
+    // The amount would then exist only in the visible field — the sighted-only
+    // input this region was added to prevent, with no blip behind it (a pad
+    // tap deliberately fires none) to carry it.
+    render(<App />)
+    const region = screen.getByRole('status', { name: 'Amount entered' })
+    const amount = screen.getByLabelText('Amount (DA)')
+    fireEvent.click(note('1,000'))
+    expect(region.textContent).toBe('Amount 1,000 DA')
+    fireEvent.change(amount, { target: { value: '' } })
+    // Emptied by the edit — and emptying a region announces nothing, so the
+    // reset itself costs no noise.
+    expect(region.textContent).toBe('')
+    fireEvent.click(note('1,000'))
+    expect(region.textContent).toBe('Amount 1,000 DA')
+    // The same holds for a partial edit, which is the likelier gesture: one
+    // backspace off 1,000 and a re-tap composing back to the same total.
+    fireEvent.change(amount, { target: { value: '100' } })
+    expect(region.textContent).toBe('')
+  })
+
+  it('leaves the repeat chips deriving and rendering exactly as before', () => {
+    render(<App />)
+    for (let i = 0; i < 2; i++) {
+      fireEvent.click(note('100'))
+      fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'Transport' } })
+      fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    }
+    // The chip derives off the composed rows like any other, and coexists with
+    // the pad rather than replacing it.
+    const chip = screen.getByRole('button', { name: '100 DA · Transport' })
+    fireEvent.click(chip)
+    expect(saved().transactions).toHaveLength(3)
+    expect(xpNow()).toBe(15)
+    expect(screen.getByRole('group', { name: 'Notes (DA)' })).toBeTruthy()
+  })
+
+  it('keeps the log card to one spec label and one h2 (§11, single-h1 outline)', () => {
+    render(<App />)
+    const card = screen.getByRole('main').querySelector('#log') as HTMLElement
+    expect(card.querySelectorAll('.spec-label')).toHaveLength(1)
+    expect(within(card).getAllByRole('heading', { level: 2 })).toHaveLength(1)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    // The legend is a caption, not a heading — the pad adds no outline level.
+    expect(within(card).queryAllByRole('heading', { level: 3 })).toEqual([])
+  })
+})
+
+describe('storage that refuses the write', () => {
+  // QuotaExceededError is the named case, but the far more common trigger is a
+  // privacy mode granting zero quota, where every write fails from the first
+  // tap. Either way the app used to confirm a save it never made.
+  const breakStorage = () =>
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('exceeded the quota', 'QuotaExceededError')
+    })
+
+  const fault = () => screen.getByRole('status', { name: 'Storage' })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('keeps the fault region mounted and EMPTY while writes are landing', () => {
+    render(<App />)
+    // Mounted empty or the announcement never happens: screen readers only
+    // announce text CHANGES inside a region that already exists.
+    expect(fault().textContent).toBe('')
+  })
+
+  it('says the write did not land instead of confirming a save that never happened', () => {
+    breakStorage()
+    render(<App />)
+    expect(localStorage.getItem('ember-state-v1')).toBeNull()
+    expect(fault().textContent).toBe(
+      "That didn't go through. Nothing is saving to this device. Export to keep it.",
+    )
+  })
+
+  it('keeps the row, the XP and the export path in memory after a failed write', () => {
+    breakStorage()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '4200' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    // Nothing persisted...
+    expect(localStorage.getItem('ember-state-v1')).toBeNull()
+    // ...but the row must NOT vanish from the screen it was just added to, and
+    // "Export my data" reads this same in-memory state — the honest recovery.
+    expect(screen.getByText('4,200 DA')).toBeTruthy()
+    expect(xpNow()).toBe(5)
+    expect(screen.getByRole('button', { name: 'Export my data' })).toBeTruthy()
+    expect(fault().textContent).toContain("That didn't go through")
+  })
+
+  it('clears the fault as soon as a write lands again', () => {
+    const spy = breakStorage()
+    render(<App />)
+    expect(fault().textContent).not.toBe('')
+    spy.mockRestore()
+    fireEvent.click(screen.getByText('Look back over your recent purchases'))
+    expect(fault().textContent).toBe('')
+    expect(JSON.parse(localStorage.getItem('ember-state-v1')!).xp.totalXp).toBe(10)
+  })
+
+  it('never lets the fault line steal the single-h1 outline or the toast region', () => {
+    breakStorage()
+    render(<App />)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    // The celebration region is a separate, still-empty channel: a storage
+    // fault must not read as a toast, and a toast must not overwrite the fault.
+    expect(screen.getByRole('status', { name: 'Announcements' }).textContent).toBe('')
   })
 })

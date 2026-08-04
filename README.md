@@ -16,18 +16,47 @@
 NO ACCOUNT  ·  NO BANK LINK  ·  EXPORT ALWAYS
 ```
 
-Built for Algeria. Manual logging in dinars. Every
-byte lives in your browser's local storage — there is no server, no sign-up
-and nothing to connect. Close the tab and Ember has nothing on you.
+## What it is
 
----
+A money tracker for people whose money problem is friction, memory and
+impulse — not arithmetic. You log what you spend, by hand, in Algerian dinars.
+Ember groups the log by day, scores your financial reality from five weighted
+components — redistributing the weight of any whose data you never entered —
+and states the tradeoff when you are deciding on a purchase.
 
-## Who it is for
+It runs in a browser tab with nothing behind it. No account, no server, no
+bank link, no purchase path — `src/` contains no `fetch`, no socket and no
+auth. Every byte lives in that browser's local storage. Close the tab and
+Ember has nothing on you.
 
-People who never link a bank. People paid in cash, in DA, across accounts no
-aggregator supports. People who have tried a budgeting app, been lectured by a
-spreadsheet, and stopped. Ember does not lecture. It logs, it scores, and it
-tells you the tradeoff.
+A purchase is two taps: one cash key, then Log.
+
+## Is it for you
+
+**Yes, if —**
+
+- You deal in cash, in DA, across accounts no aggregator covers.
+- You will not hand a bank login to an app, and would rather type the number.
+- You have quit a budgeting app because it lectured you. Ember states the fact
+  and stops: a day total is flat ink, no colour verdict and no comparison; the
+  string "over budget" appears nowhere in the product; the score explains
+  itself and never advises.
+- You want your data to leave with you. One tap, full JSON, no account.
+
+**No, if —**
+
+- You want automatic bank sync. Nothing here reads a bank. Every row is typed
+  or tapped in, and that is the design, not a gap in it.
+- You need a currency other than DA. Amounts format as DA everywhere; there is
+  no converter and no second unit.
+- You want it on several devices. Storage is one browser's local storage. Two
+  tabs of the same browser merge; two phones do not. Export writes a JSON file
+  you move yourself — there is no import screen that reads it back in.
+- You want a shared household ledger. One browser, one ledger, nobody to share
+  it with.
+
+Ember is not treatment and does not imply it. It is a logbook with a score on
+it.
 
 ## The four mechanics
 
@@ -35,13 +64,23 @@ tells you the tradeoff.
 01/04  HEALTH SCORE    Five components. Shrunk for thin data. Explains; never advises.
 02/04  THE RESIST      Kept, not spent. Summed for the month. The total is not a score input.
 03/04  THE SIMULATOR   Baseline against scenario. States the tradeoff. Never the verdict.
-04/04  THE MONSTER     Last week's spend is its HP. Beatable. Never shaming.
+04/04  THE MONSTER     This week's discretionary spend is its HP. Last week's is the line.
 ```
 
 Around them: XP and levels for showing up, four daily quests (two of them
 verified by the app, not by a tap), 30 collectible one-screen lessons, nine
 earn-only badges with cosmetic companions, and chiptune cues that never carry
 information alone.
+
+The ledger groups what you logged by day — Today, Yesterday, then the date —
+and states that day's spend beside the heading. Resists list under their day
+and add nothing to it. Totals only: no averages, no comparison, no verdict.
+
+Logging takes cash, not digits. The amount field carries a pad of the
+denominations actually in circulation — 2000, 1000, 500, 200, 100 DA — and each
+tap adds one to what is already there, so 1,500 DA takes two keys. Typing still
+works and still wins: the pad composes with what you typed and never replaces
+it. Tapping keys pays no XP. Only a logged purchase does.
 
 ## Trust rules
 
@@ -140,12 +179,21 @@ why every string under 24px in this product sits on a plate.
 - `src/engine/profile.ts` — user profile, demo fallback, calibration window
 - `src/engine/boss.ts` — weekly boss battle engine
 - `src/engine/achievements.ts` — badge roster and pixel pets
+- `src/engine/ledger.ts` — day grouping, day totals, and the day headings
+- `src/engine/keypad.ts` — cash denominations and the amount composition
 - `src/content/lessons.ts` — the 30-lesson codex content
+- `src/content/sampleLedger.ts` — the sample rows behind the landing's product
+  shot (dated against the day the page opens, so the shot cannot go stale)
 - `src/state/store.ts` — local-first persistence, sanitization, multi-tab
   merge, and export
 - `src/state/reducer.ts` — pure state transitions (XP grants, undo, rollover)
+- `src/localFirst.test.ts` — "no server, no account, nothing for sale" as an
+  assertion over the source tree, because an absence is the one claim no
+  feature test defends
 - `src/Root.tsx` — the cold-start gate: landing for a first visit, app after
-- `src/components/Landing.tsx` — the marketing surface
+- `src/components/Landing.tsx` — the marketing surface. Its product shot is a
+  live `<Ledger>`, not an image: the page renders the shipped component through
+  the shipped grouping engine, so the screenshot cannot drift from the app
 - `src/components/monogramGeometry.ts` — the mark (§4), as computed geometry
 - `src/components/` + `src/hooks/` — cards and the day/reward reaction logic
 - `src/audio/chiptune.ts` — synthesized audio cues
