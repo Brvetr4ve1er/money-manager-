@@ -1,33 +1,12 @@
 {
   "schemaVersion": 1,
   "tool": "scripts/census/run.ts",
-  "capturedAt": "2026-08-04T18:00:02.505Z",
+  "capturedAt": "2026-08-04T18:15:40.595Z",
   "tree": {
-    "sha": "f0051430b70475305439b86397e46aaa0ee9ff67",
+    "sha": "71b5608ff193209580c8b3054eb617febdebb236",
     "branch": "claude/money-app-market-analysis-oi2pht",
-    "dirty": true,
-    "dirtyPaths": [
-      ".github/workflows/ci.yml",
-      "README.md",
-      "docs/brand/DESIGN-SYSTEM.md",
-      "docs/brand/census.json",
-      "scripts/census/artifact.ts",
-      "scripts/census/census.test.ts",
-      "scripts/census/inputs.ts",
-      "scripts/census/options.ts",
-      "scripts/census/palette.ts",
-      "scripts/census/run.ts",
-      "src/App.test.tsx",
-      "src/README.test.ts",
-      "src/components/ArchiveCard.tsx",
-      "src/components/SimCard.tsx",
-      "src/state/store.test.ts",
-      "src/state/store.ts",
-      "src/styles/app.css",
-      "src/styles/design.test.ts",
-      "src/styles/landing.css",
-      "src/styles/tokens.css"
-    ]
+    "dirty": false,
+    "dirtyPaths": []
   },
   "inputsHash": "sha256:043aaea86ce49b2cc08b8ae9f6040d8c1bab16e0c34502f301cb7e41f4c54789",
   "env": {
@@ -136,7 +115,7 @@
       },
       "inkOnPaperMin": 6,
       "accentMax": 2,
-      "note": "DESIGN-SYSTEM.md §2 is a COMPOSITION law and it is unchanged for every surface the eye holds at once: the poster, the mark, the hero band, each landing section, the OG image. This block is the same law read over a SCROLLING DOCUMENT, which is not one composition but a sequence of them. THE FINDING THAT PRODUCED IT IS HISTORICAL AND IS STAMPED AS SUCH: on the CLEAN TREE OF COMMIT a2d4e6d (round 5, 2026-08-04), before the collection card was deleted, the app's 375 light document read 56.0/36.9/4.5/2.6 — deviation 15.0, apparently the best app screen in the matrix — while its eight viewport windows read 41.6, 15.6, 44.9, 18.4, 65.7, 91.1, 86.6 and 83.9 percent field: a Bone form stack at the head and a dark index sheet at the tail, averaging to a vector that appeared on no screen, with a mean-of-screens deviation of 52.8. THAT DOCUMENT IS NOT THIS ONE — the card was deleted and the page is shorter now; for what this tree measures, read rows[\"app.375x812.light.seeded\"] below rather than this sentence. `deviation` per row is the document reading and stays comparable with rounds 1-4; `scrollingForm` per row is the window reading. WHEN THEY DISAGREE, THE WINDOWS ARE THE TRUTH — they are what a reader is looking at. The document average moves when a card gets taller; only the windows move when a page gets better arranged, which is why the remaining work is INTERLEAVING rather than more or less Flare."
+      "note": "DESIGN-SYSTEM.md §2 is a COMPOSITION law and it is unchanged for every surface the eye holds at once: the poster, the mark, the hero band, each landing section, the OG image. This block is the same law read over a SCROLLING DOCUMENT, which is not one composition but a sequence of them. THE FINDING THAT PRODUCED IT IS HISTORICAL AND IS STAMPED AS SUCH: on the CLEAN TREE OF COMMIT a2d4e6d (round 5, 2026-08-04), MEASURED BY THE PRE-TOOL AD-HOC METHOD rather than by this tool — the two disagree by roughly 5 percentage points on identical pixels, so a tree stamp alone does not make two figures comparable; the instrument has to be named too. Before the collection card was deleted, the app's 375 light document read 56.0/36.9/4.5/2.6 — deviation 15.0, apparently the best app screen in the matrix — while its eight viewport windows read 41.6, 15.6, 44.9, 18.4, 65.7, 91.1, 86.6 and 83.9 percent field: a Bone form stack at the head and a dark index sheet at the tail, averaging to a vector that appeared on no screen, with a mean-of-screens deviation of 52.8. THAT DOCUMENT IS NOT THIS ONE — the card was deleted and the page is shorter now; for what this tree measures, read rows[\"app.375x812.light.seeded\"] below rather than this sentence. `deviation` per row is the document reading and stays comparable with rounds 1-4; `scrollingForm` per row is the window reading. WHEN THEY DISAGREE, THE WINDOWS ARE THE TRUTH — they are what a reader is looking at. The document average moves when a card gets taller; only the windows move when a page gets better arranged, which is why the remaining work is INTERLEAVING rather than more or less Flare."
     }
   },
   "rows": {
