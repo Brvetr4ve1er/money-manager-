@@ -39,7 +39,13 @@ export function ProfileCard({
   onSave: (draft: ProfileDraft) => void
 }) {
   const [editing, setEditing] = useState(false)
-  const [error, setError] = useState<{ field: FieldKey; text: string } | null>(null)
+  // seq: a repeated identical validation message reconciles into the same
+  // node, fires no mutation, and is announced exactly once — see LogCard's
+  // error state for the measurement. The seq keys the alert so an identical
+  // repeat remounts it and is announced on insertion.
+  const [error, setError] = useState<{ field: FieldKey; text: string; seq: number } | null>(
+    null,
+  )
   // Persistent (not timed) save confirmation: the sr-only status region below
   // announces the change for AT users while the visible confirmation is the
   // card flipping to the summary; cleared when editing resumes.
@@ -89,7 +95,7 @@ export function ProfileCard({
   }
 
   function fail(field: FieldKey, text: string) {
-    setError({ field, text })
+    setError((cur) => ({ field, text, seq: (cur?.seq ?? 0) + 1 }))
     sfx.deny()
   }
 
@@ -357,7 +363,10 @@ export function ProfileCard({
             </fieldset>
 
             {error && (
-              <p className="field-error" id="profile-error" role="alert">{error.text}</p>
+              // key: an identical repeat must remount the alert (see state).
+              <p className="field-error" id="profile-error" role="alert" key={error.seq}>
+                {error.text}
+              </p>
             )}
             <div className="log-actions">
               <button type="submit" className="btn btn-flame">Save my numbers</button>

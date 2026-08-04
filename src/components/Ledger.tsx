@@ -25,7 +25,7 @@ export function Ledger({
   // derived: the announcement is about the ACT of expanding, so it must change
   // exactly when the user toggles and never on an unrelated re-render.
   const [rangeNote, setRangeNote] = useState('')
-  // "Kept, not spent": resisted amounts finally compound into one visible
+  // "Resisted, not spent": resisted amounts finally compound into one visible
   // number instead of scattering per-row. Current calendar month, resists
   // with a typed amount only. A motivational mirror over self-reported data —
   // deliberately NOT a Health Score input (the two-track rule): the score
@@ -37,7 +37,7 @@ export function Ledger({
   // they read. Nothing about the output changes; the scan just stops
   // repeating for renders that changed neither.
   const month = today.slice(0, 7)
-  const keptDA = useMemo(
+  const resistedDA = useMemo(
     () =>
       transactions
         .filter((t) => t.resistedImpulse && t.amountDA > 0 && t.date.slice(0, 7) === month)
@@ -48,9 +48,12 @@ export function Ledger({
   const hiddenDays = Math.max(0, days.length - WINDOW_DAYS)
   const shown = expanded ? days : days.slice(0, WINDOW_DAYS)
   return (
-    <section className="card ledger-card">
-      {/* §11 corner mark. aria-hidden: printed spec, not content. */}
-      <span className="spec-label" aria-hidden="true">LDG—09</span>
+    // spec-sheet: §5 layout B, same scope as MonthCard above it — the archive
+    // half of the stack stands on Espresso. See .spec-sheet in tokens.css.
+    <section className="card spec-sheet ledger-card">
+      {/* §11 corner mark. aria-hidden: printed spec, not content. 10th of the
+          12 cards App stacks; App.test derives the run from the render order. */}
+      <span className="spec-label" aria-hidden="true">LDG—10</span>
       <div className="ledger-head">
         <h2>Recent</h2>
         {/* INDEX ROLL (§9 move 4): the kept total clicks up with each resist. */}
@@ -61,9 +64,9 @@ export function Ledger({
             number on a card whose measured figures sit in plain ink. Same
             vocabulary as the landing's figcaption ("shows what it avoided").
             The styling is not the fix; the noun was. */}
-        {keptDA > 0 && (
-          <span className="kept-chip mono index-roll" key={keptDA}>
-            {keptDA.toLocaleString()} DA resisted this month
+        {resistedDA > 0 && (
+          <span className="kept-chip mono index-roll" key={resistedDA}>
+            {resistedDA.toLocaleString()} DA resisted this month
           </span>
         )}
       </div>
@@ -108,29 +111,49 @@ export function Ledger({
                 <ul className="tx-list">
                   {day.rows.map((t) => (
                     <li key={t.id} className="tx">
-                      <span>
-                        {/* aria-hidden mark, matching the mute button and stage
-                            flame — screen readers must not read "shield Resisted";
-                            the word beside it is the alternative. It is also why
-                            a resist is distinguished by the WORD and never by
-                            colour alone (§12.8). */}
-                        {t.resistedImpulse ? (
-                          <>
-                            {/* .mark: §1 trait 01 — the shield sits in a keyline
-                                badge instead of floating in the row. */}
-                            <span className="mark" aria-hidden="true">
-                              <Glyph name="shield" />
-                            </span>{' '}
-                            Resisted
-                          </>
-                        ) : (
-                          <>
-                            {t.category}
-                            {/* Yielded-impulse marker: factual, lowercase, never a
-                                shame color — the row already paid its normal XP. */}
-                            {t.impulseFlagged && <span className="tx-impulse">impulse</span>}
-                          </>
-                        )}
+                      {/* A column, not the old single span: the row now stacks
+                          what-it-was under the category. Both lines are plain
+                          text inside the same <li>, so a screen reader reading
+                          the row reads "Food, bread from the corner shop,
+                          2,000 DA" as one item — the note is part of the row,
+                          never a second landmark to navigate to (§12.8). */}
+                      <span className="tx-what">
+                        <span className="tx-cat">
+                          {/* aria-hidden mark, matching the mute button and stage
+                              flame — screen readers must not read "shield Resisted";
+                              the word beside it is the alternative. It is also why
+                              a resist is distinguished by the WORD and never by
+                              colour alone (§12.8). */}
+                          {t.resistedImpulse ? (
+                            <>
+                              {/* .mark: §1 trait 01 — the shield sits in a keyline
+                                  badge instead of floating in the row. */}
+                              <span className="mark" aria-hidden="true">
+                                <Glyph name="shield" />
+                              </span>{' '}
+                              Resisted
+                            </>
+                          ) : (
+                            <>
+                              {t.category}
+                              {/* Yielded-impulse marker: factual, quiet, never a
+                                  shame colour — the row already paid its normal XP.
+                                  Uppercase in the dashed --spec badge family
+                                  (.tx-impulse), like every other neutral status
+                                  mark; "lowercase" stood here and named a
+                                  treatment the stylesheet never applied. */}
+                              {t.impulseFlagged && <span className="tx-impulse">impulse</span>}
+                            </>
+                          )}
+                        </span>
+                        {/* Rendered only when it exists. No "no note" filler,
+                            no prompt to add one, no dimmed placeholder: rows
+                            logged before this field shipped are complete rows,
+                            and a permanent gap where the note would go is a
+                            nag (§12.3, §12.6). Plain ink, no emoji, no second
+                            colour — it is the user's own words, not a verdict
+                            (§7.4 / §8). */}
+                        {t.note && <span className="tx-note">{t.note}</span>}
                       </span>
                       {/* INDEX ROLL (§9 move 4): a new row's amount indexes in. */}
                       <span className="mono index-roll">

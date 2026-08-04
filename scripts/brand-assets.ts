@@ -17,7 +17,9 @@
  * same path data.
  *
  * NOT A RUNTIME DEPENDENCY AND NOT A BUILD STEP. It runs on bare Node's type
- * stripping (`npm run brand`, Node >= 22) over Node built-ins only — the two
+ * stripping (`npm run brand`, Node >= 22.6 — --experimental-strip-types first
+ * shipped in 22.6.0, which is why package.json's `engines` floor is 22.6 and
+ * not 22) over Node built-ins only — the two
  * PNGs go through scripts/raster.ts, which is a scan converter and a PNG
  * writer in about 400 lines rather than a native rasteriser package. Nothing
  * in the app or the build imports any of it. The outputs are committed and

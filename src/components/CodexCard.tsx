@@ -12,11 +12,21 @@ export function CodexCard({ collectedIds }: { collectedIds: ReadonlySet<string> 
   const count = LESSONS.filter((l) => collectedIds.has(l.id)).length
   return (
     // id: hero nav anchor target (desktop).
-    <section className="card" id="codex">
+    // spec-sheet: §5 layout B — a grid of badge tiles on Espresso under a mono
+    // index count. See .spec-sheet in tokens.css; it re-scopes the surface
+    // tokens rather than repainting, so every tile rule below re-derives.
+    // tabIndex -1 + aria-labelledby: see LogCard — the hero's jump links
+    // landed focus on <body> because the target sections were not focusable.
+    <section
+      className="card spec-sheet"
+      id="codex"
+      tabIndex={-1}
+      aria-labelledby="codex-title"
+    >
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
-      <span className="spec-label" aria-hidden="true">CDX—10</span>
+      <span className="spec-label" aria-hidden="true">CDX—11</span>
       <div className="codex-head">
-        <h2>Lesson codex</h2>
+        <h2 id="codex-title">Lesson codex</h2>
         {/* INDEX ROLL (§9 move 4) — the literal `33/36` case from §1 trait 10. */}
         <span className="codex-count mono index-roll" key={count}>
           {count} / {LESSONS.length} collected

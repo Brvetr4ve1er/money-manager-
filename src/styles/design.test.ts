@@ -91,6 +91,16 @@ describe('§3 — the display tier does real work in the product', () => {
     expect(APP).toMatch(/\.card h2 \{[^}]*--fs-h2/)
   })
 
+  it('uses every step of the scale it defines — no 2.4× hole in the ramp', () => {
+    // A census of everything ≥28px painted at 1440 read 144 / 72 / 30 / 22 / 17:
+    // --fs-h1 (42px) had zero uses anywhere in src/, so the ramp fell 2.4× in
+    // one jump from the health readout to the section heads, with a defined
+    // step skipped. The hero thesis is the one run of type that stands beside a
+    // 144px lockup, and §3 defines that step as Grotesk 700 — which it was.
+    expect(APP).toMatch(/--fs-h1\)/)
+    expect(APP).toMatch(/\.hero-thesis \{[^}]*font-size: var\(--fs-h1\)/)
+  })
+
   it('never renders a heading below body size', () => {
     // .hero-stage-name was an <h2> at --fs-cap: 13px, smaller than the 17px
     // body around it, which inverts the outline it belongs to.
@@ -136,33 +146,113 @@ describe('§1 trait 09 / §8 — one diagonal per composition', () => {
     // section (§5D).
     expect(LANDING.match(/rotate\(-?38deg\)/g)).toHaveLength(2)
   })
+
+  it('sets type parallel to the shear band, at a size §2.1 allows on Flare', () => {
+    // §5D has two clauses: "one 38° diagonal band splits the canvas; TYPE SITS
+    // PARALLEL TO IT". The band shipped typeless because a rotated SENTENCE is
+    // occluded at its middle by the rule plates at every width. An index has no
+    // middle, so the marks are children of the band itself — inheriting the
+    // rotation, parallel by construction, with no second angle to keep in sync.
+    const band = /\n\.lp-band \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
+    expect(band).toMatch(/font-size: var\(--fs-h2\)/)
+    expect(band).toMatch(/font-weight: 700/)
+    // …and the marks are NUMERALS, so §11 fixes the face: "all numerals render
+    // in the mono stack, uppercase, +0.14em", unconditionally. The band shipped
+    // in Grotesk at --tr-h2 while every other spec index on the poster
+    // (.lp-index, .lp-corner, .lp-facts, .lp-shot-tag, .lp-count) was mono.
+    // .score-line already resolved the identical §3-vs-§11 collision the same
+    // way: the scale comes from §3 and the face from §11.
+    expect(band).toMatch(/font-family: var\(--mono\)/)
+    expect(band).toMatch(/letter-spacing: var\(--tr-spec\)/)
+    expect(band).not.toMatch(/font-family: var\(--ui\)/)
+    // §2.1 rule 1: Flare is a field, and no string under 24px may sit on it.
+    // --fs-h2 floors at 24px; anything from --fs-h3 down would be illegal here.
+    expect(band).not.toMatch(/font-size: var\(--fs-(h3|body|cap|spec)\)/)
+    // The clip has to land off-canvas, which it does because both band ends sit
+    // outside the section at every width — a mark cut in half on screen is the
+    // truncation this whole construction exists to avoid.
+    expect(band).toMatch(/overflow: hidden/)
+    expect(LANDING).toMatch(/\.lp-band-mark \{[^}]*flex-shrink: 0/)
+    // …and the marks are gated to the width where a lane exists. Below 720px
+    // the rules grid is one full-measure column, the band's visible run is
+    // slivers between stacked plates, and every mark on screen is cut
+    // mid-glyph — the rotated-fragment artefact, back one glyph down.
+    expect(LANDING).toMatch(/\.lp-band-mark \{[^}]*display: none/)
+    const wide = /@media \(min-width: 720px\) \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
+    expect(wide).toMatch(/\.lp-band-mark \{ display: block/)
+  })
 })
 
 describe('§2 — the ratio law and the palette budget', () => {
+  const root = () => /:root \{([\s\S]*?)\n\}/.exec(TOKENS)?.[1] ?? ''
+  const dark = () =>
+    /prefers-color-scheme: dark\) \{\s*:root \{([\s\S]*?)\n  \}/.exec(TOKENS)?.[1] ?? ''
+  const sheet = () => /\n\.spec-sheet \{([\s\S]*?)\n\}/.exec(TOKENS)?.[1] ?? ''
+  const decl = (block: string, name: string) =>
+    new RegExp(`${name}:\\s*var\\((--[a-z-]+)\\)`).exec(block)?.[1]
+
   it('gives the page a field that is not the card fill, in both themes', () => {
     // The root cause of "generic card stack": body, .card and .field all
     // resolved to the same hex, so three nested surface levels carried zero
     // colour offset. §2 puts 60% of the surface on Flare or Espresso; the
     // stage is the only surface big enough to carry it.
-    const root = /:root \{([\s\S]*?)\n\}/.exec(TOKENS)?.[1] ?? ''
-    const dark = /prefers-color-scheme: dark\) \{\s*:root \{([\s\S]*?)\n  \}/.exec(TOKENS)?.[1] ?? ''
-    const decl = (block: string, name: string) =>
-      new RegExp(`${name}:\\s*var\\((--[a-z-]+)\\)`).exec(block)?.[1]
-
-    expect(decl(root, '--stage')).toBe('--flare')
-    expect(decl(root, '--field')).toBe('--bone')
-    expect(decl(dark, '--stage')).toBe('--espresso')
-    expect(decl(dark, '--field')).toBe('--graphite')
+    expect(decl(root(), '--stage')).toBe('--flare')
+    expect(decl(root(), '--field')).toBe('--bone')
+    expect(decl(dark(), '--field')).toBe('--espresso')
     expect(TOKENS).toMatch(/body \{[^}]*background: var\(--stage\)/)
+  })
+
+  it('never overrides the stage in dark — Flare keeps its hex in both themes', () => {
+    // §2.2 swaps the GROUND (Bone -> Espresso) and keeps Flare's hex in both.
+    // --stage is a field, not a reading ground, so the swap must not reach it.
+    // Overriding it to Espresso was measured: Flare fell to 2.5% of the dark
+    // phone with no brand mark below the hero band, and the stage/card offset
+    // collapsed to 1.164:1 — depth back on the 2px keyline, which is the exact
+    // defect the stage split exists to kill. Against the Espresso card the
+    // Flare stage measures 4.41:1, the widest surface offset in the app.
+    expect(decl(dark(), '--stage')).toBeUndefined()
+    expect(dark()).not.toMatch(/--stage:/)
+  })
+
+  it('never promotes Graphite from the form to a card fill', () => {
+    // §1 trait 06 gives every surface three roles — field, form, counter — and
+    // §2 budgets them 60/30/8. Graphite is the 8% role. `--field: graphite` in
+    // the dark block put it at 52.6% of the dark phone, 6.6x its budget and the
+    // largest law violation anywhere in the app, because on a 375px column the
+    // cards ARE the screen. Neither theme may hand it a container fill again.
+    for (const block of [root(), dark(), sheet()]) {
+      expect(decl(block, '--field')).not.toBe('--graphite')
+    }
   })
 
   it('keeps Void off the recessed surfaces — it is capped under 5%', () => {
     // --sunken: var(--void) in the dark theme measured 15.2% of the phone
     // page: 39 locked tiles, every track and every input. Void survives only
     // inside the display letterforms' halftone screen.
-    const dark = /prefers-color-scheme: dark\) \{\s*:root \{([\s\S]*?)\n  \}/.exec(TOKENS)?.[1] ?? ''
-    expect(dark).toMatch(/--sunken: var\(--espresso\)/)
+    expect(TOKENS).not.toMatch(/--sunken: var\(--void\)/)
     expect(TOKENS).toMatch(/--brand-screen: var\(--void\)/)
+  })
+
+  it('stands the archive on §5B’s Espresso spec sheet, in both themes', () => {
+    // §5 layout B: "4-up grid of badges ON ESPRESSO, captioned with mono index
+    // labels" — the codex and the badge shelf are literally that, and they were
+    // rendering as ordinary Bone cards, so layout B existed nowhere in the
+    // product. It is also the largest field correction available on a phone:
+    // those two cards are the tallest on the page, and a census put the 375px
+    // light app at 20.4% field / 68.5% bone against a 60/30 law.
+    // No dark override: §5B says "on espresso" unconditionally.
+    expect(decl(sheet(), '--field')).toBe('--espresso')
+    expect(decl(sheet(), '--ink')).toBe('--bone')
+    // The derived quiet registers must be re-declared, not inherited: a custom
+    // property's var() references are substituted where it is DECLARED, so an
+    // inherited --spec is already a resolved hex measured against the WRONG
+    // ground. Without these two lines the sheet's spec labels are ~1.5:1.
+    expect(sheet()).toMatch(/--spec: color-mix/)
+    expect(sheet()).toMatch(/--spec-sunken: color-mix/)
+    // The recess is the sheet's own ground. 39 locked tiles at --s5 tall is how
+    // the Graphite budget went 6.6x over in the first place; they must not
+    // reintroduce a fourth surface colour on the surface that fixed it.
+    expect(decl(sheet(), '--sunken')).toBe('--espresso')
   })
 
   it('recesses the input off the card it sits in', () => {
@@ -194,6 +284,42 @@ describe('§2 — the ratio law and the palette budget', () => {
     // …and it spans both tracks at ≥768px, so a fault cannot re-pair the grid.
     const tablet = /@media \(min-width: 768px\) \{([\s\S]*?)\n\}/.exec(APP)?.[1] ?? ''
     expect(tablet).toMatch(/\.persist-fault,\n\s*\.ledger-card/)
+  })
+})
+
+describe('§2 / §11 — pure white is banned, including the white nobody declared', () => {
+  it('draws the impulse checkbox instead of letting the UA paint it', () => {
+    // No stylesheet declares #FFFFFF, and a pixel census still sampled
+    // rgb(255,255,255) on the light phone: the control kept `appearance: auto`,
+    // so the UA painted the UNCHECKED box white. accent-color only reaches the
+    // CHECKED fill, which is why setting it looked like a complete fix.
+    const box = /\n\.impulse-check input \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(box).toMatch(/appearance: none/)
+    expect(box).toMatch(/background: var\(--field\)/)
+    expect(box).toMatch(/border: var\(--keyline-w\) solid var\(--keyline\)/)
+    // accent-color styles nothing once appearance is none; leaving it would
+    // imply the UA still paints part of this control.
+    expect(box).not.toMatch(/accent-color/)
+    // The FILL is the primary state signal, so the control keeps its state even
+    // where ::before on a checkbox is unsupported.
+    expect(APP).toMatch(/\.impulse-check input:checked \{[^}]*background: var\(--ink\)/)
+    // …and forced-colours mode hands the native control back rather than
+    // stranding an unpainted outline.
+    expect(APP).toMatch(/forced-colors: active\) \{\s*\.impulse-check input \{[^}]*appearance: auto/)
+  })
+
+  it('declares no hex outside the raw palette block in any stylesheet', () => {
+    // The palette is 12 hexes and they live in one place (see the tokens.css
+    // header). This is the standing guard that made the checkbox's white the
+    // interesting case: it could only get on screen because it was never
+    // written down.
+    const raw = /--flare: #f93e06;[\s\S]*?--moss: #3a4a2a;/.exec(TOKENS)?.[0] ?? ''
+    expect(raw).not.toBe('')
+    for (const [name, css] of [
+      ['tokens', TOKENS.replace(raw, '')], ['app', APP], ['landing', LANDING],
+    ] as const) {
+      expect(`${name}: ${css.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []}`).toBe(`${name}: `)
+    }
   })
 })
 
@@ -258,6 +384,38 @@ describe('§2.1 — the note keys sit on a measured pair', () => {
   })
 })
 
+describe('§12.8 / Trust Rule 1 — the month strip states, it does not judge', () => {
+  it('draws the bars in ink, never in an accent', () => {
+    // --reward is the engagement track's colour and --data the financial
+    // one's: a month drawn in --reward would put XP's hue on money (Trust
+    // Rule 1, drawn in colour), and one drawn in --data would read as a
+    // verdict the card explicitly does not pass — the same argument
+    // .day-total makes in the ledger.
+    const bar = /\n\.month-bar \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(bar).toMatch(/background: var\(--ink\)/)
+    expect(bar).not.toMatch(/var\(--(reward|data|alert|stage)\)/)
+  })
+
+  it('separates "no record" from "a real zero" by border STYLE, not by hue', () => {
+    // WCAG 1.4.1 and §12.8: the distinction that stops the card lying about
+    // the user on install day may not ride on colour alone. Solid ink under
+    // the days Ember has records for, dashed quiet rule under the blanks.
+    expect(APP).toMatch(
+      /\.month-cell\.is-recorded \{[^}]*border-bottom: var\(--keyline-w\) solid var\(--keyline\)/,
+    )
+    expect(APP).toMatch(/\.month-cell\.is-no-record,\n\.month-cell\.is-ahead \{[^}]*dashed/)
+  })
+
+  it('cuts the macro-break above the card that OPENS the archive', () => {
+    // --s3 gap + --s4 margin = a whole step of the scale between the act-now
+    // half of the stack and the read-only half. Left on .ledger-card it would
+    // now fall between the month and the days inside it — two views of one
+    // thing, split by the page's loudest gap.
+    expect(APP).toMatch(/\n\.month-card \{ margin-top: var\(--s4\); \}/)
+    expect(APP).not.toMatch(/\.ledger-card \{ margin-top/)
+  })
+})
+
 describe('§2.2 — the product shot is themed, not pinned', () => {
   it('hands the shot back the app ink the poster section would otherwise impose', () => {
     // The landing pins its foregrounds because it is a poster (see the header
@@ -267,6 +425,19 @@ describe('§2.2 — the product shot is themed, not pinned', () => {
     // light-theme card. Invisible in light, perfect on a dark dev machine.
     const frame = /\n\.lp-shot-frame \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
     expect(frame).toMatch(/color: var\(--ink\)/)
+  })
+
+  it('spaces the two cards on the app\'s own rhythm and drops the macro-break', () => {
+    // The frame holds two cards now, and .card carries no margin of its own —
+    // the app's stack spaces cards with a flex gap, so a shot that did not
+    // would butt the month card against the ledger. And the --s4 macro-break
+    // .month-card carries in the app opens the ARCHIVE half of that stack;
+    // there is no such split inside a figure, so it would print as a hanging
+    // gap above the shot.
+    const frame = /\n\.lp-shot-frame \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
+    expect(frame).toMatch(/display: flex/)
+    expect(frame).toMatch(/gap: var\(--s3\)/)
+    expect(LANDING).toMatch(/\.lp-shot-frame \.month-card \{ margin-top: 0; \}/)
   })
 
   it('repaints nothing inside the card — a restyled shot is not a shot', () => {
@@ -295,5 +466,164 @@ describe('§5 — the layout breaks where the devices are', () => {
   it('never re-introduces a max-width on the shell that would stop the field bleeding', () => {
     const shell = /\n\.shell \{([^}]*)\}/.exec(APP)?.[1] ?? ''
     expect(shell).not.toContain('max-width')
+  })
+})
+
+describe('Trust Rule 8 — the focus ring is a mechanism, not a default', () => {
+  it('declares one 3px ring and suppresses it in no stylesheet', () => {
+    // The a11y sweep measured a `solid 3px rgb(42,45,44)` outline on EVERY
+    // tab stop on both surfaces. That result only holds while this one rule
+    // exists and nothing anywhere cancels it — and the app now hands focus to
+    // five script-focusable <section> jump targets that have no ring of their
+    // own to fall back on.
+    expect(TOKENS).toMatch(/:focus-visible\s*\{[^}]*outline:\s*3px solid/)
+    expect(LANDING).toMatch(/:focus-visible\s*\{[^}]*outline:\s*3px solid/)
+    for (const [name, css] of [
+      ['tokens.css', TOKENS],
+      ['app.css', APP],
+      ['landing.css', LANDING],
+    ] as const) {
+      // `outline: none` / `outline: 0` is the one line that makes every
+      // keyboard stop in a stylesheet invisible at once. There is no legal
+      // use of it here: an element that must not show a ring should not be
+      // focusable, and §11 already forbids the box-shadow substitute.
+      expect(css, name).not.toMatch(/outline\s*:\s*(none|0)\b/)
+    }
+  })
+})
+
+/**
+ * §2.1 rule 3 — "Every new foreground/field pair must be checked before it
+ * ships. If it is not in the table above, compute it."
+ *
+ * The stylesheets record those computations in comments, which made the
+ * comments the compliance record — and an audit found six of them naming a
+ * surface the app no longer paints (Graphite where the dark block now says
+ * Espresso) or simply overstating the ratio. A comment cannot fail a build, so
+ * the arithmetic moves here: the mixes are parsed out of tokens.css itself and
+ * the ratios recomputed, which is the only form in which "8.9:1" is evidence
+ * rather than an assertion.
+ *
+ * Pure sRGB WCAG 2.x, and pure functions only — no dependency, no browser.
+ */
+const RAW: Record<string, string> = Object.fromEntries(
+  [...TOKENS.matchAll(/--([a-z]+):\s*(#[0-9a-f]{6});/g)].map((m) => [m[1], m[2]]),
+)
+
+function rgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '')
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number]
+}
+function relLuminance(hex: string): number {
+  const [r, g, b] = rgb(hex).map((v) => {
+    const c = v / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [relLuminance(a), relLuminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+/** color-mix(in srgb, A p%, B) — gamma-encoded channel-wise, as CSS specifies
+    for the srgb colour space. Used to resolve --spec / --spec-sunken, which
+    are the only derived colours in the token graph. */
+function mix(a: string, p: number, b: string): string {
+  const A = rgb(a)
+  const B = rgb(b)
+  return (
+    '#' +
+    A.map((v, i) => Math.round(v * p + B[i] * (1 - p)).toString(16).padStart(2, '0')).join('')
+  )
+}
+const round = (n: number) => Math.round(n * 100) / 100
+
+describe('§2.1 rule 3 — every pair on a surface is computed, not asserted', () => {
+  it('reads the raw palette out of tokens.css rather than restating it', () => {
+    // If the parse ever returns nothing, every case below would silently pass.
+    expect(RAW.flare).toBe('#f93e06')
+    expect(RAW.graphite).toBe('#2a2d2c')
+    expect(RAW.bone).toBe('#f5e6e0')
+    expect(RAW.espresso).toBe('#2a1e18')
+    expect(RAW.sand).toBe('#dfd5bc')
+  })
+
+  it('reproduces the §2.1 table the design system ships', () => {
+    // The instrument is checked against the binding document before it is used
+    // as evidence for anything else. Exact values, with the table's own printed
+    // figure beside each. They agree on the verdicts, which is what §2.1 is
+    // for, and differ in the last digit on four rows — the table is rounded and
+    // in two places conservative. Where a stylesheet comment cites the TABLE
+    // (13.4, 6.2, 9.7) it is quoting the binding document, not this file; where
+    // it records a pair the table does not list, it must match what is computed
+    // here.
+    expect(round(contrast(RAW.graphite, RAW.flare))).toBe(3.79) // table: 3.79
+    expect(round(contrast(RAW.bone, RAW.flare))).toBe(3.02) // table: 3.01
+    expect(round(contrast(RAW.graphite, RAW.bone))).toBe(11.44) // table: 11.4
+    expect(round(contrast(RAW.bone, RAW.espresso))).toBe(13.32) // table: 13.4
+    expect(round(contrast(RAW.graphite, RAW.marigold))).toBe(6.38) // table: 6.2
+    expect(round(contrast(RAW.graphite, RAW.acid))).toBe(11.15) // table: 9.7
+  })
+
+  it('holds the quiet register above the 4.5:1 body floor on every ground', () => {
+    // --spec is mixed toward --ground, so it has to be recomputed per theme
+    // AND per surface. The figure that mattered: on the .spec-sheet the mix is
+    // Bone-toward-Espresso, and the comment claimed 8.9:1 where it is 7.19.
+    const specLight = mix(RAW.graphite, 0.7, RAW.bone)
+    const specDark = mix(RAW.bone, 0.7, RAW.espresso)
+    expect(specLight).toBe('#676562')
+    expect(specDark).toBe('#b8aaa4')
+    expect(round(contrast(specLight, RAW.bone))).toBe(4.78)
+    expect(round(contrast(specDark, RAW.espresso))).toBe(7.19)
+    // …and the reason --spec-sunken exists: --spec on the Sand recess is under
+    // the floor, so a quiet string there must take the deeper mix.
+    expect(contrast(specLight, RAW.sand)).toBeLessThan(4.5)
+    const sunkLight = mix(RAW.graphite, 0.8, RAW.bone)
+    const sunkDark = mix(RAW.bone, 0.8, RAW.espresso)
+    expect(round(contrast(sunkLight, RAW.sand))).toBe(5.35)
+    expect(round(contrast(sunkDark, RAW.graphite))).toBe(7.7)
+    expect(round(contrast(sunkDark, RAW.espresso))).toBe(8.96)
+  })
+
+  it('keeps every surface offset and signal bar over the 3:1 non-text floor', () => {
+    // The stage against the card it holds, in both themes — this is the offset
+    // the --stage split was introduced to create, and the number the dark block
+    // cites as its justification.
+    expect(round(contrast(RAW.flare, RAW.bone))).toBe(3.02)
+    expect(round(contrast(RAW.flare, RAW.espresso))).toBe(4.41)
+    // .persist-fault / .field-error / .export-note: a Flare bar on the plate.
+    for (const field of [RAW.bone, RAW.espresso]) {
+      expect(contrast(RAW.alert ?? RAW.flare, field)).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('measures the .spec-sheet pairs the sheet’s own comment records', () => {
+    // The sheet re-roles field to Espresso and ink to Bone, and every earned
+    // tile is now that pair inverted (Bone plate, Espresso ink) rather than an
+    // accent — see .codex-tile. Both directions are the same ratio.
+    expect(round(contrast(RAW.bone, RAW.espresso))).toBe(13.32)
+    expect(round(contrast(RAW.espresso, RAW.bone))).toBe(13.32)
+    // The sheet's Bone keyline against the Flare stage it stands on.
+    expect(contrast(RAW.bone, RAW.flare)).toBeGreaterThanOrEqual(3)
+  })
+
+  it('leaves no stylesheet comment claiming a ratio the palette cannot produce', () => {
+    // Not every figure in the comments is machine-checkable — some name a pair
+    // in prose — but a ratio over the palette's own maximum is always wrong,
+    // and that maximum is Bone on Espresso. This is the cheap standing guard
+    // against the next "13.9:1" typed into a rationale. The 0.1 slack is the
+    // design system's own rounding: §2.1's table prints that pair as 13.4:1
+    // where it computes to 13.32, and the comments follow the binding table.
+    const max = contrast(RAW.bone, RAW.espresso) + 0.1
+    const raw = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8')
+    const app = readFileSync(new URL('./app.css', import.meta.url), 'utf8')
+    const landing = readFileSync(new URL('./landing.css', import.meta.url), 'utf8')
+    const overclaims: string[] = []
+    for (const [name, css] of [['tokens', raw], ['app', app], ['landing', landing]] as const) {
+      for (const m of css.matchAll(/(\d+(?:\.\d+)?):1\b/g)) {
+        if (Number(m[1]) > max) overclaims.push(`${name}: ${m[0]}`)
+      }
+    }
+    expect(overclaims).toEqual([])
   })
 })

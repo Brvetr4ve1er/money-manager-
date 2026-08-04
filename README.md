@@ -20,9 +20,11 @@ NO ACCOUNT  ·  NO BANK LINK  ·  EXPORT ALWAYS
 
 A money tracker for people whose money problem is friction, memory and
 impulse — not arithmetic. You log what you spend, by hand, in Algerian dinars.
-Ember groups the log by day, scores your financial reality from five weighted
-components — redistributing the weight of any whose data you never entered —
-and states the tradeoff when you are deciding on a purchase.
+Ember groups the log by day, shows you where you are in the month, scores your
+financial reality from five weighted components — running on placeholder
+numbers until you enter your own in **My numbers**, and redistributing the
+weight of any component you leave blank once you have — and states the tradeoff
+when you are deciding on a purchase.
 
 It runs in a browser tab with nothing behind it. No account, no server, no
 bank link, no purchase path — `src/` contains no `fetch`, no socket and no
@@ -30,6 +32,23 @@ auth. Every byte lives in that browser's local storage. Close the tab and
 Ember has nothing on you.
 
 A purchase is two taps: one cash key, then Log.
+
+## Send it to a friend who overspends
+
+The reason is one mechanic, and it is the one thing a bank-linked tracker
+cannot do at all: **Ember logs the thing you did not buy.**
+
+You type the amount and press **"I resisted an impulse"** instead of Log. The
+row records what the purchase would have cost. It adds nothing to that day's
+total — money that did not move is not spend — and it sums into one figure at
+the head of the ledger: `3,500 DA resisted this month`. A bank feed can only
+ever see money that moved, so this row does not exist anywhere else.
+
+The other half is what happens when you lose. Buy it anyway, tick "I bought it
+anyway", and the row reads the same as any other: full XP, a quiet marker,
+no colour, no lecture. That is what makes Impulse Control a real two-sided
+ratio instead of a resist-only self-report — and it is why the honest log is
+the one you keep using.
 
 ## Is it for you
 
@@ -39,16 +58,22 @@ A purchase is two taps: one cash key, then Log.
 - You will not hand a bank login to an app, and would rather type the number.
 - You have quit a budgeting app because it lectured you. Ember states the fact
   and stops: a day total is flat ink, no colour verdict and no comparison; the
-  string "over budget" appears nowhere in the product; the score explains
-  itself and never advises.
+  month card shows totals with no target line and no projection; the string
+  "over budget" appears nowhere in the product; the score explains itself and
+  never advises.
 - You want your data to leave with you. One tap, full JSON, no account.
 
 **No, if —**
 
-- You want automatic bank sync. Nothing here reads a bank. Every row is typed
-  or tapped in, and that is the design, not a gap in it.
+- You want automatic bank sync. Nothing here reads a bank — and in a cash
+  economy a feed is a partial record by construction, so the automatic
+  competitor is the one with the gaps. Every row is typed or tapped in.
+  Nothing is imported, so nothing is auto-categorised, so no row is
+  quietly filed under the wrong merchant. That is the design, not a gap in it.
 - You need a currency other than DA. Amounts format as DA everywhere; there is
-  no converter and no second unit.
+  no converter and no second unit. Ember is built for one market and prices
+  itself in that market's notes: the cash pad is 2000 / 1000 / 500 / 200 / 100,
+  the denominations actually in circulation.
 - You want it on several devices. Storage is one browser's local storage. Two
   tabs of the same browser merge; two phones do not. Export writes a JSON file
   you move yourself — there is no import screen that reads it back in.
@@ -58,25 +83,62 @@ A purchase is two taps: one cash key, then Log.
 Ember is not treatment and does not imply it. It is a logbook with a score on
 it.
 
-## The four mechanics
+## The six mechanics
 
 ```
-01/04  HEALTH SCORE    Five components. Shrunk for thin data. Explains; never advises.
-02/04  THE RESIST      Kept, not spent. Summed for the month. The total is not a score input.
-03/04  THE SIMULATOR   Baseline against scenario. States the tradeoff. Never the verdict.
-04/04  THE MONSTER     This week's discretionary spend is its HP. Last week's is the line.
+01/06  HEALTH SCORE    Five components. Shrunk for thin data. Explains; never advises.
+02/06  THE RESIST      Resisted, not spent. Summed for the month. The total is not a score input.
+03/06  THE SIMULATOR   Baseline against scenario. States the tradeoff. Never the verdict.
+04/06  THE MONSTER     This week's discretionary spend is its HP. Last week's is the line.
+05/06  THE MONTH       Day index, month total, days left, one bar per day. No target. No projection.
+06/06  THE NOTE        80 characters on any row. Optional, unpaid, never asked for twice.
 ```
+
+"Resisted", not "kept": the app observed the tap, not the outcome. It sums the
+prices of things you say you did not buy, and it says so in those words.
+
+**Whose numbers the score is on.** Before you fill in **My numbers**, the score
+runs on a demo profile — an invented income, essentials figure and emergency
+fund — so the card has something to show on day one. It is not yours and the
+app never pretends otherwise: the health card prints *"Placeholder numbers
+until setup."*, the desktop hero prints *"Placeholder until setup"*, and the
+simulator prints *"Projected on the demo profile"*. Impulse Control is the one
+component that reads nothing but rows you logged, so it is yours from the first
+tap; the other four are measured against the placeholder figures until you
+replace them, and the whole score carries a reduced confidence while they
+stand. Once you have entered your numbers, anything you leave blank — no
+emergency fund, no debt — is dropped and its weight redistributed across the
+components you did fill in, with the card naming each one it left out.
 
 Around them: XP and levels for showing up, four daily quests (two of them
 verified by the app, not by a tap), 30 collectible one-screen lessons, nine
 earn-only badges with cosmetic companions, and chiptune cues that never carry
 information alone.
 
-The ledger groups what you logged by day — Today, Yesterday, then the date —
+**The ledger** groups what you logged by day — Today, Yesterday, then the date —
 and states that day's spend beside the heading. Resists list under their day
 and add nothing to it. Totals only: no averages, no comparison, no verdict.
 
-Logging takes cash, not digits. The amount field carries a pad of the
+**The month card** sits directly above it and answers the other half of "where
+am I": `Day 4 / 31`, the month's logged total, the days left, and one bar per
+calendar day scaled to the biggest day drawn. Days before your first ever row
+are drawn blank and dashed rather than at zero, and the card says so in
+words — *"Days before it are blank, not zero"* — because on install day the
+month may already be half over and Ember was not there for it. There is no target
+line, no average, no run rate and no "at this pace": a month-to-date total is
+exact from day one, a projection off twelve days is not. The component is never
+handed your profile, which is the structural reason a budget bar cannot appear
+on it.
+
+**The note** is one optional field per row: "What was it?", 80 characters,
+capped at both ends — `maxLength` on the input and a sanitiser at the storage
+boundary, so a hand-edited payload cannot land a multi-megabyte memo in your
+browser quota. It writes what you typed and nothing else. A bad note costs the
+note, never the row it rode in on. Rows logged before the field existed render
+exactly as they always did: no placeholder, no prompt, no "add a note". And
+typing one pays no XP — logging is +5 either way.
+
+**Logging takes cash, not digits.** The amount field carries a pad of the
 denominations actually in circulation — 2000, 1000, 500, 200, 100 DA — and each
 tap adds one to what is already there, so 1,500 DA takes two keys. Typing still
 works and still wins: the pad composes with what you typed and never replaces
@@ -94,7 +156,9 @@ Product invariants. They outrank the design system and they outrank a feature.
   path exists.
 - **Honesty is never punished.** "I bought it anyway" logs at full XP, framed
   neutrally, and is what makes Impulse Control a real two-sided ratio.
-- **Honest cold start.** Under 90 days the score says it is still calibrating
+- **Honest cold start.** Before setup the score says it is running on
+  placeholder numbers — it is scoring a demo profile, not you, and every
+  surface that reads it says so. Under 90 days it says it is still calibrating
   rather than projecting confidence it has not earned.
 - **Your data leaves when you do.** Full JSON export, always, one tap, no
   account.
@@ -113,6 +177,7 @@ Vite 5 · React 18 · TypeScript strict · Vitest. No runtime dependency beyond
 npm test        # the engine, state and component suites
 npm run build   # type-check and produce a production build
 npm run brand   # regenerate every asset in public/ from the mark's geometry
+                # (needs Node >= 22.6: --experimental-strip-types landed there)
 ```
 
 `npm run brand` emits the favicon, the maskable icon, the social card and both
@@ -179,21 +244,31 @@ why every string under 24px in this product sits on a plate.
 - `src/engine/profile.ts` — user profile, demo fallback, calibration window
 - `src/engine/boss.ts` — weekly boss battle engine
 - `src/engine/achievements.ts` — badge roster and pixel pets
-- `src/engine/ledger.ts` — day grouping, day totals, and the day headings
+- `src/engine/ledger.ts` — day grouping, day totals, the day headings, and
+  `monthToDate` (the month's per-day totals, day index and record window)
 - `src/engine/keypad.ts` — cash denominations and the amount composition
 - `src/content/lessons.ts` — the 30-lesson codex content
 - `src/content/sampleLedger.ts` — the sample rows behind the landing's product
-  shot (dated against the day the page opens, so the shot cannot go stale)
-- `src/state/store.ts` — local-first persistence, sanitization, multi-tab
-  merge, and export
+  shot (dated against the day the page opens, so the shot cannot go stale;
+  three of the seven carry a note, four do not, because the field is optional)
+- `src/state/store.ts` — local-first persistence, sanitization (including the
+  80-character note cap), multi-tab merge, and export
 - `src/state/reducer.ts` — pure state transitions (XP grants, undo, rollover)
 - `src/localFirst.test.ts` — "no server, no account, nothing for sale" as an
   assertion over the source tree, because an absence is the one claim no
   feature test defends
+- `src/shareCard.test.ts` — the unfurl copy in `index.html` as assertions, for
+  the same reason: a forwarded link's card is the first surface most people in
+  the target market see and the last one anybody re-reads
 - `src/Root.tsx` — the cold-start gate: landing for a first visit, app after
 - `src/components/Landing.tsx` — the marketing surface. Its product shot is a
-  live `<Ledger>`, not an image: the page renders the shipped component through
-  the shipped grouping engine, so the screenshot cannot drift from the app
+  live `<MonthCard>` over a live `<Ledger>`, not an image: the page renders the
+  shipped components through the shipped engines, in the order the app stacks
+  them, so the screenshot cannot drift from the app. The mechanic count, the
+  cash denominations and the note cap are read from code rather than typed into
+  the copy, for the same reason
+- `src/components/MonthCard.tsx` — the month so far: day index, month-to-date
+  total, days left, and the per-day strip
 - `src/components/monogramGeometry.ts` — the mark (§4), as computed geometry
 - `src/components/` + `src/hooks/` — cards and the day/reward reaction logic
 - `src/audio/chiptune.ts` — synthesized audio cues

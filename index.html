@@ -3,7 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Ember — a money app that runs on your phone, not on your bank. Manual logging in dinars, a health score that explains itself, and a simulator that states the tradeoff. No account, no bank link, full export." />
+    <!-- The SERP line. It names the mechanic the landing leads with rather than
+         only the category: "a row for the thing you did not buy" is the resist
+         path (reducer.ts writes the row, ledger.ts adds 0 for it, Ledger sums
+         the month), and it is the one claim here no bank-linked tracker can
+         make at all. The simulator clause it replaced was true and generic;
+         this one is true and specific, which is the whole difference on a
+         surface a stranger reads in one line. -->
+    <meta name="description" content="Ember — a money app that runs on your phone, not on your bank. Manual logging in dinars, a row for the thing you did not buy, and a health score that explains itself. No account, no bank link, full export." />
     <!-- Browser chrome, per scheme. Flare is the brand field (§2: 45% of all
          surface) and is literally the first paint a new visitor gets — the
          landing's brick wall. Dark takes the ground swap (§2.2: light ground
@@ -54,7 +61,7 @@
     <meta property="og:site_name" content="Ember" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="Ember — a money app that runs on your phone, not on your bank" />
-    <meta property="og:description" content="A money app that runs on your phone, not on your bank. Log the spend in DA, read the numbers. No account, no bank link, full export." />
+    <meta property="og:description" content="A money app that runs on your phone, not on your bank. Log what you spend in DA. And log the thing you did not buy — no bank feed can see that row. No account, no bank link, full export." />
     <meta property="og:image" content="/og.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
@@ -62,7 +69,7 @@
     <meta property="og:image:alt" content="The Ember mark — the EMB letter stack in a rounded container — alone and dead-centre on a flat orange field, crossed by one 38-degree graphite diagonal." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Ember — a money app that runs on your phone, not on your bank" />
-    <meta name="twitter:description" content="A money app that runs on your phone, not on your bank. Log the spend in DA, read the numbers. No account, no bank link, full export." />
+    <meta name="twitter:description" content="A money app that runs on your phone, not on your bank. Log what you spend in DA. And log the thing you did not buy — no bank feed can see that row. No account, no bank link, full export." />
     <meta name="twitter:image" content="/og.png" />
     <meta name="twitter:image:alt" content="The Ember mark — the EMB letter stack in a rounded container — alone and dead-centre on a flat orange field, crossed by one 38-degree graphite diagonal." />
     <!-- The tab, the bookmark, the SERP line and every Slack/Teams unfurl

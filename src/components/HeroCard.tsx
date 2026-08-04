@@ -196,12 +196,17 @@ export function HeroCard({
         type="button"
         className="btn hero-why"
         aria-expanded={open}
+        // aria-controls names the drawer this button owns. Held unconditional
+        // rather than gated on `open`: with aria-expanded="false" beside it,
+        // the relationship is the point even while the target is unmounted —
+        // it is what lets AT jump from the trigger to what it opens.
+        aria-controls="health-breakdown"
         onClick={() => setOpen((o) => !o)}
       >
         {open ? 'Hide the breakdown' : 'Why this stage?'}
       </button>
       {open && (
-        <div className="health-breakdown">
+        <div className="health-breakdown" id="health-breakdown">
           <ul className="health-bars">
             {COMPONENT_ROWS.map(({ key, label }) => {
               const value = components[key]

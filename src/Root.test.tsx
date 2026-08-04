@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Root } from './Root.tsx'
 import { Landing } from './components/Landing.tsx'
-import { defaultState, todayISO } from './state/store.ts'
+import { defaultState, todayISO, NOTE_MAX_LEN } from './state/store.ts'
 import { sampleLedgerRows } from './content/sampleLedger.ts'
-import { groupTransactionsByDay } from './engine/ledger.ts'
+import { groupTransactionsByDay, monthToDate } from './engine/ledger.ts'
 import { NOTE_DENOMINATIONS_DA } from './engine/keypad.ts'
 import { CALIBRATION_DAYS } from './engine/profile.ts'
 
@@ -122,13 +122,48 @@ describe('landing honesty (Trust Rule 5)', () => {
     }
   })
 
-  it('names four mechanics and indexes them against their real count', () => {
+  it('names six mechanics and indexes them against their real count', () => {
     const { container } = render(<Landing onEnter={() => {}} />)
     const indices = [...container.querySelectorAll('.lp-index')].map((n) => n.textContent)
     // §1 trait 10 is "decorative TRUTH-telling": the denominator has to be the
     // length of the list it captions, or the label is set dressing.
-    expect(indices).toEqual(['01/04', '02/04', '03/04', '04/04'])
+    // Six, and each one is a shipped surface: health score, resist, simulator,
+    // monster, the month card, the row note.
+    expect(indices).toEqual(['01/06', '02/06', '03/06', '04/06', '05/06', '06/06'])
     expect(container.querySelectorAll('.lp-badge')).toHaveLength(indices.length)
+  })
+
+  it('states the same count in the section lede that the grid actually holds', () => {
+    // The lede used to spell the number ("Four mechanics"), which is a second
+    // place to write one fact — and the grid grew while the word sat still.
+    // The page now reads MECHANICS.length in both places; this is the assertion
+    // that keeps them the same fact rather than two copies of it.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const badges = container.querySelectorAll('.lp-badge').length
+    const lede = container.querySelector('.lp-spec-lede')?.textContent ?? ''
+    expect(lede).toContain(`${badges} mechanics`)
+    // …and every badge names a mechanic and says something about it.
+    for (const badge of container.querySelectorAll('.lp-badge')) {
+      expect(badge.querySelector('.lp-badge-h')?.textContent?.trim()).toBeTruthy()
+      expect(badge.querySelector('.lp-badge-body')?.textContent?.trim()).toBeTruthy()
+    }
+  })
+
+  it('claims the note cap the store actually enforces, never a typed number', () => {
+    // NOTE_MAX_LEN is the one number on this page a user could measure against
+    // the product in ten seconds. It is read, not typed.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const badge = [...container.querySelectorAll('.lp-badge')].find((b) =>
+      /the note/i.test(b.querySelector('.lp-badge-h')?.textContent ?? ''),
+    )
+    expect(badge).toBeTruthy()
+    const body = badge?.textContent ?? ''
+    expect(body).toContain(`${NOTE_MAX_LEN} characters`)
+    // The two trust claims beside it, both enforced elsewhere in the suite:
+    // logExpense pays +5 with or without a note (App.test, reducer.test), and
+    // Ledger renders nothing at all for an empty one (App.test's cold start).
+    expect(body.toLowerCase()).toContain('optional')
+    expect(body.toLowerCase()).toContain('unpaid')
   })
 
   it('holds the §7 voice bans across every string on the page', () => {
@@ -153,6 +188,30 @@ describe('landing honesty (Trust Rule 5)', () => {
   })
 })
 
+describe('the landing keyboard path', () => {
+  it('makes the page’s one jump target focusable — #spec, like the app’s five', () => {
+    // The hero's "Spec sheet" button is a fragment link, and a fragment link
+    // whose target is not focusable leaves focus on <body>: activating it
+    // strands the keyboard user at the top of the document. The app fixed this
+    // on all five of its jump targets (LogCard, QuestCard, SimCard, CodexCard,
+    // AchievementsCard) and the landing's only one was left behind. Chrome
+    // papers over it with the sequential-focus navigation starting point;
+    // Safari/VoiceOver do not.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const cta = container.querySelector('a.lp-cta[href="#spec"]')
+    expect(cta).not.toBeNull()
+    const target = container.querySelector('#spec')
+    expect(target).not.toBeNull()
+    // -1, never 0: script-focusable, but not a new stop in the tab order.
+    expect(target!.getAttribute('tabindex')).toBe('-1')
+    // …and it arrives with a name, so the landing announces "The spec sheet,
+    // region" rather than an anonymous one.
+    const labelledBy = target!.getAttribute('aria-labelledby')
+    expect(labelledBy).toBeTruthy()
+    expect(container.querySelector(`#${labelledBy}`)?.textContent).toBe('The spec sheet')
+  })
+})
+
 /**
  * THE PRODUCT SHOT.
  *
@@ -164,15 +223,81 @@ describe('landing honesty (Trust Rule 5)', () => {
 describe('the landing product shot', () => {
   const shot = (c: HTMLElement) => c.querySelector('.lp-shot-frame') as HTMLElement
 
-  it('renders the app\'s own ledger card, corner mark and all', () => {
+  it('renders the app\'s own cards, corner marks and all', () => {
     const { container } = render(<Landing onEnter={() => {}} />)
     const frame = shot(container)
     expect(frame).not.toBeNull()
-    // LDG—09 is printed by Ledger itself (§11's corner mark). Its presence is
-    // proof the component rendered, not a facsimile of it.
+    // MTD—09 and LDG—10 are printed by MonthCard and Ledger themselves (§11's
+    // corner mark), and the indices are their real positions in App's stack —
+    // see the render-order case below, which derives the whole run. Their
+    // presence is proof the components rendered, not a facsimile of them.
+    expect(frame.querySelector('.month-card')).not.toBeNull()
     expect(frame.querySelector('.ledger-card')).not.toBeNull()
-    expect(frame.textContent).toContain('LDG—09')
+    expect(frame.textContent).toContain('MTD—09')
+    expect(frame.textContent).toContain('This month')
+    expect(frame.textContent).toContain('LDG—10')
     expect(frame.textContent).toContain('Recent')
+  })
+
+  it('stacks the cards in the order the app stacks them', () => {
+    // App mounts <MonthCard> directly above <Ledger>. A shot that reversed
+    // them would be a picture of a screen nobody has.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const cards = [...shot(container).querySelectorAll('.month-card, .ledger-card')]
+    expect(cards.map((c) => (c.classList.contains('month-card') ? 'month' : 'ledger'))).toEqual([
+      'month',
+      'ledger',
+    ])
+  })
+
+  it('states the month figures the real month engine derives from the sample', () => {
+    // The same anti-drift assertion the day totals get, for the second card:
+    // recomputed here from the same rows through the same engine. A hand-typed
+    // month total would fail this.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const today = todayISO()
+    const m = monthToDate(sampleLedgerRows(today), today)
+    const text = shot(container).textContent ?? ''
+    expect(text).toContain(`Day ${m.dayOfMonth} / ${m.daysInMonth}`)
+    expect(text).toContain(`${m.spentDA.toLocaleString()} DA logged`)
+    // The strip is one cell per calendar day of the real month, not a fixed 30.
+    expect(shot(container).querySelectorAll('.month-cell')).toHaveLength(m.daysInMonth)
+  })
+
+  it('carries the month card\'s own scope line, which is where a budget bar would appear', () => {
+    // "No target, no projection" is the load-bearing half of the month card and
+    // the single clearest difference from every budgeting app this page is
+    // shown beside. Cropping it out of the shot would be the one crop that
+    // changes what the picture claims.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const text = shot(container).textContent ?? ''
+    expect(text).toContain('Totals only. No target, no projection.')
+    // …and no budget language reached the page through the new card. MonthCard
+    // is never handed the profile, so `budgeted` has no path here; this asserts
+    // the outcome rather than trusting the wiring.
+    expect(container.textContent ?? '').not.toMatch(/\bbudget(ed|s)?\b|\ballowance\b|\bat this pace\b/i)
+  })
+
+  it('shows real notes on real rows, and rows without one', () => {
+    // The note is SHOWN rather than described: these nodes are Ledger's own
+    // .tx-note, rendered from the sample rows' `note` field through the shipped
+    // component. Both halves matter — a shot where every row had a note would
+    // advertise a required field, and Ledger draws nothing at all for a row
+    // without one (no placeholder, no prompt).
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const frame = shot(container)
+    const rows = [...frame.querySelectorAll('.tx')]
+    const withNote = rows.filter((r) => r.querySelector('.tx-note'))
+    expect(rows.length).toBeGreaterThan(0)
+    expect(withNote.length).toBeGreaterThan(0)
+    expect(withNote.length).toBeLessThan(rows.length)
+    // The notes on the page are the sample's notes, not invented copy.
+    const notes = sampleLedgerRows(todayISO())
+      .map((t) => t.note)
+      .filter((n): n is string => typeof n === 'string')
+    for (const n of notes) expect(frame.textContent).toContain(n)
+    // No filler on the rows that have none.
+    expect(frame.textContent).not.toMatch(/no note|add a note|untitled|what was it/i)
   })
 
   it('states the day totals the real grouping engine derives from the sample', () => {
@@ -300,5 +425,45 @@ describe('the landing states why anyone would pass it on', () => {
     expect(text).toContain('built for algeria')
     expect(text).toContain('every amount in da')
     expect(text).toContain('entered by hand')
+  })
+
+  it('argues manual entry as the position, not as a missing feature', () => {
+    // Manual-first is the product, so the page has to say WHY rather than
+    // apologise for it. The argument is a fact about a cash economy — a feed is
+    // a partial record by construction — and two properties of the code: there
+    // is no import path anywhere in src, and therefore no auto-categorisation
+    // to be wrong about a row.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const text = wall(container)
+    expect(text).toContain('nothing here is imported')
+    expect(text).toContain('nothing is guessed')
+    expect(text).toContain('every row is one you put there')
+    // Not framed as a shortfall. These are the words a limitation-shaped
+    // version of this paragraph would reach for.
+    expect(text).not.toMatch(/for now|coming soon|until we|we plan|coming later|coming in/)
+  })
+
+  it('leads the hand-off with a mechanic, not a list of refusals', () => {
+    // The reason someone forwards this is the resist row: a bank feed can only
+    // ever see money that moved. Every clause below is shipped code —
+    // reducer.ts writes the row, ledger.ts adds 0 for it, Ledger sums the month
+    // — and the shot further down renders exactly that pair.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const share = container.querySelector('.lp-share')?.textContent?.toLowerCase() ?? ''
+    expect(share).toContain('the thing they did not buy')
+    expect(share).toContain('nothing added to the day')
+    expect(share).toContain('summed for the month')
+    // Trust Rule 3, and scoped exactly as narrowly as the code allows: full XP
+    // is claimed, a clean SCORE is not (profile.ts feeds yielded impulses to
+    // impulseControlScore, so "never counted against you" would be false).
+    expect(share).toContain('full xp')
+    expect(share).not.toMatch(/score|never counted|no penalt|does not count/)
+    // The refusals are still on the page — one paragraph down, as terms.
+    const terms = container.querySelector('.lp-terms')?.textContent?.toLowerCase() ?? ''
+    for (const refusal of ['no account', 'no bank login', 'no card']) {
+      expect(terms).toContain(refusal)
+    }
+    // …and they are out of the paragraph that now carries the reason.
+    expect(share).not.toContain('no account')
   })
 })

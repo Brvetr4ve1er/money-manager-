@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { appReducer } from './reducer.ts'
-import { defaultState, type Transaction } from './store.ts'
+import { defaultState, NOTE_MAX_LEN, type Transaction } from './store.ts'
 
 const tx = (over: Partial<Transaction> = {}): Transaction => ({
   id: 't1',
@@ -29,6 +29,41 @@ describe('LOG_TX', () => {
       { id: 'tx:t1', action: 'logExpense', amount: 5, date: '2026-08-01' },
     ])
   })
+  it('pays exactly the same XP with a note as without one (two-track rule)', () => {
+    // Trust Rule 1, at the grant. Paying extra for a note would turn the
+    // memory field into an engagement lever; withholding the +5 until one is
+    // typed would tax the app's core action. Both directions are asserted, on
+    // the counter AND on the grant amount, because either could drift alone.
+    const bare = appReducer(defaultState(), { type: 'LOG_TX', tx: tx({ id: 'a' }) })
+    const noted = appReducer(defaultState(), {
+      type: 'LOG_TX',
+      tx: tx({ id: 'a', note: 'bread from the corner shop' }),
+    })
+    expect(noted.xp.totalXp).toBe(bare.xp.totalXp)
+    expect(noted.xp.totalXp).toBe(5)
+    expect(noted.xpLog).toEqual(bare.xpLog)
+    expect(noted.xpLog[0].amount).toBe(5)
+    // …and the note itself is on the row, unchanged.
+    expect(noted.transactions[0].note).toBe('bread from the corner shop')
+    expect(bare.transactions[0].note).toBeUndefined()
+  })
+
+  it('caps and trims the note on the way in, so the row on screen is the row that reloads', () => {
+    // The reducer re-applies the sanitizer for the same reason PROFILE_SET
+    // does: without it a 50,000-char paste would render on the row now and
+    // silently shrink at next load — and the write that stored it could take
+    // the whole origin quota with it.
+    const next = appReducer(defaultState(), {
+      type: 'LOG_TX',
+      tx: tx({ note: `  ${'x'.repeat(50_000)}  ` }),
+    })
+    expect(next.transactions[0].note).toBe('x'.repeat(NOTE_MAX_LEN))
+    // A whitespace-only note is no note at all — never a blank second line.
+    const blank = appReducer(defaultState(), { type: 'LOG_TX', tx: tx({ note: '   ' }) })
+    expect(blank.transactions[0].note).toBeUndefined()
+    expect(blank.xp.totalXp).toBe(5)
+  })
+
   it('caps resist XP per day but still logs the entry', () => {
     let s = defaultState()
     for (let i = 0; i < 3; i++) {
@@ -90,6 +125,55 @@ describe('UNDO_TX', () => {
     expect(next.transactions).toHaveLength(2)
     expect(next.xp.totalXp).toBe(100)
     expect(next.xpLog).toHaveLength(2)
+  })
+
+  it('caps on GRANTS, not rows — undoing a paid resist frees its slot again', () => {
+    // The reducer and xpFromLog are two implementations of one rule, and they
+    // had drifted: this counted resist ROWS, the authoritative fold counts
+    // resist GRANTS. UNDO_TX removes the row AND the grant, so after undoing a
+    // paid resist the row count was still 2 while only 1 grant had been paid —
+    // and the next resist was refused a grant the cap still allowed. Failing
+    // safe is not the same as agreeing, and only the fold's version survives a
+    // cross-tab merge.
+    let s = defaultState()
+    for (let i = 0; i < 3; i++) {
+      s = appReducer(s, {
+        type: 'LOG_TX',
+        tx: tx({ id: `r${i}`, amountDA: 0, resistedImpulse: true }),
+      })
+    }
+    // r0 and r1 paid; r2 was over the cap.
+    expect(s.xp.totalXp).toBe(100)
+    s = appReducer(s, { type: 'UNDO_TX', id: 'r0' })
+    expect(s.xp.totalXp).toBe(50)
+    // One grant paid today, so the day still has a slot. The old row-count
+    // rule saw two rows here and paid nothing.
+    s = appReducer(s, {
+      type: 'LOG_TX',
+      tx: tx({ id: 'r3', amountDA: 0, resistedImpulse: true }),
+    })
+    expect(s.xp.totalXp).toBe(100)
+    expect(s.xpLog.filter((g) => g.action === 'resistImpulse')).toHaveLength(2)
+    // …and the cap still binds: a fourth resist logs its row and pays nothing.
+    s = appReducer(s, {
+      type: 'LOG_TX',
+      tx: tx({ id: 'r4', amountDA: 0, resistedImpulse: true }),
+    })
+    expect(s.xp.totalXp).toBe(100)
+    expect(s.transactions).toHaveLength(4)
+  })
+
+  it('scopes the grant cap to the day, not to the whole log', () => {
+    // The guard against "count the evidence" quietly becoming "count all the
+    // evidence": yesterday's grants must not spend today's slots.
+    let s = defaultState()
+    for (const [i, date] of ['2026-08-01', '2026-08-01', '2026-08-02'].entries()) {
+      s = appReducer(s, {
+        type: 'LOG_TX',
+        tx: tx({ id: `r${i}`, amountDA: 0, resistedImpulse: true, date }),
+      })
+    }
+    expect(s.xp.totalXp).toBe(150)
   })
 })
 

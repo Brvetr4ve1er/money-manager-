@@ -22,6 +22,8 @@ export interface Transaction {
   id: string
   amountDA: number
   category: string
+  /** What it was, in the user's own words. Optional forever: a row without
+   *  one is a complete money record, never a deficient one (§12.3). */
   note?: string
   /** ISO date string. */
   date: string
@@ -313,6 +315,10 @@ function isTransaction(v: unknown): v is Transaction {
   // in IC while excluding the row from spend. Dates are compared
   // lexicographically against YYYY-MM-DD window cutoffs, so enforce the shape
   // AND calendar validity (see isValidDayKey).
+  //
+  // `note` is deliberately NOT gated here — see sanitizeNote. It feeds no
+  // engine, so a malformed memo must cost the memo and never the money fact
+  // the row records.
   return (
     isRecord(v) &&
     typeof v.id === 'string' &&
@@ -321,10 +327,58 @@ function isTransaction(v: unknown): v is Transaction {
     typeof v.category === 'string' &&
     typeof v.date === 'string' &&
     isValidDayKey(v.date) &&
-    (v.note === undefined || typeof v.note === 'string') &&
     isOptionalBoolean(v.resistedImpulse) &&
     isOptionalBoolean(v.impulseFlagged)
   )
+}
+
+/**
+ * Longest note the app stores. Enforced at BOTH ends — `maxLength` on the
+ * field so typing is bounded visibly, and here so a hand-edited or
+ * peer-written payload is bounded at all.
+ *
+ * The cap is a quota rule, not a style preference. A transaction measures ~189
+ * chars of JSON, which is what puts the origin's ~5MB budget at roughly 13,000
+ * rows; one pasted multi-megabyte memo exhausts that budget by itself, and
+ * every write after it fails — saveState returns false and the app runs
+ * permanently in its persistFailed state, having lost nothing but its ability
+ * to keep anything. 80 chars holds "bread and milk from the corner shop" four
+ * times over and bounds the per-row growth at ~40%.
+ */
+export const NOTE_MAX_LEN = 80
+
+/**
+ * Validate an untrusted note into a note, or `undefined`. Never throws away
+ * the row it rides on (see isTransaction).
+ *
+ * Trim, cap, trim again — and the second trim is not belt-and-braces, it is
+ * what makes this idempotent: cutting at NOTE_MAX_LEN can land on a space,
+ * and a result with a trailing space would sanitize to something SHORTER on
+ * the next pass. Idempotence is the property the merge fixpoint (which
+ * compares whole states as JSON strings) needs to settle, and the property
+ * that lets the sanitizer and the LOG_TX path both apply it.
+ * An all-whitespace note collapses to `undefined` rather than persisting a
+ * blank second line on the ledger row.
+ */
+export function sanitizeNote(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined
+  const trimmed = v.trim().slice(0, NOTE_MAX_LEN).trim()
+  return trimmed === '' ? undefined : trimmed
+}
+
+/**
+ * Apply sanitizeNote to a row, returning the SAME object when nothing
+ * changes. Spread rather than field-by-field rebuild: mergeStates compares
+ * whole states as JSON strings, so a row's key order has to survive a load
+ * unchanged or a merge would produce a different string from an identical
+ * state and re-save forever.
+ */
+export function withSanitizedNote(t: Transaction): Transaction {
+  const note = sanitizeNote(t.note)
+  if (note === t.note) return t
+  const out: Transaction = { ...t, note }
+  if (note === undefined) delete out.note
+  return out
 }
 
 /** Finite and non-negative — the validity rule for every profile amount. */
@@ -397,7 +451,10 @@ export function sanitizeState(parsed: unknown): AppState {
   if (!isRecord(parsed)) return out
 
   if (Array.isArray(parsed.transactions)) {
-    out.transactions = parsed.transactions.filter(isTransaction)
+    // Filter on the money facts, then repair the memo. A row whose note is a
+    // number, an object, or 4MB of pasted text is still a row the user logged:
+    // it keeps its amount, category and date, and loses only the note.
+    out.transactions = parsed.transactions.filter(isTransaction).map(withSanitizedNote)
   }
   const xp = parsed.xp
   if (isRecord(xp) && isFiniteNumber(xp.totalXp)) {

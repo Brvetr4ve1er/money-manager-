@@ -20,6 +20,12 @@
  * resisted chip with it — the one row that shows money NOT leaving would be
  * missing from the shot twelve days a year.
  *
+ * WHY ONLY SOME ROWS CARRY A NOTE.
+ * The "what was it" field is optional and Ledger renders nothing at all for a
+ * row without one — no placeholder, no prompt. Noting every sample row would
+ * turn a shot of an optional field into a shot of a required one, and the
+ * first thing a new user does is log a row with the note left empty.
+ *
  * HONESTY (Trust Rule 5). These are sample rows, the caption beside them says
  * so in those words, and nothing derived from them is a reading of anybody:
  * there is no score, no stage and no projection anywhere in Ledger's output.
@@ -40,6 +46,18 @@ interface SampleRow {
   /** Must be one of LogCard's real categories — sampleLedger.test asserts it. */
   category: string
   resistedImpulse?: boolean
+  /**
+   * The row's "what was it" memo, as a user would type it.
+   *
+   * CONSTRAINT: must survive sanitizeNote unchanged and sit inside
+   * NOTE_MAX_LEN — sampleLedger.test asserts both. A sample note the store
+   * would trim or truncate is a shot of a row the app cannot actually hold.
+   *
+   * Deliberately on SOME rows only. The field is optional and the ledger
+   * renders no placeholder for an empty one, so a shot where every row
+   * carried a note would advertise a required field.
+   */
+  note?: string
 }
 
 /**
@@ -56,10 +74,15 @@ const ROWS: SampleRow[] = [
   // NOT 4,550. Money that did not move adds nothing to the day (ledger.ts) and
   // lands in the month's resisted chip instead — the two-track rule, visible in one
   // shot without a word of explanation.
-  { daysAgo: 0, amountDA: 3500, category: 'Fun', resistedImpulse: true },
-  { daysAgo: 0, amountDA: 850, category: 'Food' },
+  //
+  // The resist carries a note for a reason: it is the row whose category has
+  // been replaced by the word "Resisted", so it is the one row on the card
+  // that would otherwise not say WHAT was not bought. The note is the answer,
+  // and it is the same field every other row uses.
+  { daysAgo: 0, amountDA: 3500, category: 'Fun', resistedImpulse: true, note: 'second pair of headphones' },
+  { daysAgo: 0, amountDA: 850, category: 'Food', note: 'lunch, the place by the office' },
   { daysAgo: 0, amountDA: 200, category: 'Transport' },
-  { daysAgo: 1, amountDA: 2400, category: 'Bills' },
+  { daysAgo: 1, amountDA: 2400, category: 'Bills', note: 'electricity, two months' },
   { daysAgo: 1, amountDA: 320, category: 'Food' },
   { daysAgo: 2, amountDA: 1150, category: 'Food' },
   { daysAgo: 2, amountDA: 200, category: 'Transport' },
@@ -92,5 +115,10 @@ export function sampleLedgerRows(today: string): Transaction[] {
     category: r.category,
     date: shiftDay(today, r.daysAgo),
     ...(r.resistedImpulse ? { resistedImpulse: true } : {}),
+    // Spread-in rather than `note: r.note`, so a noteless sample row produces
+    // a row with NO note key at all — byte-identical to what LOG_TX writes
+    // when the field was left empty. A row carrying `note: undefined` would
+    // still be a different object shape from the one the app ships.
+    ...(r.note !== undefined ? { note: r.note } : {}),
   }))
 }

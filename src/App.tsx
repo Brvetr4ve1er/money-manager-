@@ -32,11 +32,13 @@ import { QuestCard } from './components/QuestCard.tsx'
 import { BossCard } from './components/BossCard.tsx'
 import { SimCard } from './components/SimCard.tsx'
 import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
+import { MonthCard } from './components/MonthCard.tsx'
 import { Ledger } from './components/Ledger.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
 import { useBossBattle } from './hooks/useBossBattle.ts'
 import { useAchievements } from './hooks/useAchievements.ts'
 import { useRewards } from './hooks/useRewards.ts'
+import { useAnnouncer } from './hooks/useAnnouncer.ts'
 import './styles/tokens.css'
 import './styles/app.css'
 
@@ -64,6 +66,8 @@ export default function App({
   // render, and writing it every time is what makes the fault CLEAR itself
   // the moment a write lands again (quota freed, private window closed).
   const [persistFailed, setPersistFailed] = useState(false)
+  // Export outcome — see downloadExport. Announced through the foot's region.
+  const [exportMsg, announceExport] = useAnnouncer()
   useEffect(() => {
     setPersistFailed(!saveState(state))
   }, [state])
@@ -116,13 +120,20 @@ export default function App({
   // allocated an intermediate array over the whole ledger to answer one
   // boolean, and it answers the same after the third resist of the day as
   // after the three-hundredth.
+  // COUNTS GRANTS, NOT ROWS, and that is the fix rather than an optimisation:
+  // the authoritative fold (xpFromLog) caps on resist GRANTS, so counting rows
+  // here drifted the moment a paid resist was undone — UNDO_TX removes the row
+  // AND its grant, leaving the row count high and suppressing a grant the cap
+  // still allowed. The reducer now reads the same evidence (see LOG_TX), and
+  // this label reads it too so the button can never promise or refuse XP the
+  // reducer disagrees about.
   const resistXpCapped = useMemo(() => {
     let n = 0
-    for (const t of state.transactions) {
-      if (t.resistedImpulse && t.date === today && ++n >= RESIST_XP_DAILY_CAP) return true
+    for (const g of state.xpLog) {
+      if (g.action === 'resistImpulse' && g.date === today && ++n >= RESIST_XP_DAILY_CAP) return true
     }
     return false
-  }, [state.transactions, today])
+  }, [state.xpLog, today])
   const collectedLessonIds = useMemo(
     () => new Set(state.lessonsSeen.map((e) => e.id)),
     [state.lessonsSeen],
@@ -144,6 +155,7 @@ export default function App({
     category: string,
     resisted: boolean,
     impulseFlagged: boolean,
+    note?: string,
   ): string {
     const tx: Transaction = {
       // newId, not bare crypto.randomUUID: randomUUID is undefined outside
@@ -159,6 +171,15 @@ export default function App({
       // the label still promises the old day's cap state, granting XP the
       // label just said was capped (or vice versa).
       date: today,
+      // What it was, in the user's words — the one field on the row that
+      // answers a question the amount cannot. Passed through as typed; the
+      // reducer caps and trims it (withSanitizedNote), and an empty or
+      // whitespace-only entry lands as no note at all rather than a blank
+      // second line. It pays NO XP: the grant in LOG_TX is keyed on the
+      // action, not on how much the user wrote, so charging for a memory
+      // field would tax logging and paying for it would make memory an
+      // engagement lever (Trust Rule 1).
+      note,
       resistedImpulse: resisted,
       // "I bought it anyway" — the yielded side of Impulse Control. Same XP,
       // same blip as any log: self-reporting against yourself is never
@@ -192,14 +213,42 @@ export default function App({
     else sfx.blip()
   }
 
+  // Trust Rule 7's headline action confirmed NOTHING to anyone who cannot see
+  // a browser download shelf — the sweep measured zero announcements — and it
+  // had no failure path at all. createObjectURL throws in some privacy
+  // configurations: that is the same class of failure saveState already handles
+  // above (persist-fault), handled the same way. Both outcomes land in the
+  // mounted region in the foot.
+  //
+  // WHAT THE SUCCESS LINE MAY CLAIM is the narrower question, and the previous
+  // wording got it wrong. a.click() is a silent no-op when downloads are
+  // blocked — no throw, no event, nothing observable — so "Export written."
+  // asserted a file on a disk this app cannot see. On the one action the
+  // product's whole pitch rests on, that is the app claiming an outcome it has
+  // no evidence for. It now claims only the act it performed: the blob was
+  // built and handed to the browser. There is no honest stronger signal
+  // available without keeping the object URL alive and rendering a visible
+  // fallback link, which is a feature, not a wording fix.
   function downloadExport() {
-    const blob = new Blob([exportJSON(state)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `ember-export-${todayISO()}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    const name = `ember-export-${todayISO()}.json`
+    try {
+      const blob = new Blob([exportJSON(state)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = name
+      a.click()
+      URL.revokeObjectURL(url)
+      // Names the file, so "where did it go" has an answer (§7 rule 1: lead
+      // with the object, state the fact, stop) — and names only the fact this
+      // code observed. See the note above the function.
+      announceExport(`Export built. ${name} handed to the browser.`)
+    } catch {
+      // §7's error exemplar, and the same two-fragment shape as the storage
+      // fault: name the failure, name where it happened, stop. No blame — the
+      // block is the device's, not the tap's.
+      announceExport("That didn't go through. Export blocked on this device.")
+    }
   }
 
   return (
@@ -305,6 +354,14 @@ export default function App({
           onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
         />
         <ProfileCard profile={state.profile} onSave={saveProfile} />
+        {/* Opens the archive half of the stack (see .month-card's macro-break
+            in app.css). Same `today` as every other date in this render, and
+            for the stronger reason: this card states which day of the month it
+            is, so a fresh clock read here would let the page say "Day 5 / 31"
+            over a row it had just stamped the 4th.
+            It is handed transactions and a day and NOTHING else — no profile,
+            so no budget figure can ever reach it (§12.3/§12.6). */}
+        <MonthCard transactions={state.transactions} today={today} />
         {/* `today` is the hook's day, not a fresh clock read: it decides which
             group is headed "Today" and which is "Yesterday", and a list that
             re-reads the wall clock would disagree with the day this render's
@@ -316,6 +373,18 @@ export default function App({
 
       <footer className="foot">
         <button className="btn" onClick={downloadExport}>Export my data</button>
+        {/* Permanently mounted and mounted EMPTY, like every other status
+            region here: a region that arrives already holding its message is
+            silent. The visible twin below is aria-hidden so the outcome is
+            read once, not twice — the pattern SimCard uses for its result. */}
+        <p className="sr-only" role="status" aria-label="Export">{exportMsg}</p>
+        {/* .export-note, NOT .foot-note: the outcome — including the failure —
+            used to render in the same 11px quiet register as the boilerplate
+            line below it, so a blocked export looked like a footnote next to
+            the promise it was contradicting. See .export-note in app.css. */}
+        {exportMsg !== '' && (
+          <p className="export-note" aria-hidden="true">{exportMsg}</p>
+        )}
         {/* Trust Rule 7, verbatim in substance. Fragmented for §7 rule 2;
             "always" is the promise, not an intensifier, so it stays. */}
         <span className="foot-note">Your data leaves when you do. Full export, always.</span>

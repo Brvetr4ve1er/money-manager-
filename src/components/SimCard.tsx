@@ -15,14 +15,18 @@ export function SimCard({
 }) {
   const [simAmount, setSimAmount] = useState('')
   const [simText, setSimText] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // seq, not a bare string: a repeated identical validation message reconciles
+  // into the same node, fires no mutation, and is announced exactly once — see
+  // LogCard's error state for the measurement. The seq keys the alert so an
+  // identical repeat remounts it and is announced on insertion.
+  const [error, setError] = useState<{ text: string; seq: number } | null>(null)
 
   // isFinite, not !isNaN: '1e999' parses to Infinity, and the simulator must
   // never produce confident-sounding copy for a nonsense amount.
   function run() {
     const amt = parseFloat(simAmount)
     if (!Number.isFinite(amt) || amt <= 0) {
-      setError('Enter an amount first.')
+      setError((cur) => ({ text: 'Enter an amount first.', seq: (cur?.seq ?? 0) + 1 }))
       sfx.deny()
       return
     }
@@ -35,7 +39,14 @@ export function SimCard({
 
   return (
     // id: hero nav anchor target (desktop).
-    <section className="card sim-card" id="simulator">
+    // tabIndex -1 + aria-labelledby: see LogCard — the hero's jump links
+    // landed focus on <body> because the target sections were not focusable.
+    <section
+      className="card sim-card"
+      id="simulator"
+      tabIndex={-1}
+      aria-labelledby="simulator-title"
+    >
       {/* §11 corner mark. Rides in the window bar — this card's top edge is
           the plate, not the reserved strip the other cards use. */}
       <span className="spec-label" aria-hidden="true">SIM—07</span>
@@ -47,7 +58,7 @@ export function SimCard({
           the card's title twice, once spelled out as an executable. */}
       <div className="window-bar mono" aria-hidden="true">DECISION_SIM.EXE</div>
       <div className="sim-body">
-        <h2>Decision simulator</h2>
+        <h2 id="simulator-title">Decision simulator</h2>
         {/* Honesty gap guard: the result copy speaks in second person, so the
             card must always say whose numbers it projects — the demo profile
             until setup completes, the user's own after. Claiming
@@ -90,7 +101,10 @@ export function SimCard({
             <button type="submit" className="btn btn-teal">Run simulation</button>
           </div>
           {error && (
-            <p className="field-error" id="sim-error" role="alert">{error}</p>
+            // key: an identical repeat must remount the alert (see the state).
+            <p className="field-error" id="sim-error" role="alert" key={error.seq}>
+              {error.text}
+            </p>
           )}
         </form>
         {/* Permanently mounted sr-only live region (same pattern as the XP

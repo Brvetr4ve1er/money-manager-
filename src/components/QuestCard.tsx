@@ -5,11 +5,13 @@ export function QuestCard({ quests, onComplete }: { quests: Quest[]; onComplete:
   const allDone = quests.length > 0 && quests.every((q) => q.done)
   return (
     // id: hero nav anchor target (desktop).
-    <section className="card" id="quests">
+    // tabIndex -1 + aria-labelledby: see LogCard — the hero's jump links
+    // landed focus on <body> because the target sections were not focusable.
+    <section className="card" id="quests" tabIndex={-1} aria-labelledby="quests-title">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
       <span className="spec-label" aria-hidden="true">QST—04</span>
       <div className="quest-head">
-        <h2>Today's quests</h2>
+        <h2 id="quests-title">Today's quests</h2>
         {/* Persistent visual counterpart to the completion arpeggio — sound
             never carries the moment alone. */}
         {/* No trailing ✓: the mark is not aria-hidden here, so a screen

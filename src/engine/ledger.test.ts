@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dayLabel, groupTransactionsByDay } from './ledger.ts'
+import { dayLabel, groupTransactionsByDay, monthToDate } from './ledger.ts'
 import type { Transaction } from '../state/store.ts'
 
 const tx = (over: Partial<Transaction> & { id: string; date: string }): Transaction => ({
@@ -168,6 +168,199 @@ describe('groupTransactionsByDay', () => {
     ]
     const snapshot = JSON.stringify(input)
     groupTransactionsByDay(input, '2026-08-04')
+    expect(JSON.stringify(input)).toBe(snapshot)
+  })
+})
+
+describe('monthToDate', () => {
+  const state = (m: ReturnType<typeof monthToDate>, day: number) =>
+    m.days[day - 1].state
+  const spend = (m: ReturnType<typeof monthToDate>, day: number) =>
+    m.days[day - 1].spentDA
+
+  it('sums this calendar month only, up to and including the passed day', () => {
+    const m = monthToDate(
+      [
+        tx({ id: 'a', date: '2026-08-01', amountDA: 400 }),
+        tx({ id: 'b', date: '2026-08-04', amountDA: 250 }),
+        // Last month. Same ledger, different month — never in this figure.
+        tx({ id: 'c', date: '2026-07-31', amountDA: 9_000 }),
+      ],
+      '2026-08-04',
+    )
+    expect(m.month).toBe('2026-08')
+    expect(m.spentDA).toBe(650)
+    expect(spend(m, 1)).toBe(400)
+    expect(spend(m, 4)).toBe(250)
+    expect(spend(m, 2)).toBe(0)
+  })
+
+  it('counts a resist as 0 — money that did not leave is not spend', () => {
+    const m = monthToDate(
+      [
+        tx({ id: 'r', date: '2026-08-04', amountDA: 900, resistedImpulse: true }),
+        tx({ id: 'p', date: '2026-08-04', amountDA: 250 }),
+      ],
+      '2026-08-04',
+    )
+    // 250, not 1,150 — the same rule groupTransactionsByDay applies.
+    expect(m.spentDA).toBe(250)
+    expect(spend(m, 4)).toBe(250)
+  })
+
+  it('counts a yielded impulse like any other purchase', () => {
+    const m = monthToDate(
+      [tx({ id: 'i', date: '2026-08-02', amountDA: 300, impulseFlagged: true })],
+      '2026-08-04',
+    )
+    expect(m.spentDA).toBe(300)
+  })
+
+  it('never lets a future-dated row inflate the so-far figure', () => {
+    // Clock skew or a hand-edited payload. The row still lands on its own day
+    // — the user's data is never hidden — but "so far" means so far.
+    const m = monthToDate(
+      [
+        tx({ id: 'now', date: '2026-08-04', amountDA: 250 }),
+        tx({ id: 'skew', date: '2026-08-20', amountDA: 99_000 }),
+      ],
+      '2026-08-04',
+    )
+    expect(m.spentDA).toBe(250)
+    expect(spend(m, 20)).toBe(99_000)
+    expect(state(m, 20)).toBe('ahead')
+  })
+
+  it('gives the month its real length — 28, 29, 30 or 31 cells', () => {
+    const len = (today: string) => monthToDate([], today).days.length
+    expect(len('2026-08-04')).toBe(31)
+    expect(len('2026-04-10')).toBe(30)
+    expect(len('2026-02-10')).toBe(28)
+    // Leap February, from the calendar itself — no hard-coded table to rot.
+    expect(len('2024-02-10')).toBe(29)
+    expect(len('2100-02-10')).toBe(28) // century, not a leap year
+    // …and the cells are the real days, in order.
+    const feb = monthToDate([], '2024-02-10')
+    expect(feb.days[0].date).toBe('2024-02-01')
+    expect(feb.days[28].date).toBe('2024-02-29')
+    expect(feb.days.map((d) => d.day)).toEqual(feb.days.map((_, i) => i + 1))
+  })
+
+  it('reads the day index off the PASSED day, never a fresh clock', () => {
+    // The whole midnight/DST bug class the codebase guards: the same ledger
+    // reports a different position in the month purely from the argument.
+    expect(monthToDate([], '2026-08-04').dayOfMonth).toBe(4)
+    expect(monthToDate([], '2026-08-04').daysLeft).toBe(27)
+    expect(monthToDate([], '2026-08-31').dayOfMonth).toBe(31)
+    expect(monthToDate([], '2026-08-31').daysLeft).toBe(0)
+  })
+
+  it('counts the days of a month that contains a DST boundary', () => {
+    // Local Date arithmetic across a spring-forward loses an hour and can
+    // floor a month to 30 days. Europe/Algiers has no DST; the app must
+    // survive being opened anywhere.
+    expect(monthToDate([], '2026-03-30').daysInMonth).toBe(31)
+    expect(monthToDate([], '2026-03-30').dayOfMonth).toBe(30)
+    expect(monthToDate([], '2026-10-26').daysInMonth).toBe(31)
+    expect(monthToDate([], '2026-11-01').daysInMonth).toBe(30)
+  })
+
+  it('marks days before the first record as no-record, not as zero-spend days', () => {
+    // The cold start, and the one thing this derivation exists to get right:
+    // installing on the 12th must not report eleven days of spending nothing.
+    const m = monthToDate([tx({ id: 'a', date: '2026-08-12', amountDA: 500 })], '2026-08-14')
+    expect(state(m, 1)).toBe('no-record')
+    expect(state(m, 11)).toBe('no-record')
+    expect(state(m, 12)).toBe('recorded')
+    // Day 13 logged nothing and IS a zero — the app was here for it. That is
+    // a different fact from day 11, and the two must never share a state.
+    expect(state(m, 13)).toBe('recorded')
+    expect(spend(m, 13)).toBe(0)
+    expect(spend(m, 11)).toBe(0)
+    expect(state(m, 13)).not.toBe(state(m, 11))
+    expect(state(m, 15)).toBe('ahead')
+    expect(m.firstRecord).toBe('2026-08-12')
+  })
+
+  it('treats a month with no records at all as blank, never as a month of zeros', () => {
+    const m = monthToDate([], '2026-08-04')
+    expect(m.firstRecord).toBeNull()
+    expect(m.spentDA).toBe(0)
+    expect(m.days.filter((d) => d.state === 'no-record')).toHaveLength(4)
+    expect(m.days.filter((d) => d.state === 'ahead')).toHaveLength(27)
+    expect(m.days.some((d) => d.state === 'recorded')).toBe(false)
+  })
+
+  it('puts a month on record from an EARLIER month’s rows — a quiet month is real zeros', () => {
+    // A user who logged in July and nothing in August has August days on
+    // record at 0. The record window is a whole-ledger question, not a
+    // this-month one, and reporting those days as "no record" would erase a
+    // month the user genuinely spent nothing in.
+    const m = monthToDate([tx({ id: 'jul', date: '2026-07-02' })], '2026-08-04')
+    expect(m.firstRecord).toBe('2026-07-02')
+    expect(state(m, 1)).toBe('recorded')
+    expect(state(m, 4)).toBe('recorded')
+    expect(m.spentDA).toBe(0)
+  })
+
+  it('never lets a future-dated row open a record window the app never had', () => {
+    // Bounded at `today` on both ends, exactly like deriveHealthInputs.
+    const m = monthToDate([tx({ id: 'skew', date: '2026-08-20' })], '2026-08-04')
+    expect(m.firstRecord).toBeNull()
+    expect(state(m, 1)).toBe('no-record')
+    // …and a resist counts as a record: the app WAS here that day.
+    const r = monthToDate(
+      [tx({ id: 'r', date: '2026-08-02', amountDA: 700, resistedImpulse: true })],
+      '2026-08-04',
+    )
+    expect(r.firstRecord).toBe('2026-08-02')
+    expect(state(r, 3)).toBe('recorded')
+    expect(r.spentDA).toBe(0)
+  })
+
+  it('agrees with groupTransactionsByDay on every day it shares with it', () => {
+    // One derivation, two surfaces. The strip and the ledger headings print
+    // the same rows; a page that answers "what did Tuesday cost" twice must
+    // never answer it differently.
+    const rows = [
+      tx({ id: 'a', date: '2026-08-01', amountDA: 400 }),
+      tx({ id: 'b', date: '2026-08-01', amountDA: 150 }),
+      tx({ id: 'c', date: '2026-08-03', amountDA: 900, resistedImpulse: true }),
+      tx({ id: 'd', date: '2026-08-03', amountDA: 60, impulseFlagged: true }),
+      tx({ id: 'e', date: '2026-08-04', amountDA: 250 }),
+      tx({ id: 'f', date: '2026-08-20', amountDA: 1_000 }),
+    ]
+    const m = monthToDate(rows, '2026-08-04')
+    for (const day of groupTransactionsByDay(rows, '2026-08-04')) {
+      expect(spend(m, Number(day.date.slice(8, 10)))).toBe(day.spentDA)
+    }
+    // …and the month figure is the sum of the day figures up to today.
+    expect(m.spentDA).toBe(550 + 60 + 250)
+  })
+
+  it('scales off the tallest day drawn, so no bar has to be clipped', () => {
+    const m = monthToDate(
+      [
+        tx({ id: 'a', date: '2026-08-01', amountDA: 400 }),
+        tx({ id: 'b', date: '2026-08-03', amountDA: 1_200 }),
+      ],
+      '2026-08-04',
+    )
+    expect(m.maxDayDA).toBe(1_200)
+    // A future-dated row is drawn, so it is in the scale — a maximum that
+    // excluded it would force its own bar past 100%.
+    const skewed = monthToDate([tx({ id: 's', date: '2026-08-20', amountDA: 9_000 })], '2026-08-04')
+    expect(skewed.maxDayDA).toBe(9_000)
+    expect(monthToDate([], '2026-08-04').maxDayDA).toBe(0)
+  })
+
+  it('does not mutate or reorder the transactions it was handed', () => {
+    const input = [
+      tx({ id: 'a', date: '2026-08-04' }),
+      tx({ id: 'b', date: '2026-08-01' }),
+    ]
+    const snapshot = JSON.stringify(input)
+    monthToDate(input, '2026-08-04')
     expect(JSON.stringify(input)).toBe(snapshot)
   })
 })

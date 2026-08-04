@@ -172,16 +172,33 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     if (likelyLocalAction()) sfx.sparkle()
   }, [state.achievements])
 
-  // Quest-completion sounds, likewise driven by state changes only.
-  const prevQuestsDone = useRef(state.quests.filter((q) => q.done).length)
+  // Quest completions, likewise driven by state changes only.
+  //
+  // Diffed by ID, not by count: the count form missed a rollover commit that
+  // resets the day's quests and completes one in the same change, and it could
+  // not name which quest landed. Naming it is the point — the sweep measured
+  // a single completion announcing as "+10 XP" and nothing else, with the
+  // whole signal carried by the focused button's accessible name changing
+  // under the user (NVDA announces that, VoiceOver frequently does not, JAWS
+  // is inconsistent). The toast QUEUE is the right home for it: it is the one
+  // mechanism here that serialises two announcements landing in one commit.
+  const prevQuestsDone = useRef(new Set(state.quests.filter((q) => q.done).map((q) => q.id)))
   useEffect(() => {
-    const doneCount = state.quests.filter((q) => q.done).length
     const prev = prevQuestsDone.current
-    prevQuestsDone.current = doneCount
-    if (doneCount > prev) {
+    const landed = state.quests.filter((q) => q.done && !prev.has(q.id))
+    prevQuestsDone.current = new Set(state.quests.filter((q) => q.done).map((q) => q.id))
+    if (landed.length > 0) {
       const local = likelyLocalAction()
       if (local) sfx.blip()
-      if (state.quests.every((q) => q.done)) {
+      const allDone = state.quests.every((q) => q.done)
+      // The all-complete toast SUBSUMES the per-quest one for the completion
+      // that finishes the set: two writes to one polite region inside a single
+      // tick is exactly the shape that makes a live region interrupt itself,
+      // and "All quests complete." already says the last quest is done.
+      if (!allDone) {
+        for (const q of landed) pushToast(`Quest done. ${q.text}`)
+      }
+      if (allDone) {
         // The arpeggio never carries the moment alone: the toast announces it
         // through the live region and QuestCard shows a persistent badge.
         pushToast('All quests complete.')

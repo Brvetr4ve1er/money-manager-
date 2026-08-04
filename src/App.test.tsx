@@ -5,7 +5,7 @@ import * as sfx from './audio/chiptune.ts'
 import { computeHealthScore } from './engine/healthScore.ts'
 import { deriveHealthInputs, finalizeHealthThrough, DEMO_PROFILE } from './engine/profile.ts'
 import { LESSONS, lessonForDay } from './content/lessons.ts'
-import { todayISO, type Transaction } from './state/store.ts'
+import { NOTE_MAX_LEN, todayISO, type Transaction } from './state/store.ts'
 
 // Sounds are reinforcement only; jsdom has no AudioContext, so stub the module.
 vi.mock('./audio/chiptune.ts', () => ({
@@ -86,6 +86,10 @@ describe('quest completion', () => {
   })
 
   it('shows a visible all-complete state, not just the arpeggio', () => {
+    // Fake timers so the toast queue can be drained a turn at a time: every
+    // completion that does NOT finish the set now takes its own turn in the
+    // live region first (a11y sweep finding 6).
+    vi.useFakeTimers()
     render(<App />)
     for (const btn of screen.getAllByRole('button', { name: /^Mark done:/ })) {
       fireEvent.click(btn)
@@ -97,12 +101,28 @@ describe('quest completion', () => {
     fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(screen.getByText(/All complete/)).toBeTruthy()
+    const toast = () => screen.getByRole('status', { name: 'Announcements' })
+    // A completion used to reach a screen reader only as "+10 XP" plus the
+    // focused button's accessible name changing under the user — which NVDA
+    // announces, VoiceOver frequently does not, and JAWS handles
+    // inconsistently. Each one now names its quest, in completion order.
+    for (const done of [
+      'Quest done. Log every purchase today',
+      'Quest done. Look back over your recent purchases',
+      "Quest done. Read today's lesson",
+    ]) {
+      expect(toast().textContent).toBe(done)
+      act(() => {
+        vi.advanceTimersByTime(2600)
+      })
+    }
     // §7.4 bans exclamation marks outright, and this string is announced
     // through a live region — the toast rewrite is deliberate, and the
     // assertion stays exact-equality so the ban cannot regress unnoticed.
-    expect(screen.getByRole('status', { name: 'Announcements' }).textContent).toBe(
-      'All quests complete.',
-    )
+    // It is also the ONLY toast for the completion that finishes the set:
+    // two writes to one polite region in a single tick is how a live region
+    // interrupts itself.
+    expect(toast().textContent).toBe('All quests complete.')
   })
 })
 
@@ -191,6 +211,26 @@ describe('logging quick wins', () => {
     expect(saved.transactions[0].impulseFlagged).toBe(true)
     // The checkbox resets per entry: the flag is a deliberate choice each time.
     expect(box().checked).toBe(false)
+  })
+
+  it('makes the LABEL the 48px target the 24px checkbox cannot be', () => {
+    render(<App />)
+    const box = screen.getByLabelText('I bought it anyway') as HTMLInputElement
+    // §11's 48px floor is met by the surrounding label, not by the control: a
+    // 24px box is half the floor and growing it would put a checkbox the size
+    // of a button on the log card. A pixel audit flagged the 24x24 hit area, so
+    // what has to hold is that the label is what receives the pointer — which
+    // requires IMPLICIT association (input nested inside the label). A `for`/id
+    // pairing would label the control correctly and still leave the text
+    // outside the target, which is exactly the failure being ruled out here.
+    const label = box.closest('label')
+    expect(label).not.toBeNull()
+    expect(label!.className).toContain('impulse-check')
+    expect(label!.contains(box)).toBe(true)
+    // The whole label toggles it — this is the assertion that fails if the
+    // markup is ever flattened to a sibling input + span.
+    fireEvent.click(label!.querySelector('span')!)
+    expect(box.checked).toBe(true)
   })
 
   it('offers one-tap repeat chips once an (amount, category) pair repeats', () => {
@@ -352,6 +392,45 @@ describe('daily lesson + codex', () => {
     // Got it marks the verified row done, like SimCard does for the sim quest.
     fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
     expect(text.closest('li')!.className).toContain('done')
+  })
+
+  it('stands the whole archive half on §5B’s spec sheet, and nothing else', () => {
+    render(<App />)
+    // §5 layout B is "a 4-up grid of badges ON ESPRESSO, captioned with mono
+    // index labels" — the codex and the badge shelf are literally that, and
+    // both were rendering as ordinary Bone cards, so layout B existed nowhere
+    // in the product. .spec-sheet re-scopes the surface tokens (see
+    // tokens.css), so this class IS the layout.
+    //
+    // IT IS ALSO THE APP'S ONLY LEVER ON §2's RATIO LAW, which is why the list
+    // grew past the two shelves. A census put the 375px light page at 20.4%
+    // field against a 60% floor and 68.5% Bone against a 30% budget; the two
+    // shelves took it to ~47%, and the month card and the ledger — the same
+    // read-only surfaces, everything below .month-card's --s4 macro-break —
+    // take it to ~62% / ~38%. That budget was a claim only a stylesheet
+    // comment made. It is this assertion.
+    const sheets = [...document.querySelectorAll('main .spec-sheet')].map(
+      (el) =>
+        el.id ||
+        [...el.classList].find((c) => c.endsWith('-card') && c !== 'card') ||
+        '?',
+    )
+    // In render order, not sorted: the sheet is the archive half of the stack
+    // and it has to stay contiguous below the macro-break, or the page reads
+    // as two grounds interleaved rather than as two halves.
+    expect(sheets).toEqual(['month-card', 'ledger-card', 'codex', 'badges'])
+    // Still cards: the sheet is a surface role, not a replacement container.
+    for (const el of document.querySelectorAll('main .spec-sheet')) {
+      expect(el.className).toContain('card')
+    }
+    // …and the act-now half stays on the reading ground: that is where the
+    // forms and the primary actions are, and Bone is what they were measured
+    // on. Naming them keeps "and nothing else" from being vacuous.
+    for (const sel of ['.hero-card', '#log', '#quests', '.sim-card']) {
+      const card = document.querySelector(`main ${sel}`)
+      expect(card).not.toBeNull()
+      expect(card!.classList.contains('spec-sheet')).toBe(false)
+    }
   })
 
   it('collects the lesson into the codex and persists it', () => {
@@ -666,22 +745,29 @@ describe('level-up toast lifecycle', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /Mark done: Look back over your recent purchases/ }),
     )
-    // The actions above also earned three badges (first sim, first purchase,
-    // ten purchases), each queued at its own moment — drain their turns first.
-    for (const badge of [/^First Run earned/, /^First Spark earned/, /^Ten in the Ledger earned/]) {
-      expect(toast().textContent).toMatch(badge)
+    // Everything queued above, in the order it was queued: three per-quest
+    // completions (a11y sweep finding 6), the three badges earned along the
+    // way (first sim, first purchase, ten purchases), then the level-up, then
+    // the all-complete. The level-up is the assertion this test exists for —
+    // it must still be in the queue, not stomped by the quest effect that
+    // ran in the same commit.
+    const queued = [
+      'Quest done. Run one decision simulation',
+      /^First Run earned/,
+      "Quest done. Read today's lesson",
+      'Quest done. Log every purchase today',
+      /^First Spark earned/,
+      /^Ten in the Ledger earned/,
+      /^Level 2/,
+      'All quests complete.',
+    ]
+    for (const want of queued) {
+      if (typeof want === 'string') expect(toast().textContent).toBe(want)
+      else expect(toast().textContent).toMatch(want)
       act(() => {
         vi.advanceTimersByTime(2600)
       })
     }
-    expect(toast().textContent).toMatch(/^Level 2/)
-    act(() => {
-      vi.advanceTimersByTime(2600)
-    })
-    expect(toast().textContent).toBe('All quests complete.')
-    act(() => {
-      vi.advanceTimersByTime(2600)
-    })
     expect(toast().textContent).toBe('')
   })
 })
@@ -1249,7 +1335,7 @@ describe('the cash-note keypad', () => {
 
   it('names every key with its unit inside a named group', () => {
     render(<App />)
-    const pad = screen.getByRole('group', { name: 'Notes (DA)' })
+    const pad = screen.getByRole('group', { name: 'Cash (DA)' })
     const keys = within(pad).getAllByRole('button')
     // Five notes plus Clear. Every one a real button, never a click-handling
     // div, so all six are keyboard-reachable and take the focus ring.
@@ -1337,7 +1423,7 @@ describe('the cash-note keypad', () => {
     fireEvent.click(chip)
     expect(saved().transactions).toHaveLength(3)
     expect(xpNow()).toBe(15)
-    expect(screen.getByRole('group', { name: 'Notes (DA)' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'Cash (DA)' })).toBeTruthy()
   })
 
   it('keeps the log card to one spec label and one h2 (§11, single-h1 outline)', () => {
@@ -1348,6 +1434,223 @@ describe('the cash-note keypad', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     // The legend is a caption, not a heading — the pad adds no outline level.
     expect(within(card).queryAllByRole('heading', { level: 3 })).toEqual([])
+  })
+})
+
+describe('the row note — what it was', () => {
+  /* The ledger could say 2,000 DA left on Tuesday under "Fun" and nothing in
+     the app could say what it was. One optional line at log time fixes that.
+     Its honest cold start is that there ISN'T one: the note is on the row the
+     same second, and rows logged before it shipped simply carry none — never
+     a placeholder, never a prompt to go back and fill them in. */
+  const saved = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
+  const ledger = () => screen.getByRole('main').querySelector('.ledger-card') as HTMLElement
+  const what = () => screen.getByLabelText('What was it?') as HTMLInputElement
+  const logIt = (amount: string, note?: string) => {
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: amount } })
+    if (note !== undefined) fireEvent.change(what(), { target: { value: note } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+  }
+
+  it('writes what was typed onto the row, and renders it inside that row', () => {
+    render(<App />)
+    logIt('2000', 'cinema with M')
+    expect(saved().transactions[0].note).toBe('cinema with M')
+    // Inside the <li class="tx">, not beside it: the note is part of the row a
+    // screen reader reads as one item, never a second landmark.
+    const row = ledger().querySelector('.tx') as HTMLElement
+    expect(within(row).getByText('cinema with M')).toBeTruthy()
+    expect(row.textContent).toContain('Food')
+    expect(row.textContent).toContain('cinema with M')
+    expect(row.textContent).toContain('2,000 DA')
+    // Second line, UNDER the category — the order the row is read in.
+    const stack = [...row.querySelectorAll('.tx-what > *')].map((n) => n.className)
+    expect(stack).toEqual(['tx-cat', 'tx-note'])
+    expect(row.querySelector('.tx-cat')!.textContent).toBe('Food')
+  })
+
+  it('pays exactly the same XP with a note as without one, both directions', () => {
+    // Trust Rule 1 at the surface the user actually touches. A note must not
+    // buy XP (memory would become an engagement lever) and its absence must
+    // not cost any (the core action would be taxed for skipping it).
+    render(<App />)
+    logIt('300')
+    expect(xpNow()).toBe(5)
+    expect(saved().xpLog).toHaveLength(1)
+    expect(saved().xpLog[0].amount).toBe(5)
+    expect(saved().xpLog[0].action).toBe('logExpense')
+    logIt('300', 'bread')
+    expect(xpNow()).toBe(10)
+    expect(saved().xpLog).toHaveLength(2)
+    expect(saved().xpLog[1].amount).toBe(5)
+    expect(saved().xpLog[1].action).toBe('logExpense')
+    // The note changed the record, not the economy.
+    expect(saved().transactions[0].note).toBe('bread')
+    expect(saved().transactions[1].note).toBeUndefined()
+  })
+
+  it('leaves a noteless row alone — no placeholder, no prompt, no deficiency mark', () => {
+    // Every row logged before this field existed has no note, forever. The
+    // one thing that must never appear on those rows is a gap advertising
+    // itself (§12.3 / §12.6): the row is a complete money record without one.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 4, 12, 0, 0))
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        transactions: [{ id: 'old', amountDA: 900, category: 'Fun', date: '2026-08-01' }],
+      }),
+    )
+    render(<App />)
+    const row = ledger().querySelector('.tx') as HTMLElement
+    expect(row.querySelector('.tx-note')).toBeNull()
+    expect(row.textContent).toBe('Fun900 DA')
+    expect(ledger().textContent).not.toMatch(/no note|add a note|missing|untitled|—\s*what/i)
+  })
+
+  it('clears the field after a log so the next row is not labelled with the last one', () => {
+    render(<App />)
+    logIt('300', 'bread')
+    expect(what().value).toBe('')
+    logIt('450')
+    expect(saved().transactions[0].note).toBeUndefined()
+    expect(saved().transactions[0].amountDA).toBe(450)
+  })
+
+  it('treats a whitespace-only entry as no note at all', () => {
+    render(<App />)
+    logIt('300', '    ')
+    expect(saved().transactions[0].note).toBeUndefined()
+    expect((ledger().querySelector('.tx') as HTMLElement).querySelector('.tx-note')).toBeNull()
+  })
+
+  it('bounds the field at the same cap the sanitizer enforces', () => {
+    // Both ends of the same rule: maxLength keeps the limit visible at the
+    // keyboard, the sanitizer keeps it true for payloads that never touched a
+    // keyboard. A field without it would silently shrink the user's text at
+    // the next reload.
+    render(<App />)
+    expect(what().getAttribute('maxLength')).toBe(String(NOTE_MAX_LEN))
+    // The reducer caps regardless of what reaches it (fireEvent bypasses the
+    // browser's own maxLength enforcement, which is the point).
+    logIt('300', 'z'.repeat(500))
+    expect(saved().transactions[0].note).toBe('z'.repeat(NOTE_MAX_LEN))
+  })
+
+  it('keeps the note on a resist row too, without touching the resist accounting', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '4000' } })
+    fireEvent.change(what(), { target: { value: 'headphones' } })
+    fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    expect(saved().transactions[0].note).toBe('headphones')
+    expect(saved().transactions[0].resistedImpulse).toBe(true)
+    const row = ledger().querySelector('.tx') as HTMLElement
+    expect(row.textContent).toContain('Resisted')
+    expect(row.textContent).toContain('headphones')
+    expect(row.textContent).toContain('4,000 DA avoided')
+  })
+
+  it('carries the note into the export — Trust Rule 7 covers the personal string too', async () => {
+    // The note is the most personal string the app holds, so the file the
+    // user walks away with has to contain it. Asserted on the actual Blob the
+    // download builds, not on the state behind it.
+    render(<App />)
+    logIt('2000', 'cinema with M')
+    // defineProperty, not spyOn: jsdom implements neither URL method, so
+    // there is nothing to spy on — the export path is untestable without
+    // supplying them.
+    let blob: Blob | null = null
+    Object.defineProperty(URL, 'createObjectURL', {
+      value: (b: Blob) => {
+        blob = b
+        return 'blob:ember'
+      },
+      configurable: true,
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Export my data' }))
+      expect(blob).not.toBeNull()
+      const parsed = JSON.parse(await (blob as unknown as Blob).text()) as {
+        transactions: Transaction[]
+      }
+      expect(parsed.transactions[0].note).toBe('cinema with M')
+    } finally {
+      Reflect.deleteProperty(URL, 'createObjectURL')
+      Reflect.deleteProperty(URL, 'revokeObjectURL')
+    }
+  })
+
+  it('never carries a note onto a repeat chip when the pair disagrees about it', () => {
+    // The chip is a claim about a habit. A pair logged once as "bread" and
+    // once as "phone credit" has no single answer to "what was it", so the
+    // chip must log the money and assert no memory rather than stamp one of
+    // the two onto a purchase the user never described that way.
+    render(<App />)
+    logIt('100', 'bread')
+    logIt('100', 'phone credit')
+    const chip = screen.getByRole('button', { name: '100 DA · Food' })
+    fireEvent.click(chip)
+    expect(saved().transactions[0].amountDA).toBe(100)
+    expect(saved().transactions[0].note).toBeUndefined()
+  })
+
+  it('carries the note when every row of the pair agrees, and says so on the chip', () => {
+    render(<App />)
+    logIt('100', 'bread')
+    logIt('100', 'bread')
+    // The label states everything the tap will write — a chip that carried a
+    // note it did not name would be logging an unread claim.
+    const chip = screen.getByRole('button', { name: '100 DA · Food · bread' })
+    fireEvent.click(chip)
+    expect(saved().transactions).toHaveLength(3)
+    expect(saved().transactions[0].note).toBe('bread')
+    // Still one grant of five: a faster path never changes what a log pays.
+    expect(xpNow()).toBe(15)
+    expect(saved().xpLog[2].amount).toBe(5)
+  })
+
+  it('drops the chip note when one row of the pair has none at all', () => {
+    render(<App />)
+    logIt('100', 'bread')
+    logIt('100')
+    fireEvent.click(screen.getByRole('button', { name: '100 DA · Food' }))
+    expect(saved().transactions[0].note).toBeUndefined()
+  })
+
+  it('keeps the ledger card free of averages, budgets and second headings', () => {
+    // The guards the ledger is already held to, re-asserted with a free-text
+    // field now rendering inside it: the note is the user's words, and no
+    // amount of it may turn the card into a comparison surface.
+    render(<App />)
+    logIt('2000', 'cinema with M')
+    expect(ledger().textContent).not.toMatch(
+      /on average|your usual|typical|trend|compared|over budget/i,
+    )
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(ledger().querySelectorAll('.spec-label')).toHaveLength(1)
+    expect(within(ledger()).getAllByRole('heading', { level: 2 })).toHaveLength(1)
+    // The note adds no landmark, no region and no list of its own.
+    expect(within(ledger()).queryAllByRole('region')).toEqual([])
+  })
+
+  it('keeps the log card to one spec label, one h2 and a reachable, named field', () => {
+    render(<App />)
+    const card = screen.getByRole('main').querySelector('#log') as HTMLElement
+    expect(card.querySelectorAll('.spec-label')).toHaveLength(1)
+    expect(within(card).getAllByRole('heading', { level: 2 })).toHaveLength(1)
+    // A real visible <label>, not a placeholder standing in for one (§12.8):
+    // getByLabelText resolves it, and the caption survives the first
+    // keystroke because it is an element, not an attribute.
+    expect(what().tagName).toBe('INPUT')
+    expect(what().closest('label')?.querySelector('.field-label')?.textContent).toBe(
+      'What was it?',
+    )
+    // Reachable by keyboard, and it is not a required gate on logging: the
+    // landing surface's "two taps" claim is still true (see the keypad suite).
+    what().focus()
+    expect(document.activeElement).toBe(what())
+    expect(what().hasAttribute('required')).toBe(false)
   })
 })
 
@@ -1414,5 +1717,574 @@ describe('storage that refuses the write', () => {
     // The celebration region is a separate, still-empty channel: a storage
     // fault must not read as a toast, and a toast must not overwrite the fault.
     expect(screen.getByRole('status', { name: 'Announcements' }).textContent).toBe('')
+  })
+})
+
+describe('the month so far', () => {
+  /* Same pinned clock as the ledger suite — Tue 4 Aug 2026 — and for the same
+     reason, doubled: this card states which day of the month it is, so every
+     figure on it is a claim about the day the app is HOLDING. */
+  const seed = (transactions: Partial<Transaction>[], extra: Record<string, unknown> = {}) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 4, 12, 0, 0))
+    localStorage.setItem('ember-state-v1', JSON.stringify({ transactions, ...extra }))
+  }
+  const tx = (over: Partial<Transaction>): Partial<Transaction> => ({
+    amountDA: 100,
+    category: 'Food',
+    ...over,
+  })
+  const card = () => screen.getByRole('main').querySelector('.month-card') as HTMLElement
+  const cells = () => [...card().querySelectorAll('.month-cell')]
+  const ledgerCard = () => screen.getByRole('main').querySelector('.ledger-card') as HTMLElement
+
+  const AUGUST = [
+    tx({ id: 'd', amountDA: 400, date: '2026-08-04' }),
+    tx({ id: 'c', amountDA: 250, date: '2026-08-04' }),
+    tx({ id: 'b', amountDA: 900, category: 'Transport', date: '2026-08-03' }),
+    tx({ id: 'a', amountDA: 120, category: 'Other', date: '2026-08-01' }),
+  ]
+
+  it('states where you are in the month, what it cost, and how much is left', () => {
+    seed(AUGUST)
+    render(<App />)
+    expect(within(card()).getByRole('heading', { level: 2 }).textContent).toBe('This month')
+    expect(within(card()).getByText('Day 4 / 31')).toBeTruthy()
+    expect(within(card()).getByText('1,670 DA logged')).toBeTruthy()
+    expect(within(card()).getByText('27 days left.')).toBeTruthy()
+  })
+
+  it('reads the day off the app day, not a fresh clock', () => {
+    seed(AUGUST)
+    render(<App />)
+    expect(within(card()).getByText('Day 4 / 31')).toBeTruthy()
+    // Midnight passes with the tab open. Until a day sync lands the app is
+    // still holding the 4th — and so must this card, or the page says "Day 5"
+    // over a row it stamped the 4th.
+    vi.setSystemTime(new Date(2026, 7, 5, 0, 0, 30))
+    expect(within(card()).getByText('Day 4 / 31')).toBeTruthy()
+    act(() => {
+      fireEvent.focus(window)
+    })
+    expect(within(card()).getByText('Day 5 / 31')).toBeTruthy()
+    expect(within(card()).getByText('26 days left.')).toBeTruthy()
+  })
+
+  it('excludes resists and future-dated rows from the so-far figure', () => {
+    seed([
+      tx({ id: 'p', amountDA: 250, date: '2026-08-04' }),
+      tx({ id: 'r', amountDA: 900, date: '2026-08-04', resistedImpulse: true }),
+      tx({ id: 'skew', amountDA: 99_000, date: '2026-08-20' }),
+    ])
+    render(<App />)
+    // 250: a resist is money that did not leave, and a future row has not
+    // happened. Both still render in the ledger below — nothing is hidden.
+    expect(within(card()).getByText('250 DA logged')).toBeTruthy()
+    expect(within(ledgerCard()).getByText('900 DA avoided')).toBeTruthy()
+  })
+
+  it('draws one cell per calendar day and hands the data to text, not the strip', () => {
+    seed(AUGUST)
+    render(<App />)
+    expect(cells()).toHaveLength(31)
+    // The strip is decoration: the figures above it are the data, so it must
+    // not add 31 announcements or a second progressbar/meter to the page.
+    expect(card().querySelector('.month-strip')?.getAttribute('aria-hidden')).toBe('true')
+    expect(within(card()).queryAllByRole('progressbar')).toEqual([])
+    expect(within(card()).queryAllByRole('meter')).toEqual([])
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1) // still just XP
+    // Every cell is empty of text — nothing on the strip is content.
+    expect(cells().every((c) => c.textContent === '')).toBe(true)
+    // A bar only where money moved (the .xp-fill rule: no phantom sliver).
+    expect(card().querySelectorAll('.month-bar')).toHaveLength(3)
+  })
+
+  it('gives February its real length, and a leap February one more', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 1, 10, 12, 0, 0))
+    render(<App />)
+    expect(cells()).toHaveLength(28)
+    expect(within(card()).getByText('Day 10 / 28')).toBeTruthy()
+    cleanup()
+    vi.setSystemTime(new Date(2024, 1, 10, 12, 0, 0))
+    render(<App />)
+    expect(cells()).toHaveLength(29)
+  })
+
+  it('marks the days before the first record as blank IN WORDS, not only in pixels', () => {
+    // The card's sharpest cold-start problem: installing on the 12th must not
+    // report eleven days of spending nothing. The strip is aria-hidden, so the
+    // distinction has to survive into the text or it does not exist for AT.
+    seed([tx({ id: 'a', amountDA: 500, date: '2026-08-02' })])
+    render(<App />)
+    expect(
+      within(card()).getByText('Record starts Sun 2 Aug. Days before it are blank, not zero.'),
+    ).toBeTruthy()
+    const state = cells().map((c) => c.className.split(' ')[1])
+    expect(state[0]).toBe('is-no-record')
+    // Day 2 opened the record; days 3 and 4 logged nothing and are REAL zeros.
+    expect(state[1]).toBe('is-recorded')
+    expect(state[2]).toBe('is-recorded')
+    expect(state[3]).toBe('is-recorded')
+    expect(state[4]).toBe('is-ahead')
+    // The two kinds of blank are never the same mark.
+    expect(state[2]).not.toBe(state[0])
+  })
+
+  it('names the boundary day the way the ledger names it — one date vocabulary', () => {
+    // The ledger heading right below this card calls the same day "Yesterday".
+    // Two names for one day on one screen is worse than a clumsy sentence.
+    seed([tx({ id: 'a', amountDA: 500, date: '2026-08-03' })])
+    render(<App />)
+    expect(
+      within(card()).getByText('Record starts Yesterday. Days before it are blank, not zero.'),
+    ).toBeTruthy()
+    expect([...ledgerCard().querySelectorAll('.day-label')][0].textContent).toBe('Yesterday')
+  })
+
+  it('drops the record-window line once nothing in the month is blank', () => {
+    // A permanent sentence about a boundary that has passed is clutter.
+    seed([tx({ id: 'a', amountDA: 500, date: '2026-08-01' })])
+    render(<App />)
+    expect(card().textContent).not.toMatch(/Record starts/)
+    expect(cells().every((c) => !c.className.includes('is-no-record'))).toBe(true)
+  })
+
+  it('says nothing is on record yet instead of drawing a month of zeros', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 4, 12, 0, 0))
+    render(<App />)
+    expect(within(card()).getByText("No record yet. That's fine.")).toBeTruthy()
+    expect(within(card()).getByText('0 DA logged')).toBeTruthy()
+    // No nag, no deficiency mark, no prompt to go and log something (§12.3,
+    // §12.6) — and no bar drawn for a day that has no record.
+    expect(card().querySelectorAll('.month-bar')).toHaveLength(0)
+    expect(card().textContent).not.toMatch(/missing|behind|should|start logging|nothing logged/i)
+  })
+
+  it('keeps a quiet month on record — an earlier month’s rows make it real zeros', () => {
+    seed([tx({ id: 'jul', amountDA: 700, date: '2026-07-20' })])
+    render(<App />)
+    expect(card().textContent).not.toMatch(/No record yet/)
+    expect(cells().slice(0, 4).every((c) => c.className.includes('is-recorded'))).toBe(true)
+    expect(within(card()).getByText('0 DA logged')).toBeTruthy()
+  })
+
+  it('agrees with the ledger about what each day cost — one derivation, two surfaces', () => {
+    seed(AUGUST)
+    render(<App />)
+    // The ledger prints the same rows as day headings. A page that answers
+    // "what did Saturday cost" twice must never answer it differently.
+    const dayTotals = [...ledgerCard().querySelectorAll('.day-total')].map((n) =>
+      Number(n.textContent!.replace(/[^0-9]/g, '')),
+    )
+    expect(dayTotals).toEqual([650, 900, 120])
+    const monthTotal = Number(
+      within(card()).getByText(/DA logged$/).textContent!.replace(/[^0-9]/g, ''),
+    )
+    expect(monthTotal).toBe(dayTotals.reduce((a, b) => a + b, 0))
+  })
+
+  it('states no target, no projection and no comparison — even with a real profile', () => {
+    // §12.3 / §12.6: UserProfile.budgeted is real (income minus the goal
+    // contribution) and this card is exactly where it would first try to
+    // appear. The component is never handed the profile, which is the
+    // structural half; this is the assertion that keeps it that way.
+    seed(AUGUST, {
+      profile: {
+        monthlyIncome: 88_000,
+        monthlyEssentials: 41_000,
+        efBalance: 20_000,
+        debt: null,
+        goal: null,
+        savedDate: '2026-08-01',
+      },
+    })
+    render(<App />)
+    // The profile really did land — the demo disclosure is gone.
+    expect(screen.queryByText(/demo profile/i)).toBeNull()
+    expect(card().textContent).not.toContain('88,000')
+    // Everything the card STATES, minus the scope line that rules those words
+    // out — the disclaimer is allowed to name what it forbids, nothing else is.
+    const stated = [...card().querySelectorAll('.month-head, .month-facts, .month-note')]
+      .map((n) => n.textContent)
+      .join(' ')
+    expect(stated).not.toMatch(/budget|target|goal|limit|left to spend/i)
+    expect(card().textContent!.match(/target/gi)).toHaveLength(1)
+    // The same guard the ledger is held to: no average, no trend, no verdict.
+    expect(card().textContent).not.toMatch(
+      /on average|average day|your usual|typical|trend|compared|over budget/i,
+    )
+    // §12.5 in its own words: no run-rate, no forecast off four days.
+    expect(card().textContent).not.toMatch(/at this pace|on track|projected|forecast|estimate/i)
+    expect(within(card()).getByText('Totals only. No target, no projection.')).toBeTruthy()
+  })
+
+  it('carries no engagement number onto the money surface (Trust Rule 1)', () => {
+    seed(AUGUST)
+    render(<App />)
+    const before = xpNow()
+    const health = screen.getByText(/^Health \d+(\.\d)?$/).textContent
+    expect(card().textContent).not.toMatch(/\bxp\b|level|streak|quest|badge|pet/i)
+    // Reading the month is not an action the app pays for, and it moves
+    // nothing on the financial track either.
+    expect(xpNow()).toBe(before)
+    expect(screen.getByText(/^Health \d+(\.\d)?$/).textContent).toBe(health)
+  })
+
+  it('adds no second h1, one h2, one spec label and no landmark of its own', () => {
+    seed(AUGUST)
+    render(<App />)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(within(card()).getAllByRole('heading', { level: 2 })).toHaveLength(1)
+    expect(within(card()).queryAllByRole('heading', { level: 3 })).toEqual([])
+    expect(card().querySelectorAll('.spec-label')).toHaveLength(1)
+    expect(within(card()).queryAllByRole('region')).toEqual([])
+    // Card titles stay unique across the whole outline.
+    const titles = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    expect(new Set(titles).size).toBe(titles.length)
+  })
+
+  it('indexes the one numeral a log moves, and leaves the calendar alone', () => {
+    // §9 move 4 is for a numeral the user's action moves. The day index ticks
+    // over at midnight with nobody watching; animating it would be noise.
+    seed(AUGUST)
+    render(<App />)
+    expect(card().querySelector('.month-spend')?.className).toContain('index-roll')
+    expect(card().querySelector('.month-index')?.className).not.toContain('index-roll')
+  })
+
+  it('opens the archive half of the stack, directly above the ledger', () => {
+    seed(AUGUST)
+    render(<App />)
+    const stack = [...screen.getByRole('main').querySelectorAll('section.card')]
+    expect(stack.indexOf(ledgerCard()) - stack.indexOf(card())).toBe(1)
+  })
+})
+
+/**
+ * The a11y sweep, turned into permanent assertions.
+ *
+ * Each block names the finding it pins. These are behaviours a rendered audit
+ * measured through CDP (real tab-walks, real live-region mutation records) and
+ * that nothing in the DOM otherwise stops from regressing — the whole point of
+ * the exercise is that "we fixed it once" is not a mechanism.
+ */
+describe('accessibility depth — the sweep as regression tests', () => {
+  /** LogCard's UNDO_WINDOW_MS. Local, because exporting it to a test would
+      make the window look like a tuning knob rather than a product decision. */
+  const UNDO_WINDOW = 5_000
+  const submitBtn = () => screen.getByRole('button', { name: /Log purchase/ })
+  const undoBtn = () => screen.getByRole('button', { name: 'Undo' })
+  const logStatus = () => screen.getByRole('status', { name: 'Log status' })
+  const padStatus = () => screen.getByRole('status', { name: 'Amount entered' })
+  const logAmount = (value: string) => {
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value } })
+    fireEvent.click(submitBtn())
+  }
+
+  // ── Finding 1: undo was effectively sighted-only ────────────────────────
+  it('announces the undo affordance itself, not only the XP that came with it', () => {
+    render(<App />)
+    // Mounted EMPTY, like every other status region here.
+    expect(logStatus().textContent).toBe('')
+    logAmount('2000')
+    // An affordance, not a receipt: "+5 XP" and a bare <div> the user was
+    // never told about is not a five-second grace window they can use.
+    expect(logStatus().textContent).toBe('Logged 2,000 DA. Undo available.')
+  })
+
+  it('pauses the 5s grace window while the strip holds focus (WCAG 2.2.1)', () => {
+    vi.useFakeTimers()
+    render(<App />)
+    logAmount('500')
+    act(() => {
+      undoBtn().focus()
+    })
+    expect(document.activeElement).toBe(undoBtn())
+    // Four windows' worth of wall clock. A hard 5s limit with no pause is a
+    // Level A timing failure, and expiring under the user's own focus is the
+    // focus-drop the `disabled` ban elsewhere in this app exists to prevent.
+    act(() => {
+      vi.advanceTimersByTime(UNDO_WINDOW * 4)
+    })
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
+    expect(document.activeElement).toBe(undoBtn())
+    // …and the window restarts in full the moment focus leaves.
+    act(() => {
+      submitBtn().focus()
+    })
+    act(() => {
+      vi.advanceTimersByTime(UNDO_WINDOW)
+    })
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    // Focus never fell to <body> on the way out.
+    expect(document.activeElement).toBe(submitBtn())
+  })
+
+  it('empties the log region when the window expires — the affordance is gone', () => {
+    vi.useFakeTimers()
+    render(<App />)
+    logAmount('500')
+    act(() => {
+      vi.advanceTimersByTime(UNDO_WINDOW)
+    })
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    // Emptying announces nothing, and it re-arms the region for the next log
+    // of the same amount.
+    expect(logStatus().textContent).toBe('')
+    logAmount('500')
+    expect(logStatus().textContent).toBe('Logged 500 DA. Undo available.')
+  })
+
+  // ── Finding 2: activating Undo dropped focus and announced nothing ──────
+  it('hands focus back and names the removal when Undo is pressed', () => {
+    render(<App />)
+    logAmount('2000')
+    const btn = undoBtn()
+    act(() => {
+      btn.focus()
+    })
+    fireEvent.click(btn)
+    // The button the user just pressed unmounts under them; without the
+    // hand-off, focus lands on <body> and their place is gone.
+    expect(document.activeElement).toBe(submitBtn())
+    // XP going DOWN is announced by nothing in useRewards, and the ledger row
+    // simply vanishes — so the removal has to say so itself.
+    expect(logStatus().textContent).toBe('Removed. 2,000 DA log undone.')
+    expect(xpNow()).toBe(0)
+  })
+
+  it('names a resist removal in the resist’s own words', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    expect(logStatus().textContent).toBe('Resist logged. Undo available.')
+    fireEvent.click(undoBtn())
+    expect(logStatus().textContent).toBe('Removed. Resist undone.')
+  })
+
+  it('announces a chip log and its undo too — the chip is a log like any other', () => {
+    render(<App />)
+    for (let i = 0; i < 2; i++) logAmount('80')
+    fireEvent.click(screen.getByRole('button', { name: '80 DA · Food' }))
+    expect(logStatus().textContent).toBe('Logged 80 DA. Undo available.')
+    fireEvent.click(undoBtn())
+    expect(logStatus().textContent).toBe('Removed. 80 DA log undone.')
+  })
+
+  // ── Finding 3: export confirmed nothing and had no failure path ─────────
+  it('confirms the export by name, and says so when the device blocks it', () => {
+    render(<App />)
+    const status = () => screen.getByRole('status', { name: 'Export' })
+    const exportBtn = () => screen.getByRole('button', { name: 'Export my data' })
+    expect(status().textContent).toBe('')
+    // jsdom implements neither URL method, so the untouched environment IS a
+    // blocked-download configuration — the path that used to throw into the
+    // void with Trust Rule 7's headline action attached to it.
+    fireEvent.click(exportBtn())
+    expect(status().textContent).toBe(
+      "That didn't go through. Export blocked on this device.",
+    )
+    Object.defineProperty(URL, 'createObjectURL', {
+      value: () => 'blob:ember',
+      configurable: true,
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true })
+    try {
+      fireEvent.click(exportBtn())
+      // Claims the act, not the device's outcome: a.click() is a silent no-op
+      // when downloads are blocked, so "Export written." asserted a file this
+      // code cannot see. Trust Rule 7's headline action does not get to claim
+      // what it has no evidence for.
+      const built = `Export built. ember-export-${todayISO()}.json handed to the browser.`
+      expect(status().textContent).toBe(built)
+      expect(status().textContent).not.toMatch(/written|saved|downloaded/)
+      // The sighted user gets it too, once — the visible twin is aria-hidden
+      // so the outcome is read once, not twice (SimCard's pattern) — and it is
+      // NOT in the 11px .foot-note register the boilerplate beside it uses.
+      const visible = document.querySelector('.foot .export-note[aria-hidden="true"]')
+      expect(visible?.textContent).toBe(built)
+      expect(document.querySelector('.foot .foot-note[aria-hidden="true"]')).toBeNull()
+    } finally {
+      Reflect.deleteProperty(URL, 'createObjectURL')
+      Reflect.deleteProperty(URL, 'revokeObjectURL')
+    }
+  })
+
+  it('re-announces an identical export outcome instead of going silent', () => {
+    render(<App />)
+    const status = () => screen.getByRole('status', { name: 'Export' })
+    const exportBtn = () => screen.getByRole('button', { name: 'Export my data' })
+    fireEvent.click(exportBtn())
+    const first = status().textContent!
+    fireEvent.click(exportBtn())
+    // A live region announces text CHANGES: the same string reconciled into
+    // the same node fires no mutation and is silent. The node must differ…
+    expect(status().textContent).not.toBe(first)
+    // …and the words must not.
+    expect(status().textContent!.trim()).toBe(first.trim())
+  })
+
+  // ── Finding 4: a repeated identical validation error was announced once ──
+  it('re-announces a repeated identical error on the log card', () => {
+    render(<App />)
+    fireEvent.click(submitBtn())
+    const first = screen.getByRole('alert')
+    expect(first.textContent).toBe('Enter an amount first.')
+    fireEvent.click(submitBtn())
+    const second = screen.getByRole('alert')
+    expect(second.textContent).toBe('Enter an amount first.')
+    // Same words, DIFFERENT node: role="alert" announces on insertion, and
+    // reconciling into the existing node fired no mutation at all — leaving
+    // sfx.deny() to carry the second press alone, which §10 forbids.
+    expect(second).not.toBe(first)
+    expect(screen.getByLabelText('Amount (DA)').getAttribute('aria-describedby')).toBe(
+      'log-error',
+    )
+  })
+
+  it('re-announces a repeated identical error on the simulator', () => {
+    render(<App />)
+    const run = () => screen.getByRole('button', { name: 'Run simulation' })
+    fireEvent.click(run())
+    const first = screen.getByRole('alert')
+    fireEvent.click(run())
+    const second = screen.getByRole('alert')
+    expect(second.textContent).toBe('Enter an amount first.')
+    expect(second).not.toBe(first)
+  })
+
+  it('re-announces a repeated identical error on the profile card', () => {
+    render(<App />)
+    const save = () => screen.getByRole('button', { name: 'Save my numbers' })
+    fireEvent.click(save())
+    const first = screen.getByRole('alert')
+    expect(first.textContent).toBe('Monthly income needs a number (0 or more).')
+    fireEvent.click(save())
+    const second = screen.getByRole('alert')
+    expect(second.textContent).toBe('Monthly income needs a number (0 or more).')
+    expect(second).not.toBe(first)
+  })
+
+  // ── Finding 5: the in-page jump targets were not focusable ──────────────
+  it('makes every hero jump target focusable and named', () => {
+    render(<App />)
+    const nav = screen.getByRole('navigation', { name: 'Sections' })
+    const hrefs = [...nav.querySelectorAll('a')].map((a) => a.getAttribute('href'))
+    expect(hrefs).toEqual(['#log', '#quests', '#simulator', '#codex', '#badges'])
+    expect(screen.getByRole('link', { name: /Start logging/ }).getAttribute('href')).toBe(
+      '#log',
+    )
+    for (const [id, title] of [
+      ['log', 'Log it'],
+      ['quests', "Today's quests"],
+      ['simulator', 'Decision simulator'],
+      ['codex', 'Lesson codex'],
+      ['badges', 'Achievements'],
+    ]) {
+      const section = document.getElementById(id)!
+      expect(section.tagName).toBe('SECTION')
+      // The ATTRIBUTE, not el.tabIndex: a section with no tabindex at all
+      // also reports -1, which is exactly why the sweep's measurement of
+      // "targetTabIndex: -1" was a finding rather than a pass. Authored -1
+      // makes the section script-focusable without entering the tab order.
+      expect(section.getAttribute('tabindex')).toBe('-1')
+      // Named, so arriving there announces the section instead of "region".
+      expect(section.getAttribute('aria-labelledby')).toBe(`${id}-title`)
+      expect(document.getElementById(`${id}-title`)!.textContent).toBe(title)
+    }
+    // Every jump target still resolves — no link points at a dead fragment.
+    for (const href of hrefs) expect(document.getElementById(href!.slice(1))).not.toBeNull()
+  })
+
+  // ── Finding 6: one quest completing announced only as a bare XP number ───
+  it('names the quest that just completed, not just the XP it paid', () => {
+    render(<App />)
+    fireEvent.click(
+      screen.getByRole('button', { name: /Mark done: Log every purchase today/ }),
+    )
+    const toast = screen.getByRole('status', { name: 'Announcements' })
+    // The whole signal used to be the focused button's accessible name
+    // changing — announced by NVDA, frequently not by VoiceOver.
+    expect(toast.textContent).toBe('Quest done. Log every purchase today')
+    // §7.4: no exclamation marks in anything a live region carries.
+    expect(toast.textContent).not.toMatch(/!/)
+  })
+
+  // ── Finding 7: the health drawer had no aria-controls ───────────────────
+  it('wires the health drawer to the button that opens it', () => {
+    render(<App />)
+    const why = () => screen.getByRole('button', { name: /Why this stage\?|Hide the breakdown/ })
+    expect(why().getAttribute('aria-controls')).toBe('health-breakdown')
+    expect(why().getAttribute('aria-expanded')).toBe('false')
+    expect(document.getElementById('health-breakdown')).toBeNull()
+    fireEvent.click(why())
+    expect(why().getAttribute('aria-expanded')).toBe('true')
+    expect(why().getAttribute('aria-controls')).toBe('health-breakdown')
+    expect(document.getElementById('health-breakdown')).not.toBeNull()
+  })
+
+  // ── Finding 8: the inert Clear key was a dead press ─────────────────────
+  it('explains the inert Clear key instead of dying silently under the thumb', () => {
+    vi.mocked(sfx.deny).mockClear()
+    render(<App />)
+    const clear = screen.getByRole('button', { name: 'Clear' })
+    // aria-disabled + guarded no-op, never the disabled attribute.
+    expect(clear.getAttribute('aria-disabled')).toBe('true')
+    expect((clear as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(clear)
+    expect(padStatus().textContent).toBe('Nothing to clear.')
+    const first = padStatus().textContent!
+    fireEvent.click(clear)
+    // Audible on the second press too, and identical in words.
+    expect(padStatus().textContent).not.toBe(first)
+    expect(padStatus().textContent!.trim()).toBe('Nothing to clear.')
+    // Nothing failed: no alert, no denial cue, no XP, no row.
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(sfx.deny).not.toHaveBeenCalled()
+    expect(xpNow()).toBe(0)
+  })
+})
+
+/**
+ * §11 / §1 trait 10 — THE CORNER MARKS ARE POSITIONAL, so they are a claim
+ * about App's render order and nothing else can keep them true.
+ *
+ * tokens.css states the contract in as many words: "the index is the card's
+ * real position in the stack, so it stays accurate as long as App's order
+ * does." It stopped being true the moment a card was inserted without
+ * renumbering — MonthCard went in 9th while its stamp still read MTD—12, and
+ * three cards behind it were off by one. On a product whose §1 trait 10 calls
+ * these marks "decorative truth-telling", four wrong indices out of twelve is
+ * the mark lying about the thing it exists to state.
+ *
+ * So the expectation is DERIVED from the rendered order rather than typed:
+ * insert a card anywhere in App and this fails, instead of the next audit
+ * catching it.
+ */
+describe('§11 — the printed corner index is the card’s real position', () => {
+  const marks = () =>
+    [...document.querySelectorAll('.spec-label')].map((el) => el.textContent ?? '')
+
+  it('numbers every card 01..n in the order App stacks them', () => {
+    render(<App />)
+    const printed = marks()
+    // Every card carries one (§11), so the run has to be as long as the stack.
+    expect(printed.length).toBe(document.querySelectorAll('main .card').length)
+    expect(printed.length).toBeGreaterThan(8)
+    // The prefix is the card's own three-letter code; only the index is
+    // derived, so this asserts position without freezing the vocabulary.
+    expect(printed.map((m) => m.split('—')[1])).toEqual(
+      printed.map((_, i) => String(i + 1).padStart(2, '0')),
+    )
+    // …and each mark is a real AB—01 stamp, not an empty split artefact.
+    for (const m of printed) expect(m).toMatch(/^[A-Z]{2,3}—\d{2}$/)
+  })
+
+  it('keeps the marks out of the accessibility tree — they are printed spec', () => {
+    render(<App />)
+    for (const el of document.querySelectorAll('.spec-label')) {
+      expect(el.getAttribute('aria-hidden')).toBe('true')
+    }
   })
 })

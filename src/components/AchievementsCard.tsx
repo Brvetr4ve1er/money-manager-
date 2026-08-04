@@ -16,11 +16,20 @@ export function AchievementsCard({ unlocks }: { unlocks: AchievementUnlock[] }) 
   const count = ACHIEVEMENTS.filter((a) => dateById.has(a.id)).length
   return (
     // id: hero nav anchor target (desktop).
-    <section className="card" id="badges">
+    // spec-sheet: §5 layout B, the same sheet the codex stands on — this is the
+    // literal "4-up grid of badges on espresso". See .spec-sheet in tokens.css.
+    // tabIndex -1 + aria-labelledby: see LogCard — the hero's jump links
+    // landed focus on <body> because the target sections were not focusable.
+    <section
+      className="card spec-sheet"
+      id="badges"
+      tabIndex={-1}
+      aria-labelledby="badges-title"
+    >
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
-      <span className="spec-label" aria-hidden="true">ACH—11</span>
+      <span className="spec-label" aria-hidden="true">ACH—12</span>
       <div className="ach-head">
-        <h2>Achievements</h2>
+        <h2 id="badges-title">Achievements</h2>
         {/* INDEX ROLL (§9 move 4) — the `33/36` index label from §1 trait 10. */}
         <span className="ach-count mono index-roll" key={count}>
           {count} / {ACHIEVEMENTS.length} earned

@@ -92,6 +92,49 @@ describe('local-first, as an enforced absence', () => {
     expect(offenders).toEqual([])
   })
 
+  /**
+   * THE TWO FILES THE src/ WALK CANNOT SEE, and the two most likely places for
+   * a remote subresource to be added: index.html's <link>/<script> block and
+   * the manifest's icons[].src. design.test.ts guards the three stylesheets,
+   * this file guarded src/**\/*.ts(x), and neither reaches the shell — so a
+   * `<link rel="stylesheet" href="https://fonts.googleapis.com/...">` or a
+   * remote icon src passed the whole suite while breaking "the app renders
+   * fully offline". Same scheme-anchored pattern design.test.ts uses, so the
+   * three guards state one rule: every reference is root-relative or a data:
+   * URI. (Absolute URLs in <meta content="..."> are a different thing — og:url
+   * and canonical are addresses a crawler reads, not subresources the page
+   * fetches — so `content` is deliberately not in the attribute list.)
+   */
+  it('fetches no subresource from another origin in the app shell', () => {
+    const REMOTE = /^(https?:)?\/\//
+    const offenders: string[] = []
+
+    const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+    for (const m of html.matchAll(/\b(?:src|href)\s*=\s*"([^"]*)"/g)) {
+      if (REMOTE.test(m[1])) offenders.push(`index.html: ${m[1]}`)
+    }
+    // @import / url() inside the <noscript> style block, which is real CSS the
+    // design.test.ts scan never opens.
+    for (const m of html.matchAll(/@import|url\(\s*['"]?([^'")]*)/g)) {
+      if (m[0].startsWith('@import') || REMOTE.test(m[1] ?? '')) {
+        offenders.push(`index.html: ${m[0]}`)
+      }
+    }
+
+    const manifest = readFileSync(
+      new URL('../public/manifest.webmanifest', import.meta.url),
+      'utf8',
+    )
+    for (const m of manifest.matchAll(/"src"\s*:\s*"([^"]*)"/g)) {
+      if (REMOTE.test(m[1])) offenders.push(`manifest.webmanifest: ${m[1]}`)
+    }
+
+    expect(offenders).toEqual([])
+    // …and the walk actually found something to check, or the case is vacuous.
+    expect(html).toContain('<link rel="manifest"')
+    expect(manifest).toContain('"src"')
+  })
+
   it('sells nothing — there is no purchase path to be found', () => {
     // Trust Rule 2 restated as an absence. Same narrowing: "Nothing is for
     // sale" is a string on the landing surface and must not trip its own rule,

@@ -15,6 +15,7 @@ import {
   mergeStates,
   rollQuests,
   sanitizeProfile,
+  withSanitizedNote,
   type AppState,
   type ProfileData,
   type Transaction,
@@ -38,17 +39,32 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // Resist XP caps per day: the button is an unverifiable self-report
       // that also feeds the IC health component, so an uncapped grant would
       // pay the user to game the score. The entry itself always logs.
+      //
+      // COUNTS THE EVIDENCE, NOT THE ROWS. xpFromLog — the authoritative fold,
+      // and the only one that survives a cross-tab merge — caps on resist
+      // GRANTS. Counting resist ROWS here was a second implementation of one
+      // rule, and the two drifted on undo: log r0 (grant), r1 (grant), r2 (no
+      // grant), then UNDO r0 removes the row AND grant tx:r0, leaving 2 rows
+      // but 1 paid grant. The next resist saw 2 rows and refused a grant the
+      // cap still allowed. Reading state.xpLog makes the reducer and the fold
+      // run the identical rule; App's "(XP capped today)" label reads it too.
       const resisted = action.tx.resistedImpulse === true
       const resistGrantsToday = resisted
-        ? state.transactions.filter(
-            (t) => t.resistedImpulse && t.date === action.tx.date,
+        ? state.xpLog.filter(
+            (g) => g.action === 'resistImpulse' && g.date === action.tx.date,
           ).length
         : 0
       const grantsXp = !resisted || resistGrantsToday < RESIST_XP_DAILY_CAP
       const xpAction = resisted ? 'resistImpulse' : 'logExpense'
       return {
         ...state,
-        transactions: [action.tx, ...state.transactions],
+        // Note sanitised on the way in, for the same reason PROFILE_SET
+        // re-validates a form-checked profile: the string comes from a
+        // free-text field, and a note that only the sanitizer would reject
+        // would render on the row now and silently vanish at next load. What
+        // is on screen must be what reloads. It never affects the grant below
+        // — see the XP note in LogCard.
+        transactions: [withSanitizedNote(action.tx), ...state.transactions],
         xp: grantsXp ? grantXp(state.xp, xpAction).next : state.xp,
         // Every grant also lands in the append-only grant log. The tx-derived
         // id is deterministic: two tabs merging the same purchase dedupe to

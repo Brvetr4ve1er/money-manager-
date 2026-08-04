@@ -39,6 +39,22 @@ describe('saveState reports whether the write landed', () => {
     expect(loadState().xp).toEqual(state.xp)
   })
 
+  it('round-trips a row note through the real storage object', () => {
+    // The note is the one free-text field the app persists, and the half of
+    // the round trip store.test.ts cannot run (it is on the node
+    // environment). Save → load, through the actual Web Storage object, is
+    // what proves a typed memory survives a reload — the entire value of the
+    // field.
+    const state = defaultState()
+    state.transactions = [
+      { id: 'a', amountDA: 2_000, category: 'Fun', note: 'cinema with M', date: '2026-08-01' },
+    ]
+    expect(saveState(state)).toBe(true)
+    const [row] = loadState().transactions
+    expect(row.note).toBe('cinema with M')
+    expect(row.amountDA).toBe(2_000)
+  })
+
   it('returns false instead of throwing when the write is refused', () => {
     quotaThrow()
     expect(() => saveState(defaultState())).not.toThrow()

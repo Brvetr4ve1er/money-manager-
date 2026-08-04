@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Monogram } from './Monogram.tsx'
 import { Wordmark } from './Wordmark.tsx'
 import { Ledger } from './Ledger.tsx'
-import { todayISO } from '../state/store.ts'
+import { MonthCard } from './MonthCard.tsx'
+import { todayISO, NOTE_MAX_LEN } from '../state/store.ts'
 import { NOTE_DENOMINATIONS_DA } from '../engine/keypad.ts'
 import { sampleLedgerRows } from '../content/sampleLedger.ts'
 
@@ -37,30 +38,41 @@ import { sampleLedgerRows } from '../content/sampleLedger.ts'
  * category before they name the differentiator. That is a recorded exemption,
  * not an oversight; it does not need re-litigating on the next voice pass.
  *
- * EVERY CLAIM MAPS TO SHIPPED CODE. The spec-sheet grid names four mechanics
+ * EVERY CLAIM MAPS TO SHIPPED CODE. The spec-sheet grid names six mechanics
  * that exist today (healthScore.ts, the resist path in reducer.ts + Ledger's
- * resisted stat, simulator.ts, boss.ts); the rules band restates the Trust Rules
- * the engines already keep. Nothing here is a roadmap item sold as shipped —
- * if a line stops being true, delete the line, not the qualifier.
+ * resisted chip, simulator.ts, boss.ts, monthToDate + MonthCard, and the row
+ * note in store.ts/LogCard/Ledger); the rules band restates the Trust Rules the
+ * engines already keep. Nothing here is a roadmap item sold as shipped — if a
+ * line stops being true, delete the line, not the qualifier.
  *
- * TWO CLAIMS ARE MECHANICALLY BOUND rather than typed, because those are the
- * two that would rot first: the note-key strip is rendered FROM
- * NOTE_DENOMINATIONS_DA, and the product shot is rendered BY <Ledger> itself.
- * Change the denominations or the card and this page changes with them.
+ * FOUR CLAIMS ARE MECHANICALLY BOUND rather than typed, because those are the
+ * ones that rot first: the note-key strip renders FROM NOTE_DENOMINATIONS_DA,
+ * the note's length claim reads NOTE_MAX_LEN, the grid's count is the length of
+ * MECHANICS (stated in the lede AND in every index label), and the product shot
+ * is rendered BY <MonthCard> and <Ledger> themselves. Change a denomination,
+ * the cap, the roster or either card and this page changes with them.
  *
  * THE PRODUCT SHOT. This page used to argue that no screenshot was possible,
  * on the grounds that the only thing available to show was a demo profile's
  * numbers and that presenting fabricated figures as a product shot inverts
  * Trust Rule 5. Half of that still holds and half of it was too wide. What
  * Trust Rule 5 forbids is projecting CONFIDENCE the app has not earned — a
- * score, a stage, a trend, a verdict about a person. A ledger card holding
- * seven sample rows makes no such claim: it states what a card looks like, it
- * is captioned as sample rows in those words, and it is the only surface in
- * the app that reads as pure structure. So the shot shows the ledger and
- * nothing else, it is rendered by the real component through the real grouping
- * engine (so it cannot drift), and the scope line the card states about itself
- * ("Totals only. No averages, no comparisons.") is IN the shot rather than
- * cropped out of it.
+ * score, a stage, a trend, a verdict about a person. Cards holding seven sample
+ * rows make no such claim: they state what the app looks like, they are
+ * captioned as sample rows in those words, and they are the two surfaces in the
+ * app that read as pure structure. Both are rendered by the real components
+ * through the real engines (so they cannot drift), and each card's own scope
+ * line ("Totals only. No averages, no comparisons." / "Totals only. No target,
+ * no projection.") is IN the shot rather than cropped out of it.
+ *
+ * THE SHOT GROWS WITH THE PRODUCT, AND THAT IS THE RULE. When a feature is
+ * worth claiming here, it gets shown by the shipped component rather than
+ * described in a sentence beside it. That is why the month card joined the
+ * frame in the order the app stacks it (month above ledger, App.tsx), and why
+ * the row note arrived as data on the sample rows instead of as an adjective in
+ * the caption: three of the seven rows carry one, four do not, because the
+ * field is optional and a shot where every row had one would advertise a
+ * required field.
  *
  * LAYOUT (§5 signature layouts, in order down the page):
  *   A. THE BRICK WALL — full-bleed Flare, one centred container, 60% negative
@@ -78,9 +90,10 @@ import { sampleLedgerRows } from '../content/sampleLedger.ts'
  * plate-and-field composition.
  */
 
-/** §5B, captioned with mono index labels (§1 trait 10). Four, because the app
-    has four mechanics — the denominator is a count, not a decoration. */
-const MECHANICS = [
+/** §5B, captioned with mono index labels (§1 trait 10). The length is the app's
+    real mechanic count — the denominator is a count, not a decoration, and the
+    section lede reads it too so the word and the grid cannot disagree. */
+const MECHANICS: Array<{ title: string; body: ReactNode }> = [
   {
     title: 'Health score',
     body: 'Five components. Shrunk for thin data. It explains; it never advises.',
@@ -110,6 +123,32 @@ const MECHANICS = [
     // corrected line is the only claim on this page that changed meaning
     // rather than gaining detail.
     body: "This week's discretionary spend is its HP. Last week's is the line. Beatable, never shaming.",
+  },
+  {
+    title: 'The month so far',
+    // Every clause is a field of MonthSoFar (ledger.ts): dayOfMonth /
+    // daysInMonth, spentDA, daysLeft, days[]. The two refusals are the card's
+    // own scope line, and they are the load-bearing half of the badge: this is
+    // exactly the surface where a budget bar tries to appear, and MonthCard is
+    // never handed the profile, so `budgeted` cannot reach it.
+    body: 'Day index, month total, days left, one bar per day. No target line. No projection.',
+  },
+  {
+    title: 'The note',
+    // NOTE_MAX_LEN is read, not typed. "Unpaid" is the two-track rule at the
+    // smallest scale: logExpense grants +5 whether or not a note was written,
+    // asserted at the reducer and through the UI in both directions. "Never
+    // asked for twice" is Ledger rendering nothing at all for an empty note —
+    // no placeholder, no prompt, no nag.
+    // §11: all numerals render in the mono stack, so the one numeral in this
+    // sentence is scoped to its own run — the same split .lp-notes-keys and the
+    // app's .calibrating make.
+    body: (
+      <>
+        <span className="lp-count">{NOTE_MAX_LEN}</span> characters on any row, in
+        your words. Optional, unpaid, never asked for twice.
+      </>
+    ),
   },
 ]
 
@@ -175,34 +214,79 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                 Built flat. Logged in DA.
               </h2>
               <p className="lp-lede">Runs on your phone. Not on your bank.</p>
-              {/* THE POSITION, PLAINLY. Manual-first and DA-denominated is
-                  what this product IS, not a limitation it works around, so it
-                  is stated in the second paragraph of the page instead of
-                  being left for someone to discover in the amount field. The
-                  claims: DA is the only unit the app formats (every amount in
-                  the product renders `N DA`), and entry is by hand — there is
-                  no import path, no aggregator and no bank call anywhere in
-                  src. */}
+              {/* THE POSITION, PLAINLY, AND AS A STRENGTH. Manual-first and
+                  DA-denominated is what this product IS, not a limitation it
+                  works around, so it is stated in the second paragraph of the
+                  page instead of being left for someone to discover in the
+                  amount field.
+
+                  The argument is a fact about the market, not a consolation:
+                  in a cash economy an aggregator's feed is a PARTIAL record by
+                  construction, so the "automatic" competitor is the one with
+                  the gaps. Every claim here is an absence in src — DA is the
+                  only unit the app formats (every amount renders `N DA`, there
+                  is no converter and no second unit), and there is no import
+                  path, no aggregator, no merchant lookup and no bank call
+                  anywhere, which is also why no row is auto-categorised.
+                  localFirst.test asserts the absence over the source tree. */}
               <p className="lp-sub">
-                Built for Algeria. Every amount in DA, entered by hand. Cash
-                does not show up in a bank feed. It shows up here.
+                Built for Algeria. Every amount in DA, entered by hand. A bank
+                feed knows what a bank saw. Not the cash. Not the taxi. Not
+                what a friend paid back. Nothing here is imported, so nothing
+                is guessed. Every row is one you put there.
               </p>
               {/* THE HAND-OFF — the reason to send this to someone, above the
                   fold, on the accent bar.
 
-                  It is the reason and not a slogan: the friend most likely to
-                  need this is the one who will not hand a bank login to an
-                  app, and every refusal named here is a real absence in the
-                  code. No account: there is no auth, no server and no network
-                  call in src. No bank login: nothing reads a bank, which is
-                  why logging is manual. No card: Trust Rule 2 — no purchase
-                  path exists, so there is nothing to be sold or cancelled.
-                  "A purchase is two taps" is the note pad plus the log button
-                  with the category already defaulted, and App.test performs
-                  exactly those two taps to keep the number honest. */}
+                  IT NAMES A MECHANIC, NOT A MOOD, and that is the correction.
+                  This paragraph used to be four refusals ("no account, no bank
+                  login, no card") — true, but a list of things Ember does not
+                  do is a reason to TOLERATE an app, never a reason to send it
+                  to someone. The refusals moved down one line, where they
+                  belong, and the reason took their place.
+
+                  The reason is the resist row, because it is the one thing here
+                  that no bank-linked tracker can do at all: a bank feed can
+                  only ever see money that moved. Every clause is shipped —
+                  LOG_TX writes a row with resistedImpulse (reducer.ts),
+                  groupTransactionsByDay adds 0 for it (ledger.ts), Ledger sums
+                  the month into the resisted chip, and the shot below renders
+                  exactly that pair. "The row reads the same" is Trust Rule 3:
+                  an impulse the user gave in to logs at full XP with a quiet,
+                  uncoloured marker (see .tx-impulse — a dashed keyline badge in
+                  the --spec register; "lowercase" stood here and was simply
+                  wrong, the badge is uppercase like the rest of that family) —
+                  the app states the fact and stops.
+
+                  Scoped on purpose: full XP is claimed, and a clean score is
+                  NOT. profile.ts feeds yielded impulses to impulseControlScore,
+                  so "buying is never counted against you" would be false. On a
+                  page whose subject is the trust boundary, this is the second
+                  claim that must not overstate it. */}
               <p className="lp-share">
-                Send it to a friend. It asks them for nothing. No account, no
-                bank login, no card. A purchase is two taps.
+                Send it to a friend who overspends. Ember logs the thing they
+                did not buy. What it would have cost, recorded. Nothing added
+                to the day. Summed for the month. Buy it anyway: the row reads
+                the same as any other log. Full XP either way. That pair is the
+                mechanic.
+              </p>
+              {/* The refusals, demoted to terms — which is what they are. Each
+                  one is a real absence: no auth, no server and no network call
+                  in src; nothing reads a bank, which is why logging is manual;
+                  and Trust Rule 2 means no purchase path exists, so there is
+                  nothing to be sold or cancelled. "A purchase is two taps" is
+                  the cash pad plus the log button with the category already
+                  defaulted, and App.test performs exactly those two taps to
+                  keep the number honest.
+                  THE MECHANIC IS NAMED, not just the count: addNote composes
+                  additively (keypad.ts), so two taps is the one-denomination,
+                  default-category case — 1,500 DA is three. Stated flat, the
+                  number was a claim the code only sometimes honours; stated
+                  with "one cash key, then Log" it is self-evidently the case it
+                  describes, which is how README.md already puts it. */}
+              <p className="lp-terms">
+                It asks them for nothing. No account, no bank login, no card.
+                One cash key, then Log: a purchase is two taps.
               </p>
               <div className="lp-actions">
                 {/* The gate. A real button, not a link: it changes what is
@@ -225,24 +309,45 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
         </section>
 
         {/* ── B. THE SPEC SHEET ─────────────────────────────────────────── */}
-        <section id="spec" className="lp-spec" aria-labelledby="lp-spec-h">
+        {/* tabIndex -1: this is the page's ONLY in-page jump target (the "Spec
+            sheet" button above), and it had the exact defect the app fixed on
+            all five of its own targets — a fragment link whose target is not
+            focusable leaves focus on <body>, so activating it strands the
+            keyboard user at the top of the document. Chrome papers over it with
+            the sequential-focus navigation starting point; Safari/VoiceOver do
+            not. The section already has an accessible name from aria-labelledby,
+            so tabIndex alone makes the arrival announce "The spec sheet,
+            region". Same construction as LogCard/QuestCard/SimCard/CodexCard/
+            AchievementsCard. */}
+        <section id="spec" className="lp-spec" tabIndex={-1} aria-labelledby="lp-spec-h">
           <div className="lp-measure">
             <h2 id="lp-spec-h" className="lp-section-h">
               The spec sheet
             </h2>
+            {/* The count is READ, never typed. A word here and a hard-coded
+                "04" in the index labels were two places to write the same
+                fact, and the grid grew twice while a typed word sat still. */}
             <p className="lp-spec-lede">
-              Four mechanics. All of them shipped. The card below is the app's
-              own, running.
+              <span className="lp-count">{MECHANICS.length}</span> mechanics,
+              all shipped. The cards below are the app's own, running.
             </p>
 
             {/* ── THE PRODUCT SHOT ────────────────────────────────────────
-                Not an image. This is <Ledger>, the component the app renders,
-                fed seven sample rows through the same groupTransactionsByDay
-                the app uses — so the day headings, the day totals, the resist
-                row, the month's resisted chip and the card's own scope line
-                are all computed here exactly as they are in the product.
-                A PNG would need regenerating whenever the card changed and
-                would silently rot when nobody did. This cannot.
+                Not an image. This is <MonthCard> and <Ledger>, the components
+                the app renders, in the order App.tsx stacks them, fed seven
+                sample rows through the same monthToDate and
+                groupTransactionsByDay the app uses — so the day index, the
+                month total, the strip, the day headings, the day totals, the
+                notes, the resist row, the month's resisted chip and both
+                cards' scope lines are all computed here exactly as they are in
+                the product. A PNG would need regenerating whenever a card
+                changed and would silently rot when nobody did. This cannot.
+
+                BOTH CARDS ARE HANDED `transactions` AND `today` AND NOTHING
+                ELSE — the same two props the app gives them. Neither is handed
+                a profile, which is the structural reason no budget line, no
+                score and no stage can appear on this page even if one is added
+                to those cards later.
 
                 ARIA-HIDDEN, AND THAT IS THE HONEST MODEL. A screenshot's
                 content belongs in its alt text; the figcaption is that alt
@@ -261,15 +366,21 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                 grow one. */}
             <figure className="lp-shot">
               <div className="lp-shot-frame" aria-hidden="true">
+                <MonthCard transactions={shotRows} today={today} />
                 <Ledger transactions={shotRows} today={today} />
               </div>
               <figcaption className="lp-shot-cap">
                 {/* .lp-shot-tag, not .lp-index: that class means "this badge's
-                    place in the four-mechanic grid" and is read as a set. */}
+                    place in the mechanic grid" and is read as a set. */}
                 <span className="lp-shot-tag">Sample rows · nobody's data</span>
-                Grouped by day. Each day's spend sits in its heading. The
-                resist under Today shows what it avoided and adds nothing to
-                the day. The card states its own scope: totals only.
+                The month card over the ledger, in the order the app stacks
+                them. Above: where you are in the month, what it has cost so
+                far, how many days are left, and one bar per day. Below:
+                grouped by day. Each day's spend sits in its heading. A note
+                sits under the row it belongs to, on the rows that have one.
+                The resist under Today shows what it avoided and adds nothing
+                to the day. Each card states its own scope: totals only, no
+                target, no average.
               </figcaption>
             </figure>
 
@@ -309,14 +420,26 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
         {/* ── D. THE SHEAR ──────────────────────────────────────────────── */}
         <section className="lp-shear" aria-labelledby="lp-rules-h">
           {/* One 38° Flare band splitting the canvas (§5D), broken once by the
-              rule plates in front of it. It carries no type: a rotated line
-              centred on the same point as the plates is occluded at its middle
-              at every width — the section shipped reading "…VER CROSSED." on
-              desktop and as rotated letter fragments in orange slivers at
-              375px. See .lp-band in landing.css for why the geometry has no
-              lane to move it into. The sentence is real, unrotated text in the
-              lede below, where it can be read. */}
-          <div className="lp-band" aria-hidden="true" />
+              rule plates in front of it, with §5D's "type sits parallel to it"
+              carried by a repeated spec index rather than by a line of prose.
+              The prose version shipped reading "…VER CROSSED." on desktop and
+              as rotated letter fragments at 375px, because the plates occlude
+              the band's middle at every width — but that is a fact about
+              SENTENCES, which have a middle. An index does not: whatever the
+              plates cover, whole `38°` marks remain (§1 trait 10, and §7.3's
+              own example of the voice). The section's sentence stays real,
+              unrotated text in the lede below.
+              aria-hidden: a printed mark on a decorative band, not content.
+              18 marks is enough to run the full 140% band width at 1440 and to
+              overflow it at 375 — the surplus clips off-canvas past the band's
+              end, which is where .lp-band's overflow rule sends it. */}
+          <div className="lp-band" aria-hidden="true">
+            {Array.from({ length: 18 }, (_, i) => (
+              <span className="lp-band-mark" key={i}>
+                38°
+              </span>
+            ))}
+          </div>
           <div className="lp-measure lp-rules-body">
             <h2 id="lp-rules-h" className="lp-section-h">
               The rules

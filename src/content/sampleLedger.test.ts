@@ -3,6 +3,7 @@ import { sampleLedgerRows, SAMPLE_LEDGER_DAYS } from './sampleLedger.ts'
 import { groupTransactionsByDay } from '../engine/ledger.ts'
 import { historyDays } from '../engine/profile.ts'
 import { CATEGORIES } from '../components/LogCard.tsx'
+import { NOTE_MAX_LEN, sanitizeNote } from '../state/store.ts'
 
 /**
  * The landing's product shot is the real <Ledger> fed these rows. Everything
@@ -73,6 +74,43 @@ describe('the sample ledger behind the product shot', () => {
     // Ledger prints an em dash for a resist with no amount. The shot exists to
     // show "3,500 DA avoided" — the number is the point of the row.
     for (const t of sampleLedgerRows('2026-08-04')) expect(t.amountDA).toBeGreaterThan(0)
+  })
+
+  it('writes notes the store would keep verbatim, never ones it would trim', () => {
+    // The shot exists to show the real field. A sample note the store would
+    // truncate or trim is a picture of a row the app cannot actually hold —
+    // the user would type the same thing and get something shorter back.
+    for (const t of sampleLedgerRows('2026-08-04')) {
+      if (t.note === undefined) continue
+      expect(t.note.length).toBeLessThanOrEqual(NOTE_MAX_LEN)
+      expect(sanitizeNote(t.note)).toBe(t.note)
+    }
+  })
+
+  it('leaves some rows noteless, because the field is optional', () => {
+    // Both halves are the claim. Notes on every row would render a shot of a
+    // REQUIRED field; notes on none would leave the feature unshown. Ledger
+    // draws nothing at all for a row without one, so the noteless rows are what
+    // demonstrate that there is no placeholder and no prompt.
+    const rows = sampleLedgerRows('2026-08-04')
+    const noted = rows.filter((t) => t.note !== undefined)
+    expect(noted.length).toBeGreaterThan(0)
+    expect(noted.length).toBeLessThan(rows.length)
+    // A noteless sample row carries no `note` KEY at all — the same object
+    // shape LOG_TX writes when the field was left empty, not a row with an
+    // explicit undefined in it.
+    for (const t of rows) {
+      if (t.note === undefined) expect(Object.keys(t)).not.toContain('note')
+    }
+  })
+
+  it('notes the resist, the one row whose category the card replaces', () => {
+    // Ledger prints "Resisted" in place of the category on that row, so without
+    // a note it is the only row on the card that never says WHAT was not
+    // bought — on the page whose strongest claim is that row.
+    for (const t of sampleLedgerRows('2026-08-04')) {
+      if (t.resistedImpulse) expect(t.note).toBeTruthy()
+    }
   })
 
   it('gives every row a stable unique id', () => {

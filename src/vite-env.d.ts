@@ -3,12 +3,14 @@
  * dependency (`@types/node` / `vite/client` would both be package.json
  * changes, and this project ships none it does not need).
  *
- * Two test files use these, and both have to read source as TEXT rather than
- * import it: src/styles/design.test.ts asserts design-system invariants over
- * the stylesheets (vitest stubs every CSS import to an empty string — `css:
- * false` is the default and it does not exempt `?raw`), and
+ * Three test files use these, and all three have to read source as TEXT rather
+ * than import it: src/styles/design.test.ts asserts design-system invariants
+ * over the stylesheets (vitest stubs every CSS import to an empty string —
+ * `css: false` is the default and it does not exempt `?raw`),
  * src/localFirst.test.ts walks the tree asserting no module reaches the
- * network — a property of the SOURCE, not of anything a module exports.
+ * network — a property of the SOURCE, not of anything a module exports — and
+ * src/shareCard.test.ts reads index.html, which no module imports and no render
+ * can reach, to keep the unfurl copy from drifting away from the page.
  *
  * Surface deliberately minimal — two functions, one property, each narrowed to
  * exactly the call this repo makes. A wider stub would start standing in for

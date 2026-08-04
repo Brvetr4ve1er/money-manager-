@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   defaultState,
+  exportJSON,
   mergeStates,
   newId,
+  NOTE_MAX_LEN,
   sanitizeState,
   todayISO,
   rollQuests,
@@ -166,15 +168,115 @@ describe('sanitizeState', () => {
     expect(state.transactions.some((t) => t.id === 'nope')).toBe(false)
   })
 
-  it('drops a non-string note but keeps a valid one', () => {
+  it('drops a bad note WITHOUT dropping the row it rode in on', () => {
+    // Strengthened from "drops the whole row": the note feeds no engine, so a
+    // malformed memo must cost the memo and never the money fact. Losing the
+    // row would delete a purchase the user logged because a string next to it
+    // was the wrong type.
     const base = { id: 'a', amountDA: 100, category: 'Food', date: '2026-08-01' }
     const state = sanitizeState({
       transactions: [
         { ...base, id: 'b', note: 42 },
         { ...base, id: 'c', note: 'lunch' },
+        { ...base, id: 'd', note: { text: 'lunch' } },
+        { ...base, id: 'e', note: '   ' },
       ],
     })
-    expect(state.transactions.map((t) => t.id)).toEqual(['c'])
+    expect(state.transactions.map((t) => t.id)).toEqual(['b', 'c', 'd', 'e'])
+    expect(state.transactions.map((t) => t.note)).toEqual([undefined, 'lunch', undefined, undefined])
+    // The money facts on the repaired rows are untouched.
+    expect(state.transactions[0].amountDA).toBe(100)
+    expect(state.transactions[0].date).toBe('2026-08-01')
+    // …and the amount is still what gates the row: a bad note is survivable,
+    // a bad amount is not.
+    expect(
+      sanitizeState({ transactions: [{ ...base, amountDA: -5, note: 'lunch' }] }).transactions,
+    ).toEqual([])
+  })
+
+  it('caps a note at the sanitizer boundary instead of persisting the whole payload', () => {
+    // The quota failure this cap exists for: one hand-edited multi-MB memo
+    // exhausts the origin budget and every future write fails (saveState
+    // returns false — see the persistFailed path). The cap is the boundary
+    // rule, not the field's maxLength, because a peer tab's payload and a
+    // hand-edited localStorage never pass through the field at all.
+    const state = sanitizeState({
+      transactions: [
+        { id: 'a', amountDA: 100, category: 'Food', date: '2026-08-01', note: 'x'.repeat(50_000) },
+      ],
+    })
+    expect(state.transactions[0].note).toBe('x'.repeat(NOTE_MAX_LEN))
+    expect(state.transactions[0].note!.length).toBe(NOTE_MAX_LEN)
+  })
+
+  it('cuts the cap where it cannot leave a trailing space to re-trim', () => {
+    // Idempotence, at the one input that breaks it: a note whose 80th
+    // character is a space would trim SHORTER on a second pass, and the merge
+    // fixpoint compares whole states as JSON strings — a state that
+    // stringifies differently every time it is sanitized never settles.
+    const awkward = `${'y'.repeat(NOTE_MAX_LEN - 1)} tail`
+    const once = sanitizeState({
+      transactions: [{ id: 'a', amountDA: 1, category: 'Food', date: '2026-08-01', note: awkward }],
+    })
+    expect(once.transactions[0].note).toBe('y'.repeat(NOTE_MAX_LEN - 1))
+    expect(JSON.stringify(sanitizeState(once))).toBe(JSON.stringify(once))
+  })
+
+  it('round-trips a note through serialise → sanitize unchanged, and idempotently', () => {
+    // The real localStorage half of this round trip lives in persist.test.ts
+    // (this file runs on the node environment). What is asserted here is the
+    // sanitizer's own contract.
+    const s = defaultState()
+    s.transactions = [
+      { id: 'a', amountDA: 2_000, category: 'Fun', note: 'cinema with M', date: '2026-08-01' },
+    ]
+    const once = sanitizeState(JSON.parse(JSON.stringify(s)))
+    expect(once.transactions[0].note).toBe('cinema with M')
+    // Idempotent: sanitizing an already-sanitized note must not change it, or
+    // the merge fixpoint (which compares JSON strings) would never settle.
+    expect(JSON.stringify(sanitizeState(once))).toBe(JSON.stringify(once))
+  })
+
+  it('keeps notes through a cross-tab merge, and settles instead of oscillating', () => {
+    // Two tabs, one row each, both with notes. Union by id keeps both notes,
+    // and re-merging the result changes nothing — the same fixpoint rule the
+    // rest of the merge is held to, now with a free-text field in the row.
+    const a = defaultState()
+    a.transactions = [
+      { id: 'a', amountDA: 100, category: 'Food', note: 'bread', date: '2026-08-01' },
+    ]
+    const b = defaultState()
+    b.transactions = [
+      { id: 'b', amountDA: 200, category: 'Fun', note: 'cinema', date: '2026-08-01' },
+    ]
+    b.questsDate = a.questsDate
+    const merged = mergeStates(a, b)
+    expect(merged.transactions.map((t) => t.note).sort()).toEqual(['bread', 'cinema'])
+    expect(mergeStates(merged, merged)).toBe(merged)
+    // Commutative, notes included.
+    expect(JSON.stringify(mergeStates(b, a))).toBe(JSON.stringify(merged))
+  })
+
+  it('carries notes into the export — the data that leaves with you includes them', () => {
+    // Trust Rule 7. The note is the most personal string the app holds; an
+    // export that silently omitted it would hand back a partial ledger.
+    const s = defaultState()
+    s.transactions = [
+      { id: 'a', amountDA: 900, category: 'Food', note: 'birthday cake', date: '2026-08-01' },
+    ]
+    const parsed = JSON.parse(exportJSON(s)) as { transactions: Transaction[] }
+    expect(parsed.transactions[0].note).toBe('birthday cake')
+  })
+
+  it('preserves row key order through a note repair, so merges still reach a fixpoint', () => {
+    // mergeStates compares whole states as JSON strings. If sanitizing a note
+    // rebuilt the row in a different key order than the app writes it, an
+    // unchanged state would stringify differently after a load and two tabs
+    // would re-save each other forever.
+    const raw = { id: 'a', amountDA: 100, category: 'Food', note: ' lunch ', date: '2026-08-01' }
+    const [row] = sanitizeState({ transactions: [raw] }).transactions
+    expect(Object.keys(row)).toEqual(['id', 'amountDA', 'category', 'note', 'date'])
+    expect(row.note).toBe('lunch')
   })
 
   it('rejects a malformed xp shape', () => {

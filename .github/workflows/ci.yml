@@ -1,4 +1,4 @@
-# The 307-test suite and the type-checked build are the release floor for this
+# The full test suite and the type-checked build are the release floor for this
 # repo. Without CI they only ever ran on a contributor's machine, so a red
 # branch could reach main unnoticed. Both jobs are cheap; run them on every
 # pull request and on main.
@@ -28,15 +28,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           # Must stay >= 22, and must match .nvmrc and the `engines` field in
-          # package.json. jsdom 30 pulls undici 8, whose CacheStorage calls
-          # webidl.util.markAsUncloneable — that only exists on Node >= 21. On
-          # Node 20 the require throws, the jsdom environment never
-          # initialises, and the DOM test file does not run at all: the suite
-          # reports 249 passing tests instead of 307 and still looks healthy
-          # apart from one unhandled error. Pinning the floor here is what
-          # keeps the 58 component tests (App 46 + Root 12) from vanishing
-          # quietly.
-          node-version: '22'
+          # package.json (>=22.6 there — `npm run brand` needs
+          # --experimental-strip-types, which landed in 22.6.0). jsdom 30 pulls
+          # undici 8, whose CacheStorage calls webidl.util.markAsUncloneable —
+          # that only exists on Node >= 21. On Node 20 the require throws, the
+          # jsdom environment never initialises, and the DOM test files do not
+          # run at all: the suite still reports green, minus one unhandled
+          # error, having silently skipped every component test.
+          # The invariant, not a count that rots: App.test.tsx and Root.test.tsx
+          # must actually execute. If either reports zero tests, the jsdom
+          # environment failed to initialise and the run means nothing.
+          node-version: '22.6'
           # Vite 5 and Vitest resolve from the lockfile; caching it keeps the
           # install step off the critical path.
           cache: npm

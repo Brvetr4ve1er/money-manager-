@@ -279,6 +279,17 @@
   font-size: var(--fs-body);
   font-weight: 700;
 }
+/* THE TERMS, under the hand-off. No second keyline bar: §1 trait 06 caps a
+   surface at three tones and the accent has already been spent on the bar
+   above, which is the paragraph that earns it. This one is plain body ink on
+   the same Bone plate (11.4:1) at 500 rather than 700 — the weight step is the
+   whole hierarchy, and it is the correct one: a list of refusals supports the
+   reason, it is not the reason. */
+.lp-terms {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
 .lp-actions {
   display: flex;
   flex-wrap: wrap;
@@ -357,13 +368,15 @@
 
    THE CARD IS THEMED WHERE THE PAGE IS PINNED, and that is correct. Everything
    else on this poster keeps its hex in both themes (see the file header); the
-   card is a specimen OF the app, so it takes the app's ground swap and shows a
-   dark visitor the dark card. Both states were checked against the Espresso
-   field it stands on: light gives a Bone card (13.4:1 against the ground it
-   sits on), dark a Graphite card whose Bone keyline reads at 13.4:1 — a card
-   that is close in fill to its field is still delimited by its own 2px
-   keyline, which is the §5 rule that depth comes from colour offset AND
-   keylines. Every pair INSIDE the card is the app's own, unchanged. */
+   card is a specimen OF the app, so whatever the app paints is what the shot
+   shows. Both of these cards now carry .spec-sheet (§5B — the archive half of
+   the app's stack stands on Espresso in BOTH themes), so the specimen is an
+   Espresso card with a Bone keyline for every visitor. Against this section's
+   own Espresso field that is a 1.00:1 fill offset delimited solely by the 2px
+   Bone keyline at 13.4:1 — which is §5's rule that depth comes from colour
+   offset AND keylines spending the second half of its sentence, and the same
+   arrangement the dark theme already shipped. Every pair INSIDE the card is
+   the app's own, unchanged; nothing here repaints it. */
 .lp-shot { margin: 0 0 var(--s3); }
 /* Phone width, held at every viewport. The shot is a specimen: a card stretched
    to a 1080px measure is not the card anyone will use, and the target device is
@@ -371,6 +384,12 @@
 .lp-shot-frame {
   max-width: 560px;
   margin: 0 auto;
+  /* The app's own card rhythm (.main-stack's gap), because the frame now holds
+     two cards and .card itself carries no margin — the app's stack spaces them
+     with flex gap, so the shot has to as well or the two cards would butt. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
   /* THE POSTER'S PINNED INK STOPS HERE, and this line is load-bearing.
      .lp-spec pins its foreground to Bone for the copy standing on the Espresso
      field. A card is a PLATE on that field with its own fill, and tokens.css's
@@ -380,10 +399,12 @@
      takes the app's own ink, which is what makes it the app's card. */
   color: var(--ink);
 }
-/* app.css cuts a macro-break above the ledger because there it opens the
-   archive row of the app's stack. There is no stack here — the card IS the
-   subject, and it is the first thing in its figure. */
-.lp-shot-frame .ledger-card { margin-top: 0; }
+/* app.css cuts a macro-break above the month card because there it opens the
+   archive half of the app's stack — everything you read rather than act on.
+   There is no such split here: both cards ARE the subject, and the month card
+   is the first thing in its figure. Zeroed rather than left alone because that
+   --s4 step would otherwise print as a hanging gap above the shot. */
+.lp-shot-frame .month-card { margin-top: 0; }
 /* The caption is the shot's alt text (the shot is aria-hidden), so it is real
    body copy, not a footnote: Bone on Espresso, 13.4:1. */
 .lp-shot-cap {
@@ -421,10 +442,13 @@
   margin: 0 0 var(--s3);
   font-size: var(--fs-body);
 }
-/* §11: all numerals render in the mono stack. The denominations are the only
-   numerals in the sentence, so the mono run is scoped to exactly them — the
-   same split .calibrating makes in the app. */
-.lp-notes-keys {
+/* §11: all numerals render in the mono stack. The denominations, the mechanic
+   count and the note cap are the only numerals in their sentences, so each mono
+   run is scoped to exactly them — the same split .calibrating makes in the app.
+   .lp-count is the same treatment for a numeral that is READ from code
+   (MECHANICS.length, NOTE_MAX_LEN) rather than typed into the copy. */
+.lp-notes-keys,
+.lp-count {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
@@ -436,9 +460,14 @@
   margin: 0;
   padding: 0;
   display: grid;
-  /* 4-up where there is room, 2-up on a tablet, 1-up on a phone — the badge
-     count is fixed at four, the columns are not. */
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  /* 3-up where there is room, 2-up on a tablet, 1-up on a phone. The track
+     minimum is what picks the column count out of the 1080px measure, and 296px
+     picks three — which is the one that divides the roster evenly. A 220px
+     minimum picked four, and four columns over six badges leaves a two-badge
+     orphan row on the widest, most-composed view of the page. The count is not
+     hard-coded anywhere; if the roster changes, this is the number to re-derive
+     against it. */
+  grid-template-columns: repeat(auto-fit, minmax(296px, 1fr));
   gap: var(--s2);
 }
 /* Each badge is a Bone plate: the body copy inside is 17px, and 17px Bone on
@@ -506,9 +535,25 @@
 
    So the band does the job §5D's first clause gives it — one 38° band splits
    the canvas — and the sentence lives where it is legible, as real text in the
-   section lede. Setting the line parallel to the diagonal needs the plates
-   arranged parallel to it too (a staircase, not a grid); that is a layout
-   change, not a polish pass, and it is not pretended at here.
+   section lede.
+
+   §5D'S SECOND CLAUSE — "type sits parallel to it" — IS BACK, and the fix is
+   the KIND of type, not its position. The occlusion argument above is a proof
+   about SENTENCES: a sentence has one reading order, so covering its middle
+   destroys it. A repeated spec index has no middle. Whatever the plates cover,
+   what is left is still whole marks of `38°`, which is §1 trait 10 exactly —
+   fractional/indexed labels as decorative truth-telling — and §7.3's own
+   example of the voice ("38° beats dynamic"). The staircase layout the
+   previous note said would be needed is needed to run a SENTENCE along the
+   diagonal. It is not needed to run an index along it.
+
+   §2.1 rule 1 is why the marks are display-tier and not the mono spec size the
+   rest of the poster captions with: Flare is a FIELD, and no string under 24px
+   may sit on it. --fs-h2 floors at 24px and these are set at 700, where the
+   table's bold threshold is 18.66px — so Graphite's 3.79:1 on Flare is legal
+   with headroom at every viewport, and it never becomes legal by rounding.
+   aria-hidden at the call site: this is a printed mark on a decorative band,
+   and the section's sentence is real text in the lede.
 
    The rotation is layout, not motion — reduced motion drops motion transforms
    and must not take this one. See .lp-wall::before. */
@@ -524,10 +569,50 @@
   border-top: var(--keyline-w) solid var(--lp-form);
   border-bottom: var(--keyline-w) solid var(--lp-form);
   pointer-events: none;
+  /* The marks are children, so they inherit the rotation and are parallel BY
+     CONSTRUCTION — there is no second angle to keep in sync with the first.
+     Both band ends sit outside the section at every width (the run is only
+     inside the box within ±(H/2)/tan38 of the centre), so the overflow clip
+     lands off-canvas and no mark is ever cut in half on screen. */
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  padding-inline: var(--s5);
+  color: var(--lp-form);
+  /* MONO, not Grotesk, and the split is the same one .score-line already
+     litigated: §3 gives the SCALE (h2, the smallest step §2.1 rule 1 allows on
+     a Flare field) and §11 gives the FACE — "all numerals render in the mono
+     stack, uppercase, +0.14em" is unconditional, and `38°` is a numeral. Every
+     other spec index on this poster (.lp-index, .lp-corner, .lp-facts,
+     .lp-shot-tag, .lp-count) is already mono; this was the one that was not.
+     The pair is unchanged by the swap — Graphite on Flare at ≥24px/700 is
+     3.79:1, legal for large text with headroom at every viewport. */
+  font-family: var(--mono);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+  font-weight: 700;
   /* Behind the rule plates: the composition is centred, then broken once by
      the diagonal — the plates are what break it. */
   z-index: 0;
 }
+/* Never shrink: a squeezed `38°` is the truncation this whole note is about,
+   one glyph down. Overflow past the band's off-canvas end is the correct
+   place for the surplus to go.
+
+   HIDDEN BELOW 720px, and this is the honest half of the "an index has no
+   middle" argument rather than an exception to it. The argument holds while
+   whole marks survive between the plates. Below 720 the rules grid collapses
+   to ONE full-measure column (auto-fit at minmax(260px) opens its second track
+   at ~584px, and 720 is where this file's composition already changes), so the
+   band's visible run is reduced to ~60px slivers between stacked plates and
+   every mark on screen is cut mid-glyph — measured at 375, and it is exactly
+   the rotated-fragment artefact this construction exists to avoid. Where there
+   is no lane, the band carries §5D alone. Verified on pixels at 375 / 768 /
+   1024 / 1440: fragments at 375, whole marks at every width above the gate. */
+.lp-band-mark { display: none; flex-shrink: 0; }
 .lp-rules-body { position: relative; z-index: 1; }
 .lp-spec-lede-dark { max-width: 46ch; }
 .lp-rules {
@@ -662,4 +747,7 @@
   .lp-facts { border-radius: var(--r-pill); }
   /* The band grows with the composition it splits. */
   .lp-band { height: var(--s6); }
+  /* …and this is where the rules grid stops being one full-measure column, so
+     the band finally has a lane for §5D's parallel type. See .lp-band-mark. */
+  .lp-band-mark { display: block; }
 }
