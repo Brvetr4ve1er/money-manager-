@@ -167,8 +167,9 @@ export function ArchiveCard({
 
   return (
     // spec-sheet: §5 layout B — see .spec-sheet in tokens.css for the field
-    // arithmetic. This card is a read-only surface like the collection sheet
-    // below it, and they are what move the page across §2's 60% field floor.
+    // arithmetic. This card is THE read-only surface in the tail now, and it is
+    // what moves the page toward §2's 60% field floor. It used to be one of two
+    // — the collection sheet stood below it and is deleted.
     <section className="card spec-sheet archive-card">
       {/* §11 corner mark. aria-hidden: printed spec, not content.
           The index is this card's real position in App's stack — App.test

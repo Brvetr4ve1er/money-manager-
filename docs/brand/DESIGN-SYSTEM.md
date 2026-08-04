@@ -91,9 +91,12 @@ the whole surface, for anything the eye holds at once: the poster, the mark, the
 each landing section, the OG image.
 
 An application document is not one composition. It is a sequence of them, and the
-whole-document average is a number nobody ever looks at. Measured: the app's 375px light page
-averaged 56% field — apparently the best screen in the matrix — while its eight viewport
-windows ran 15% field at the head and 91% at the tail. That average appears on no screen.
+whole-document average is a number nobody ever looks at. Measured — `app.375x812.light.seeded`
+in `docs/brand/census.json`, the committed artifact, which is what the rule below means by
+"comes from that file": the page averages **41.70% field / 47.32% Bone** over the whole
+document, while its **seven** viewport windows run 40.92, 15.79, 45.60, 15.46, 21.30, 89.12 and
+92.09 percent field — a Bone form stack at the head, a dark index sheet at the tail. That
+average appears on no screen.
 
 So for a **scrolling application document**, measure each viewport-height window:
 
@@ -114,7 +117,11 @@ satisfiable on the same page. Ink is therefore measured over the paper it can be
 The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
 test fails when it stops describing the tree. Any figure quoted about this product's pixels
 comes from that file or says which tree it came from — three rounds were steered by numbers
-that had outlived the tree they described.
+that had outlived the tree they described, and the worked example above was itself one of them
+for a round: it quoted a 56% document over eight windows, from a tree that still had a ninth
+card, with nothing on it saying so. The staleness hash guards the artifact. Nothing guards a
+figure retyped into prose except the rule in this paragraph, so the rule is: **quote the row
+id, or stamp the tree.**
 
 ### 2.2 Light / dark mapping
 

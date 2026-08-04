@@ -254,10 +254,16 @@
        was a category error, not a tuning miss. The previous pass put
        `--field: var(--graphite)` here, which promotes Graphite from THE FORM
        to THE FIELD. §1 trait 06 names three roles per surface — field, form,
-       counter — and §2 budgets them 60 / 30 / 8: Graphite is the 8% role. A
-       page census of the dark phone measured Graphite at 52.6%, 6.6× its
-       budget and the largest law violation in the app, because on a 375px
-       column the cards ARE the screen. It also bought nothing: Graphite card
+       counter — and §2 budgets them 60 / 30 / 8: Graphite is the 8% role.
+       PROVENANCE: HISTORICAL, round 3 (tree unrecorded) — a page census of the
+       dark phone THEN measured Graphite at 52.6%, 6.6× its budget and the
+       largest law violation in the app, because on a 375px column the cards
+       ARE the screen. The current figure for that screen is the `graphite`
+       bucket of app.375x812.dark.seeded in docs/brand/census.json, and it is
+       nothing like 52.6 — the defect this paragraph describes was fixed by
+       this very block. The ARGUMENT is what the paragraph is for and it is
+       unaffected: Graphite is the 8% form role, not the 60% field role.
+       It also bought nothing: Graphite card
        on Espresso stage is 1.164:1 / ΔRGB 25, so every scrap of depth was back
        on the 2px keyline — the exact defect the stage split was introduced to
        kill. Layering a third dark surface on top would not have helped; the
@@ -307,11 +313,23 @@
                              of it have since been deleted outright. What is
                              left on --sunken in dark is five keypad keys, the
                              profile/log inputs, the health track, the
-                             check-back recess and one hover state — censused
-                             at 2.4% of the 375px page and
-                             1.3% at 1440, inside the cap with margin. If a new
-                             surface ever takes --sunken by the screenful, this
-                             is the line that has to be re-measured.
+                             check-back recess and one hover state.
+                             PROVENANCE, AND THE REASSURING HALF WAS THE WRONG
+                             HALF: this sentence used to read "censused at 2.4%
+                             of the 375px page and 1.3% at 1440, inside the cap
+                             with margin", undated, and the committed artifact
+                             disagreed by roughly 2x. Read the `void` figure of
+                             app.375x812.dark.seeded and app.1440x900.dark.seeded
+                             in docs/brand/census.json — 4.79% and 1.76% at this
+                             tree, i.e. the phone sits 0.21pp under §2's 5% Void
+                             cap with NO margin at all. That is inside the cap,
+                             which is what this block needs; it is not a
+                             surplus, which is what the old sentence implied.
+                             This is the block that tells the next round it need
+                             not re-measure, so it must not be the one that is
+                             wrong. If a new surface takes --sunken by the
+                             screenful, re-run `npm run census` and read the
+                             row — do not trust this paragraph.
 
                              It also returns Graphite to being THE FORM, which
                              is the only role §1 trait 06 gives it: in dark
@@ -594,15 +612,23 @@ h3 {
    prose: A CARD STANDS ON THE SHEET IF IT CARRIES NO PERSISTENT ACCENT-INKED
    ELEMENT. Bare accent fills are fine (.xp-fill, .boss-fill — nothing is drawn
    on them, so no --on-accent appears); transient chips are fine (§1 trait 06's
-   "event"); a permanent .btn-gold, .sim-result or stage badge is not.
+   "event"); a permanent .btn-gold, .btn-data or stage badge is not.
+   .sim-result LEFT THIS TALLY and the rule above is why: it was a full-bleed
+   Acid block with --on-accent Graphite type on it, and it is now a 6px Acid
+   keyline with the string in --ink (see .sim-result in app.css — it was
+   spending the phone's entire §2.1b accent budget on its own). That is exactly
+   the "bare accent fill" shape the exemption names, so keeping it in the tally
+   would have described a surface that no longer exists. SimCard is still on the
+   reading ground, held there by .btn-data.
    .btn-flame is the one exception the tally no longer catches and it stays off
    the sheet anyway, on the contrast rule rather than the count: since it lost
-   its Flare ring it is a plain Graphite plate with a Bone label, no accent ink
-   at all — but Graphite on Espresso is that same 1.16:1, so on the sheet the
-   plate would have no edge and the primary action would read as loose Bone
-   type. That leaves HeroCard (stage badge), LogCard, QuestCard (which now also
-   carries the bare .xp-fill bar), LessonCard (.btn-gold), SimCard
-   (.sim-result) and ProfileCard (.btn-flame, on the edge rule above) on the
+   its Flare ring it is a Graphite plate with a Bone label and a Flare 2px
+   border, no accent INK at all — but Graphite on Espresso is that same 1.16:1,
+   so on the sheet the plate's fill would still have no edge against the ground
+   and the primary action would read as loose Bone type with a floating
+   contour. That leaves HeroCard (stage badge), LogCard, QuestCard (which now
+   also carries the bare .xp-fill bar), LessonCard (.btn-gold), SimCard
+   (.btn-data) and ProfileCard (.btn-flame, on the edge rule above) on the
    Bone ground — which is 30% of the page doing the job the 30% is for: they
    are also every surface in the app with a form or a primary action on it.
 
@@ -742,9 +768,11 @@ h3 {
    >=1024px, AND THE MEASUREMENT IS WHY.
 
    PROVENANCE, AND IT IS NO LONGER THIS TREE. Every figure in this block was
-   docs/brand/census.json as measured on the round-5 tree (a2d4e6d), which had
+   docs/brand/census.json as measured on ROUND 4'S TREE (a2d4e6d — the tree
+   round 5 started from), which had
    a ninth card: the collection sheet, ~1,644px of Espresso in light and Sand in
-   dark, in the tail of every app row. Round 6 DELETED it, which moved the tail
+   dark, in the tail of every app row. ROUND 5 DELETED IT (commit 73b9260),
+   which moved the tail
    of every app document these numbers describe. The argument below survives
    the deletion — a give-back only belongs where there is a surplus to give, and
    1400 is still where the surplus is — but the SIZE of the surplus shrank with
@@ -777,7 +805,7 @@ h3 {
 
    WHY THE WIDTH GATE, AND WHY 1400 RATHER THAN THE OBVIOUS 1024. This is a
    GIVE-BACK: it only belongs where there is a surplus to give. Measured on the
-   ROUND-5 tree (a2d4e6d — see the provenance note above), light theme, before
+   ROUND 4 TREE (a2d4e6d — see the provenance note above), light theme, before
    the change:
      app.375x812     51.2 field / 40.9 Bone   already UNDER the 60 target
      app.1024x900    63.6 / 30.8              at law (window mean-dev 9.3)
@@ -851,7 +879,8 @@ h3 {
 /* THE COLLECTION SHEET HAD THE SECOND HALF OF THIS RULE, AND IT IS DELETED.
    `.spec-sheet.collection-card` re-grounded the codex/badge card to Sand in
    dark for the same reason the archive is re-grounded above. The card itself is
-   gone — 41 tiles, no controls, 60% of the app's DOM — so the rule went with
+   gone — 41 tiles, no controls, 62.5% of the card stack's rendered elements on
+   install day (a jsdom render probe at a2d4e6d; see README.md) — so the rule went with
    it rather than lingering as a selector that matches nothing. What that costs
    is stated rather than hidden: the archive is now the ONLY counter-grounded
    surface in the tail, so the alternation the paragraph above describes is no
@@ -863,9 +892,12 @@ h3 {
    status plates. Pills are left out on purpose: a 999px radius is already a
    stadium and re-shaping its ends would fight the radius token. :where()
    keeps specificity at zero so every component rule still wins on colour,
-   size and the radius the press animates. */
+   size and the radius the press animates.
+   .sim-result left this list with its fill: corner-shape reshapes a RADIUS, and
+   the panel is a keyline bar now with no radius to reshape, so the entry was a
+   no-op naming a box that no longer exists. */
 :where(
-  .btn, .field, .quest-box, .undo-strip, .sim-result, .decision-checkback,
+  .btn, .field, .quest-box, .undo-strip, .decision-checkback,
   .window-bar, .quest-alldone, .boss-won, .lesson-collected, .kept-chip,
   .xp-gain, .quest-auto, .tx-impulse
 ) {
@@ -986,16 +1018,35 @@ h3 {
    ProfileCard. Nothing was riding on it: the Graphite plate carrying Bone type
    at 11.44:1 on a Bone card is the primary marker, and §5's 2px border is
    still drawn, in the plate's own tone.
-   --cta-field, NOT --keyline: --keyline resolves through --ink, which is Bone
-   in dark, so the landing's pinned Bone plate would have lost the button's
-   edge entirely. These three --cta-* values do not theme-flip (see their
-   declarations), which is exactly why the CTA reads the same on both grounds.
-   Flare survives on this control as the HOVER ring below — transient, i.e.
-   trait 06's event, and the one thing that rule actually sanctions. */
+   NOT --keyline: --keyline resolves through --ink, which is Bone in dark, so
+   the landing's pinned Bone plate would have lost the button's edge entirely.
+   These three --cta-* values do not theme-flip (see their declarations), which
+   is exactly why the CTA reads the same on both grounds.
+
+   AND THE BORDER IS --cta-keyline, BECAUSE --cta-field LEFT THE DARK THEME'S
+   PRIMARY ACTION WITH NO BOUNDARY AT ALL. This rule painted a Graphite plate
+   with a Graphite border, and round 4 made the ordinary card's --field
+   Espresso: Graphite on Espresso is 1.16:1, under WCAG 1.4.11's 3:1 non-text
+   floor, so on every dark .card the plate had no edge and "Log purchase" read
+   as loose Bone type — --cta-ink is the identical hex as --ink there. The
+   argument was already written down six hundred lines up, as the reason
+   .btn-flame stays off .spec-sheet; the dark theme then put every card on that
+   same Espresso ground and nothing noticed.
+   Flare is the one palette value that clears 3:1 against every surface this
+   control renders on, measured on the tree carrying this comment: 4.41:1 on
+   the dark Espresso card, 3.02:1 on the light Bone card, 3.02:1 on the
+   landing's pinned Bone .lp-plate, and 3.79:1 against the plate's own Graphite
+   fill. The alternative — moving --cta-field off Graphite in a dark block —
+   only has Bone as a candidate, i.e. inverting the plate in one theme, which
+   costs the "reads the same on both grounds" property above.
+   This is NOT the permanent Flare RING that trait 06 evicted. That was a 6px
+   keyline-heavy contour; this is §5's mandatory 2px border, which the control
+   has to draw in some colour, drawn in the only one that is legal on all four
+   grounds. The hover ring below is unchanged and still transient. */
 .btn-flame {
   background: var(--cta-field);
   color: var(--cta-ink);
-  border-color: var(--cta-field);
+  border-color: var(--cta-keyline);
 }
 /* Same aria-disabled exclusion as the base hover rule — without it a
    flame-styled inert control would re-open the ring the base rule just

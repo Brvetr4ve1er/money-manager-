@@ -105,8 +105,12 @@ jobs:
       - id: touched
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          # Mirrors scripts/census/inputs.ts. vite.config.ts and
+          # scripts/htmlComments.ts are in it because serve.ts builds through
+          # Vite's Node API and that plugin transforms the served index.html —
+          # a change to either moves what the browser renders.
           if git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
-             | grep -qE '^(src/|index\.html$|scripts/census/)'; then
+             | grep -qE '^(src/|index\.html$|vite\.config\.ts$|scripts/(census/|htmlComments\.ts$))'; then
             echo "visual=true" >> "$GITHUB_OUTPUT"
           fi
 

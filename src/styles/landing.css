@@ -466,9 +466,10 @@
 .lp-shot-frame {
   max-width: 560px;
   margin: 0 auto;
-  /* The app's own card rhythm (.main-stack's gap), because the frame now holds
-     two cards and .card itself carries no margin — the app's stack spaces them
-     with flex gap, so the shot has to as well or the two cards would butt. */
+  /* The app's own card rhythm (.main-stack's gap). The frame holds ONE card
+     today (Root.test asserts exactly that) and .card carries no margin, so the
+     gap is here for the same reason the app's stack has one: it is the app's
+     rhythm, and a second specimen must not have to reintroduce it. */
   display: flex;
   flex-direction: column;
   gap: var(--s3);
@@ -578,22 +579,40 @@
 
 /* THE BADGE IS A KEYLINE ON THE PHONE, AND A FILL FROM 720px UP.
 
-   PROVENANCE: docs/brand/census.json, measured by `npm run census` on the tree
-   of this commit. The landing had never been censused at phone width until
-   round 5, and it was the worst surface in the matrix by a distance:
+   PROVENANCE: HISTORICAL — MEASURED BEFORE THIS RULE LANDED, TREE UNRECORDED.
+   THESE FOUR ROWS APPEAR IN NO COMMITTED census.json, AND THE BLOCK USED TO
+   CLAIM THEY WERE THE CURRENT TREE'S. That claim was checked and it is false at
+   the tree that carried it (73b9260: 44.31/45.93 dev 35.32 and 55.18/35.93 dev
+   15.18), false at HEAD, and false in every artifact in between — which is
+   round 3's defect in miniature, inside the round that built the census
+   specifically to end it. They are kept only as the BEFORE state this decision
+   was weighed against. The landing had never been censused at phone width until
+   the round that added this rule, and on those figures it was the worst surface
+   in the matrix by a distance:
 
      landing.375x812.dark    28.8 field / 60.2 Bone   deviation 64.0
      landing.375x812.light   40.1 field / 49.8 Bone   deviation 43.1
      landing.1440x900.dark   59.6 / 34.1              deviation  9.5  <- at law
      landing.1440x900.light  66.2 / 27.9              deviation 13.7
 
-   Same DOM, same colours, four times the deviation. Nothing on this page is
-   theme-dependent except the product shot, so the whole of that gap is WIDTH:
-   .lp-grid is 3-up at 1440 and 1-up at 375, so seven badges that read as
-   objects standing in an Espresso field at desktop become seven full-measure
-   Bone slabs stacked into a column. The census's window reading names it
-   exactly — three consecutive viewport windows at 73 / 73 / 69 percent Bone,
-   against §2's 30% budget and the amended law's 65% cap.
+   FOR WHAT THE TREE MEASURES NOW, READ docs/brand/census.json — the four
+   landing.* rows, which `npm run census` rewrites and a staleness test refuses
+   to let go stale. Two conclusions this block used to draw no longer hold and
+   are retired rather than restated: the window reading was described as "three
+   consecutive viewport windows at 73 / 73 / 69 percent Bone", which matches no
+   window in any committed artifact (landing.375x812.dark.fresh's Bone windows
+   read 55.20, 42.10, 76.81, 25.21, 4.89, 39.76, 83.30, 38.04 at this tree, and
+   the artifact's own breaches array names the real ones), and "the worst
+   surface in the matrix by a distance" is now false — the phone app page is
+   worse. Do not retype either list; read the row.
+
+   THE DIRECTION THE FIGURES ARGUED IS UNAFFECTED, and it is the reason the
+   block survives at all. Same DOM, same colours, four times the deviation.
+   Nothing on this page is theme-dependent except the product shot, so the whole
+   of that gap is WIDTH: .lp-grid is 3-up at 1440 and 1-up at 375, so seven
+   badges that read as objects standing in an Espresso field at desktop become
+   seven full-measure Bone slabs stacked into a column, against §2's 30% budget
+   and the amended law's 65% cap.
 
    THE ARGUMENT IS §5A's, NOT AN OPTIMISATION. "Full-bleed colour, a single
    centred container, 60% negative field." A container that spans the whole

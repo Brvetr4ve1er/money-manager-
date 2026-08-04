@@ -3,7 +3,12 @@ import { render, screen, fireEvent, cleanup, act, within } from '@testing-librar
 import App from './App.tsx'
 import * as sfx from './audio/chiptune.ts'
 import { computeHealthScore } from './engine/healthScore.ts'
-import { deriveHealthInputs, finalizeHealthThrough, DEMO_PROFILE } from './engine/profile.ts'
+import {
+  deriveHealthInputs,
+  finalizeHealthThrough,
+  ASSUMED_REVOLVING_APR,
+  DEMO_PROFILE,
+} from './engine/profile.ts'
 import { LESSONS, lessonForDay } from './content/lessons.ts'
 import {
   NOTE_MAX_LEN,
@@ -432,7 +437,7 @@ describe('daily lesson + codex', () => {
     // — so every remaining field pixel has to come out of a card body.
     // Historical, and dated: cards shot at 375x812 populated, light, on the
     // ROUND-3 tree read 53.5 field / 40.0 Bone before XpCard, BossCard and the
-    // foot moved across and 59.7 / 33.7 after. Round 6 deleted the collection
+    // foot moved across and 59.7 / 33.7 after. Round 5 deleted the collection
     // sheet, so neither number describes this tree — docs/brand/census.json
     // does, and a staleness test keeps it describing the tree it ships with.
     // What this test asserts is not a ratio but WHICH CARDS carry the class:
@@ -454,7 +459,8 @@ describe('daily lesson + codex', () => {
     // into ARC—08, the XP bar left the sheet for QuestCard's Bone ground (see
     // QuestCard / .xp-fill), and COL—09 — the codex grid and the badge shelf,
     // the two cards §5B's sentence was literally about — was DELETED: 41 tiles,
-    // no controls, 60% of the app's rendered DOM. The list is asserted as an
+    // no controls, 62.5% of the card stack's rendered elements on install day
+    // (jsdom render probe at a2d4e6d; see README.md). The list is asserted as an
     // equality, so a card silently joining or leaving the sheet fails here.
     expect(sheets).toEqual(['BOS—04', 'ARC—08'])
     // Still cards: the sheet is a surface role, not a replacement container.
@@ -516,7 +522,17 @@ describe('daily lesson + codex', () => {
     // three. Transient chips are exempt too — §1 trait 06 allows a 4th colour
     // as "an event" (.xp-gain, .boss-won, .kept-chip, which the archive has
     // carried on the sheet since round 3).
-    const PERSISTENT_ACCENT = '.btn-gold, .btn-data, .btn-flame, .sim-result, .stage-badge'
+    //
+    // .sim-result LEFT THIS LIST, and the rule above is why. It was a full-bleed
+    // Acid block with --on-accent Graphite type on it — a persistent accent ink
+    // by the definition this comment gives — and it is now a 6px Acid keyline
+    // bar with the string in --ink (see .sim-result in app.css: it was spending
+    // 2.01% of the phone document, the entire §2.1b accent budget, on its own).
+    // That makes it exactly the "bare accent fill" shape the exemption names, so
+    // leaving it in would have been the tally describing a surface that no
+    // longer exists. SimCard is still held off the sheet — by .btn-data, which
+    // is asserted below.
+    const PERSISTENT_ACCENT = '.btn-gold, .btn-data, .btn-flame, .stage-badge'
     for (const el of document.querySelectorAll('.spec-sheet')) {
       expect(el.querySelector(PERSISTENT_ACCENT)).toBeNull()
     }
@@ -632,6 +648,42 @@ describe('simulator honesty', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
     expect(xpNow()).toBe(0)
+  })
+
+  it('names the inputs setup never asked for, after setup as well as before', () => {
+    /* THE OTHER HALF OF THE HONESTY NOTE. "Projected on your numbers." was true
+       of two of the five SimProfile fields and false of three: resolveProfile
+       INVENTS liquidBalance (one month of free cash flow), revolvingApr
+       (ASSUMED_REVOLVING_APR) and extraDebtPayment (0), and ProfileCard
+       collects none of them. They are not cosmetic — a lump purchase is
+       subtracted from the fabricated buffer, and whether that drives it
+       negative is what pauses goal contributions and produces "Your goal slips
+       about N months"; the assumed APR is what produces "Card balance: about N
+       months longer." The per-row "Placeholder numbers" tag fires only on
+       d.demo, so after setup nothing disclosed either. */
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
+    fireEvent.change(screen.getByLabelText('Debt balance (DA)'), { target: { value: '30000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
+    const note = screen.getByText(/Projected on your numbers/).textContent!
+    expect(note).toContain('Assumed, not asked: a one-month cash buffer')
+    // The rate is READ from the profile, never restated, so re-pricing
+    // ASSUMED_REVOLVING_APR cannot leave this line quoting the old number.
+    expect(note).toContain(`${Math.round(ASSUMED_REVOLVING_APR * 100)}% on the card balance`)
+    expect(note).toContain('with nothing paid extra')
+  })
+
+  it('does not invent interest on a card the user does not carry', () => {
+    // resolveProfile sets revolvingApr to 0 without a balance, so naming a rate
+    // would be a NEW fiction rather than a disclosure of an existing one.
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
+    const note = screen.getByText(/Projected on your numbers/).textContent!
+    expect(note).toContain('Assumed, not asked: a one-month cash buffer.')
+    expect(note).not.toMatch(/card balance/)
   })
 
   it('announces the projection through a live region, not just visually', () => {

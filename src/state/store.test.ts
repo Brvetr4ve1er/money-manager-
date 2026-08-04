@@ -693,6 +693,45 @@ describe('mergeStates', () => {
     expect(mergeStates(a, b)).toEqual(mergeStates(b, a))
   })
 
+  it('is commutative when two tabs mint the SAME grant id on different days', () => {
+    /* THE HOLE THE TEST ABOVE CANNOT SEE: both its fixtures use disjoint grant
+       ids, so no id-collision path is ever exercised — and the xpLog fold's
+       tie-break was `g.amount > prev.amount`, strictly greater, which keeps
+       whichever grant the iteration saw FIRST. That is always `local`, so
+       merge(A,B) and merge(B,A) produced different bytes.
+
+       It is reachable, not theoretical. reducer.ts writes the boss grant as
+       { id: bossGrantId(weekStart), date: action.date }: the id names the WEEK
+       and the date names TODAY. Tab A claims week W on Monday; a frozen
+       background tab B that never saw the storage event claims the same week on
+       Tuesday. Same id, same 150 XP, different dates.
+
+       XP totals agree either way, so this was never an XP-integrity defect — it
+       is a convergence defect, which is worse in a quiet way: both tabs believe
+       they have converged, each persists different bytes, and whichever writes
+       last decides what the export says about when the week was won. */
+    const boss = (date: string) => ({
+      id: 'boss:2026-07-27',
+      action: 'weeklyBoss' as const,
+      amount: 150,
+      date,
+    })
+    const monday = base({
+      xp: { level: 2, xpIntoLevel: 0, totalXp: 150 },
+      xpLog: [boss('2026-08-03')],
+    })
+    const tuesday = base({
+      xp: { level: 2, xpIntoLevel: 0, totalXp: 150 },
+      xpLog: [boss('2026-08-04')],
+    })
+    expect(mergeStates(monday, tuesday)).toEqual(mergeStates(tuesday, monday))
+    // …and the surviving date is the EARLIEST, the convention
+    // dedupeEarliestById already sets for {id, date} collections: a claim never
+    // drifts to a later day just because it was merged.
+    expect(mergeStates(tuesday, monday).xpLog[0].date).toBe('2026-08-03')
+    expect(mergeStates(monday, tuesday).xp.totalXp).toBe(150)
+  })
+
   it('breaks a same-day snapshot tie symmetrically — higher score, not "keep local"', () => {
     const low = base({ healthDate: '2026-08-01', prevHealthScore: 40, stage: 'ember' })
     const high = base({ healthDate: '2026-08-01', prevHealthScore: 44, stage: 'hearth' })

@@ -675,9 +675,12 @@
    #676562 on Bone) and 7.19:1 (dark, #B8AAA4 on the Espresso card field —
    the dark block re-roled --field off Graphite, so the old 6.17 figure named a
    surface the app no longer paints). On the .spec-sheet cards it is that same
-   dark pair in both themes, 7.19:1 — except on the two archive cards that take
-   the Sand counter ground in dark, where the mix deepens to 80% and measures
-   5.67:1 (see the counter-sheet block in tokens.css). All of them clear the
+   dark pair in both themes, 7.19:1 — except on the archive card, which takes
+   the Sand counter ground in dark (and in either theme from 1400px up), where
+   the mix deepens to 80% and measures 5.67:1 (see the counter-sheet block in
+   tokens.css). ONE card, not two: the collection sheet was the other and it is
+   deleted — tokens.css's own "WHY ONLY THIS CARD" was corrected and this
+   sentence was not. All of them clear the
    4.5:1 body-text minimum, which this must, since it is a sentence and not a
    decorative corner mark. */
 .calibrating {
@@ -1230,7 +1233,9 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
    The codex grid and the badge shelf (.codex-*, .ach-*, .collection-*) were
    ~41 tiles across two grids with no control on either — 62.5% of the card
    stack's rendered elements on install day and 59.9% at day 40, measured by a
-   jsdom render probe on the ROUND-5 tree (a2d4e6d), last in the stack, behind
+   jsdom render probe on ROUND 4'S TREE (a2d4e6d — the tree round 5 started
+   from; its own commit title is "Round 4", and the SHA is the binding half of
+   the label), last in the stack, behind
    ~1,644px of 375px column. The whole block is deleted rather than commented
    out: a stylesheet that keeps rules for a surface no build renders is the
    same class of lie as a README naming a deleted component, and this file's
@@ -1278,11 +1283,27 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   text-transform: uppercase;
 }
 /* Rides inside the ink bar rather than above it. --counter, not --spec:
-   --spec is mixed toward the ground and would sit at ~2:1 on ink. */
+   --spec is mixed toward the ground and would sit at ~2:1 on ink.
+   z-index 2, AND WITHOUT IT THIS STRING WAS NEVER ON SCREEN. .spec-label is
+   position:absolute with z-index auto (tokens.css); .window-bar is a
+   positioned SIBLING with z-index 1 (added just above to lift it over
+   .card::before), and .sim-card creates no stacking context — so the bar won
+   the paint order over its earlier sibling and painted straight over the
+   label. MEASURED, at 375x812 in both themes, on the tree this comment landed
+   on: a 1:1 capture clipped to the label's own 49x14 bounding box holds ONE
+   distinct colour with z-index auto — 686 pixels of the bar's fill, no glyph at
+   all — and 93 (light) / 95 (dark) with this rule, 497 bar pixels and the rest
+   antialiased type. It is aria-hidden decoration, so this was a rendering
+   defect rather than a 1.4.3 failure — but it was the one string in the app at
+   an effective 0:1, and §11's "every card carries a mono spec label in its
+   top-right corner" was silently unmet on this card.
+   2, not a larger number: it clears the bar's 1 while leaving the bar above
+   .card::before (z-index auto), which is what the bar's own lift is for. */
 .sim-card .spec-label {
   top: var(--s1);
   right: var(--s2);
   color: var(--counter);
+  z-index: 2;
 }
 .sim-body { padding: var(--s2) var(--s3); }
 /* Honesty note: while the simulator runs on the demo profile, the card
@@ -1302,15 +1323,31 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
    Rule 8: a live region announces text CHANGES, so it has to be mounted before
    the change and cannot be the record row itself. The record list is NOT a
    live region, so nothing is announced twice — only re-read on browse.
-   --data (Acid) with --on-accent is 9.7:1 — the strongest pair in the table,
-   and it keeps the simulator on the financial-reality track. */
+   IT IS A KEYLINE BAR NOW, NOT A FILL, AND THE ACCENT BUDGET IS WHY.
+   §2.1b caps accent at 2% of the DOCUMENT and the committed artifact reported
+   the breach in its own breaches array on six of twelve rows. On the phone the
+   declared accents alone spent it: --data (Acid) read 2.01% of
+   app.375x812.light.seeded — the entire document budget in one token — with
+   --reward (Marigold) adding 1.12 on top. The dominant Acid area was this
+   panel: on a 375px column a full-width padded block fill is most of a screen's
+   accent by itself, and it grows with the record.
+   So it takes the construction the landing already uses for the same job —
+   see .lp-share in landing.css: §6's 6px keyline bar standing on the card's own
+   ground, the string in --ink rather than --on-accent. The accent is still
+   present and still marks the current projection (§2 rule 2 is satisfied
+   vacuously — nothing is drawn ON the accent any more), and the pair improves:
+   --ink on the card is 11.4:1 light / 13.4:1 dark against the 9.7:1 this had.
+   WHAT IS GIVEN UP, STATED: §1 trait 01's container. The bar is a mark that
+   does not live in a shape. The landing block makes the same trade for the
+   same reason — a second filled plate inside a plate makes the composition one
+   box too deep — and the row is already inside the card and the record list.
+   PROVENANCE: the figures above are docs/brand/census.json at the tree this
+   comment landed on; the delta this change bought is in the artifact's next
+   run, not in this comment. */
 .sim-result {
   margin: var(--s1) 0 0;
-  background: var(--data);
-  color: var(--on-accent);
-  border: var(--keyline-w) solid var(--keyline);
-  border-radius: var(--r-sm);
-  padding: var(--s2);
+  border-left: var(--keyline-heavy) solid var(--data);
+  padding-left: var(--s2);
   font-size: var(--fs-body);
 }
 
@@ -1425,7 +1462,15 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   background: var(--sunken);
 }
 /* The elapsed count, in the spec register (§1 trait 10) — a printed figure,
-   not a sentence. */
+   not a sentence.
+   --spec-sunken, NOT --spec, and tokens.css forbids the other in writing:
+   --spec is mixed toward --ground, and .decision-checkback above is a --sunken
+   recess, so in light this row stood at #676562 on Sand #DFD5BC = 3.98:1 for
+   an 11px string — under the 4.5:1 body-text floor. --spec-sunken exists for
+   exactly this case. Measured on every ground this row can stand on: 5.35:1 on
+   the light Sand recess, 10.31:1 on the dark Void one, 8.96:1 if the card ever
+   moves to a .spec-sheet ground and 7.04:1 on the Sand counter sheet. Sibling
+   .checkback-object inherits --ink and needs nothing. */
 .checkback-head {
   margin: 0;
   font-family: var(--mono);
@@ -1433,7 +1478,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   line-height: var(--lh-spec);
   letter-spacing: var(--tr-spec);
   text-transform: uppercase;
-  color: var(--spec);
+  color: var(--spec-sunken);
 }
 /* The object, in the user's own words. Lead with the object (§7 rule 1), so
    it takes the weight and the count above it stays a stamp. Word-break

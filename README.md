@@ -125,11 +125,14 @@ chiptune cues that never carry information alone.
 There used to be a fourth quest — "look back over your recent purchases" — and
 a ninth card holding a 30-tile codex grid and a 9-tile badge shelf. Both are
 deleted. The quest paid XP for a tap the app could not observe, which is the
-engagement track paying for nothing. The card was 60% of the app's rendered DOM
-on install day and carried no control at all: 1,644px of phone column, last in
-the stack, to reach nothing you can act on. Badges still unlock, still announce
-and still bring their companion; the codex still rotates and still counts. Only
-the trophy case is gone.
+engagement track paying for nothing. The card was 62.5% of the card stack's
+rendered elements on install day — 59.9% at day 40, counted by a jsdom render
+probe at `a2d4e6d`, the last tree that rendered it, and a DOM share rather than
+a pixel share, which is why it is not in `docs/brand/census.json` — and it
+carried no control at all: 1,644px of 375px column, last in the stack, to reach
+nothing you can act on. Badges still unlock, still announce and still bring
+their companion; the codex still rotates and still counts. Only the trophy case
+is gone.
 
 **The record card** is one card that answers both halves of "where am I". It
 was two — a month card stacked on a ledger, two headings and two near-identical
@@ -332,12 +335,17 @@ It reads each page **twice**. The document reading is the whole-page average and
 is comparable with every figure the project published before the tool existed.
 The second reading, `scrollingForm`, cuts the document into viewport-height
 windows and measures each one, because a document average is not something
-anybody looks at: the app's 375 light page averaged 56% field while its windows
-ran 15% at the head and 91% at the tail — a vector that appears on no screen.
-§2 is unchanged for anything the eye holds at once (the poster, the mark, the
-hero band, each landing section). For a scrolling application document the
-second reading is the one that is true, and `npm run census -- --windows` prints
-the per-screen table behind it.
+anybody looks at: `app.375x812.light.seeded` averages 41.70% field over the
+document while its seven windows run 40.92, 15.79, 45.60, 15.46, 21.30, 89.12 and
+92.09 — a vector that appears on no screen. (Those are the committed rows at this
+tree, quoted the way §2.1b requires. An earlier draft of this paragraph said
+"averaged 56% while its windows ran 15% at the head and 91% at the tail" with no
+tree on it, which was a figure from a tree that still had a ninth card — on the
+one page in the repo that exists to explain why undated pixel figures are
+forbidden.) §2 is unchanged for anything the eye holds at once (the poster, the
+mark, the hero band, each landing section). For a scrolling application document
+the second reading is the one that is true, and `npm run census -- --windows`
+prints the per-screen table behind it.
 
 It exists because the numbers used to live in an agent's recollection. One round
 shot its screenshots at 07:52, committed at 10:08, and published the 07:52
@@ -362,7 +370,20 @@ document average as a description of anything a person saw.
 Everything the run needs is pinned from outside the app — frozen clock, pinned
 timezone and locale, seeded storage, `prefers-reduced-motion: reduce` — because
 a tree that renders differently while being measured is not the tree that ships.
-`src/` contains not one line that knows the census exists.
+`src/` contains not one line that knows the census exists. The run also takes
+the input hash **before** the build and again after the last row, and writes
+nothing if they differ: measuring early and publishing late is the defect the
+tool exists to end, and it would otherwise have been reachable from inside the
+tool itself.
+
+**If you have no local Chromium**, the staleness test will go red on any
+stylesheet edit and there is no environment-variable bypass — a gate with a
+documented escape hatch is a gate that gets used through the hatch. The relief
+valve is the advisory `census` job in `.github/workflows/ci.yml`: it runs on
+pull requests whose diff touches `src/`, `index.html` or `scripts/census/`,
+prints the same table, and produces a correct `census.json` for you to commit.
+It is `continue-on-error` on purpose — a missing Chrome in a future runner
+image, or a row that will not hold still, reports rather than blocks.
 
 ## Project layout
 

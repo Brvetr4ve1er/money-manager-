@@ -16,6 +16,7 @@ import {
   hexToLab,
   makeClassifier,
   parsePalette,
+  readDeclaredAccents,
   readPalette,
   rgbToLab,
   type Bucket,
@@ -34,7 +35,10 @@ import {
   SCHEMA_VERSION,
   censusPixels,
   censusScrollingForm,
+  dirtyPaths,
+  disagreeingProbe,
   isDirty,
+  movedInputs,
   scrollingFormBreaches,
   serialiseCensus,
   windowTops,
@@ -50,6 +54,7 @@ import {
   censusLocalDay,
   determinismScript,
 } from './determinism.ts'
+import { parseArgs as parseCensusArgs } from './options.ts'
 import { sanitizeState } from '../../src/state/store.ts'
 
 /**
@@ -106,6 +111,63 @@ describe('the palette is parsed from tokens.css, never restated', () => {
   it('states the 60/30/8/2 ratio law from §2', () => {
     expect(TARGETS).toEqual({ field: 60, bone: 30, graphite: 8, accent: 2 })
     expect(BUCKET_ORDER).toEqual(['field', 'bone', 'graphite', 'accent'])
+  })
+
+  it('throws on an unbucketed token however it is spelled', () => {
+    /* THE GUARD THE OLD PATTERN DEFEATED. /--([a-z]+):\s*(#[0-9a-f]{6});/ is
+       case- and hyphen-intolerant, so a thirteenth token written
+       `--deep-moss: #3A5A2A;` inside the raw block matched nothing, never
+       reached the throw, and had its pixels absorbed into whichever bucket
+       owned the nearest neighbour — the exact silent absorption the header
+       says cannot happen. design.test.ts does not catch it either: it strips
+       the raw block before scanning for stray hexes. */
+    const withToken = (line: string) => `:root { --flare: #f93e06;\n  ${line}\n}`
+    expect(() => parsePalette(withToken('--deep-moss: #3a5a2a;'))).toThrow(/--deep-moss/)
+    expect(() => parsePalette(withToken('--COBALT2: #16224E;'))).not.toThrow() // uppercase NAME is not a token
+    expect(() => parsePalette(withToken('--rust: #B7410E;'))).toThrow(/--rust/)
+    // …and a hex spelled in upper case still lands lower-cased, so the
+    // artifact's palette block stays byte-stable however tokens.css spells it.
+    expect(parsePalette(':root { --flare: #F93E06; }')[0].hex).toBe('#f93e06')
+  })
+})
+
+describe('the derived quiet register is resolved, not guessed at', () => {
+  const palette = readPalette()
+  const derived = palette.filter((t) => t.name.includes(':'))
+
+  it('resolves every color-mix tokens.css declares, on every surface', () => {
+    /* Six values, because --spec and --spec-sunken re-resolve under each
+       surface that re-declares their endpoints: the light ground, the dark
+       ground (which inherits the :root mix and swaps --ink/--ground under it),
+       the Espresso spec sheet, and the archive's Sand counter sheet. The four
+       light/dark values are the ones src/styles/design.test.ts computes
+       independently for its contrast table — two implementations of one mix,
+       which is the point. */
+    expect(derived.map((t) => t.hex).sort()).toEqual([
+      '#40413d', // archive counter sheet, 88% graphite -> sand
+      '#4e4f49', // archive counter sheet, 80%
+      '#535250', // light --spec-sunken
+      '#676562', // light --spec
+      '#b8aaa4', // dark / spec-sheet --spec
+      '#ccbeb8', // dark / spec-sheet --spec-sunken
+    ])
+  })
+
+  it('books the quiet register to the FORM budget, in both themes', () => {
+    // The defect: one semantic role charged to the 2% accent budget in light
+    // (#676562 -> moss at ΔE 24.2) and to the 30% Bone budget in dark
+    // (#b8aaa4 -> sand at ΔE 17.8), which made the two themes' accent and
+    // inkOnPaper figures non-comparable and put body text inside the scarcest
+    // budget in the system.
+    for (const token of derived) expect(`${token.name}: ${token.bucket}`).toBe(`${token.name}: graphite`)
+  })
+
+  it('keys a derived token by name AND value', () => {
+    // One role has as many values as it has surfaces. Two of them sharing an
+    // artifact key would hide a whole theme's pixels behind the other's
+    // percentage.
+    expect(new Set(palette.map((t) => t.name)).size).toBe(palette.length)
+    expect(derived.map((t) => t.order)).toEqual(derived.map((_, i) => 12 + i))
   })
 })
 
@@ -239,20 +301,66 @@ describe('counting is lossless', () => {
   })
 
   it('reports off-palette colours instead of hiding them', () => {
-    // #676562 is --spec resolved: a real pixel this app paints that is no
-    // token at all. It must be COUNTED (denominator stability) and DISCLOSED.
+    // #3f7fbf is no token and nothing near one: a colour this app does not
+    // paint, standing in for whatever the next one does. It must be COUNTED
+    // (denominator stability) and DISCLOSED.
     const result = censusPixels(
-      surfaceOf([...Array(90).fill('#f93e06'), ...Array(10).fill('#676562')]),
+      surfaceOf([...Array(90).fill('#f93e06'), ...Array(10).fill('#3f7fbf')]),
       palette,
     )
     expect(result.total).toBe(100)
-    expect(result.strays.top[0].hex).toBe('#676562')
+    expect(result.strays.top[0].hex).toBe('#3f7fbf')
     expect(result.strays.top[0].pct).toBe(10)
     expect(result.strays.top[0].deltaE).toBeGreaterThan(STRAY_DELTA_E)
     expect(result.strays.pctOverDeltaE12).toBe(10)
     // Still counted in a bucket — dropping strays would change the denominator
     // and break comparability with the figures rounds 1-4 published.
     expect(BUCKET_ORDER.reduce((n, b) => n + result.buckets[b].pixels, 0)).toBe(100)
+  })
+
+  it('puts strays in `strays` and antialiasing in `nearMisses`', () => {
+    /* THE DEFECT THIS PINS. `top` was filled from every off-EXACT colour, so on
+       10 of the 12 rows of the artifact committed before this round every
+       entry in it was UNDER the ΔE 12 threshold — the list was saturated by
+       Flare antialiasing while the row disclosed 3.48% of its pixels as
+       strays and named none of them. Two lists, two questions. */
+    const result = censusPixels(
+      surfaceOf([
+        ...Array(80).fill('#f93e06'),
+        ...Array(15).fill('#f83e06'), // one step off Flare: antialiasing
+        ...Array(5).fill('#3f7fbf'), // nothing like any token: a stray
+      ]),
+      palette,
+    )
+    expect(result.strays.top.map((s) => s.hex)).toEqual(['#3f7fbf'])
+    expect(result.strays.nearMisses.map((s) => s.hex)).toEqual(['#f83e06'])
+    // The disclosed share counts only the strays, and always did — it was the
+    // list beside it that disagreed with it.
+    expect(result.strays.pctOverDeltaE12).toBe(5)
+  })
+
+  it('classifies the derived quiet register as ink, not as an accent', () => {
+    /* THE MISCLASSIFICATION THIS ENDS. --spec is a color-mix, so its resolved
+       value is in no palette, and a classifier that knew only the twelve raw
+       hexes forced light --spec #676562 onto `moss` at ΔE 24.2 — body text
+       charged to the 2% ACCENT budget — and dark --spec #b8aaa4 onto `sand`,
+       the same role charged to the 30% Bone budget in the other theme. It was
+       visible in the committed artifact: `moss` read 0.27-0.99% on all twelve
+       rows although no stylesheet has ever referenced var(--moss). */
+    const result = censusPixels(
+      surfaceOf([
+        ...Array(50).fill('#676562'), // light --spec
+        ...Array(50).fill('#b8aaa4'), // dark --spec
+      ]),
+      palette,
+    )
+    // Exact, so neither is a stray any more…
+    expect(result.strays.pctOverDeltaE12).toBe(0)
+    expect(result.strays.top).toEqual([])
+    // …and both are ink: the form (§1 trait 06), not a fourth colour.
+    expect(result.buckets.graphite.pct).toBe(100)
+    expect(result.buckets.accent.pct).toBe(0)
+    expect(result.buckets.bone.pct).toBe(0)
   })
 })
 
@@ -424,15 +532,29 @@ describe('the fixtures do not rot', () => {
 /**
  * THE SECOND READING — §2 over the screens a reader sees, not over the pixels.
  *
- * Round 5's finding, and the reason this exists at all: the document average
- * is the arithmetic mean of regimes that never appear together. The app's 375
- * light document read 56.0/36.9 — apparently the best app screen in the matrix
- * — while its windows ran 15% field at the head and 91% at the tail. Nobody
- * sees 56/37. So the windows are measured too, and where the two disagree the
+ * The finding that produced it, and the reason this exists at all: the
+ * document average is the arithmetic mean of regimes that never appear
+ * together. app.375x812.light.seeded in docs/brand/census.json reads 41.70
+ * field / 47.32 Bone over the whole document, while its seven viewport windows
+ * run 40.92, 15.79, 45.60, 15.46, 21.30, 89.12 and 92.09 percent field — a
+ * Bone form stack at the head and a dark index sheet at the tail. Nobody sees
+ * 41/47. So the windows are measured too, and where the two disagree the
  * windows are the truth.
+ *
+ * PROVENANCE, because §2.1b makes it binding: those figures are the committed
+ * artifact at this tree, and the staleness test at the bottom of this file is
+ * what keeps them describing it. They are not the same numbers this paragraph
+ * carried a round ago — it quoted a 56.0 document over eight windows, from a
+ * tree that had a ninth card, with no stamp saying so.
  */
 describe('the window reading measures screens, not documents', () => {
   const palette = readPalette()
+  /** A per-token map with exactly one accent painting — the shape §2 permits,
+      so the accent-COUNT check below stays silent and the bound under test is
+      the only thing that can speak. */
+  const oneAccent: Record<string, number> = { acid: 1.5 }
+  /** What tokens.css binds to a role today: --reward is Marigold, --data Acid. */
+  const DECLARED = readDeclaredAccents()
 
   /** A page `width` px wide made of horizontal bands of one hex each. */
   const banded = (width: number, bands: [string, number][]): Uint8Array => {
@@ -478,7 +600,7 @@ describe('the window reading measures screens, not documents', () => {
     expect(doc.buckets.field.pct).toBe(50)
     expect(doc.buckets.bone.pct).toBe(50)
 
-    const form = censusScrollingForm(rgb, 10, 40, 10, palette, doc.buckets)
+    const form = censusScrollingForm(rgb, 10, 40, 10, palette, doc.buckets, doc.tokens, DECLARED)
     expect(form.count).toBe(4)
     expect(form.windows.map((w) => w.pct.field)).toEqual([0, 0, 100, 100])
     // The MEAN of the windows still reads 50 — that is not the point. The
@@ -502,7 +624,7 @@ describe('the window reading measures screens, not documents', () => {
     ])
     const doc = censusPixels(rgb, palette)
     expect(doc.buckets.graphite.pct).toBe(5) // 5% of the DOCUMENT: "under budget"
-    const form = censusScrollingForm(rgb, 10, 100, 50, palette, doc.buckets)
+    const form = censusScrollingForm(rgb, 10, 100, 50, palette, doc.buckets, doc.tokens, DECLARED)
     expect(form.inkOnPaper).toBe(25) // 5 / (5 + 15): the paper is well inked
   })
 
@@ -518,17 +640,17 @@ describe('the window reading measures screens, not documents', () => {
 
     // 91% field is over the 85 cap AND over the 80 band. One line, not two —
     // a long page must not look worse than a broken one.
-    const over = scrollingFormBreaches([stat(91, 5)], atLaw, 10, buckets)
+    const over = scrollingFormBreaches([stat(91, 5)], atLaw, 10, buckets, oneAccent, DECLARED)
     expect(over.filter((b) => b.includes('field'))).toEqual([
       'window @0: field 91.00 over the 85 cap',
     ])
     // Inside the caps but outside the bands: the band is what is reported.
-    expect(scrollingFormBreaches([stat(82, 12)], atLaw, 10, buckets)).toEqual([
+    expect(scrollingFormBreaches([stat(82, 12)], atLaw, 10, buckets, oneAccent, DECLARED)).toEqual([
       'window @0: field 82.00 over the 80 band',
       'window @0: bone 12.00 under the 15 band',
     ])
     // A window inside both bands, a mean at target and inked paper: silence.
-    expect(scrollingFormBreaches([stat(60, 30)], atLaw, 10, buckets)).toEqual([])
+    expect(scrollingFormBreaches([stat(60, 30)], atLaw, 10, buckets, oneAccent, DECLARED)).toEqual([])
   })
 
   it('holds the mean and the accent cap to the document, not to a window', () => {
@@ -544,18 +666,70 @@ describe('the window reading measures screens, not documents', () => {
     // so the accent is judged on the document even though everything else here
     // is judged per screen.
     const loud = { field: stub(0), bone: stub(0), graphite: stub(0), accent: stub(3.75) }
-    expect(scrollingFormBreaches(inBand, { field: 60, bone: 30, graphite: 8, accent: 2 }, 10, loud)).toEqual([
+    expect(
+      scrollingFormBreaches(inBand, { field: 60, bone: 30, graphite: 8, accent: 2 }, 10, loud, oneAccent, DECLARED),
+    ).toEqual([
       'accent 3.75 over the 2 document cap',
     ])
     // The mean tolerance is wide on purpose: a mean is the one number here a
     // single tall card can move without any colour changing.
     const quiet = { field: stub(0), bone: stub(0), graphite: stub(0), accent: stub(1) }
     expect(
-      scrollingFormBreaches(inBand, { field: 68, bone: 24, graphite: 8, accent: 2 }, 10, quiet),
+      scrollingFormBreaches(inBand, { field: 68, bone: 24, graphite: 8, accent: 2 }, 10, quiet, oneAccent, DECLARED),
     ).toEqual([])
     expect(
-      scrollingFormBreaches(inBand, { field: 69, bone: 23, graphite: 8, accent: 2 }, 10, quiet),
+      scrollingFormBreaches(inBand, { field: 69, bone: 23, graphite: 8, accent: 2 }, 10, quiet, oneAccent, DECLARED),
     ).toEqual(['mean field 69.00 outside 60±8', 'mean bone 23.00 outside 30±6'])
+  })
+
+  it('counts how many accents are painting, not only how much accent', () => {
+    /* §2's accent rule has TWO halves and this instrument checked one.
+       palette.ts states the other in prose — "the budget is 2% for ONE of them
+       per surface, not 2% each" — and §2's banned list ends with "more than one
+       accent per surface". A document carrying four accents at 0.4% each summed
+       to 1.6 and breached nothing, and every app row the artifact carried
+       before this round was exactly that shape.
+
+       COUNTED FROM THE TOKEN GRAPH, not from the percentages alone: nearest-
+       token classification gives every accent a tail, and the artifact reads
+       `signal` and `moss` at 0.06-0.14% on rows whose stylesheets reference
+       neither. A naive count would report four accents on a page that paints
+       two, which is the census making a false statement about the product. */
+    const stub = (pct: number): BucketStat => ({ pixels: 0, pct })
+    const atLaw = [{ top: 0, pct: { field: 60, bone: 30, graphite: 8, accent: 2 }, deviation: 0 }]
+    const mean = { field: 60, bone: 30, graphite: 8, accent: 2 }
+    const under = { field: stub(0), bone: stub(0), graphite: stub(0), accent: stub(1.6) }
+    // Both declared tracks painting, plus two hues nothing binds: two lines,
+    // because they are two different questions.
+    expect(
+      scrollingFormBreaches(atLaw, mean, 10, under, {
+        acid: 0.4,
+        marigold: 0.4,
+        signal: 0.4,
+        moss: 0.4,
+      }, DECLARED),
+    ).toEqual([
+      'accents painting: marigold 0.40, acid 0.40 — §2 permits one per surface; the two ' +
+        'tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift.',
+      'accent painting with no role bound to it: signal 0.40, moss 0.40 — either a stylesheet ' +
+        'reached past the token graph, or the classifier is absorbing something into it ' +
+        '(see palette.ts on the derived tokens)',
+    ])
+    // One track painting, and the other accents under the floor: silence. The
+    // floor is what keeps a classifier tail from reading as a design decision.
+    expect(
+      scrollingFormBreaches(atLaw, mean, 10, under, { acid: 1.6, marigold: 0.1, signal: 0.14 }, DECLARED),
+    ).toEqual([])
+  })
+
+  it('reads the declared accents out of tokens.css, never out of a list here', () => {
+    // --reward is the engagement track, --data the financial-reality track, and
+    // Trust Rule 1 is why they may never be the same hue. Nothing binds
+    // cobalt, signal or moss to a role — no stylesheet in the repo references
+    // var(--signal), var(--moss) or var(--cobalt) at all — so their pixels are
+    // classifier tails, not accents.
+    expect(DECLARED).toEqual(['marigold', 'acid'])
+    expect(ARTIFACT.law.declaredAccents).toEqual(DECLARED)
   })
 
   it('states the amended law once, and the artifact carries the same numbers', () => {
@@ -591,6 +765,50 @@ describe('the window reading measures screens, not documents', () => {
     expect(doc).toMatch(/§2's 60\/30\/8\/2 is a \*\*composition\*\* law\. It is unchanged/)
   })
 
+  it('binds the worked example in the prose to the row it claims to quote', () => {
+    // The bounds above were guarded; the MEASUREMENT beside them was not. A row
+    // id stays correct forever while the number next to it goes stale — which is
+    // round 3's defect at small scale, in the very document that exists to
+    // prevent it. §2.1b, the README and the comment on this file's own example
+    // all retype the same figures, so all three are bound here: change the
+    // pixels without re-running the census and the staleness test goes red;
+    // re-run it and get different numbers without updating the prose, and this
+    // goes red instead.
+    // Prose wraps: the window list straddles a line break in all three files,
+    // so match against whitespace-collapsed text rather than pinning the
+    // wrapping. Reflowing a paragraph must not fail this test; changing a
+    // number must.
+    const flat = (p: string) => readFileSync(new URL(p, REPO_ROOT), 'utf8').replace(/\s+/g, ' ')
+    const row = ARTIFACT.rows['app.375x812.light.seeded']
+    const doc = flat('docs/brand/DESIGN-SYSTEM.md')
+    const readme = flat('README.md')
+    const self = flat('scripts/census/census.test.ts')
+
+    const field = row.buckets.field.pct.toFixed(2)
+    const bone = row.buckets.bone.pct.toFixed(2)
+    const windows = row.scrollingForm.windows.map((w) => w.pct.field.toFixed(2))
+    // The prose writes the list as "a, b, c, d, e, f and g" — the Oxford-less
+    // final "and" is the house style in all three files.
+    const spoken = `${windows.slice(0, -1).join(', ')} and ${windows[windows.length - 1]}`
+
+    expect(doc).toContain(`${field}% field / ${bone}% Bone`)
+    expect(doc).toContain(spoken)
+    // The prose spells the count ("**seven** viewport windows"); the artifact
+    // stores it as a number. Accept either spelling so the binding survives an
+    // editorial preference, but still catch a count that has actually moved.
+    const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+    const n = row.scrollingForm.count
+    const spelled = WORDS[n] ?? String(n)
+    expect(doc).toMatch(new RegExp(`\\*\\*(${n}|${spelled})\\*\\* viewport windows`))
+
+    expect(readme).toContain(`averages ${field}% field`)
+    expect(readme).toContain(spoken)
+
+    expect(self).toContain(`reads ${field}`)
+    expect(self).toContain(`field / ${bone} Bone`)
+    expect(self).toContain(spoken.replace(/\.00\b/g, ''))
+  })
+
   it("keeps every committed row's window arithmetic self-consistent", () => {
     for (const [id, row] of Object.entries(ARTIFACT.rows)) {
       const form = row.scrollingForm
@@ -611,7 +829,7 @@ describe('the window reading measures screens, not documents', () => {
       // Recomputing the breach list from the committed numbers must reproduce
       // it exactly — a hand-edited verdict cannot survive.
       expect(`${id}: ${form.breaches.join(' | ')}`).toBe(
-        `${id}: ${scrollingFormBreaches(form.windows, form.mean, form.inkOnPaper, row.buckets).join(' | ')}`,
+        `${id}: ${scrollingFormBreaches(form.windows, form.mean, form.inkOnPaper, row.buckets, row.tokens, ARTIFACT.law.declaredAccents).join(' | ')}`,
       )
     }
   })
@@ -701,6 +919,82 @@ describe('git dirtiness is read the same way every time', () => {
     expect(isDirty('?? scripts/census/scratch.ts\n')).toBe(true)
     expect(isDirty('A  docs/brand/census.json\n M src/styles/app.css\n')).toBe(true)
   })
+
+  it('never reads an UNANSWERED git as clean', () => {
+    /* THE FAILURE PATH THAT FED THIS FUNCTION, WHICH NOTHING USED TO COVER.
+       run.ts's git() swallowed every failure and returned '', so git absent,
+       git broken, or the directory not being a repo all arrived here as '' —
+       and '' is clean. The run then stamped tree { sha: '', dirty: false } and
+       sailed past the dirty guard: the one field that says "these numbers
+       describe a committed tree" failed toward the reassuring answer. git()
+       returns null on throw now, and null is dirty. */
+    expect(isDirty(null)).toBe(true)
+    expect(dirtyPaths(null)).toEqual(['<git did not answer>'])
+  })
+
+  it('names what was uncommitted rather than only asserting that something was', () => {
+    // A dirty stamp a reader cannot act on is barely better than no stamp:
+    // dirt in a stylesheet means the numbers are provisional, dirt in the
+    // artifact itself does not.
+    expect(dirtyPaths(' M src/styles/app.css\n?? scratch.ts\n')).toEqual([
+      'scratch.ts',
+      'src/styles/app.css',
+    ])
+    expect(dirtyPaths('')).toEqual([])
+  })
+})
+
+describe('the census flags reject values that would make them vacuous', () => {
+  it('refuses a --tolerance that is not a non-negative number', () => {
+    /* A GATE THAT PASSES SILENTLY ON A TYPO IS WORSE THAN NO GATE. Without
+       this, `--check --tolerance abc` gave NaN, every `Math.abs(delta) > NaN`
+       inside checkTolerance was false, and the run reported success having
+       compared nothing — the same argument .github/workflows/ci.yml makes for
+       why a flaky ratio-law threshold must not exist. */
+    expect(() => parseCensusArgs(['--tolerance', 'abc'])).toThrow(/non-negative number/)
+    expect(() => parseCensusArgs(['--tolerance', '-1'])).toThrow(/non-negative number/)
+    expect(() => parseCensusArgs(['--tolerance', 'Infinity'])).toThrow(/non-negative number/)
+    expect(parseCensusArgs(['--tolerance', '0']).tolerance).toBe(0)
+    expect(parseCensusArgs(['--tolerance', '2.5']).tolerance).toBe(2.5)
+  })
+})
+
+describe('the run refuses to publish numbers from a tree that moved under it', () => {
+  it('names every input that changed between the two snapshots', () => {
+    /* ROUND 3'S DEFECT, MECHANISED. inputsHash used to be computed at the END
+       of a run — after the bundle was built and every row shot — so an edit
+       made WHILE the census ran wrote the new hash beside the old numbers and
+       the staleness test then called them current. The run takes the hash
+       before the build and re-takes it after the last row; this is the part
+       that says which file moved. */
+    const before = new Map([
+      ['src/styles/app.css', 'sha256:aaa'],
+      ['src/gone.tsx', 'sha256:bbb'],
+    ])
+    const after = new Map([
+      ['src/styles/app.css', 'sha256:zzz'],
+      ['src/new.tsx', 'sha256:ccc'],
+    ])
+    expect(movedInputs(before, after)).toEqual([
+      'src/gone.tsx (removed)',
+      'src/new.tsx (added)',
+      'src/styles/app.css (edited)',
+    ])
+    expect(movedInputs(before, before)).toEqual([])
+  })
+
+  it('will not let one row’s type stack speak for twelve', () => {
+    /* env.fonts and env.fingerprint are written once and presented as the
+       environment for every row, and formatDiff refuses cross-environment
+       subtraction on the strength of that single value. They used to be
+       whatever the LAST row measured, with nothing checking the other eleven
+       agreed — so a row that resolved a different stack (the exact thing
+       FONT_PROBE's header says cannot be assumed away) was invisible. */
+    const probe = (id: string, ui: string) => ({ id, families: { ui }, widths: { ui: 100 } })
+    expect(disagreeingProbe([])).toBeNull()
+    expect(disagreeingProbe([probe('a', 'DejaVu Sans'), probe('b', 'DejaVu Sans')])).toBeNull()
+    expect(disagreeingProbe([probe('a', 'DejaVu Sans'), probe('b', 'Space Grotesk')])?.id).toBe('b')
+  })
 })
 
 describe('THE STALENESS TEST', () => {
@@ -712,6 +1006,14 @@ describe('THE STALENESS TEST', () => {
     // whose absence would make the whole guard vacuous.
     for (const required of [
       'index.html',
+      // The build config is a pixel input and was missing from the list:
+      // serve.ts builds through Vite's Node API, so every run loads
+      // vite.config.ts, whose `distribution` plugin transforms the served
+      // index.html through scripts/htmlComments.ts. A change to either moves
+      // what the browser renders without moving inputsHash — a hole in the
+      // staleness authority, which is round 3's defect wearing a hat.
+      'vite.config.ts',
+      'scripts/htmlComments.ts',
       'src/styles/app.css',
       'src/styles/tokens.css',
       'src/components/Landing.tsx',

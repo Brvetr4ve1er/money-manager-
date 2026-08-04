@@ -876,12 +876,15 @@ export function sanitizeState(parsed: unknown): AppState {
   }
   if (Array.isArray(parsed.xpLog)) {
     // Union by id like transactions; a duplicated id keeps the larger amount
-    // so applying the same rule in any order (or twice) lands on the same log.
+    // and, on equal amounts, the earliest date — the identical rule
+    // mergeStates applies, for the identical reason (see the fold there). Load
+    // and merge have to agree on one derivation or a payload would change
+    // shape simply by making the round trip.
     const byId = new Map<string, XpGrant>()
     for (const g of parsed.xpLog) {
       if (isXpGrant(g)) {
         const prev = byId.get(g.id)
-        if (!prev || g.amount > prev.amount) {
+        if (!prev || g.amount > prev.amount || (g.amount === prev.amount && g.date < prev.date)) {
           byId.set(g.id, { id: g.id, action: g.action, amount: g.amount, date: g.date })
         }
       }
@@ -1081,6 +1084,14 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
   // newest-first), id asc within a day. Insertion-ordered output would make
   // crossed writes each adopt the other's differing ordering forever, every
   // save a new JSON string that never reaches a fixpoint.
+  // A DUPLICATED ID LETS `incoming` WIN UNCONDITIONALLY HERE, WHICH IS NOT
+  // SYMMETRIC — and it is left that way on purpose rather than hardened.
+  // newId() keeps row ids unique per device and a transaction id is never
+  // derived from anything two tabs could compute independently (unlike an XP
+  // grant id, which is — see the fold below and the bug it fixes), so the
+  // asymmetric branch is unreachable. Deriving a tie-break for a collision
+  // that cannot happen would be untested code guarding an impossible state; a
+  // comment naming the invariant it depends on is the honest version.
   const incomingIds = new Set(incoming.transactions.map((t) => t.id))
   const transactions = [
     ...local.transactions.filter((t) => !incomingIds.has(t.id)),
@@ -1095,10 +1106,32 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
   // the larger amount (deterministic in any merge order); the fold re-applies
   // the resist daily cap across the union so two tabs can't jointly overpay
   // it. max() with both counters floors the result for pre-log legacy totals.
+  //
+  // THE EQUAL-AMOUNT TIE NEEDS ITS OWN RULE, AND A STRICT `>` IS NOT ONE.
+  // `g.amount > prev.amount` alone keeps whichever grant the iteration saw
+  // FIRST — always `local` — so merge(A,B) and merge(B,A) produced different
+  // bytes and the convergence invariant this function declares as binding was
+  // false. It is reachable, not theoretical: reducer.ts writes the boss grant
+  // as { id: bossGrantId(weekStart), date: action.date }, so the id names the
+  // WEEK and the date names TODAY. Tab A claims week W on Monday; a frozen
+  // background tab B that never saw the storage event claims the same week on
+  // Tuesday; both hold id boss:W at 150 XP with different dates. XP totals
+  // agree, so nothing about XP integrity was wrong — but the two tabs each
+  // believed they had converged, persisted different payloads, and whichever
+  // wrote last decided what the export said about when the week was won.
+  // The tie-break is EARLIEST DATE, following the convention
+  // dedupeEarliestById already sets for {id, date} collections: a claim never
+  // drifts to a later day after a merge. Total and symmetric, so the fixpoint
+  // holds in both directions.
   const grantById = new Map<string, XpGrant>()
   for (const g of [...local.xpLog, ...incoming.xpLog]) {
     const prev = grantById.get(g.id)
-    if (!prev || g.amount > prev.amount) grantById.set(g.id, g)
+    if (!prev || g.amount > prev.amount || (g.amount === prev.amount && g.date < prev.date)) {
+      // Rebuilt rather than stored by reference: two tabs can hold the same
+      // grant with different KEY ORDER (one built by the reducer, one revived
+      // by JSON.parse), and the merge fixpoint compares JSON strings.
+      grantById.set(g.id, { id: g.id, action: g.action, amount: g.amount, date: g.date })
+    }
   }
   const xpLog = [...grantById.values()].sort((a, b) =>
     a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,

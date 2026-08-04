@@ -32,6 +32,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import {
   ARTIFACT_PATH,
   BUCKET_NOTE,
+  disagreeingProbe,
+  movedInputs,
   LAW_NOTE,
   SCHEMA_VERSION,
   SCROLLING_FORM_NOTE,
@@ -39,6 +41,7 @@ import {
   censusPixels,
   censusScrollingForm,
   checkTolerance,
+  dirtyPaths,
   formatDiff,
   isDirty,
   serialiseCensus,
@@ -53,7 +56,7 @@ import {
   CENSUS_TIMEZONE,
   determinismScript,
 } from './determinism.ts'
-import { REPO_ROOT, fileHash, inputsHash } from './inputs.ts'
+import { REPO_ROOT, fileHash, inputsHash, pixelInputs } from './inputs.ts'
 import {
   MATRIX,
   MATRIX_IDS,
@@ -62,66 +65,46 @@ import {
   isMobileViewport,
   type MatrixRow,
 } from './matrix.ts'
-import { BUCKETS, SCROLLING_FORM, STRAY_DELTA_E, TARGETS, readPalette } from './palette.ts'
+import {
+  BUCKETS,
+  SCROLLING_FORM,
+  STRAY_DELTA_E,
+  TARGETS,
+  readDeclaredAccents,
+  readPalette,
+} from './palette.ts'
 import { decodePng } from './png.ts'
+import { parseArgs } from './options.ts'
 import { serveProductionBuild } from './serve.ts'
 
-const SHOTS_DIR = 'docs/brand/census-shots'
 /** Two captures this far apart must be byte-identical (see settle check). */
 const SETTLE_GAP_MS = 400
 
-interface Options {
-  diff: boolean
-  check: boolean
-  tolerance: number
-  only: string | null
-  out: string
-  keepShots: string | null
-  allowDirty: boolean
-  windows: boolean
-}
-
-function parseArgs(argv: string[]): Options {
-  const options: Options = {
-    diff: false,
-    check: false,
-    tolerance: 1.0,
-    only: null,
-    out: ARTIFACT_PATH,
-    keepShots: null,
-    allowDirty: false,
-    windows: false,
-  }
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i]
-    const next = () => {
-      const v = argv[i + 1]
-      if (v === undefined || v.startsWith('--')) throw new Error(`census: ${arg} needs a value`)
-      i++
-      return v
-    }
-    if (arg === '--diff') options.diff = true
-    else if (arg === '--check') options.check = true
-    else if (arg === '--allow-dirty') options.allowDirty = true
-    else if (arg === '--windows') options.windows = true
-    else if (arg === '--only') options.only = next()
-    else if (arg === '--out') options.out = next()
-    else if (arg === '--tolerance') options.tolerance = Number(next())
-    else if (arg === '--keep-shots') {
-      const peek = argv[i + 1]
-      options.keepShots = peek !== undefined && !peek.startsWith('--') ? next() : SHOTS_DIR
-    } else throw new Error(`census: unknown flag ${arg}`)
-  }
-  return options
-}
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-function git(args: string[]): string {
+/** Path -> content hash for every declared pixel input, so the guard around
+    the run can NAME what moved rather than only that the totals differ.
+    pixelInputs() already returns the list; only the per-file read is new. */
+function inputSnapshot(): Map<string, string> {
+  return new Map(pixelInputs().map((path) => [path, fileHash(path)]))
+}
+
+/**
+ * `null` on failure, never ''.
+ *
+ * THE DIFFERENCE IS THE WHOLE POINT. Returning '' made every failure look like
+ * a reassuring success: git absent, git broken, or the directory not a repo all
+ * produced `rev-parse HEAD` -> '' and `status --porcelain` -> '', and
+ * isDirty('') is false — so the run stamped tree {sha:'', dirty:false} and
+ * sailed straight past the dirty guard. The one field that says "these numbers
+ * describe a committed tree" failed toward the answer nobody would question.
+ * Verified empirically in a non-repo directory before this was changed.
+ */
+function git(args: string[]): string | null {
   try {
     return execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8' }).trim()
   } catch {
-    return ''
+    return null
   }
 }
 
@@ -173,6 +156,7 @@ async function measureRow(
   origin: string,
   row: MatrixRow,
   palette: ReturnType<typeof readPalette>,
+  declaredAccents: string[],
   fixtures: Record<string, string | null>,
 ): Promise<{ measured: Measured; fonts?: { families: Record<string, string>; widths: Record<string, number> } }> {
   // ONE FRESH TARGET PER ROW. Storage, the frozen clock and the emulation
@@ -320,6 +304,8 @@ async function measureRow(
         row.height,
         palette,
         counted.buckets,
+        counted.tokens,
+        declaredAccents,
       ),
       externalRequests,
     }
@@ -373,6 +359,7 @@ async function main(): Promise<void> {
   const partial = rows.length !== MATRIX.length
 
   const palette = readPalette()
+  const declaredAccents = readDeclaredAccents()
   const fixtures: Record<string, string | null> = {
     fresh: null,
     // Read as TEXT and injected verbatim: parsing and re-serialising would let
@@ -380,6 +367,19 @@ async function main(): Promise<void> {
     seeded: readFileSync(new URL('scripts/census/fixtures/seeded.json', REPO_ROOT), 'utf8').trim(),
     cold: readFileSync(new URL('scripts/census/fixtures/cold.json', REPO_ROOT), 'utf8').trim(),
   }
+
+  // THE HASH IS TAKEN BEFORE THE BUILD, NOT AFTER THE LAST ROW.
+  //
+  // It used to be computed at the very end of the run — after the bundle was
+  // built and after all twelve rows were shot. The pixels then described the
+  // tree as it was at the build and the hash described the tree as it was
+  // minutes later, so editing any pixel input DURING a census wrote the NEW
+  // hash beside the OLD numbers, after which the staleness test cheerfully
+  // reported "census.json is current" for figures describing a tree that no
+  // longer existed. That is round 3's defect — measure early, publish late —
+  // reproduced inside the instrument built to make it impossible.
+  const before = inputSnapshot()
+  const inputsBefore = inputsHash()
 
   console.log(`census: building and serving the production bundle…`)
   const served = await serveProductionBuild()
@@ -389,16 +389,25 @@ async function main(): Promise<void> {
   const records: Record<string, RowRecord> = {}
   let fonts: Record<string, string> = {}
   let fontWidths: Record<string, number> = {}
+  // THE PROBE RESULT IS COLLECTED PER ROW, NOT OVERWRITTEN BY THE LAST ONE.
+  // env.fonts and env.fingerprint are presented as the environment for all
+  // twelve rows, and formatDiff refuses cross-environment subtraction on the
+  // strength of that single value — so a row that resolved a different stack
+  // (exactly what FONT_PROBE's header says cannot be assumed away) would be
+  // invisible, and the fingerprint would be a claim about one row dressed as a
+  // claim about twelve. They are compared after the loop instead.
+  const probes: Array<{ id: string; families: Record<string, string>; widths: Record<string, number> }> = []
   try {
     for (const id of MATRIX_IDS) {
       const row = rows.find((r) => formatRowId(identityOf(r)) === id)
       if (!row) continue
       const started = Date.now()
-      const result = await measureRow(browser.cdp, served.origin, row, palette, fixtures)
+      const result = await measureRow(browser.cdp, served.origin, row, palette, declaredAccents, fixtures)
       records[id] = result.measured.record
       if (result.fonts) {
         fonts = result.fonts.families
         fontWidths = result.fonts.widths
+        probes.push({ id, families: result.fonts.families, widths: result.fonts.widths })
       }
       if (options.keepShots !== null) {
         mkdirSync(new URL(`${options.keepShots}/`, REPO_ROOT), { recursive: true })
@@ -433,12 +442,43 @@ async function main(): Promise<void> {
     await served.close()
   }
 
+  const disagreeing = disagreeingProbe(probes)
+  if (disagreeing !== null) {
+    throw new Error(
+      `census: ${disagreeing.id} resolved a different type stack from ${probes[0].id}, so one ` +
+        'env.fingerprint cannot describe both rows and the artifact would claim it does.\n' +
+        `  ${probes[0].id}: ${JSON.stringify({ families: probes[0].families, widths: probes[0].widths })}\n` +
+        `  ${disagreeing.id}: ${JSON.stringify({ families: disagreeing.families, widths: disagreeing.widths })}\n` +
+        'If a per-row difference is ever legitimate, record fonts per row in RowRecord.',
+    )
+  }
+
+  // …and re-taken now, naming what moved. Exit before anything is written: an
+  // artifact that mixes two trees is worse than no artifact, because it looks
+  // like an answer.
+  const inputsAfter = inputsHash()
+  if (inputsAfter !== inputsBefore) {
+    console.error(
+      'census: a pixel input changed WHILE the census ran, so these numbers describe a tree ' +
+        'that no longer exists. Nothing written. Differing files:',
+    )
+    for (const path of movedInputs(before, inputSnapshot())) console.error(`  ${path}`)
+    process.exit(1)
+  }
+
   const fingerprintSource = JSON.stringify({
     chrome: browser.version,
     platform: `${process.platform}-${process.arch}`,
     fonts,
     widths: fontWidths,
   })
+
+  const sha = git(['rev-parse', 'HEAD'])
+  if (sha === null) {
+    console.error('census: cannot read the tree — refusing to stamp provenance it did not verify')
+    process.exit(1)
+  }
+  const porcelain = git(['status', '--porcelain'])
 
   const census: Census = {
     schemaVersion: SCHEMA_VERSION,
@@ -448,11 +488,18 @@ async function main(): Promise<void> {
       // PROVENANCE ONLY. The staleness authority is inputsHash — a SHA would
       // not have caught round 3, which stamped a real SHA on numbers measured
       // from a different tree.
-      sha: git(['rev-parse', 'HEAD']),
-      branch: git(['rev-parse', '--abbrev-ref', 'HEAD']),
-      dirty: isDirty(git(['status', '--porcelain'])),
+      sha,
+      branch: git(['rev-parse', '--abbrev-ref', 'HEAD']) ?? '<unknown>',
+      dirty: isDirty(porcelain),
+      // A dirty stamp that only asserts "something was uncommitted" tells the
+      // next round nothing it can act on. These are the paths, so a reader can
+      // see whether the dirt was a stylesheet (the numbers are provisional) or
+      // this artifact itself (they are not).
+      dirtyPaths: dirtyPaths(porcelain),
     },
-    inputsHash: inputsHash(),
+    // inputsBefore, not a fresh read: it is the hash of the tree the PIXELS
+    // came from, and the guard above has already proved nothing moved since.
+    inputsHash: inputsBefore,
     env: {
       node: process.version,
       chrome: browser.version,
@@ -485,6 +532,7 @@ async function main(): Promise<void> {
       note: LAW_NOTE,
       bucketNote: BUCKET_NOTE,
       buckets: BUCKETS,
+      declaredAccents,
       scrollingForm: { ...SCROLLING_FORM, note: SCROLLING_FORM_NOTE },
     },
     // Sorted: `rows` is the block a diff scans, and an insertion-ordered map

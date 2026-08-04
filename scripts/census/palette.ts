@@ -31,6 +31,25 @@
  * Nearest-token classification is in CIELAB with ΔE76 — a perceptual space,
  * because the question "what colour is this app" is perceptual. Ties break by
  * declaration order in tokens.css, so two runs of one tree can never disagree.
+ *
+ * THE DERIVED TOKENS ARE PARSED TOO, AND THAT IS A CORRECTION, NOT AN EXTRA.
+ * tokens.css's quiet register (--spec, --spec-sunken) is a color-mix of two
+ * raw tokens, so its resolved value is in NO palette — and a classifier that
+ * knows only the twelve raw hexes has to force it into whichever of them is
+ * nearest. It chose badly, and the committed artifact showed it: light --spec
+ * #676562 landed on `moss` at ΔE 24.2 (beating graphite by 0.7) and dark --spec
+ * #b8aaa4 on `sand` at ΔE 17.8. Body text was therefore being charged to the
+ * 2% ACCENT budget in light and to the 30% Bone budget in dark — the same
+ * semantic role booked against two different budgets, which made the two
+ * themes' `accent` and `inkOnPaper` figures non-comparable. `moss` read
+ * 0.27-0.99% on all twelve committed rows although no stylesheet has ever
+ * referenced var(--moss).
+ *
+ * So the mixes are resolved here (sRGB, the same arithmetic
+ * src/styles/design.test.ts already uses to recompute every contrast figure in
+ * tokens.css) and bucketed EXPLICITLY by role: the quiet register is ink, so
+ * it is the form, so it is graphite. Same drift guard as the raw tokens — a
+ * derived name this file does not bucket throws rather than being absorbed.
  */
 
 import { readFileSync } from 'node:fs'
@@ -47,6 +66,22 @@ export const BUCKETS: Record<Bucket, string[]> = {
   bone: ['bone', 'sand', 'fog'],
   graphite: ['graphite', 'void'],
   accent: ['acid', 'marigold', 'cobalt', 'signal', 'moss'],
+}
+
+/**
+ * The derived tokens tokens.css builds with color-mix, and the bucket each
+ * belongs in BY ROLE rather than by nearest neighbour.
+ *
+ * Both are the quiet register — spec labels, notes, disclosures, input
+ * placeholders. That is ink drawn on paper, i.e. §1 trait 06's FORM, i.e. §2's
+ * 8% graphite budget. Nothing here is a field and nothing here is an accent.
+ * A color-mix token tokens.css declares and this map does not name throws in
+ * parseDerived: silent absorption is the failure this whole file exists to
+ * prevent.
+ */
+export const DERIVED_BUCKETS: Record<string, Bucket> = {
+  spec: 'graphite',
+  'spec-sunken': 'graphite',
 }
 
 /** §2's 60/30/8/2, as percentages of full-page pixels. */
@@ -137,14 +172,25 @@ export function bucketOf(name: string): Bucket | null {
 }
 
 /**
- * The 12 raw palette tokens, in declaration order. Same regex as
- * design.test.ts:906 — a token is a `--name: #rrggbb;` at the top of
- * tokens.css; every semantic token is a `var()` reference and matches nothing.
+ * The 12 raw palette tokens, in declaration order.
+ *
+ * A token is a `--name: #rrggbb;` at the top of tokens.css; every semantic
+ * token is a `var()` reference and matches nothing.
+ *
+ * THE PATTERN IS DELIBERATELY WIDER THAN THE TWELVE NAMES IT EXPECTS TO FIND.
+ * It used to be /--([a-z]+):\s*(#[0-9a-f]{6});/, which is case- and
+ * hyphen-intolerant — so a thirteenth token written `--deep-moss: #3A5A2A;`
+ * inside the raw block was INVISIBLE to the classifier and its pixels were
+ * absorbed into whichever bucket owned the nearest neighbour. That is the exact
+ * silent-absorption failure this file's header says cannot happen, and the
+ * `unbucketed token` throw below is the guard that was being defeated. The hex
+ * is lower-cased on the way in so the artifact's palette block stays
+ * byte-stable however tokens.css spells it.
  */
 export function parsePalette(css: string): Token[] {
   const seen = new Set<string>()
   const out: Token[] = []
-  for (const m of stripComments(css).matchAll(/--([a-z]+):\s*(#[0-9a-f]{6});/g)) {
+  for (const m of stripComments(css).matchAll(/--([a-z][a-z0-9-]*):\s*(#[0-9a-fA-F]{6});/g)) {
     const name = m[1]
     if (seen.has(name)) continue
     seen.add(name)
@@ -155,13 +201,156 @@ export function parsePalette(css: string): Token[] {
           'Add it to BUCKETS (and to law.buckets in the artifact) before measuring.',
       )
     }
-    out.push({ name, hex: m[2], order: out.length, bucket })
+    out.push({ name, hex: m[2].toLowerCase(), order: out.length, bucket })
   }
   return out
 }
 
+/**
+ * The accents tokens.css actually BINDS TO A ROLE, in declaration order.
+ *
+ * WHY THE CENSUS NEEDS THIS AND A PERCENTAGE WILL NOT DO. Nearest-token
+ * classification gives every accent a tail: the committed artifact reads
+ * `signal` at 0.07-0.14% and `moss` at 0.06-0.07% on every row, and no
+ * stylesheet in this repo references var(--signal), var(--moss) or
+ * var(--cobalt) at all. Those pixels are antialiasing between Flare and its
+ * neighbours, not design decisions. Counting them as "accents painting" would
+ * be the census making a false statement about the product, which is the whole
+ * class of defect it exists to end — so the question "how many accents is this
+ * page spending" is answered from the token graph, and the per-token
+ * percentages only say how much of each.
+ *
+ * A raw token bound to itself is not a role: only `--name: var(--accent)` where
+ * `--name` is not one of the twelve counts.
+ */
+export function parseDeclaredAccents(css: string, raw: Token[]): string[] {
+  const rawNames = new Set(raw.map((t) => t.name))
+  const accents = new Set(BUCKETS.accent)
+  const out: string[] = []
+  for (const m of stripComments(css).matchAll(ALIAS_RE)) {
+    if (rawNames.has(m[1])) continue
+    if (!accents.has(m[2])) continue
+    if (!out.includes(m[2])) out.push(m[2])
+  }
+  return out
+}
+
+/** CSS `color-mix(in srgb, A p%, B)` — a plain per-channel mix of the
+    gamma-encoded values, which is what `in srgb` means. Same arithmetic as
+    src/styles/design.test.ts's `mix()`, which recomputes every contrast figure
+    tokens.css quotes; agreeing with it is the point. */
+export function mixSrgb(aHex: string, bHex: string, weightA: number): string {
+  const a = hexToRgb(aHex)
+  const b = hexToRgb(bHex)
+  return `#${a
+    .map((v, i) => Math.round(v * weightA + b[i] * (1 - weightA)).toString(16).padStart(2, '0'))
+    .join('')}`
+}
+
+/** Innermost `selector { body }` blocks. Nested at-rules fall out for free:
+    the selector group cannot contain a brace, so a match starts after the
+    `@media (...) {` that encloses it. Same shape design.test.ts scans with. */
+const BLOCK_RE = /([^{}]+)\{([^{}]*)\}/g
+const ALIAS_RE = /--([a-z][a-z0-9-]*):\s*var\(--([a-z][a-z0-9-]*)\)\s*;/g
+const MIX_RE =
+  /--([a-z][a-z0-9-]*):\s*color-mix\(\s*in srgb,\s*var\(--([a-z][a-z0-9-]*)\)\s*(\d+(?:\.\d+)?)%,\s*var\(--([a-z][a-z0-9-]*)\)\s*\)\s*;/g
+
+interface MixTemplate {
+  from: string
+  to: string
+  weight: number
+}
+
+/**
+ * Every value tokens.css's color-mix tokens can actually resolve to.
+ *
+ * The cascade is modelled, not guessed at, because a mix re-resolves under
+ * every surface that re-declares its endpoints. A SURFACE ENVIRONMENT is a
+ * block that declares `--ink` — there are exactly four in tokens.css (`:root`,
+ * the dark `:root`, `.spec-sheet`, and the archive counter sheet) and each one
+ * names its own `--ground` beside it. A block's template for `--spec` is its
+ * own if it re-declares it (the two sheets deepen the mix) and the `:root`
+ * template otherwise — which is how the DARK `--spec` exists at all: the dark
+ * block re-declares --ink and --ground and inherits the mix written at :root.
+ *
+ * Anything unresolvable throws. A quiet colour the census cannot name is a
+ * colour it would silently charge to the wrong budget, which is the defect.
+ */
+export function parseDerived(css: string, raw: Token[]): Token[] {
+  const hexOf = new Map(raw.map((t) => [t.name, t.hex]))
+  const stripped = stripComments(css)
+
+  const aliases: Array<Map<string, string>> = []
+  const mixes: Array<Map<string, MixTemplate>> = []
+  const surfaces: number[] = []
+  for (const block of stripped.matchAll(BLOCK_RE)) {
+    const body = block[2]
+    const alias = new Map<string, string>()
+    for (const a of body.matchAll(ALIAS_RE)) alias.set(a[1], a[2])
+    const mix = new Map<string, MixTemplate>()
+    for (const m of body.matchAll(MIX_RE)) {
+      mix.set(m[1], { from: m[2], to: m[4], weight: Number(m[3]) / 100 })
+    }
+    if (alias.has('ink')) surfaces.push(aliases.length)
+    aliases.push(alias)
+    mixes.push(mix)
+  }
+  // `:root` is the first block that declares --ink, and it holds the templates
+  // every other surface inherits unless it overrides them.
+  const rootIndex = surfaces[0]
+  if (rootIndex === undefined) {
+    throw new Error('census: tokens.css declares no --ink, so no surface environment can be read')
+  }
+
+  const out: Token[] = []
+  const seen = new Set<string>()
+  for (const index of surfaces) {
+    for (const name of Object.keys(DERIVED_BUCKETS)) {
+      const template = mixes[index].get(name) ?? mixes[rootIndex].get(name)
+      if (template === undefined) continue
+      const resolve = (role: string): string | undefined => {
+        const rawName = aliases[index].get(role) ?? aliases[rootIndex].get(role)
+        return rawName === undefined ? undefined : hexOf.get(rawName)
+      }
+      const from = resolve(template.from)
+      const to = resolve(template.to)
+      if (from === undefined || to === undefined) {
+        throw new Error(
+          `census: --${name} mixes var(--${template.from}) with var(--${template.to}), and ` +
+            'scripts/census/palette.ts cannot resolve one of them to a raw palette hex on the ' +
+            `surface declared at block ${index}. Resolve it before measuring.`,
+        )
+      }
+      const bucket = DERIVED_BUCKETS[name]
+      const hex = mixSrgb(from, to, template.weight)
+      // Keyed by name AND value: one role has as many values as it has
+      // surfaces, and two of them landing in one artifact key would hide a
+      // whole theme's worth of pixels behind the other's percentage.
+      const id = `${name}:${hex.slice(1)}`
+      if (seen.has(id)) continue
+      seen.add(id)
+      out.push({ name: id, hex, order: 0, bucket })
+    }
+  }
+  return out
+}
+
+/**
+ * The classifier's full token list: the twelve raw hexes, then the derived
+ * quiet-register values in the order the surfaces declaring them appear.
+ *
+ * `order` is the array index in both halves, because that index is what
+ * makeClassifier walks and therefore what the tie-break actually is.
+ */
 export function readPalette(): Token[] {
-  return parsePalette(readFileSync(TOKENS_URL, 'utf8'))
+  const css = readFileSync(TOKENS_URL, 'utf8')
+  const raw = parsePalette(css)
+  return [...raw, ...parseDerived(css, raw)].map((t, i) => ({ ...t, order: i }))
+}
+
+export function readDeclaredAccents(): string[] {
+  const css = readFileSync(TOKENS_URL, 'utf8')
+  return parseDeclaredAccents(css, parsePalette(css))
 }
 
 // ── sRGB -> CIELAB (D65) ──────────────────────────────────────────────────

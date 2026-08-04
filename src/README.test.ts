@@ -250,8 +250,10 @@ const CARD_NAMING_FILES: ReadonlyArray<readonly [string, string]> = [
 
 /** Components no build renders. CollectionCard is the newest entry and the
     first DELETION rather than a merge: the codex grid and the badge shelf were
-    60% of the app's DOM with no control on either, and a README that still
-    walks a reader to them is describing a build nobody can run. */
+    62.5% of the card stack's rendered elements on install day (a jsdom render
+    probe at a2d4e6d, the last tree that rendered them — the same figure and the
+    same stamp README.md carries) with no control on either, and a README that
+    still walks a reader to them is describing a build nobody can run. */
 const GONE = [
   'MonthCard',
   'XpCard',

@@ -73,7 +73,19 @@ const CENSUS_INPUTS = [
   'scripts/census/palette.ts',
 ]
 
-const ROOT_INPUTS = ['index.html']
+/**
+ * Files at the repo root that decide pixels without being src/ or census code.
+ *
+ * index.html is the obvious one. THE BUILD CONFIG IS THE ONE THAT WAS MISSING:
+ * serve.ts builds through Vite's Node API, so every census run loads
+ * vite.config.ts — whose `distribution` plugin calls stripHtmlComments() and
+ * TRANSFORMS the served index.html on every build. A change to `base`, to the
+ * plugin list, to build.cssTarget or to that transform moves what the browser
+ * renders while leaving inputsHash untouched, which is a hole in the staleness
+ * authority, which is round 3's defect wearing a different hat. This file's own
+ * stated scope is "every file that can change a pixel"; these two are in it.
+ */
+const ROOT_INPUTS = ['index.html', 'vite.config.ts', 'scripts/htmlComments.ts']
 
 function walk(dir: string, rule: Rule, out: string[]): void {
   const entries = readdirSync(new URL(`${dir}/`, REPO_ROOT), { withFileTypes: true })

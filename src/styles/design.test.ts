@@ -346,8 +346,11 @@ describe('§2 — the ratio law and the palette budget', () => {
     // 39 locked tiles, every track and every input. THE TILES LEFT. They recess
     // onto .spec-sheet's own ground now (asserted below), so the dark recess is
     // five keypad keys, the profile/log inputs, the health track and one hover
-    // state: re-censused at 2.4% of the 375px page and 1.3% at 1440, inside §2's
-    // cap. The recess is now Void on purpose — Graphite is LIGHTER than the dark
+    // state. PROVENANCE: read the `void` figure of app.375x812.dark.seeded and
+    // app.1440x900.dark.seeded in docs/brand/census.json, which the staleness
+    // test keeps current — the 2.4% / 1.3% this comment used to state were
+    // undated and out by roughly 2x. The phone is inside §2's 5% cap and NOT by
+    // much. The recess is Void on purpose — Graphite is LIGHTER than the dark
     // card (relative luminance 0.0255 vs 0.0149), so it drew every recess as a
     // raised plate.
     //
@@ -365,8 +368,10 @@ describe('§2 — the ratio law and the palette budget', () => {
   it('bounds the recess itself — Void’s footprint is a list, not a vibe', () => {
     // The container-role ban above says nothing about how MUCH recess there is,
     // and that is exactly the drift the original 15.2% measurement caught: the
-    // 2.4% re-census is a figure in a comment, so tracks, tiles and inputs could
-    // be added without limit and every assertion here would stay green.
+    // re-census lives in docs/brand/census.json and a comment cannot enforce it,
+    // so tracks, tiles and inputs could be added without limit and every
+    // assertion here would stay green. (The figure this sentence used to reason
+    // from — "2.4%" — was undated and wrong, which is the argument twice over.)
     //
     // So the surfaces that paint the recess are ENUMERATED. Adding one fails
     // this test, which is the point: a new Void surface in dark needs a fresh
@@ -548,15 +553,29 @@ describe('§11 / §1 trait 06 — the act-now cards close at three roles + one a
   const rule = (css: string, sel: string) =>
     new RegExp(`\\n\\${sel} \\{([^}]*)\\}`).exec(css)?.[1] ?? ''
 
-  it('rings the primary CTA in its own plate, not in Flare', () => {
-    // The Graphite plate with a Bone label is 11.44:1 and is already the
-    // primary marker; the ring was buying a fifth hue and nothing else.
-    // --cta-field rather than --keyline: --keyline resolves through --ink,
-    // which is Bone in dark, and the landing's pinned Bone plate would have
-    // lost the button's edge entirely.
+  it('gives the primary CTA a boundary that clears 3:1 on every ground', () => {
+    // THIS ASSERTION USED TO ENCODE A MEASURED DEFECT, so it is re-pointed
+    // rather than deleted. It required `border-color: var(--cta-field)` and
+    // explicitly forbade --cta-keyline — i.e. a Graphite plate with a Graphite
+    // border. Round 4 made the ordinary card's --field Espresso, and Graphite
+    // on Espresso is 1.16:1: under WCAG 1.4.11's 3:1 non-text floor, so on
+    // every dark .card the primary action had NO EDGE and read as loose Bone
+    // type (--cta-ink is the identical hex as --ink there). Confirmed by
+    // screenshot at 375x812 dark and by a computed-style probe at 320/375/768/
+    // 1024/1400/1440.
+    //
+    // Flare is the only palette value that clears 3:1 against all four
+    // surfaces this control renders on — asserted below from the hexes rather
+    // than restated, so the claim cannot drift from the palette.
     const flame = rule(TOKENS, '.btn-flame')
-    expect(flame).toMatch(/border-color: var\(--cta-field\)/)
-    expect(flame).not.toMatch(/border-color: var\(--cta-keyline\)/)
+    expect(flame).toMatch(/border-color: var\(--cta-keyline\)/)
+    expect(TOKENS).toMatch(/--cta-keyline: var\(--flare\)/)
+    for (const ground of [RAW.espresso, RAW.bone, RAW.graphite]) {
+      expect(`${ground}: ${contrast(RAW.flare, ground) >= 3}`).toBe(`${ground}: true`)
+    }
+    // …and the plate itself still fails on the dark card, which is why the
+    // border had to move. This is the fact the old assertion was blind to.
+    expect(contrast(RAW.graphite, RAW.espresso)).toBeLessThan(3)
     // …and Flare survives where trait 06 actually sanctions it: on hover, i.e.
     // transiently. The event, not the furniture.
     expect(TOKENS).toMatch(
@@ -1332,11 +1351,74 @@ describe('§11 / §12.6 — the decision record answers are peers', () => {
   })
 
   it('spends the card\u2019s one accent panel once, on the newest row', () => {
-    // §1 trait 06 / §11's three-colour cap: .sim-result is the Acid panel the
-    // simulator has always had. Older rows drop to plain ink so a long record
-    // never stacks accents down the card.
+    // §1 trait 06 / §11's three-colour cap: .sim-result marks the simulator's
+    // current projection. Older rows drop to plain ink so a long record never
+    // stacks accents down the card.
     expect(APP).toMatch(/\.sim-result\.decision-line \{[^}]*font-size: var\(--fs-body\)/)
     const line = /\n\.decision-line \{([^}]*)\}/.exec(APP)?.[1] ?? ''
     expect(line).not.toMatch(/background|color:/)
+  })
+
+  it('marks that panel with a keyline bar, not with a block of Acid', () => {
+    /* §2.1b caps accent at 2% of the DOCUMENT, and the committed artifact
+       reported the breach in its own breaches array on six of twelve rows. On
+       the phone the declared accents alone spent it: --data (Acid) read 2.01%
+       of app.375x812.light.seeded — the entire budget in one token — and this
+       full-width padded block fill was the dominant Acid area on a 375px
+       column, growing with the record. It takes .lp-share's construction now
+       (landing.css): §6's 6px keyline against the card's own ground. */
+    const result = /\n\.sim-result \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(result).toMatch(/border-left: var\(--keyline-heavy\) solid var\(--data\)/)
+    expect(result).not.toMatch(/background/)
+    // No --on-accent, because nothing stands ON the accent any more. The string
+    // inherits --ink: 11.4:1 on the light card and 13.4:1 on the dark one,
+    // against the 9.7:1 the Acid fill gave it.
+    expect(result).not.toMatch(/color:/)
+    expect(round(contrast(RAW.graphite, RAW.bone))).toBe(11.44)
+    expect(round(contrast(RAW.bone, RAW.espresso))).toBe(13.32)
+  })
+
+  it('lifts the SIM—06 corner mark above the window bar it rides in', () => {
+    /* IT WAS NEVER ON SCREEN. .spec-label is position:absolute at z-index auto
+       (tokens.css); .window-bar is a positioned SIBLING at z-index 1, added to
+       clear .card::before; .sim-card creates no stacking context — so the bar
+       won the paint order over its earlier sibling and painted over the label.
+       Measured in the browser at 375x812 in both themes: a 1:1 capture clipped
+       to the label's own 49x14 box held ONE distinct colour with z-index auto
+       (686 pixels of bar fill, no glyph) and 93/95 with this rule. It is aria-hidden
+       decoration, so App.test's spec-run assertion reads the DOM and stayed
+       green throughout, and §11's "every card carries a mono spec label in its
+       top-right corner" was silently unmet on this one card. */
+    const label = /\n\.sim-card \.spec-label \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(label).toMatch(/z-index: 2/)
+    // 2 clears the bar's 1 and no more: the bar must stay above .card::before,
+    // which is the reason the bar carries a z-index at all.
+    expect(APP).toMatch(/\n\.window-bar \{[^}]*z-index: 1/)
+  })
+
+  it('keeps the check-back count off the one pair tokens.css forbids in writing', () => {
+    /* BOTH HALVES OF THIS FACT WERE ALREADY IN THE SUITE AND NOTHING CONNECTED
+       THEM: the recess test above lists .decision-checkback as a --sunken
+       surface, and the contrast block below asserts contrast(specLight, sand)
+       is under 4.5 as the reason --spec-sunken exists. .checkback-head set
+       --spec on that recess anyway — #676562 on Sand, 3.98:1, for an 11px mono
+       string. This is the assertion that joins them. */
+    const head = /\n\.checkback-head \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(head).toMatch(/color: var\(--spec-sunken\)/)
+    expect(head).not.toMatch(/color: var\(--spec\);/)
+    const specLight = mix(RAW.graphite, 0.7, RAW.bone)
+    expect(contrast(specLight, RAW.sand)).toBeLessThan(4.5)
+    // Every ground this row can stand on, computed rather than asserted: the
+    // light Sand recess, the dark Void one, the Espresso spec sheet and the
+    // archive's Sand counter sheet.
+    const grounds: Array<[string, string]> = [
+      [mix(RAW.graphite, 0.8, RAW.bone), RAW.sand],
+      [mix(RAW.bone, 0.8, RAW.espresso), RAW.void],
+      [mix(RAW.bone, 0.8, RAW.espresso), RAW.espresso],
+      [mix(RAW.graphite, 0.88, RAW.sand), RAW.sand],
+    ]
+    for (const [ink, ground] of grounds) {
+      expect(`${ink} on ${ground}: ${contrast(ink, ground) >= 4.5}`).toBe(`${ink} on ${ground}: true`)
+    }
   })
 })

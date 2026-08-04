@@ -43,6 +43,44 @@ function scheduleLine(d: Decision, today: string): string {
   return days === 1 ? 'Check back tomorrow.' : `Check back in ${days} days.`
 }
 
+/**
+ * THE OTHER HALF OF THE HONESTY NOTE: the inputs setup never asked for.
+ *
+ * "Projected on your numbers." was true of two of the five SimProfile fields
+ * and false of three. resolveProfile INVENTS liquidBalance (one month of free
+ * cash flow), revolvingApr (ASSUMED_REVOLVING_APR, 0.18) and extraDebtPayment
+ * (0) — see engine/profile.ts, where each choice is argued — and ProfileCard
+ * collects none of them.
+ *
+ * They are not cosmetic. A lump purchase is subtracted from the fabricated
+ * liquidBalance, and whether that drives the buffer negative is exactly what
+ * pauses goal contributions and produces "Your goal slips about N months"; the
+ * assumed APR is what produces "Card balance: about N months longer." The
+ * per-row "Placeholder numbers" tag next to the record fires only on d.demo,
+ * so after setup nothing in the UI disclosed either. That is the gap the
+ * card's own honesty comment says this note exists to close.
+ *
+ * WHY NOT COLLECT THEM INSTEAD: two more setup questions is a real product
+ * change and the wrong end of the trade for a five-question setup. Naming the
+ * stand-ins costs one sentence and is honest today.
+ *
+ * The rate is read from the profile rather than restated, so re-pricing
+ * ASSUMED_REVOLVING_APR can never leave this line quoting the old number, and
+ * the debt clause only appears when there IS a balance — resolveProfile sets
+ * revolvingApr to 0 without one, and naming interest on a card the user does
+ * not carry would be a new fiction rather than a disclosure of an old one.
+ * extraDebtPayment's stand-in is 0, i.e. the app assumes nothing extra is
+ * paid; that rides in the same clause as the rate because both only bite on a
+ * carried balance. §7: fragments, under nine words, no adjectives.
+ */
+export function assumptionLine(profile: UserProfile): string {
+  const parts = ['a one-month cash buffer']
+  if (profile.revolvingApr > 0) {
+    parts.push(`${Math.round(profile.revolvingApr * 100)}% on the card balance, with nothing paid extra`)
+  }
+  return `Assumed, not asked: ${parts.join('; ')}.`
+}
+
 export function SimCard({
   profile,
   isDemo,
@@ -222,7 +260,7 @@ export function SimCard({
         <p className="sim-note">
           {isDemo
             ? `Projected on the demo profile. ${profile.monthlyIncome.toLocaleString()} DA/mo income. Your own numbers arrive with setup.`
-            : `Projected on your numbers. ${profile.monthlyIncome.toLocaleString()} DA/mo income. Edit them any time in My numbers.`}
+            : `Projected on your numbers. ${profile.monthlyIncome.toLocaleString()} DA/mo income. ${assumptionLine(profile)} Edit the rest in My numbers.`}
         </p>
         <form
           onSubmit={(e) => {
