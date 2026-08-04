@@ -181,7 +181,7 @@ export function ProfileCard({
   return (
     <section className="card">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
-      <span className="spec-label" aria-hidden="true">NUM—08</span>
+      <span className="spec-label" aria-hidden="true">NUM—07</span>
       <h2>My numbers</h2>
       {/* Permanently mounted status region (same announce-on-change rule as
           the toast/XP regions in App): the visible save confirmation is the

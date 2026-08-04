@@ -5,17 +5,19 @@
  * it anyway") add modules instead of effects in one growing file.
  */
 
-import { useEffect, useMemo, useReducer, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState, type RefObject } from 'react'
 import { RESIST_XP_DAILY_CAP } from './engine/xp.ts'
 import { historyDays } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
+  newDecisionId,
   newId,
   saveState,
   exportJSON,
   subscribeToPeerWrites,
   todayISO,
+  type DecisionOutcome,
   type Transaction,
 } from './state/store.ts'
 import { appReducer } from './state/reducer.ts'
@@ -24,16 +26,13 @@ import { lessonForDay } from './content/lessons.ts'
 import { HeroShell } from './components/HeroShell.tsx'
 import { HeroCard } from './components/HeroCard.tsx'
 import { LessonCard } from './components/LessonCard.tsx'
-import { CodexCard } from './components/CodexCard.tsx'
-import { AchievementsCard } from './components/AchievementsCard.tsx'
-import { XpCard } from './components/XpCard.tsx'
+import { CollectionCard } from './components/CollectionCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
 import { QuestCard } from './components/QuestCard.tsx'
 import { BossCard } from './components/BossCard.tsx'
 import { SimCard } from './components/SimCard.tsx'
 import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
-import { MonthCard } from './components/MonthCard.tsx'
-import { Ledger } from './components/Ledger.tsx'
+import { ArchiveCard } from './components/ArchiveCard.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
 import { useBossBattle } from './hooks/useBossBattle.ts'
 import { useAchievements } from './hooks/useAchievements.ts'
@@ -114,7 +113,7 @@ export default function App({
   // fresh todayISO() for the same reason every other date in this render is.
   // Trust Rule 5's calibration count, read by the health readout — the ledger
   // no longer takes it: a day total is an exact fact from day one, so a 90-day
-  // index on that card made accurate figures look provisional (see Ledger).
+  // index on that card made accurate figures look provisional (see ArchiveCard).
   const loggedDays = useMemo(() => historyDays(state.transactions, today), [state.transactions, today])
   // Counting loop with an early exit, not filter().length: the old form
   // allocated an intermediate array over the whole ledger to answer one
@@ -150,12 +149,37 @@ export default function App({
     dispatch({ type: 'COMPLETE_QUEST', id: 'lesson' })
   }
 
+  // A decision closed as "Bought it" hands its amount to the log form and waits
+  // for the row so the record can point at the real money event. A ref, not
+  // state: it must not re-render anything, and the very NEXT log consumes it
+  // exactly once — a link that survived several logs would eventually staple
+  // the record to an unrelated purchase.
+  //
+  // IT CARRIES THE AMOUNT, and that is the whole guard. "Consumed by the next
+  // log" is not enough on its own: the form has no dismiss, so answering
+  // "Bought it" on a 180,000 DA decision, walking away, and logging an
+  // unrelated 200 DA coffee an hour later stapled that coffee's id to the
+  // decision. Nothing on screen would contradict it, because txId has no
+  // reader — its only surface is the export the user is promised under Trust
+  // Rule 7, which makes a wrong link a false claim in the one artifact that
+  // has to be right. So the link lands only on a row that matches the amount
+  // the record handed over. Editing the prefilled figure before logging drops
+  // the link, deliberately: an unlinked row states less than a mis-linked one,
+  // and less is the honest side to err on.
+  const pendingDecisionRef = useRef<{ id: string; amountDA: number } | null>(null)
+  // Bumped seq, not a bare amount: pressing "Bought it" twice on two decisions
+  // of the same size must still refill the field (see LogCard's prefill effect).
+  const [logPrefill, setLogPrefill] = useState<{ amountDA: number; seq: number } | null>(null)
+
   function logPurchase(
     amountDA: number,
     category: string,
     resisted: boolean,
     impulseFlagged: boolean,
     note?: string,
+    /** Set only by the decision record's resist branch; the log form's own
+     *  path picks the pending link up from the ref above. */
+    decisionId?: string,
   ): string {
     const tx: Transaction = {
       // newId, not bare crypto.randomUUID: randomUUID is undefined outside
@@ -186,7 +210,17 @@ export default function App({
       // punished, and the flag is what makes IC genuine two-sided data.
       impulseFlagged,
     }
-    dispatch({ type: 'LOG_TX', tx })
+    // Claimed once, and only by a matching row. Reading and clearing in the
+    // same breath is what makes the link land on at most one row; the amount
+    // check is what makes that row the right one (see pendingDecisionRef).
+    const pending = pendingDecisionRef.current
+    pendingDecisionRef.current = null
+    const link =
+      decisionId ?? (pending !== null && pending.amountDA === amountDA ? pending.id : undefined)
+    // The link stamps a txId onto the decision and touches nothing else — the
+    // XP branch inside LOG_TX is computed from the transaction alone, so a
+    // linked log pays exactly what the same log pays unlinked (§12.1).
+    dispatch({ type: 'LOG_TX', tx, decisionId: link })
     if (resisted) sfx.sparkle()
     else sfx.blip()
     // The id is LogCard's undo handle for the grace window.
@@ -198,6 +232,71 @@ export default function App({
     // reinforces the visible change — the ledger row and undo strip vanish.
     dispatch({ type: 'UNDO_TX', id })
     sfx.blip()
+  }
+
+  /**
+   * A simulation ran. Two dispatches, one press — the same shape READ_LESSON
+   * uses: RUN_SIM persists the decision (no XP: see the reducer), and the
+   * verified sim quest carries the daily runSimulation grant through
+   * COMPLETE_QUEST's atomic double-grant guard. Recording the decision changed
+   * nothing about what a run pays.
+   */
+  function runSim(run: { amountDA: number; line: string }) {
+    dispatch({
+      type: 'RUN_SIM',
+      decision: {
+        // Time-ordered, so two runs on one day render newest-first — see
+        // newDecisionId. It builds on newId, which is why crypto.randomUUID is
+        // never called directly here (see logPurchase).
+        id: newDecisionId(),
+        // The hook's `today`, like every other date written in this render:
+        // the record labels this day back to the user ("Ran Today"), and a
+        // fresh clock read would stamp the new day while the card still
+        // believes it is the old one.
+        date: today,
+        amountDA: run.amountDA,
+        // FROZEN (§12.5). The string the card showed, stored verbatim; nothing
+        // ever recomputes it against a later profile.
+        line: run.line,
+        // …and frozen WITH its provenance, for the same reason (Trust Rule 5).
+        // The live `isDemo` flag says whose numbers the NEXT run uses; stamping
+        // it here is what lets a row run before setup keep saying it was
+        // projected on placeholders after setup lands. See Decision.demo.
+        demo: isDemo,
+        outcome: 'open',
+      },
+    })
+    dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })
+  }
+
+  /**
+   * What happened, recorded. NO XP CROSSES HERE (§12.1): CLOSE_DECISION pays
+   * nothing, and the resist branch's grant is the ordinary capped resist grant
+   * an identical row typed into the log form would earn — the record does not
+   * add a payout, it just gives the row provenance.
+   */
+  function closeDecision(
+    id: string,
+    outcome: Exclude<DecisionOutcome, 'open'>,
+    amountDA: number,
+  ) {
+    dispatch({ type: 'CLOSE_DECISION', id, outcome, date: today })
+    if (outcome === 'resisted') {
+      // An ordinary resist row: same category vocabulary the picker can
+      // produce, same capped XP path, same IC contribution. The ledger renders
+      // it as "Resisted" like any other.
+      logPurchase(amountDA, 'Other', true, false, undefined, id)
+    } else if (outcome === 'bought') {
+      // Prefill, never auto-log: the app did not see a purchase, the user said
+      // one happened. It goes in the form where the user confirms it, and the
+      // link lands when the row does.
+      pendingDecisionRef.current = { id, amountDA }
+      setLogPrefill((cur) => ({ amountDA, seq: (cur?.seq ?? 0) + 1 }))
+    } else {
+      // "Waited" is a money non-event. Nothing is logged, nothing is paid, and
+      // the record simply holds the answer.
+      sfx.blip()
+    }
   }
 
   function saveProfile(draft: ProfileDraft) {
@@ -332,14 +431,25 @@ export default function App({
           historyDays={loggedDays}
           isDemo={isDemo}
         />
-        <XpCard xp={state.xp} gain={xpGain} />
         <LogCard
           transactions={state.transactions}
           onLog={logPurchase}
           onUndo={undoLog}
           resistXpCapped={resistXpCapped}
+          // Handed over by the decision record's "Bought it" (see
+          // closeDecision). The card fills its amount field and takes focus,
+          // which is also the focus hand-off for the button that just
+          // unmounted in the simulator.
+          prefill={logPrefill}
         />
-        <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
+        {/* Level, XP and quests are one engagement surface — see QuestCard for
+            why XpCard is no longer a card of its own. */}
+        <QuestCard
+          quests={state.quests}
+          onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })}
+          xp={state.xp}
+          gain={xpGain}
+        />
         <BossCard battle={battle} wonLastWeek={wonLastWeek} />
         {/* "Got it" genuinely completes the verified lesson quest — the tap
             lands on today's actual lesson content, so the app observes the
@@ -348,30 +458,42 @@ export default function App({
         {/* Running a simulation genuinely completes the sim quest — a
             daily quest the app verifies instead of taking on self-report, so
             QuestCard renders it without a tap-to-complete button. */}
+        {/* THE DECISION RECORD rides inside this card rather than becoming a
+            thirteenth surface: the simulator is the deepest engine in the app
+            behind the shallowest surface, and the fix for that is depth, not
+            breadth. See SimCard. */}
         <SimCard
           profile={profile}
           isDemo={isDemo}
-          onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
+          today={today}
+          decisions={state.decisions}
+          onRun={runSim}
+          onClose={closeDecision}
         />
         <ProfileCard profile={state.profile} onSave={saveProfile} />
-        {/* Opens the archive half of the stack (see .month-card's macro-break
-            in app.css). Same `today` as every other date in this render, and
-            for the stronger reason: this card states which day of the month it
-            is, so a fresh clock read here would let the page say "Day 5 / 31"
-            over a row it had just stamped the 4th.
+        {/* Opens the archive half of the stack (see .archive-card's macro-break
+            in app.css). The month figures and the days inside them are ONE
+            surface — see ArchiveCard for why they stopped being two cards.
+            Same `today` as every other date in this render, and for the
+            stronger reason: this card states which day of the month it is and
+            which group is headed "Today", so a fresh clock read here would let
+            the page say "Day 5 / 31" over a row it had just stamped the 4th.
             It is handed transactions and a day and NOTHING else — no profile,
             so no budget figure can ever reach it (§12.3/§12.6). */}
-        <MonthCard transactions={state.transactions} today={today} />
-        {/* `today` is the hook's day, not a fresh clock read: it decides which
-            group is headed "Today" and which is "Yesterday", and a list that
-            re-reads the wall clock would disagree with the day this render's
-            logs were stamped with in the minute after midnight. */}
-        <Ledger transactions={state.transactions} today={today} />
-        <CodexCard collectedIds={collectedLessonIds} />
-        <AchievementsCard unlocks={state.achievements} />
+        <ArchiveCard transactions={state.transactions} today={today} />
+        {/* The codex and the badge shelf are one sheet — see CollectionCard
+            for why two identical tile grids stopped being two cards. */}
+        <CollectionCard collectedIds={collectedLessonIds} unlocks={state.achievements} />
       </main>
 
-      <footer className="foot">
+      {/* spec-sheet: §5 layout B, and the closing plate of the archive it sits
+          under. The foot's only control is a plain .btn — no accent, no CTA
+          plate — so the sheet closes at TWO tones here (Espresso field, Bone
+          form) and the export button keeps exactly the depth it had: it draws
+          `background: var(--field)`, so on the Bone foot it was already the
+          card's own colour separated by a keyline, and it still is. The
+          export-outcome bar stays Flare on Espresso at 4.41:1. */}
+      <footer className="foot spec-sheet">
         <button className="btn" onClick={downloadExport}>Export my data</button>
         {/* Permanently mounted and mounted EMPTY, like every other status
             region here: a region that arrives already holding its message is

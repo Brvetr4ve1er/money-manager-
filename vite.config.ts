@@ -4,6 +4,7 @@
 import { defineConfig } from 'vitest/config'
 import { loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { stripHtmlComments } from './scripts/htmlComments.ts'
 
 /**
  * The distribution layer that only a real origin can complete.
@@ -25,9 +26,13 @@ function distribution(siteUrl: string): Plugin {
   return {
     name: 'ember-distribution',
     transformIndexHtml(html) {
-      if (!siteUrl) return html
+      // The comments are repo documentation, not payload — see
+      // scripts/htmlComments.ts. Stripped whether or not an origin is set,
+      // because the reason has nothing to do with distribution metadata.
+      const stripped = stripHtmlComments(html)
+      if (!siteUrl) return stripped
       return {
-        html: html.replaceAll('content="/og.png"', `content="${siteUrl}/og.png"`),
+        html: stripped.replaceAll('content="/og.png"', `content="${siteUrl}/og.png"`),
         tags: [
           {
             tag: 'meta',

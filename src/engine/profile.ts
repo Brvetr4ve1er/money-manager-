@@ -17,7 +17,7 @@ import {
 } from './healthScore.ts'
 import { RESIST_XP_DAILY_CAP } from './xp.ts'
 import type { SimProfile } from './simulator.ts'
-import type { ProfileData, Transaction } from '../state/store.ts'
+import { addDaysISO, type ProfileData, type Transaction } from '../state/store.ts'
 
 export interface UserProfile {
   monthlyIncome: number
@@ -224,14 +224,11 @@ export function resolveProfile(data: ProfileData | null): ResolvedProfile {
  */
 export const ESSENTIAL_CATEGORIES: ReadonlySet<string> = new Set(['Food', 'Bills', 'Health'])
 
-/** Local-calendar day key `n` days before `dayISO` (pure — no wall clock). */
-function daysBeforeISO(dayISO: string, n: number): string {
-  const [y, m, d] = dayISO.split('-').map(Number)
-  const dt = new Date(y, m - 1, d - n)
-  const mm = String(dt.getMonth() + 1).padStart(2, '0')
-  const dd = String(dt.getDate()).padStart(2, '0')
-  return `${dt.getFullYear()}-${mm}-${dd}`
-}
+/** Local-calendar day key `n` days before `dayISO`. One line over the single
+    day-arithmetic implementation (store.ts) — this module reads BACKWARDS
+    everywhere it counts days, and inverting the sign at four call sites reads
+    worse than naming the direction once. */
+const daysBeforeISO = (dayISO: string, n: number): string => addDaysISO(dayISO, -n)
 
 /**
  * Derive Health Score inputs from the transaction log and profile, windowed

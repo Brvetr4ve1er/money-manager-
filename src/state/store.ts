@@ -99,6 +99,83 @@ export interface AchievementUnlock {
   date: string
 }
 
+/**
+ * What happened after a decision was simulated. 'open' is the honest default:
+ * the app does not know, and never guesses.
+ *
+ * §12.3 / §12.6 — these four are peers. 'bought' is not a failure state and
+ * nothing in the UI may render it as one: same ink, same weight, same voice as
+ * 'waited'. There is deliberately no 'regretted', no rating and no score.
+ */
+export type DecisionOutcome = 'open' | 'bought' | 'waited' | 'resisted'
+
+/**
+ * THE THREE ANSWERS, AND THEY ARE PEERS (§12.3 / §12.6).
+ *
+ * "Bought it" is first because it is the honest answer nearest the thumb, not
+ * because it is the wrong one: same ink, same weight, same voice, no colour
+ * split, no ✓/✗, and nowhere in the product is a bought-vs-waited tally — a
+ * count of "you bought 6 of 9" is one step from a verdict about the user.
+ *
+ * IT LIVES HERE, BESIDE THE TYPE, because three surfaces render these words:
+ * SimCard's buttons, SimCard's closed-row line, and the landing page's mechanic
+ * grid. The landing states what the app does, so it must read the words the app
+ * actually ships rather than a copy of them typed into marketing prose — the
+ * same discipline as the note cap and the cash denominations there.
+ */
+export const DECISION_ANSWERS: ReadonlyArray<{
+  outcome: Exclude<DecisionOutcome, 'open'>
+  label: string
+}> = [
+  { outcome: 'bought', label: 'Bought it' },
+  { outcome: 'waited', label: 'Waited' },
+  { outcome: 'resisted', label: 'Resisted it' },
+]
+
+/** Derived from the roster above plus the open state, so a fourth answer cannot
+    be added to the UI and silently fail the sanitizer on reload. */
+const DECISION_OUTCOMES: ReadonlySet<string> = new Set<string>([
+  'open',
+  ...DECISION_ANSWERS.map((a) => a.outcome),
+])
+
+/**
+ * THE DECISION RECORD — one simulation the user ran, and what they did about
+ * it. The simulator used to throw its whole output away (a `useState` string in
+ * SimCard), so the deepest engine in the app left no trace but a bare XP grant.
+ *
+ * `line` is the exact projection string shown at the time, frozen (§12.5). It
+ * is never recomputed against today's profile: re-running the model after the
+ * user edits My numbers would silently rewrite what the app said then, which is
+ * the one thing a record may not do.
+ */
+export interface Decision {
+  id: string
+  /** Local day (YYYY-MM-DD) the simulation ran. */
+  date: string
+  amountDA: number
+  /** The projection, as it read on the day. Frozen — see above. */
+  line: string
+  /**
+   * WHOSE NUMBERS PRODUCED THIS LINE (Trust Rule 5). True while the run was
+   * projected on DEMO_PROFILE — invented income, invented goal — false once the
+   * user's own figures are in.
+   *
+   * It has to travel WITH the row, not be recomputed from the live profile: a
+   * run made on day 1 and a setup completed on day 3 leaves the card saying
+   * "Projected on your numbers" above a frozen line ("your goal slips about 2
+   * months") derived entirely from figures the user never entered. The card's
+   * scope note is a statement about the NEXT run; this is the statement about
+   * the ones already on the page.
+   */
+  demo: boolean
+  outcome: DecisionOutcome
+  /** Local day the outcome was recorded; absent while open. */
+  outcomeDate?: string
+  /** The transaction the outcome produced, when it produced one. */
+  txId?: string
+}
+
 export interface AppState {
   transactions: Transaction[]
   xp: XpState
@@ -117,6 +194,8 @@ export interface AppState {
   profile: ProfileData | null
   /** Earned achievement badges (ids + dates), unioned by id across tabs. */
   achievements: AchievementUnlock[]
+  /** Simulations run and what came of them, newest first (see Decision). */
+  decisions: Decision[]
 }
 
 const KEY = 'ember-state-v1'
@@ -135,33 +214,60 @@ export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   // it (see SimCard's onRun in App) — and because it is verified, QuestCard
   // renders it without a tap-to-complete button.
   { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', verified: true },
-  // The Ledger's "Recent" list is the surface this quest points at, and it now
-  // genuinely groups by day with per-day totals — so the old constraint here
+  // ArchiveCard's day-grouped list is the surface this quest points at — the
+  // stack of day headings, each with its own total, under that card's single
+  // h2. (It used to name a "Recent" heading on a separate ledger card; both
+  // merged into ArchiveCard and that heading was dropped in the same change,
+  // so the rationale for a shipped quest named a surface no build renders.) It
+  // now genuinely groups by day with per-day totals, so the old constraint here
   // ("must not promise a yesterday view the app doesn't have") is satisfied and
   // the wording is free to move. It deliberately hasn't, and it stays a
   // self-report tap rather than joining the verified quests, for one reason:
   // the only thing the app can OBSERVE on that card is the expand control, and
   // that control does not exist until a fourth logged day. Verifying against it
   // would make a DAILY quest unreachable for the whole first week — and naming
-  // "yesterday" in the text would promise a heading a day-1 ledger cannot
+  // "yesterday" in the text would promise a heading a day-1 archive cannot
   // render. A quest the app cannot observe is honest as a self-report; a
   // verified flag over an unobservable action is the hollow grant.
   { id: 'review', text: 'Look back over your recent purchases', xpAction: 'reviewRecent' },
 ]
 
+/**
+ * THE CALENDAR RULE, IN ONE PLACE.
+ *
+ * Deliberately NOT toISOString(): the target market is UTC+1, so UTC keys would
+ * roll quests at 01:00 local time and stamp late-night purchases with the
+ * previous day/month. Every day key in this product is a LOCAL calendar day.
+ *
+ * This function had four identical copies (here, engine/profile.ts,
+ * engine/boss.ts, content/sampleLedger.ts), each re-deriving the same rule with
+ * its own paragraph explaining it. Four copies of a calendar convention is four
+ * chances for one of them to be "fixed" to UTC by someone reading it alone.
+ */
 function localDayISO(d: Date): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   return `${d.getFullYear()}-${mm}-${dd}`
 }
 
-/**
- * Local-calendar day key (YYYY-MM-DD). Deliberately NOT toISOString(): the
- * target market is UTC+1, so UTC keys would roll quests at 01:00 local time
- * and stamp late-night purchases with the previous day/month.
- */
+/** Local-calendar day key (YYYY-MM-DD) for right now. */
 export function todayISO(): string {
   return localDayISO(new Date())
+}
+
+/**
+ * Local-calendar day key `n` days after `dayISO`. Negative `n` goes back. Pure
+ * — no wall clock, so it is safe in derivations and in tests.
+ *
+ * The LOCAL Date constructor, deliberately: it normalises the calendar (month
+ * and year underflow) and never touches a duration, so it is DST-safe for this
+ * direction. ledger.ts's dayIndex does UTC arithmetic for the opposite reason —
+ * it measures a DIFFERENCE between two local midnights, which is 23 or 25 hours
+ * apart twice a year. Same care, opposite tool.
+ */
+export function addDaysISO(dayISO: string, n: number): string {
+  const [y, m, d] = dayISO.split('-').map(Number)
+  return localDayISO(new Date(y, m - 1, d + n))
 }
 
 /**
@@ -207,6 +313,7 @@ export function defaultState(): AppState {
     muted: false,
     profile: null,
     achievements: [],
+    decisions: [],
   }
 }
 
@@ -304,7 +411,16 @@ function isXpGrant(v: unknown): v is XpGrant {
     v.amount >= 0 &&
     v.amount <= MAX_TOTAL_XP &&
     typeof v.date === 'string' &&
-    (v.date === '' || DAY_KEY_RE.test(v.date))
+    // isValidDayKey, not DAY_KEY_RE: shape alone accepts '2026-02-30' and
+    // '2026-99-99', and this is the one sanitizer where an impossible key BUYS
+    // something. xpFromLog buckets resist grants by date, so every distinct
+    // key — real or not — mints its own bucket and its own allowance against
+    // RESIST_XP_DAILY_CAP. Four grants dated on days that do not exist folded
+    // to 150 XP. Engagement track only (the Health Score never reads xpLog,
+    // §12.1) and MAX_TOTAL_XP still clamps the total, but the rule stated at
+    // computeValidDayKey — impossible keys are rejected everywhere — had one
+    // hole and this was it.
+    (v.date === '' || isValidDayKey(v.date))
   )
 }
 
@@ -337,13 +453,32 @@ function isTransaction(v: unknown): v is Transaction {
  * field so typing is bounded visibly, and here so a hand-edited or
  * peer-written payload is bounded at all.
  *
- * The cap is a quota rule, not a style preference. A transaction measures ~189
- * chars of JSON, which is what puts the origin's ~5MB budget at roughly 13,000
- * rows; one pasted multi-megabyte memo exhausts that budget by itself, and
- * every write after it fails — saveState returns false and the app runs
- * permanently in its persistFailed state, having lost nothing but its ability
- * to keep anything. 80 chars holds "bread and milk from the corner shop" four
- * times over and bounds the per-row growth at ~40%.
+ * The cap is a quota rule, not a style preference, so the arithmetic has to
+ * count what a logged row ACTUALLY costs — which the earlier version of this
+ * comment did not. A transaction measures 146 chars of JSON bare and 191 with
+ * a full 80-char note, but every LOG_TX also appends an XpGrant to xpLog
+ * (reducer.ts), and a measured grant is 101 chars
+ * (`{"id":"tx:<uuid>","action":"logExpense","amount":5,"date":"2026-08-04"}`).
+ * A logged row is therefore ~247 chars bare and ~290 with a note. Against the
+ * origin's ~5MB budget stored as UTF-16 (~2.6M chars) that is ~10,600 rows
+ * bare and ~9,000 with notes — not the ~13,000 this comment used to claim from
+ * the transaction alone, a ~30-40% overstatement of its own basis.
+ * One pasted multi-megabyte memo exhausts that budget by itself, and every
+ * write after it fails — saveState returns false and the app runs permanently
+ * in its persistFailed state, having lost nothing but its ability to keep
+ * anything. 80 chars holds "bread and milk from the corner shop" four times
+ * over and bounds the per-row growth at ~30%.
+ *
+ * xpLog IS DELIBERATELY UNCAPPED, unlike decisions (see DECISION_MAX). Two
+ * reasons, and the second is the binding one. A grant is ~101 chars and there
+ * is at most one per logged row plus a handful of daily quest/boss grants, so
+ * it is a bounded fraction of a cost already counted above. And the log is
+ * EVIDENCE: xpFromLog folds it into the visible XP total, so trimming the
+ * oldest grants would silently take XP off a counter the user was already
+ * shown — the one thing the two-track rule's engagement side must never do.
+ * A cap here would need a legacy-baseline rollup like the one sanitizeState
+ * already mints for pre-log schemas; until the quota argument demands it, it
+ * stays unbounded on purpose rather than by omission.
  */
 export const NOTE_MAX_LEN = 80
 
@@ -379,6 +514,129 @@ export function withSanitizedNote(t: Transaction): Transaction {
   const out: Transaction = { ...t, note }
   if (note === undefined) delete out.note
   return out
+}
+
+/**
+ * Longest projection line the record stores. Same quota argument as
+ * NOTE_MAX_LEN — the cap is what stops a hand-edited or peer-written payload
+ * from spending the origin's ~5MB budget on one string and leaving every write
+ * after it failing — but the number is bigger because the string is longer by
+ * construction: describeResult's four branches concatenate to ~335 characters
+ * at their maximum. 400 clears that with room and still bounds a decision row
+ * at well under a kilobyte.
+ */
+export const DECISION_LINE_MAX_LEN = 400
+
+/**
+ * How many decisions the record keeps. Bounded for the same quota reason, and
+ * dropped from the OLDEST end — a record is a log, and the rows the user can
+ * still act on are the recent ones.
+ *
+ * The cap is applied AFTER the canonical sort, never on arrival order, so
+ * trimming is a pure function of the set: sanitize and merge cannot disagree
+ * about which rows survive, which is what the merge fixpoint needs.
+ */
+export const DECISION_MAX = 60
+
+/**
+ * Validate one untrusted decision, or drop it. Dropping costs the decision and
+ * nothing else — the transactions in the same payload are filtered separately
+ * (see sanitizeState), which is the same "a bad memo costs the memo, never the
+ * row" rule the note sanitizer follows.
+ */
+export function sanitizeDecision(v: unknown): Decision | null {
+  if (!isRecord(v)) return null
+  if (typeof v.id !== 'string' || v.id === '') return null
+  if (typeof v.date !== 'string' || !isValidDayKey(v.date)) return null
+  // Same money rule as every other amount: a NaN/Infinity/negative would render
+  // as a nonsense figure on the row and JSON round-trip to null.
+  if (!isFiniteNumber(v.amountDA) || v.amountDA < 0) return null
+  if (typeof v.line !== 'string') return null
+  if (typeof v.outcome !== 'string' || !DECISION_OUTCOMES.has(v.outcome)) return null
+  const out: Decision = {
+    id: v.id,
+    date: v.date,
+    amountDA: v.amountDA,
+    // Trimmed then capped then trimmed, exactly like sanitizeNote and for the
+    // same reason: the second trim is what makes this idempotent, and the merge
+    // fixpoint compares whole states as JSON strings.
+    line: v.line.trim().slice(0, DECISION_LINE_MAX_LEN).trim(),
+    // DEFAULTS TRUE, and the default is the point. An unmarked row is a row
+    // whose basis cannot be verified — written by an older build, hand-edited,
+    // merged in from a peer — and the conservative reading of "we cannot tell
+    // whose numbers these were" is "not the user's" (Trust Rule 5). Claiming
+    // personalization the row cannot prove is the failure this field exists to
+    // stop, so only an explicit `false` retires the disclosure.
+    demo: v.demo !== false,
+    outcome: v.outcome as DecisionOutcome,
+  }
+  // An outcomeDate only means anything on a closed row, and a closed row
+  // without one would render "Recorded" with no day. Repair rather than drop:
+  // the projection and the amount are the record's substance.
+  if (typeof v.outcomeDate === 'string' && isValidDayKey(v.outcomeDate) && out.outcome !== 'open') {
+    out.outcomeDate = v.outcomeDate
+  }
+  if (typeof v.txId === 'string' && v.txId !== '') out.txId = v.txId
+  return out
+}
+
+/**
+ * Union decisions by id into one canonical, capped list. Deterministic,
+ * idempotent AND commutative, so sanitizeState and mergeStates share it and two
+ * tabs converge on a single JSON string (see mergeStates' fixpoint).
+ *
+ * CLOSED BEATS OPEN: recording an outcome in either tab is a user action the
+ * other tab has no evidence against, and reviving it as open would ask the same
+ * question twice. Two DIFFERENT closed outcomes carry no recency signal at all
+ * (outcomeDate can tie), so the greater JSON string wins — arbitrary but
+ * SYMMETRIC, the same tie-break the profile uses, because both tabs agreeing
+ * matters more than which of the two survives.
+ */
+export function canonicalDecisions(entries: Decision[]): Decision[] {
+  const byId = new Map<string, Decision>()
+  for (const d of entries) {
+    const prev = byId.get(d.id)
+    if (!prev) {
+      byId.set(d.id, d)
+      continue
+    }
+    if (prev.outcome === d.outcome) {
+      byId.set(d.id, JSON.stringify(d) > JSON.stringify(prev) ? d : prev)
+    } else if (prev.outcome === 'open') {
+      byId.set(d.id, d)
+    } else if (d.outcome !== 'open') {
+      byId.set(d.id, JSON.stringify(d) > JSON.stringify(prev) ? d : prev)
+    }
+  }
+  return (
+    [...byId.values()]
+      // Newest day first (the record reads top-down), and WITHIN a day the
+      // greater id first. That second key is chronological in practice because
+      // decision ids are minted time-ordered — see newDecisionId — so two runs
+      // on one day render newest-first; for any other id it is still a total,
+      // commutative order, just not a chronological one. Insertion order would
+      // make crossed writes each adopt the other's ordering forever, every save
+      // a new JSON string that never reaches a fixpoint.
+      .sort((a, b) =>
+        a.date !== b.date ? (a.date > b.date ? -1 : 1) : a.id > b.id ? -1 : a.id < b.id ? 1 : 0,
+      )
+      .slice(0, DECISION_MAX)
+  )
+}
+
+/**
+ * A decision id that sorts chronologically inside its day. The record is read
+ * newest-first and the top row is the one the card treats as the current
+ * projection, so a random uuid alone would put a fresh run second on a day that
+ * already held one.
+ *
+ * Fixed-width base-36 milliseconds, then newId() for uniqueness: the timestamp
+ * is 8 characters from 2004 to 2059 and the pad keeps lexicographic order
+ * correct outside that range too. It is a display-order hint, never an
+ * authority — the DATE is what every window and every merge compares.
+ */
+export function newDecisionId(): string {
+  return `${Date.now().toString(36).padStart(9, '0')}-${newId()}`
 }
 
 /** Finite and non-negative — the validity rule for every profile amount. */
@@ -517,7 +775,12 @@ export function sanitizeState(parsed: unknown): AppState {
   // walks single-day steps from healthDate, and a free-form string here (a
   // hand-edited 'never', an old schema's ISO timestamp) would feed the
   // rollover garbage. Mismatches fall back to the default ('' = never).
-  if (typeof parsed.healthDate === 'string' && DAY_KEY_RE.test(parsed.healthDate)) {
+  // isValidDayKey rather than the bare shape, for consistency with every other
+  // date this sanitizer touches. finalizeHealthThrough is iteration-bounded and
+  // rollQuests renormalises at load, so neither of these two was exploitable —
+  // but "impossible keys are rejected" is easier to keep true as a rule with no
+  // exceptions than as a rule with two documented ones.
+  if (typeof parsed.healthDate === 'string' && isValidDayKey(parsed.healthDate)) {
     out.healthDate = parsed.healthDate
   }
   if (Array.isArray(parsed.quests)) {
@@ -532,7 +795,7 @@ export function sanitizeState(parsed: unknown): AppState {
     }
     out.quests = DEFAULT_QUESTS.map((d) => ({ ...d, done: doneById.get(d.id) === true }))
   }
-  if (typeof parsed.questsDate === 'string' && DAY_KEY_RE.test(parsed.questsDate)) {
+  if (typeof parsed.questsDate === 'string' && isValidDayKey(parsed.questsDate)) {
     out.questsDate = parsed.questsDate
   }
   if (Array.isArray(parsed.lessonsSeen)) {
@@ -578,6 +841,17 @@ export function sanitizeState(parsed: unknown): AppState {
       ),
     )
   }
+  if (Array.isArray(parsed.decisions)) {
+    // Row-by-row, like transactions and unlike the profile: each decision is an
+    // independent record of one run, so one malformed entry must never take the
+    // rest of the record — or the transactions beside it — down with it.
+    const kept: Decision[] = []
+    for (const d of parsed.decisions) {
+      const ok = sanitizeDecision(d)
+      if (ok !== null) kept.push(ok)
+    }
+    out.decisions = canonicalDecisions(kept)
+  }
   return out
 }
 
@@ -619,7 +893,8 @@ export function loadState(): AppState {
 /**
  * Persist, and REPORT whether the write landed. The boolean is not optional
  * politeness: setItem throws QuotaExceededError when the origin's budget is
- * exhausted (~13,000 transactions at the measured 189 chars each) and — far
+ * exhausted (~9,000-10,600 logged rows: ~247 chars for a bare transaction plus
+ * its XP grant, ~290 with a full note — see NOTE_MAX_LEN) and — far
  * more commonly — in privacy modes that grant zero quota, where every write
  * fails from the very first tap. Swallowing that made the app confirm a save
  * it never made: the row rendered, the undo strip read "Logged 4,200 DA",
@@ -655,7 +930,7 @@ export function saveState(state: AppState): boolean {
  * reducer path (and React's bail-out) skips the re-render and re-save.
  */
 export function mergeStates(local: AppState, incoming: AppState): AppState {
-  // Transactions: union by id, in canonical order — date desc (the Ledger's
+  // Transactions: union by id, in canonical order — date desc (ArchiveCard's
   // newest-first), id asc within a day. Insertion-ordered output would make
   // crossed writes each adopt the other's differing ordering forever, every
   // save a new JSON string that never reaches a fixpoint.
@@ -764,6 +1039,9 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     // Badge union: earned in either tab stays earned, earliest date wins on
     // duplicates — same survival + convergence rules as the codex.
     achievements: dedupeEarliestById([...local.achievements, ...incoming.achievements]),
+    // Decision record union: a run in either tab survives, and an outcome
+    // recorded in either tab stays recorded (see canonicalDecisions).
+    decisions: canonicalDecisions([...local.decisions, ...incoming.decisions]),
   }
   // Fixpoint short-circuit: an unchanged merge returns the SAME reference, so
   // useReducer's HYDRATE hands React an identical state, the re-render bails,

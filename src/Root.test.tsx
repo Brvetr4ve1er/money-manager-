@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Root } from './Root.tsx'
 import { Landing } from './components/Landing.tsx'
-import { defaultState, todayISO, NOTE_MAX_LEN } from './state/store.ts'
+import {
+  defaultState,
+  todayISO,
+  NOTE_MAX_LEN,
+  DECISION_ANSWERS,
+  DECISION_MAX,
+} from './state/store.ts'
 import { sampleLedgerRows } from './content/sampleLedger.ts'
 import { groupTransactionsByDay, monthToDate } from './engine/ledger.ts'
 import { NOTE_DENOMINATIONS_DA } from './engine/keypad.ts'
@@ -122,14 +128,18 @@ describe('landing honesty (Trust Rule 5)', () => {
     }
   })
 
-  it('names six mechanics and indexes them against their real count', () => {
+  it('names seven mechanics and indexes them against their real count', () => {
     const { container } = render(<Landing onEnter={() => {}} />)
     const indices = [...container.querySelectorAll('.lp-index')].map((n) => n.textContent)
     // §1 trait 10 is "decorative TRUTH-telling": the denominator has to be the
     // length of the list it captions, or the label is set dressing.
-    // Six, and each one is a shipped surface: health score, resist, simulator,
-    // monster, the month card, the row note.
-    expect(indices).toEqual(['01/06', '02/06', '03/06', '04/06', '05/06', '06/06'])
+    // Seven, and each one is a shipped surface: health score, resist,
+    // simulator, the decision record, monster, the month head, the row note.
+    // Written out rather than derived from MECHANICS on purpose — a test that
+    // reads the same array the component renders would pass on an empty grid.
+    // The seventh arrived with the record; a feature that ships without a claim
+    // is the same drift as a claim that ships without a feature.
+    expect(indices).toEqual(['01/07', '02/07', '03/07', '04/07', '05/07', '06/07', '07/07'])
     expect(container.querySelectorAll('.lp-badge')).toHaveLength(indices.length)
   })
 
@@ -174,6 +184,48 @@ describe('landing honesty (Trust Rule 5)', () => {
     // most likely place for either to creep back in.
     expect(text).not.toMatch(/\b(premium|curated|elevated|seamless|journey|unlock(ed|s)?|crafted)\b/i)
     expect(text).not.toContain('!')
+  })
+
+  it('gives §5D’s band a lane of its own, between the sign and the plates', () => {
+    // §5D is "one 38° diagonal band splits the canvas; TYPE SITS PARALLEL TO
+    // IT". The band's type used to be occluded by the rule plates it passed
+    // behind — fixed on desktop by making the type an index rather than a
+    // sentence, and "fixed" on the phone by switching the marks off, where the
+    // one-column grid leaves the diagonal no run at all.
+    //
+    // The lane is the phone's real fix, and it is a DOM fact, not only a CSS
+    // one: the band has to sit BETWEEN the two text blocks, because below
+    // 720px the lane is a real box in the flow and the band is what splits the
+    // section into what it says and what it lists. At ≥720 the lane is
+    // display: contents and the order stops mattering. Assert the order, or a
+    // later edit collapses the two blocks back into one wrapper and the band
+    // silently returns to the top of the section.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const shear = container.querySelector('.lp-shear')
+    expect(shear).toBeTruthy()
+    const kids = [...(shear?.children ?? [])].map((n) => n.className)
+    expect(kids).toEqual([
+      'lp-measure lp-rules-body',
+      'lp-band-lane',
+      'lp-measure lp-rules-body',
+    ])
+    // The band is inside the lane — that parent is the containing block the
+    // whole construction rests on.
+    expect(shear?.querySelector('.lp-band-lane > .lp-band')).toBeTruthy()
+    // Both text blocks carry .lp-rules-body, which is what lifts them over the
+    // band at ≥720 where it is absolute across the section. One without it
+    // would be painted under the diagonal.
+    expect(shear?.querySelectorAll('.lp-rules-body')).toHaveLength(2)
+    // Still exactly one band, and still decoration: the section's sentence is
+    // real text in the lede, so a screen reader loses nothing.
+    expect(shear?.querySelectorAll('.lp-band')).toHaveLength(1)
+    expect(shear?.querySelector('.lp-band')?.getAttribute('aria-hidden')).toBe('true')
+    // 18 marks are rendered at every width; CSS caps how many are DRAWN below
+    // 720 so the surplus is never clipped mid-glyph. If this count ever drops
+    // to the mobile cap, the desktop band runs out of marks halfway across.
+    const marks = [...(shear?.querySelectorAll('.lp-band-mark') ?? [])]
+    expect(marks).toHaveLength(18)
+    expect(new Set(marks.map((m) => m.textContent))).toEqual(new Set(['38°']))
   })
 
   it('gives every call to action a real handler, not a dead link', () => {
@@ -227,27 +279,28 @@ describe('the landing product shot', () => {
     const { container } = render(<Landing onEnter={() => {}} />)
     const frame = shot(container)
     expect(frame).not.toBeNull()
-    // MTD—09 and LDG—10 are printed by MonthCard and Ledger themselves (§11's
-    // corner mark), and the indices are their real positions in App's stack —
-    // see the render-order case below, which derives the whole run. Their
-    // presence is proof the components rendered, not a facsimile of them.
-    expect(frame.querySelector('.month-card')).not.toBeNull()
-    expect(frame.querySelector('.ledger-card')).not.toBeNull()
-    expect(frame.textContent).toContain('MTD—09')
-    expect(frame.textContent).toContain('This month')
-    expect(frame.textContent).toContain('LDG—10')
-    expect(frame.textContent).toContain('Recent')
+    // ARC—08 is printed by ArchiveCard itself (§11's corner mark), and the
+    // index is its real position in App's stack — see the render-order case in
+    // App.test, which derives the whole run. Its presence is proof the
+    // component rendered, not a facsimile of it.
+    expect(frame.querySelector('.archive-card')).not.toBeNull()
+    expect(frame.textContent).toContain('ARC—08')
+    expect(frame.textContent).toContain('The record')
   })
 
-  it('stacks the cards in the order the app stacks them', () => {
-    // App mounts <MonthCard> directly above <Ledger>. A shot that reversed
-    // them would be a picture of a screen nobody has.
+  it('shows ONE archive card, the way the app stacks it', () => {
+    // The month figures and the day list merged into one card (ArchiveCard), so
+    // the shot is one card and not two — a shot showing two would be a picture
+    // of a screen nobody has, which is the same failure the old ordering
+    // assertion here was written to catch.
     const { container } = render(<Landing onEnter={() => {}} />)
-    const cards = [...shot(container).querySelectorAll('.month-card, .ledger-card')]
-    expect(cards.map((c) => (c.classList.contains('month-card') ? 'month' : 'ledger'))).toEqual([
-      'month',
-      'ledger',
-    ])
+    const cards = [...shot(container).querySelectorAll('.card')]
+    expect(cards).toHaveLength(1)
+    expect(cards[0].classList.contains('archive-card')).toBe(true)
+    // The month figures sit above the day list inside it — the order is a fact
+    // about one card now, not about two.
+    const text = cards[0].textContent ?? ''
+    expect(text.indexOf('Day ')).toBeLessThan(text.indexOf('Spent'))
   })
 
   it('states the month figures the real month engine derives from the sample', () => {
@@ -271,8 +324,8 @@ describe('the landing product shot', () => {
     // changes what the picture claims.
     const { container } = render(<Landing onEnter={() => {}} />)
     const text = shot(container).textContent ?? ''
-    expect(text).toContain('Totals only. No target, no projection.')
-    // …and no budget language reached the page through the new card. MonthCard
+    expect(text).toContain('Totals only. No targets. No averages. No projections.')
+    // …and no budget language reached the page through the card. ArchiveCard
     // is never handed the profile, so `budgeted` has no path here; this asserts
     // the outcome rather than trusting the wiring.
     expect(container.textContent ?? '').not.toMatch(/\bbudget(ed|s)?\b|\ballowance\b|\bat this pace\b/i)
@@ -342,7 +395,7 @@ describe('the landing product shot', () => {
     // shipping. The shot carries the honest version, not a cropped one.
     const { container } = render(<Landing onEnter={() => {}} />)
     const text = shot(container).textContent ?? ''
-    expect(text).toContain('Totals only. No averages, no comparisons.')
+    expect(text).toContain('Totals only. No targets. No averages. No projections.')
     // …and no countdown that would read as a promise.
     expect(text).not.toMatch(new RegExp(`/ ?${CALIBRATION_DAYS}`))
   })
@@ -383,7 +436,7 @@ describe('the landing product shot', () => {
   })
 })
 
-describe('the landing tells the truth about the two newest features', () => {
+describe('the landing tells the truth about the newest features', () => {
   it('lists the note keys from the engine constant, never a typed list', () => {
     const { container } = render(<Landing onEnter={() => {}} />)
     const strip = container.querySelector('.lp-note-strip')?.textContent ?? ''
@@ -392,6 +445,37 @@ describe('the landing tells the truth about the two newest features', () => {
     // a tap ADDS to the field, and it never replaces what is typed there.
     expect(strip.toLowerCase()).toContain('added to whatever is already in the box')
     expect(strip.toLowerCase()).toContain('never overwrites it')
+  })
+
+  it('claims the decision record in the words SimCard actually prints', () => {
+    // THE FEATURE THAT SHIPPED WITHOUT A CLAIM. The record cannot be shown the
+    // way the archive card is — it lives inside SimCard, which always mounts an
+    // amount field and a Run button, and the shot is aria-hidden where a
+    // focusable node is a trap with no name (see the shot tests above).
+    // So it is bound the other way: the badge prints DECISION_ANSWERS, which is
+    // the array SimCard renders its three buttons from. Rename a button and
+    // this claim renames itself or this fails.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const badge = [...container.querySelectorAll('.lp-badge')].find((b) =>
+      /^the record$/i.test(b.querySelector('.lp-badge-h')?.textContent?.trim() ?? ''),
+    )
+    expect(badge).toBeTruthy()
+    const body = badge?.querySelector('.lp-badge-body')?.textContent ?? ''
+    for (const answer of DECISION_ANSWERS) expect(body).toContain(answer.label)
+    // The frozen line (§12.5 — store.ts never recomputes `line`) and the
+    // absence that is the actual trust boundary: there is no bought-vs-waited
+    // tally anywhere in SimCard, so the page must not imply one.
+    expect(body.toLowerCase()).toContain('with the line each printed')
+    expect(body.toLowerCase()).toContain('never a tally')
+    // THE DEPTH, read from the store rather than typed here or on the page.
+    // "Every run kept" was the one claim in this badge that was typed, and it
+    // was false: DECISION_MAX bounds the record and canonicalDecisions trims
+    // from the oldest end on every write.
+    expect(body).toContain(`The last ${DECISION_MAX} runs kept`)
+    expect(body.toLowerCase()).not.toMatch(/every run kept/)
+    // …and no score-shaped reading of the user anywhere near it (Trust Rule 5,
+    // the same rule the whole-page assertion above enforces).
+    expect(body).not.toMatch(/\bscore\b|\bstreak\b|\b\d+\s*\/\s*\d+\b/i)
   })
 
   it('describes the ledger as day-grouped, which is what the card beside it does', () => {

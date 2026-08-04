@@ -13,7 +13,7 @@ export function LessonCard({
   return (
     <section className="card">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
-      <span className="spec-label" aria-hidden="true">LSN—06</span>
+      <span className="spec-label" aria-hidden="true">LSN—05</span>
       <div className="lesson-head">
         <h2>Today's lesson</h2>
         {/* Persistent collected marker — the visual state the quest blip and

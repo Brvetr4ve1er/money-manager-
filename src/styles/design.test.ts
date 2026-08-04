@@ -57,7 +57,11 @@ function offGridLengths(css: string): string[] {
         // half-step of the 8px baseline, which is what the file already
         // expresses as calc(var(--s1) / 2).
         if (v <= 3) continue
-        if (v % 4 !== 0) found.push(`${prop}: ${m[1].trim()}`)
+        // EIGHT, not four. §5 says "Baseline grid: 8px. Everything snaps" and
+        // §6's space scale is 8/16/24/40/64/104/168 — a %4 gate let seven
+        // lengths (92, 28, 44, 900) sit off the baseline while a test named
+        // for 8 reported coverage.
+        if (v % 8 !== 0) found.push(`${prop}: ${m[1].trim()}`)
       }
     }
   }
@@ -92,13 +96,46 @@ describe('§3 — the display tier does real work in the product', () => {
   })
 
   it('uses every step of the scale it defines — no 2.4× hole in the ramp', () => {
-    // A census of everything ≥28px painted at 1440 read 144 / 72 / 30 / 22 / 17:
-    // --fs-h1 (42px) had zero uses anywhere in src/, so the ramp fell 2.4× in
-    // one jump from the health readout to the section heads, with a defined
-    // step skipped. The hero thesis is the one run of type that stands beside a
-    // 144px lockup, and §3 defines that step as Grotesk 700 — which it was.
-    expect(APP).toMatch(/--fs-h1\)/)
+    // A census of everything ≥28px painted at 1440 read 72 / 30 / 22 / 17 in
+    // the card stack: --fs-h1 (42px) was defined and skipped, so the ramp fell
+    // 2.4× in one jump from the health readout to the section heads.
+    //
+    // THE STEP HAS TO BE IN THE STACK, which is what the first version of this
+    // assertion did not say. It only required --fs-h1 somewhere in app.css, and
+    // was satisfied by .hero-thesis — a different composition, inside
+    // `@media (min-width: 1024px)`, on an element the phone (the stated primary
+    // device) never renders. The cliff itself never moved. So the readout at
+    // the top of the stack is asserted directly.
+    expect(APP).toMatch(/\.score-value \{[^}]*font-size: var\(--fs-h1\)/)
+    // …with its own line-height and tracking, not h1's size over d2's metrics.
+    expect(APP).toMatch(/\.score-value \{[^}]*line-height: var\(--lh-h1\)/)
+    expect(APP).toMatch(/\.score-value \{[^}]*letter-spacing: var\(--tr-h1\)/)
+    // The band keeps its own step; both are the same token, in two ramps.
     expect(APP).toMatch(/\.hero-thesis \{[^}]*font-size: var\(--fs-h1\)/)
+    // And d2 stays where §3 puts it: BLOKFORM, stacked, in a container.
+    expect(APP).toMatch(/\.hero-lockup \{[^}]*font-size: var\(--fs-d2\)/)
+  })
+
+  it('closes the same hole on the poster, which has its own stylesheet', () => {
+    // The landing's declared sizes read 112 / 72 / 30 / 22 / 17 — the identical
+    // 2.4× fall from the d2 section brick to the next tier down, and a 3.7×
+    // one from the d1 lockup that stands directly over .lp-thesis in the wall.
+    // Fixing app.css did nothing for it. .lp-thesis is the page's promise line
+    // (the first reading-tier string in §5A's wall and in §5E's object), and at
+    // h2 it rendered at the size of a card title and 1.36× its own lede.
+    expect(LANDING).toMatch(/--fs-h1\)/)
+    const thesis = /\n\.lp-thesis \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
+    expect(thesis).toMatch(/font-size: var\(--fs-h1\)/)
+    // The whole tier travels together or the leading is wrong for the size:
+    // h1 is 42/0.95/-0.02em in §3, not 42 on h2's 1.05 leading.
+    expect(thesis).toMatch(/line-height: var\(--lh-h1\)/)
+    expect(thesis).toMatch(/letter-spacing: var\(--tr-h1\)/)
+    // Tier 2, not Tier 1: §3 reserves the display face for 1–3 stacked words
+    // and this line is five. Taking the SIZE tier is not taking the face.
+    expect(thesis).not.toMatch(/font-family/)
+    // …and the lede below it must not follow, or the step just moves down one
+    // and the gap is unchanged.
+    expect(LANDING).toMatch(/\.lp-lede \{[^}]*font-size: var\(--fs-h3\)/)
   })
 
   it('never renders a heading below body size', () => {
@@ -121,6 +158,30 @@ describe('§3 — nothing on the page is fetched from anywhere', () => {
     for (const [name, css] of [['tokens', TOKENS], ['app', APP], ['landing', LANDING]] as const) {
       expect(`${name}: ${/@import/.test(css)}`).toBe(`${name}: false`)
       expect(`${name}: ${/url\(\s*['"]?(https?:)?\/\//.test(css)}`).toBe(`${name}: false`)
+    }
+  })
+})
+
+describe('§8 — exactly two textures, and the grain is ONE of them', () => {
+  it('defines the grain tile once, as a token, and inlines it nowhere', () => {
+    // §8 budgets the product two textures: 6% offset-print grain and the
+    // halftone inside display letterforms. The grain tile shipped as two
+    // byte-identical 353-character data: URIs — one in app.css behind the
+    // desktop hero, one in landing.css behind the brick wall — each commented
+    // as "the same tile" as the other. Two copies of a texture is not a budget
+    // of one texture; it is two textures that happen to agree today.
+    const tile = /--grain-tile:\s*url\(/g
+    expect(TOKENS.match(tile) ?? []).toHaveLength(1)
+    // The use sites reference the token and inline nothing. Anchored on the
+    // data: scheme rather than on url(), because both files legitimately
+    // reference var(--grain-tile) and the §3 remote-asset ban is separate.
+    for (const [name, css] of [['app', APP], ['landing', LANDING]] as const) {
+      expect(`${name} inlines a data URI: ${/url\(\s*['"]?data:/.test(css)}`).toBe(
+        `${name} inlines a data URI: false`,
+      )
+      expect(`${name} uses the token: ${css.includes('var(--grain-tile)')}`).toBe(
+        `${name} uses the token: true`,
+      )
     }
   })
 })
@@ -173,13 +234,67 @@ describe('§1 trait 09 / §8 — one diagonal per composition', () => {
     // truncation this whole construction exists to avoid.
     expect(band).toMatch(/overflow: hidden/)
     expect(LANDING).toMatch(/\.lp-band-mark \{[^}]*flex-shrink: 0/)
-    // …and the marks are gated to the width where a lane exists. Below 720px
-    // the rules grid is one full-measure column, the band's visible run is
-    // slivers between stacked plates, and every mark on screen is cut
-    // mid-glyph — the rotated-fragment artefact, back one glyph down.
-    expect(LANDING).toMatch(/\.lp-band-mark \{[^}]*display: none/)
+  })
+
+  it('carries that type on the phone too, in a lane rather than behind plates', () => {
+    // THE UNFINISHED HALF. The construction above solves the occlusion for a
+    // section wider than it is tall — at 1440 the diagonal has a 678px run and
+    // the four-column grid leaves band showing beside it. Below 720px the grid
+    // is one full-measure column, the column IS the viewport, and the band's
+    // only run is ~60px slivers between stacked plates. The marks were
+    // therefore switched off entirely, so the stated primary device shipped
+    // §5D's first clause and none of its second.
+    //
+    // The collision is the overlap, so the fix is to stop overlapping: the band
+    // gets a canvas of its own between the sign and the plates, with nothing
+    // drawn over it. Not "hide the type", and not "shrink the type".
+    const band = /\n\.lp-band \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
+    const lane = /\n\.lp-band-lane \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
+    expect(lane).toMatch(/position: relative/)
+    expect(lane).toMatch(/overflow: hidden/)
+    // THE HEIGHT IS THE ANGLE. tan 38° = 0.78129, so a lane whose height is its
+    // width times that tangent is the box whose corner-to-corner diagonal is
+    // exactly 38° — the band's centreline enters at one corner and leaves at
+    // the opposite one, touching both side edges. Any shorter and it exits
+    // through the top and bottom instead, dying to a sliver in each corner,
+    // which is the fragment artefact one level up. A hard px height, a vh, or
+    // a rounder ratio would all break that; this value is not tuneable.
+    expect(lane).toMatch(/aspect-ratio: 1 \/ 0\.78129/)
+    // It bleeds out of the section's inline padding, or the diagonal stops at
+    // a 24px inset and reads as a stripe on a plate rather than a split canvas.
+    expect(lane).toMatch(/margin: var\(--s4\) calc\(-1 \* var\(--s3\)\)/)
+
+    // ONE BAND ELEMENT, TWO GEOMETRIES. display: contents generates no box, so
+    // at ≥720 the lane stops being a containing block and .lp-band falls back
+    // to being absolutely positioned across .lp-shear — the composition round 3
+    // verified on pixels, byte-identical. A second band element would have been
+    // a second angle to keep in sync with the first.
     const wide = /@media \(min-width: 720px\) \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
+    expect(wide).toMatch(/\.lp-band-lane \{ display: contents/)
+    expect(band).toMatch(/position: absolute/)
+
+    // The marks are centred inside the band, which is what keeps them off the
+    // clip: the band's centre is the lane's centre, and the run reaches
+    // ±W/(2·cos38) from there before it meets a corner — 238px at a 375px lane.
+    expect(band).toMatch(/justify-content: center/)
+    expect(wide).toMatch(/\.lp-band \{ justify-content: flex-start/)
+
+    // THE COUNT IS THE GATE, not the display. 18 marks are rendered at every
+    // width; below 720 the surplus is never drawn rather than drawn and
+    // clipped, so no mark is cut mid-glyph on any screen. 3 marks measure 288px
+    // end to end against a ≥406px run at 320px; 5 measure 522px against ≥609px
+    // at 480px.
+    expect(LANDING).toMatch(/\.lp-band-mark \{[^}]*display: none/)
+    expect(LANDING).toMatch(/\.lp-band-mark:nth-child\(-n \+ 3\) \{ display: block/)
+    const mid = /@media \(min-width: 480px\) \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
+    expect(mid).toMatch(/\.lp-band-mark:nth-child\(-n \+ 5\) \{ display: block/)
     expect(wide).toMatch(/\.lp-band-mark \{ display: block/)
+
+    // §2.1 rule 1 has no mobile carve-out: the marks are the same --fs-h2 at
+    // every width, and that token floors at 24px. The phone is where a
+    // "just make it fit" shrink would have been tempting and illegal.
+    expect(band).toMatch(/font-size: var\(--fs-h2\)/)
+    expect(LANDING).not.toMatch(/\.lp-band-mark[^}]*font-size/)
   })
 })
 
@@ -225,12 +340,56 @@ describe('§2 — the ratio law and the palette budget', () => {
     }
   })
 
-  it('keeps Void off the recessed surfaces — it is capped under 5%', () => {
-    // --sunken: var(--void) in the dark theme measured 15.2% of the phone
-    // page: 39 locked tiles, every track and every input. Void survives only
-    // inside the display letterforms' halftone screen.
-    expect(TOKENS).not.toMatch(/--sunken: var\(--void\)/)
+  it('keeps Void off every CONTAINER surface — it is capped under 5%', () => {
+    // This assertion used to be a blanket ban on `--sunken: var(--void)`,
+    // written when Void as the dark recess measured 15.2% of the phone page —
+    // 39 locked tiles, every track and every input. THE TILES LEFT. They recess
+    // onto .spec-sheet's own ground now (asserted below), so the dark recess is
+    // five keypad keys, the profile/log inputs, the health track and one hover
+    // state: re-censused at 2.4% of the 375px page and 1.3% at 1440, inside §2's
+    // cap. The recess is now Void on purpose — Graphite is LIGHTER than the dark
+    // card (relative luminance 0.0255 vs 0.0149), so it drew every recess as a
+    // raised plate.
+    //
+    // What actually blows the 5% cap is a CONTAINER fill: a Void sheet was
+    // measured at 31.6% of the page. So the guard moves from the recess to the
+    // roles that carry area, which is the rule it was always a proxy for.
+    for (const prop of ['--ground', '--field', '--stage'] as const) {
+      expect(`${prop}: ${new RegExp(`${prop}: var\\(--void\\)`).test(TOKENS)}`)
+        .toBe(`${prop}: false`)
+    }
+    expect(decl(dark(), '--sunken')).toBe('--void')
     expect(TOKENS).toMatch(/--brand-screen: var\(--void\)/)
+  })
+
+  it('bounds the recess itself — Void’s footprint is a list, not a vibe', () => {
+    // The container-role ban above says nothing about how MUCH recess there is,
+    // and that is exactly the drift the original 15.2% measurement caught: the
+    // 2.4% re-census is a figure in a comment, so tracks, tiles and inputs could
+    // be added without limit and every assertion here would stay green.
+    //
+    // So the surfaces that paint the recess are ENUMERATED. Adding one fails
+    // this test, which is the point: a new Void surface in dark needs a fresh
+    // census, not a passing suite. Four of these never resolve to Void at all —
+    // .boss-track and the two locked tiles sit on .spec-sheet, which re-declares
+    // --sunken as its own ground — so the live dark-Void set is the health
+    // track, the XP track, the inputs, the keypad and one hover state.
+    const withoutComments = APP.replace(/\/\*[\s\S]*?\*\//g, '')
+    const recessed: string[] = []
+    for (const m of withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/background: var\(--sunken\)/.test(m[2])) continue
+      recessed.push(m[1].trim().split('\n').map((l) => l.trim()).join(' '))
+    }
+    expect(recessed.sort()).toEqual([
+      '.ach-locked',
+      '.boss-track',
+      '.codex-locked',
+      '.field',
+      '.health-track',
+      '.note-key',
+      '.xp-track',
+      "button.quest-row:not([aria-disabled='true']):hover .quest-box",
+    ])
   })
 
   it('stands the archive on §5B’s Espresso spec sheet, in both themes', () => {
@@ -240,7 +399,10 @@ describe('§2 — the ratio law and the palette budget', () => {
     // product. It is also the largest field correction available on a phone:
     // those two cards are the tallest on the page, and a census put the 375px
     // light app at 20.4% field / 68.5% bone against a 60/30 law.
-    // No dark override: §5B says "on espresso" unconditionally.
+    // §5B says "on espresso" unconditionally and this base rule obeys it in
+    // both themes. The dark counter-sheet below re-grounds two cards on top of
+    // it — see that block for why an Espresso figure on an Espresso ground is
+    // not what §5B is describing.
     expect(decl(sheet(), '--field')).toBe('--espresso')
     expect(decl(sheet(), '--ink')).toBe('--bone')
     // The derived quiet registers must be re-declared, not inherited: a custom
@@ -253,6 +415,94 @@ describe('§2 — the ratio law and the palette budget', () => {
     // the Graphite budget went 6.6x over in the first place; they must not
     // reintroduce a fourth surface colour on the surface that fixed it.
     expect(decl(sheet(), '--sunken')).toBe('--espresso')
+  })
+
+  describe('§1 trait 06 — dark gets the counter role back, in Sand', () => {
+    /** The dark @media rule whose selector names the month card — found by
+        searching every dark block rather than by position, so re-ordering the
+        file cannot silently make these assertions match nothing. */
+    const rule = () =>
+      [
+        ...TOKENS.matchAll(
+          /@media \(prefers-color-scheme: dark\) \{\s*([^{}]+?)\s*\{([\s\S]*?)\n  \}/g,
+        ),
+      ].find((m) => m[1].includes('archive-card'))
+    const counterSel = () => rule()?.[1] ?? ''
+    const counter = () => rule()?.[2] ?? ''
+
+    it('re-grounds the archive card a dark theme leaves role-less', () => {
+      // §2.2 swaps the GROUND and stops there; nothing in it swaps the COUNTER,
+      // and §4 says "Counters are BONE" unconditionally. In light that role is
+      // spent by the Bone cards standing on the Espresso sheet. In dark it was
+      // spent nowhere — ground, card and sheet were all Espresso, so card-to-
+      // sheet measured 1.00:1 / ΔRGB 0 across ~33% of the page. Surface-to-
+      // surface offset among the dark neutrals is structurally capped at
+      // 1.34:1, so no third dark hex can close it: the only fix is to give the
+      // Bone family a surface back.
+      const c = counter()
+      expect(c).not.toBe('')
+      expect(decl(c, '--field')).toBe('--sand')
+      expect(decl(c, '--ground')).toBe('--sand')
+      expect(decl(c, '--ink')).toBe('--graphite')
+      expect(decl(c, '--counter')).toBe('--sand')
+      // Same rule as .spec-sheet's own recess: the recess is the surface's own
+      // ground, so a re-grounded card adds no fourth surface colour.
+      expect(decl(c, '--sunken')).toBe('--sand')
+      expect(decl(c, '--keyline')).toBe('--ink')
+    })
+
+    it('deepens the quiet mixes for Sand — 70% is under the body floor there', () => {
+      // Sand is a light surface with less headroom than Bone: --ink mixed 70%
+      // toward it is #605F57 at 4.40:1, under §2.1's 4.5:1 floor — the identical
+      // trap tokens.css already documents for the light Sand recess. Copying
+      // .spec-sheet's 70/80 pair onto this ground is the one way to break it,
+      // so the numbers are asserted, not just present.
+      expect(counter()).toMatch(/--spec: color-mix\(in srgb, var\(--ink\) 80%, var\(--ground\)\)/)
+      expect(counter()).toMatch(
+        /--spec-sunken: color-mix\(in srgb, var\(--ink\) 88%, var\(--ground\)\)/,
+      )
+    })
+
+    it('is scoped by doubled selectors, to exactly the two markless cards, in dark only', () => {
+      // `.spec-sheet.archive-card` is (0,2,0) and beats the (0,1,0)
+      // `.spec-sheet` regardless of source order. A bare `.archive-card` is
+      // (0,1,0) — a tie, and ties are settled by whichever rule comes last.
+      expect(counterSel().split(',').map((s) => s.trim())).toEqual([
+        '.spec-sheet.archive-card',
+        '.spec-sheet.collection-card',
+      ])
+      // WHY IT STOPS HERE, as arithmetic rather than taste. Flare on Sand is
+      // 2.51:1 against 4.41:1 on Espresso — so .boss-fill's Flare bar and
+      // .export-note's Flare fault bar would each drop under WCAG 1.4.11's 3:1
+      // non-text floor if their card were re-grounded. Those two are the whole
+      // remainder of the sheet — which is why the list above is exhaustive and
+      // asserted as an equality, not a containment.
+      // (The Marigold .xp-fill was a third case at 1.49:1 on Sand; it left the
+      // sheet entirely when the XP bar merged into QuestCard.)
+      //
+      // THE COLLECTION QUALIFIES ON THE SAME GATE, and the gate is checked here
+      // rather than trusted: its 41 tiles are the sheet's own ink/counter pair,
+      // not an accent fill, so re-grounding them inverts Graphite↔Sand at
+      // 9.52:1 both ways instead of dropping an accent onto a lighter surface.
+      // If a tile ever takes --reward or --data, this fails and the card has to
+      // leave the counter ground.
+      for (const tile of ['codex-tile', 'ach-tile']) {
+        const body = new RegExp(`\\n\\.${tile} \\{([^}]*)\\}`).exec(APP)?.[1] ?? ''
+        expect(body).toMatch(/background: var\(--ink\)/)
+        expect(body).toMatch(/color: var\(--counter\)/)
+      }
+      for (const locked of ['codex-locked', 'ach-locked']) {
+        const body = new RegExp(`\\n\\.${locked} \\{([^}]*)\\}`).exec(APP)?.[1] ?? ''
+        expect(body).toMatch(/background: var\(--sunken\)/)
+        expect(body).not.toMatch(/var\(--(reward|data|alert|stage|flare|marigold)\)/)
+      }
+      //
+      // …and it is dark-only. Light's counter role is already spent by the Bone
+      // cards standing on the Espresso sheet; Sand on Bone is 1.20:1.
+      const darkBlocks = [...TOKENS.matchAll(/@media \(prefers-color-scheme: dark\) \{/g)]
+      expect(darkBlocks).toHaveLength(2)
+      expect(TOKENS.indexOf('.spec-sheet.archive-card')).toBeGreaterThan(darkBlocks[1].index!)
+    })
   })
 
   it('recesses the input off the card it sits in', () => {
@@ -283,7 +533,53 @@ describe('§2 — the ratio law and the palette budget', () => {
     expect(APP).toMatch(/\.persist-fault:empty \{[^}]*position: absolute/)
     // …and it spans both tracks at ≥768px, so a fault cannot re-pair the grid.
     const tablet = /@media \(min-width: 768px\) \{([\s\S]*?)\n\}/.exec(APP)?.[1] ?? ''
-    expect(tablet).toMatch(/\.persist-fault,\n\s*\.ledger-card/)
+    expect(tablet).toMatch(/\.persist-fault,\n\s*\.archive-card/)
+  })
+})
+
+describe('§11 / §1 trait 06 — the act-now cards close at three roles + one accent', () => {
+  // THE COUNT THAT WAS WRONG. LogCard painted five hues at once — Bone (.card
+  // field, and the CTA's own label), Graphite (--ink and the CTA plate), Sand
+  // (--sunken under .field and .note-key), Flare (the CTA keyline and the
+  // .field-error bar) and Marigold (.btn-gold). SimCard was five the same way,
+  // with Acid where Marigold is. §11 caps a component at three colours and §1
+  // trait 06 spends them as field + form + counter, allowing a fourth only as
+  // "an event"; a permanently-mounted input recess and an always-on CTA ring
+  // are not events. Two rules carried the overspend and both are asserted here
+  // so the tally cannot silently grow back.
+  const rule = (css: string, sel: string) =>
+    new RegExp(`\\n\\${sel} \\{([^}]*)\\}`).exec(css)?.[1] ?? ''
+
+  it('rings the primary CTA in its own plate, not in Flare', () => {
+    // The Graphite plate with a Bone label is 11.44:1 and is already the
+    // primary marker; the ring was buying a fifth hue and nothing else.
+    // --cta-field rather than --keyline: --keyline resolves through --ink,
+    // which is Bone in dark, and the landing's pinned Bone plate would have
+    // lost the button's edge entirely.
+    const flame = rule(TOKENS, '.btn-flame')
+    expect(flame).toMatch(/border-color: var\(--cta-field\)/)
+    expect(flame).not.toMatch(/border-color: var\(--cta-keyline\)/)
+    // …and Flare survives where trait 06 actually sanctions it: on hover, i.e.
+    // transiently. The event, not the furniture.
+    expect(TOKENS).toMatch(
+      /\.btn-flame:not\(:disabled\)[^{]*hover[^{]*\{[^}]*outline-color: var\(--cta-keyline\)/,
+    )
+  })
+
+  it('draws the inline validation bar in ink, and keeps Flare for faults', () => {
+    // §12.8 says the message may not ride on hue — which cuts both ways. The
+    // words, the role="alert" announcement and §6's 6px keyline carry it; the
+    // colour was carrying the fifth hue. A form error can stand on screen for
+    // as long as the field is empty, so it is furniture, not an event.
+    const err = rule(APP, '.field-error')
+    expect(err).toMatch(/border-left: var\(--keyline-heavy\) solid var\(--keyline\)/)
+    expect(err).not.toMatch(/var\(--alert\)/)
+    // The two markers that ARE faults — a dead origin and a failed export —
+    // keep the Flare bar. They mark a broken machine, not a typo, and neither
+    // sits inside one of the act-now cards.
+    for (const sel of ['.persist-fault', '.export-note']) {
+      expect(rule(APP, sel)).toMatch(/border-left: var\(--keyline-heavy\) solid var\(--alert\)/)
+    }
   })
 })
 
@@ -408,11 +704,12 @@ describe('§12.8 / Trust Rule 1 — the month strip states, it does not judge', 
 
   it('cuts the macro-break above the card that OPENS the archive', () => {
     // --s3 gap + --s4 margin = a whole step of the scale between the act-now
-    // half of the stack and the read-only half. Left on .ledger-card it would
-    // now fall between the month and the days inside it — two views of one
-    // thing, split by the page's loudest gap.
-    expect(APP).toMatch(/\n\.month-card \{ margin-top: var\(--s4\); \}/)
+    // half of the stack and the read-only half. It rides on the ARCHIVE card,
+    // which now holds the month figures and the days together — so there is no
+    // longer a seam inside the archive for the page's loudest gap to fall into.
+    expect(APP).toMatch(/\n\.archive-card \{ margin-top: var\(--s4\); \}/)
     expect(APP).not.toMatch(/\.ledger-card \{ margin-top/)
+    expect(APP).not.toMatch(/\.month-card \{ margin-top/)
   })
 })
 
@@ -427,17 +724,16 @@ describe('§2.2 — the product shot is themed, not pinned', () => {
     expect(frame).toMatch(/color: var\(--ink\)/)
   })
 
-  it('spaces the two cards on the app\'s own rhythm and drops the macro-break', () => {
-    // The frame holds two cards now, and .card carries no margin of its own —
-    // the app's stack spaces cards with a flex gap, so a shot that did not
-    // would butt the month card against the ledger. And the --s4 macro-break
-    // .month-card carries in the app opens the ARCHIVE half of that stack;
-    // there is no such split inside a figure, so it would print as a hanging
-    // gap above the shot.
+  it('drops the macro-break the archive card carries in the app', () => {
+    // The frame keeps the app's own stack rhythm (flex + the --s3 gap) so a
+    // second card added to the shot could never butt against the first. And the
+    // --s4 macro-break .archive-card carries in the app opens the ARCHIVE half
+    // of that stack; there is no such split inside a figure, so it would print
+    // as a hanging gap above the shot.
     const frame = /\n\.lp-shot-frame \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
     expect(frame).toMatch(/display: flex/)
     expect(frame).toMatch(/gap: var\(--s3\)/)
-    expect(LANDING).toMatch(/\.lp-shot-frame \.month-card \{ margin-top: 0; \}/)
+    expect(LANDING).toMatch(/\.lp-shot-frame \.archive-card \{ margin-top: 0; \}/)
   })
 
   it('repaints nothing inside the card — a restyled shot is not a shot', () => {
@@ -469,6 +765,72 @@ describe('§5 — the layout breaks where the devices are', () => {
   })
 })
 
+describe('§1 trait 05 — every container carries the second contour', () => {
+  const ring = () => /\n\.card::before \{([\s\S]*?)\n\}/.exec(TOKENS)?.[1] ?? ''
+  const card = () => /\n\.card \{([\s\S]*?)\n\}/.exec(TOKENS)?.[1] ?? ''
+
+  it('rings the card with a 2nd contour offset from the field', () => {
+    // Trait 05 verbatim: "Marks are ringed by a 2nd contour that OFFSETS them
+    // from the field." It is one of the ten immutable traits and it was drawn
+    // nowhere — every container in the app carried exactly one border, which is
+    // the trait's first half and none of its second.
+    const r = ring()
+    expect(r).toMatch(/content: ''/)
+    expect(r).toMatch(/position: absolute/)
+    expect(r).toMatch(/border: var\(--keyline-w\) solid var\(--keyline\)/)
+    // A decorative ring must never eat a tap on the card under it.
+    expect(r).toMatch(/pointer-events: none/)
+    // Same n=4.2 curve as the container, with the keyword line first as the
+    // guaranteed fallback — the pattern .card itself uses.
+    expect(r).toMatch(/corner-shape: squircle;[\s\S]*corner-shape: superellipse\(2\.07\)/)
+  })
+
+  it('draws it INSIDE, so it spends the bucket that has a surplus', () => {
+    // Outside, the ring eats the Flare stage: it trades one under-budget
+    // bucket (field, 53.5% against §2's 60% floor on the 375px phone) for
+    // another (ink, 4.3% against 8%) and nets zero. Inside, it eats card
+    // interior. Shot both ways, same seed, 375x812 light: 60.5/33.5/3.7/2.2
+    // without the ring, 59.7/33.7/4.3/2.3 with — deviation 8.5 -> 8.0, and
+    // -3.0 on the dark phone. `inset` is what makes it inside.
+    expect(ring()).toMatch(/inset: calc\(var\(--keyline-w\) \* 2\)/)
+  })
+
+  it('keeps the contour visible where an in-flow plate crosses it', () => {
+    // PAINT ORDER, not colour: .card::before is positioned and .window-bar is
+    // an in-flow div, so the ring painted OVER the simulator's bar in
+    // --keyline — which is --ink, which is the bar's own fill. The top edge and
+    // the upper flanks of the ring simply disappeared. The bar takes the stack
+    // and redraws the missing run in its counter (11.44:1 light / 13.32:1
+    // dark), so the contour stays continuous across the plate.
+    const bar = /\n\.window-bar \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(bar).toMatch(/position: relative/)
+    expect(bar).toMatch(/z-index: 1/)
+    expect(bar).toMatch(/border-bottom: var\(--keyline-w\) solid var\(--counter\)/)
+  })
+
+  it('keeps §5’s "always 2px" border and derives every length from a token', () => {
+    // §5 and §11 BOTH say "2px solid graphite. Always 2px. Never 1px", so the
+    // fix for a starved ink budget may not be to fatten the keyline to §6's
+    // border.keyline: 6. Two 2px strokes, not one 6px one — and the card's own
+    // border is still the first of them.
+    expect(card()).toMatch(/border: var\(--keyline-w\) solid var\(--keyline\)/)
+    expect(TOKENS).toMatch(/--keyline-w: 2px/)
+    expect(card()).not.toMatch(/keyline-heavy/)
+    expect(ring()).not.toMatch(/keyline-heavy/)
+    // The offset is two keyline widths and the inner radius is the outer one
+    // less that offset — which is what makes the two rings concentric instead
+    // of converging at the corners. Neither is a new value beside the token
+    // set (§5: "4 / 12 / 28 / 999. Nothing between"); both are derived from it,
+    // the way the chip family writes its sub-8px padding as calc(--s1 / 2).
+    expect(ring()).toMatch(
+      /border-radius: calc\(var\(--r-lg\) - var\(--keyline-w\) \* 2\)/,
+    )
+    // No literal px anywhere in the rule: a hard-coded 4px/24px here is exactly
+    // how the derivation silently decouples from --keyline-w.
+    expect(ring()).not.toMatch(/\d+px/)
+  })
+})
+
 describe('Trust Rule 8 — the focus ring is a mechanism, not a default', () => {
   it('declares one 3px ring and suppresses it in no stylesheet', () => {
     // The a11y sweep measured a `solid 3px rgb(42,45,44)` outline on EVERY
@@ -488,6 +850,41 @@ describe('Trust Rule 8 — the focus ring is a mechanism, not a default', () => 
       // use of it here: an element that must not show a ring should not be
       // focusable, and §11 already forbids the box-shadow substitute.
       expect(css, name).not.toMatch(/outline\s*:\s*(none|0)\b/)
+    }
+  })
+
+  it('re-colours the ring on the landing’s one Espresso jump target', () => {
+    // The page-wide ring is pinned to --lp-form (Graphite) because every
+    // focusable thing on the landing sits on Bone or Marigold — except the
+    // section that IS the jump target. `<section id="spec" tabIndex={-1}>` is
+    // the Espresso field, where Graphite computes to 1.16:1, and because the
+    // section is full-bleed the ring's left and right segments fall
+    // off-viewport: the only visible parts were two horizontal lines beside the
+    // section's own 2px Graphite borders. Bone is 13.3:1, and the negative
+    // offset keeps the ring inside the section so it cannot be mistaken for
+    // one of those borders.
+    const spec = /\n\.lp-spec:focus-visible \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
+    expect(spec).toMatch(/outline-color: var\(--lp-counter\)/)
+    expect(spec).toMatch(/outline-offset: -6px/)
+  })
+})
+
+describe('WCAG 1.4.10 — the poster reflows at the 320px floor it claims', () => {
+  it('lets every auto-fit/auto-fill track shrink below its own minimum', () => {
+    // `minmax(296px, 1fr)` cannot shrink under 296px. .lp-measure inside
+    // .lp-spec's `var(--s5) var(--s3)` padding is 272px at a 320px viewport, so
+    // the mechanics grid overflowed by 24px — and .lp-spec is the one landing
+    // section without overflow:hidden, so the whole DOCUMENT scrolled sideways
+    // for every viewport at or under 343px. min(track, 100%) clamps the floor to
+    // the container and is a no-op above that, so the column-count derivation
+    // the rule's own comment makes is untouched.
+    for (const [name, css] of [
+      ['landing.css', LANDING],
+      ['app.css', APP],
+    ] as const) {
+      for (const m of css.matchAll(/repeat\(auto-(?:fit|fill),\s*minmax\(([^,]+),/g)) {
+        expect(`${name}: ${m[1].trim()}`).toMatch(/^[^:]+: min\(/)
+      }
     }
   })
 })
@@ -581,8 +978,51 @@ describe('§2.1 rule 3 — every pair on a surface is computed, not asserted', (
     const sunkLight = mix(RAW.graphite, 0.8, RAW.bone)
     const sunkDark = mix(RAW.bone, 0.8, RAW.espresso)
     expect(round(contrast(sunkLight, RAW.sand))).toBe(5.35)
-    expect(round(contrast(sunkDark, RAW.graphite))).toBe(7.7)
+    // The dark recess is Void, not Graphite (see the dark block in tokens.css:
+    // Graphite is LIGHTER than the Espresso card, so it drew every recess as a
+    // raised plate). The pair got wider in the swap, not narrower.
+    expect(round(contrast(sunkDark, RAW.void))).toBe(10.31)
+    expect(round(contrast(RAW.bone, RAW.void))).toBe(15.32)
     expect(round(contrast(sunkDark, RAW.espresso))).toBe(8.96)
+  })
+
+  it('holds the dark counter sheet above the body floor on its deeper mixes', () => {
+    // Sand has less headroom than Bone, and the failure mode is silent: copying
+    // .spec-sheet's own 70/80 mixes onto this ground computes to #605F57 at
+    // 4.40:1 — under §2.1's 4.5:1 body-text floor, on the two cards that carry
+    // the ledger's every row. 80/88 is what clears it.
+    const specSand70 = mix(RAW.graphite, 0.7, RAW.sand)
+    expect(specSand70).toBe('#605f57')
+    expect(contrast(specSand70, RAW.sand)).toBeLessThan(4.5)
+    const specSand = mix(RAW.graphite, 0.8, RAW.sand)
+    const sunkSand = mix(RAW.graphite, 0.88, RAW.sand)
+    expect(specSand).toBe('#4e4f49')
+    expect(round(contrast(specSand, RAW.sand))).toBe(5.67)
+    expect(round(contrast(sunkSand, RAW.sand))).toBe(7.04)
+    // The card's own ink, and the offset that is the point of the whole rule:
+    // Sand sheet against the Espresso card above it, where dark used to have
+    // 1.00:1 across a third of the page.
+    expect(round(contrast(RAW.graphite, RAW.sand))).toBe(9.52)
+    expect(round(contrast(RAW.sand, RAW.espresso))).toBe(11.09)
+    // Its Graphite keyline on the Flare stage clears the 3:1 non-text floor —
+    // which is what delimits the card, since the Sand FIELD on Flare is 2.51:1,
+    // the same shape of argument as light's 3.02:1 Bone card.
+    expect(round(contrast(RAW.graphite, RAW.flare))).toBe(3.79)
+    expect(contrast(RAW.sand, RAW.flare)).toBeLessThan(3)
+    // …and why the rule stops at two cards: the accent marks the other sheet
+    // cards carry cannot stand on Sand.
+    expect(round(contrast(RAW.marigold, RAW.sand))).toBe(1.49) // .xp-fill
+    expect(round(contrast(RAW.flare, RAW.sand))).toBe(2.51) // .boss-fill, .export-note
+    expect(contrast(RAW.marigold, RAW.espresso)).toBeGreaterThanOrEqual(3)
+    expect(contrast(RAW.flare, RAW.espresso)).toBeGreaterThanOrEqual(3)
+    // The ledger's one accent survives the move because its EDGE swaps halves:
+    // on Espresso the Acid fill carries it and the Bone ring is 1.03:1; on Sand
+    // the fill is 1.17:1 and the Graphite ring carries it. One of the two is
+    // always over 3:1, which is the test .ach-medal fails and this passes.
+    expect(contrast(RAW.acid, RAW.espresso)).toBeGreaterThanOrEqual(3)
+    expect(contrast(RAW.acid, RAW.sand)).toBeLessThan(3)
+    expect(round(contrast(RAW.graphite, RAW.sand))).toBe(9.52)
+    expect(round(contrast(RAW.graphite, RAW.acid))).toBe(11.15)
   })
 
   it('keeps every surface offset and signal bar over the 3:1 non-text floor', () => {
@@ -609,12 +1049,32 @@ describe('§2.1 rule 3 — every pair on a surface is computed, not asserted', (
 
   it('leaves no stylesheet comment claiming a ratio the palette cannot produce', () => {
     // Not every figure in the comments is machine-checkable — some name a pair
-    // in prose — but a ratio over the palette's own maximum is always wrong,
-    // and that maximum is Bone on Espresso. This is the cheap standing guard
-    // against the next "13.9:1" typed into a rationale. The 0.1 slack is the
-    // design system's own rounding: §2.1's table prints that pair as 13.4:1
-    // where it computes to 13.32, and the comments follow the binding table.
-    const max = contrast(RAW.bone, RAW.espresso) + 0.1
+    // in prose — but a ratio over the palette's own maximum is always wrong.
+    // This is the cheap standing guard against the next "13.9:1" typed into a
+    // rationale. The 0.1 slack is the design system's own rounding: §2.1's table
+    // prints Bone/Espresso as 13.4:1 where it computes to 13.32, and the
+    // comments follow the binding table.
+    //
+    // The bound is COMPUTED over every pair rather than pinned to one. It used
+    // to be hard-coded as Bone-on-Espresso, which stopped being the widest pair
+    // the moment the dark recess moved to Void: Bone on Void is 15.32:1 and it
+    // is a shipped, load-bearing pair (see --sunken in the dark block). Deriving
+    // it means the bound tracks the palette instead of a snapshot of it — and
+    // the pair that sets it is pinned below, so the ceiling cannot drift upward
+    // unnoticed.
+    let widest = 0
+    let widestPair = ''
+    for (const [an, a] of Object.entries(RAW)) {
+      for (const [bn, b] of Object.entries(RAW)) {
+        if (contrast(a, b) > widest) {
+          widest = contrast(a, b)
+          widestPair = `${an}/${bn}`
+        }
+      }
+    }
+    expect(widestPair).toBe('bone/void')
+    expect(round(widest)).toBe(15.32)
+    const max = widest + 0.1
     const raw = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8')
     const app = readFileSync(new URL('./app.css', import.meta.url), 'utf8')
     const landing = readFileSync(new URL('./landing.css', import.meta.url), 'utf8')
@@ -625,5 +1085,47 @@ describe('§2.1 rule 3 — every pair on a surface is computed, not asserted', (
       }
     }
     expect(overclaims).toEqual([])
+  })
+})
+
+/**
+ * THE DECISION RECORD's stylesheet obligations. Two of them are Trust Rules
+ * wearing CSS: the three answers may not be told apart by colour or weight
+ * (§12.6), and none of them may shrink under §11's 48px floor.
+ */
+describe('§11 / §12.6 — the decision record answers are peers', () => {
+  it('keeps the three answers on one button class, with no colour split', () => {
+    // "Bought it" is not a failure state, and a stylesheet is the easiest place
+    // to accidentally say that it is. All three render as the plain .btn family
+    // through one class, which declares no background and no colour at all.
+    const btn = /\n\.decision-btn \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(btn).not.toBe('')
+    expect(btn).not.toMatch(/background|color|border/)
+    // No per-answer selector exists anywhere — no .decision-btn.is-bought, no
+    // :nth-child colouring, no ✓/✗ pseudo-element.
+    expect(APP).not.toMatch(/\.decision-(btn|outcome)[^{]*(is-bought|is-waited|is-resisted)/)
+    expect(APP).not.toMatch(/\.decision-(btn|outcome)[^{]*::(before|after)/)
+    // The recorded answer is one class for all three outcomes, at one weight.
+    const outcome = /\n\.decision-outcome \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(outcome).toMatch(/font-weight: 700/)
+    expect(outcome).not.toMatch(/background|color:/)
+  })
+
+  it('inherits the 48px floor rather than shrinking under it', () => {
+    // .decision-btn only changes the type size and padding, exactly like .chip
+    // and .ledger-more — the floor lives on .btn in tokens.css and must not be
+    // overridden here.
+    expect(TOKENS).toMatch(/\.btn \{[^}]*min-height: 48px/)
+    const btn = /\n\.decision-btn \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(btn).not.toMatch(/min-height|height/)
+  })
+
+  it('spends the card\u2019s one accent panel once, on the newest row', () => {
+    // §1 trait 06 / §11's three-colour cap: .sim-result is the Acid panel the
+    // simulator has always had. Older rows drop to plain ink so a long record
+    // never stacks accents down the card.
+    expect(APP).toMatch(/\.sim-result\.decision-line \{[^}]*font-size: var\(--fs-body\)/)
+    const line = /\n\.decision-line \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(line).not.toMatch(/background|color:/)
   })
 })

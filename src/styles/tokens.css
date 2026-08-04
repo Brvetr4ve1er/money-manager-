@@ -72,9 +72,9 @@
      the ground. --spec is mixed toward --ground, and on Sand it computes to
      3.98:1 — under the 4.5:1 body-text floor — so every quiet string that
      lands on --sunken (input placeholders, a disabled control's label) takes
-     this deeper mix: 5.35:1 on the light Sand recess, 7.70:1 on the dark
-     Graphite one. Never use --spec on --sunken; never use this on --field,
-     where it is needlessly heavy. */
+     this deeper mix: 5.35:1 on the light Sand recess, 10.31:1 on the dark Void
+     one. Never use --spec on --sunken; never use this on --field, where it is
+     needlessly heavy. */
   --spec-sunken: color-mix(in srgb, var(--ink) 80%, var(--ground));
   /* §2.1 rule 2, verbatim: the foreground on ANY accent fill is Graphite —
      never Bone, never white. This is the one token that must NOT flip in the
@@ -199,6 +199,18 @@
   --tr-cap: 0.1em;
   --tr-spec: 0.14em;
 
+  /* GLYPH BOX SIZES — §8's drawn glyph set, NOT a §3 type tier.
+     .glyph is a 1em square (see app.css), so `font-size` on its container is
+     sizing a DRAWING, not a string: a 42px flame is not "d2 type", and putting
+     it on --fs-d2 would tie the mark's diameter to a heading scale it has no
+     relationship with. Two named steps rather than four loose rem values, so
+     app.css's "no ad-hoc rem" header is true of the file rather than nearly
+     true: --glyph-md rides with UI controls, --glyph-lg fills the stage badge.
+     Values are the measured ones (24px / 41.6px) — this names them, it does
+     not retune them. */
+  --glyph-md: 1.5rem;   /* 24 — mute control, hero stage plate */
+  --glyph-lg: 2.6rem;   /* 41.6 — the stage badge's flame */
+
   /* ── MOTION (§9) ────────────────────────────────────────────────────── */
   --t-instant: 90ms;  /* hover */
   --t-quick: 180ms;   /* tap */
@@ -215,6 +227,22 @@
      `transform: none` cannot be used: .toast and .hero-nav centre themselves
      with translateX(-50%), and killing that would fling them off-screen. */
   --press: scale(0.96);
+
+  /* §8's fine offset-print grain — the first of the exactly two textures the
+     system allows, and the whole tile as ONE token.
+
+     IT WAS TWO COPIES: the app hero (.hero-frame::after) and the landing brick
+     wall (.lp-wall::after) each carried this 353-character data: URI inline,
+     in different files, each with a comment saying it was "the same tile" as
+     the other one. §8 budgets exactly two textures for the product, so there is
+     exactly one tile — a texture that can differ between two surfaces is not a
+     texture budget, it is two textures with the same name.
+
+     Inline data: URI, never a file: the app must render fully offline with no
+     asset request (§3, and design.test scans for exactly that). 120px tile at
+     6% is the §8 spec; the multiply blend that goes with it stays at each use
+     site, because THAT is a contrast decision (§2.1) and not a texture one. */
+  --grain-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -256,20 +284,48 @@
                              theme has stood on it since the split: the foot
                              and the storage fault are plates for that reason,
                              and design.test.ts holds both there.
-         --sunken            Graphite, which is what returns it to an 8% role:
-                             recesses are inputs, tracks and locked tiles, and
-                             the 39 locked codex/badge tiles that used to spend
-                             this budget now sit on .spec-sheet, where the
-                             recess is the sheet's own ground (see below).
-                             --ink is 11.4:1 on it and --spec-sunken 7.7:1.
+         --sunken            VOID, and the SIGN is the whole argument. A recess
+                             is cut INTO a surface, so it has to be darker than
+                             the surface it is cut into — and Graphite is not.
+                             Relative luminance, computed: Graphite 0.0255,
+                             Espresso 0.0149, Void 0.0064. Graphite is LIGHTER
+                             than the dark card, so every input, keypad key and
+                             track on this ground read as a raised plate rather
+                             than a recess: depth pointing the wrong way, on the
+                             one theme where depth was already the defect. Void
+                             is the only surface hex in the palette that sits
+                             below Espresso. Magnitude barely moves (1.15:1
+                             against the card, where Graphite gave 1.16:1); the
+                             direction is what was broken, and no legal dark
+                             pair beats 1.34:1 anyway — that ceiling is why the
+                             counter sheet below exists.
 
-       Void keeps no surface role in either theme — §2 caps it under 5% and a
-       census caught it at 15.2% here. It survives only inside the display
-       letterforms' halftone screen (--brand-screen), which is the use the cap
-       was written for. */
+                             §2 caps Void under 5% of surface, and that cap is
+                             what used to forbid this: a census caught it at
+                             15.2% here. THAT CENSUS PREDATES .spec-sheet. The
+                             39 locked codex/badge tiles that made up most of it
+                             now recess onto the sheet's own ground, so what is
+                             left on --sunken in dark is five keypad keys, the
+                             profile/log inputs, the health track and one hover
+                             state — re-censused at 2.4% of the 375px page and
+                             1.3% at 1440, inside the cap with margin. If a new
+                             surface ever takes --sunken by the screenful, this
+                             is the line that has to be re-measured.
+
+                             It also returns Graphite to being THE FORM, which
+                             is the only role §1 trait 06 gives it: in dark
+                             Graphite is now the ink of the Sand counter sheet
+                             below and nothing else. Text law improves in the
+                             swap — --ink measures 15.3:1 on Void (was 11.4 on
+                             Graphite) and --spec-sunken 10.3:1 (was 7.7).
+
+       Void still holds no CONTAINER role in either theme: it is never --ground,
+       --field or --stage, and design.test.ts asserts that rather than trusting
+       this sentence. Its other surviving use is the display letterforms'
+       halftone screen (--brand-screen). */
     --ground: var(--espresso);
     --field: var(--espresso);
-    --sunken: var(--graphite);
+    --sunken: var(--void);
     --ink: var(--bone);
     --counter: var(--espresso);
   }
@@ -392,6 +448,61 @@ h3 {
   padding: var(--s4) var(--s3) var(--s3);
 }
 
+/* THE SECOND CONTOUR (§1 trait 05, verbatim: "Marks are ringed by a 2nd
+   contour that OFFSETS them from the field"). It is one of the ten immutable
+   traits and it was drawn nowhere in the product — every container in the app
+   carried exactly one border, which is the trait's first half and none of its
+   second.
+
+   IT IS A CONTOUR, NOT A THICKER BORDER, and the distinction is what keeps
+   §5 and §11 intact: both say "2px solid graphite. Always 2px. Never 1px", so
+   the fix cannot be to fatten the keyline to §6's `border.keyline: 6`. The
+   ring is a second 2px stroke set INSIDE the border with a gap of the card's
+   own field between them — §5's "depth comes from colour offset + keylines
+   only" spending both halves of its sentence, and §4's mark construction
+   (outer contour offset from the letterforms, same colour as them) applied to
+   the container the mark logic already governs.
+
+   INSIDE, not outside, and that is the measured half. Drawn outside, the ring
+   eats the Flare stage — trading one under-budget bucket (field, 53.5% on the
+   375px phone BEFORE the .spec-sheet swap below — superseded, kept only to
+   show what this decision was weighed against) for another (ink, 4.3% against
+   8%), which
+   is deviation-neutral and therefore pointless. Drawn inside it eats card
+   interior instead. Shot with and without, same seed, 375x812 light, ON THE
+   FINAL TREE OF THIS ROUND — this is the current figure, and the 53.5% above
+   and the ~62% projection below are both older than it:
+   60.5/33.5/3.7/2.2 without, 59.7/33.7/4.3/2.3 with — total deviation from
+   60/30/8/2 falls 8.5 -> 8.0, and -3.0 on the dark phone, where the ring is
+   Bone on Espresso and moves surplus field into the starved Bone bucket. Ink
+   only rises on the six Bone-ground cards, because --keyline is --ink and --ink
+   is Bone on a .spec-sheet: the ring is a Bone stroke there, not a Graphite
+   one. That asymmetry is the whole reason the ink bucket cannot be filled on
+   this page — see the ratio note on .spec-sheet below.
+
+   Every length is DERIVED from the keyline token rather than typed beside it,
+   the same way the chip family expresses its sub-8px padding as
+   calc(var(--s1) / 2): the offset is two keyline widths, and the inner radius
+   is the outer radius less that offset, which is what makes the two rings
+   concentric instead of converging at the corners. §5's radius token set
+   (4/12/28/999) is untouched — 24px here is not a new step, it is 28 minus the
+   inset, i.e. the geometric consequence of one token and one offset.
+
+   The 20px of padding left between the ring and the content is deliberate
+   clearance: .card's padding is 40/24/24 and .spec-label hangs at 16px from
+   the top, both clear of a stroke that ends 6px in. pointer-events: none
+   because a decorative ring must never eat a tap on the card beneath it. */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--keyline-w) * 2);
+  border: var(--keyline-w) solid var(--keyline);
+  border-radius: calc(var(--r-lg) - var(--keyline-w) * 2);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  pointer-events: none;
+}
+
 /* THE SPEC SHEET (§5 layout B), as a token scope rather than a repaint.
    "B. THE SPEC SHEET — 4-up grid of badges ON ESPRESSO, captioned with mono
    index labels." The codex and the badge shelf are literally that: two
@@ -404,22 +515,28 @@ h3 {
    floor and 68.5% Bone against a 30% budget — the two numbers are inverses,
    because a scrolling card stack is Bone by area. Moving the codex and the
    shelf across took the field to ~47% and Bone to ~53%: better, still broken
-   in both directions. The month card and the ledger are the same KIND of
-   surface — everything below .month-card's --s4 macro-break is read, not acted
-   on — and they are ~990px of a ~5,500px stack at 327px wide, so the swap
+   in both directions. The archive card is the same KIND of
+   surface — everything below .archive-card's --s4 macro-break is read, not
+   acted on — and it is ~990px of a ~5,500px stack at 327px wide, so the swap
    moves a further ~324k px² out of the Bone bucket and into the field bucket:
-   field ~62%, Bone ~38%. Note what the sheet does NOT claim to fix: §5 pins
+   field ~62%, Bone ~38% — ARITHMETIC, not a shot. The measured figure for the
+   final tree is the 59.7 recorded above; this projection ran high. Note what
+   the sheet does NOT claim to fix: §5 pins
    the mobile grid margin at 20px, so the gutter is not a lever — every
    remaining Bone pixel is the act-now half of the stack, which has to stay the
    reading ground because that is where the forms and the primary actions are.
    Which cards carry the class is asserted in App.test.tsx, so the budget
    above stops being a claim only this comment makes.
 
-   Espresso in BOTH themes, with no dark override, because §5B says "on
-   espresso" unconditionally and §2 lists Espresso as the badge backdrop. In
-   dark that makes the sheet the same hex as the ordinary card; the 2px keyline
-   is what separates them, which is §5's "depth comes from colour offset +
-   keylines" spending the other half of its sentence.
+   Espresso in BOTH themes, because §5B says "on espresso" unconditionally and
+   §2 lists Espresso as the badge backdrop. In dark that makes the sheet the
+   same hex as the ordinary card — card-to-sheet measures 1.00:1, ΔRGB 0, a
+   third of the page separated by nothing but the 2px keyline. That is the one
+   real depth defect left in dark, and the fix is NOT to repaint this rule:
+   §5B's sentence is unconditional, and no other dark neutral can carry it
+   (Void tested at 31.6% of the page against §2's <5% cap). It is fixed by
+   giving the archive back the COUNTER role instead — see the dark override
+   below this rule, which is scoped to the two cards §5B does not name.
 
    Redeclaring tokens, not overriding paint, is what makes this safe: every
    descendant rule (the locked tile, the spec label, the counts, the marks)
@@ -443,6 +560,72 @@ h3 {
    §1 trait 06 allows a 4th colour as "an event": a chip that appears when the
    user resists (.kept-chip) is one; 41 tiles that are always there are not.
 
+   THAT THREE-TONE ARITHMETIC IS ALSO THE RULE FOR WHICH CARDS MAY STAND HERE,
+   and it is a harder constraint than the geometry it looks like. A page census
+   of the 375px light app measured field 53.5% against §2's 60% floor and Bone
+   40.0% against a 30% budget — THAT CENSUS PREDATES THIS RULE and is the
+   problem it was written to solve, not the current state; the post-fix shot is
+   59.7% field. Structural field on a phone is capped near
+   19% (the column IS the viewport, so there are no gutters, and the hero is
+   held off 100vh so the log card stays above the fold — see .hero-frame in
+   app.css). Every remaining field pixel therefore has to come out of a card
+   body, and this sheet is the only legal way to move one.
+
+   It cannot take the whole stack, and §11 is what stops it, not taste. THE
+   TALLY, COUNTED HONESTLY — an earlier version of this paragraph reached the
+   same conclusion from a wrong count, saying a Bone card with an accent
+   control "closes at exactly three tones" while quietly omitting the input
+   recess and the CTA keyline that are on screen permanently beside it:
+     BONE CARD    field Bone · form Graphite · counter Sand (--sunken: the
+                  input, the note pad, the locked tile) · then ONE accent.
+                  That is four hues, and it is four on purpose: it is §2's
+                  ratio law spelled out — 60 field / 30 Bone / 8 Graphite / 2
+                  one accent — with trait 06's three ROLES filled and the
+                  accent spent once. Getting there cost LogCard its permanent
+                  Flare CTA ring and both forms their Flare error bar (see
+                  .btn-flame in this file and .field-error in app.css); what is
+                  left is Marigold on LogCard and Acid on SimCard, one each.
+     THIS SHEET   field Espresso · form Bone · and the recess is DELIBERATELY
+                  the ground again (see --sunken above), so the counter role is
+                  unfilled and the sheet runs on TWO hues with one to spend.
+   The rule falls straight out of the second row. §2.1 rule 2 pins the
+   foreground on ANY accent fill to Graphite and never flips it, so an accent
+   control here spends the third hue on its fill and a FOURTH on its mandatory
+   ink — and Graphite on Espresso is 1.09:1, so that ink cannot be re-roled
+   away either. On the Bone ground the same control costs nothing extra,
+   because there Graphite is already the form.
+   Hence the rule, and it is asserted in App.test.tsx rather than left here as
+   prose: A CARD STANDS ON THE SHEET IF IT CARRIES NO PERSISTENT ACCENT-INKED
+   ELEMENT. Bare accent fills are fine (.xp-fill, .boss-fill — nothing is drawn
+   on them, so no --on-accent appears); transient chips are fine (§1 trait 06's
+   "event"); a permanent .btn-gold, .sim-result or stage badge is not.
+   .btn-flame is the one exception the tally no longer catches and it stays off
+   the sheet anyway, on the contrast rule rather than the count: since it lost
+   its Flare ring it is a plain Graphite plate with a Bone label, no accent ink
+   at all — but Graphite on Espresso is that same 1.09:1, so on the sheet the
+   plate would have no edge and the primary action would read as loose Bone
+   type. That leaves HeroCard (stage badge), LogCard, QuestCard (which now also
+   carries the bare .xp-fill bar), LessonCard (.btn-gold), SimCard
+   (.sim-result) and ProfileCard (.btn-flame, on the edge rule above) on the
+   Bone ground — which is 30% of the page doing the job the 30% is for: they
+   are also every surface in the app with a form or a primary action on it.
+
+   Measured outcome of extending the sheet to the XP bar's old card, BossCard
+   and the foot,
+   plus the second contour above (same driver, same seed, populated state):
+     375x812 light   53.5/40.0/4.3/2.3  ->  59.7/33.7/4.3/2.3   dev 20.5 -> 8.0
+     414x896 light   53.0/41.0/4.0/2.1  ->  59.5/34.4/4.0/2.1   dev 22.1 -> 9.0
+     375x812 dark    85.7/ 8.9/3.4/2.1  ->  84.2/10.4/3.4/2.1   dev 51.5 -> 48.5
+   Field is now at law on the phone. The two honest gaps left are Bone (~3.7
+   over) and Ink (~3.7 under), and they are the SAME gap seen twice: ink is
+   Graphite, Graphite is legible only on Bone, Sand and (at >=24px) Flare, so
+   every point of ink this page can draw has to stand on a Bone card — and
+   every Bone card is a point of field the phone does not have. Ink and field
+   trade against each other one for one here. Closing the ink budget on a phone
+   needs a Graphite source that is not card type: that is a design-system
+   question (§5 pins borders to 2px and §6 declares an unused 6px keyline), not
+   a tuning miss, and it is deliberately left open.
+
    Measured pairs on this surface (sRGB WCAG 2.x, computed — see the contrast
    block in design.test.ts, which recomputes them from these very mixes):
    --ink 13.4:1 (§2.1's own Bone/Espresso row), --spec (#B8AAA4) 7.2:1,
@@ -465,6 +648,130 @@ h3 {
   --spec: color-mix(in srgb, var(--ink) 70%, var(--ground));
   --spec-sunken: color-mix(in srgb, var(--ink) 80%, var(--ground));
   color: var(--ink);
+}
+
+/* THE COUNTER SHEET — dark only, and it is §1 trait 06's third role, not a
+   fourth surface.
+
+   THE DEFECT. §2.2 swaps the GROUND (Bone → Espresso) and stops there. Nothing
+   in it swaps the COUNTER, and §4 says "Counters are BONE" unconditionally —
+   so in light the counter role is spent by the Bone cards standing on the
+   Espresso sheet, and in dark it was spent NOWHERE: ground Espresso, sheet
+   Espresso, card Espresso. Card-to-sheet measured 1.00:1 / ΔRGB 0 over ~33% of
+   the page. Every other surface pair in dark already equals or beats light
+   (stage→card 4.41:1 against light's 3.02:1); this was the only one that did
+   not, and it is a category error rather than a tuning miss — a role with no
+   surface assigned to it.
+
+   WHY NO OTHER FIX EXISTS. Enumerated over every pair the system sanctions in
+   dark, surface-to-surface offset is structurally capped at 1.34:1 / ΔRGB 44
+   (Void on Graphite is the maximum). Light's card→sheet offset is ΔRGB 348, and
+   it is unreachable from the dark neutrals — so no third dark hex, no keyline
+   weight and no ink density closes this. The two hexes that could legally carry
+   a third of a page are Espresso (identical to the card) and Flare (§2.1 rule 1
+   bans sub-24px type on it). Repainting the sheet Void was measured and puts
+   Void at 31.6% against §2's <5% cap. The gap is only closable by giving the
+   Bone family a surface back, which is exactly what the counter role IS.
+
+   SAND, not Bone: §2 names it "aged paper, SPEC SHEETS" — the sheet's own
+   token — and it emits less light than Bone, which is the whole cost of this
+   move (see below).
+
+   WHY ONLY THIS CARD. Not taste, and not "half the sheet": every other card on
+   the sheet is held back by a rule or a measured pair.
+     · CollectionCard — §5B says "4-up grid of badges ON ESPRESSO",
+       unconditionally, and this card is that sentence twice (the codex grid and
+       the badge shelf). It stays.
+     · BossCard — .boss-fill is Flare: 2.51:1 on Sand against 4.41:1 on
+       Espresso, i.e. under the 3:1 non-text floor.
+     · the foot — .export-note's --keyline-heavy bar is Flare, same 2.51:1, and
+       it is a fault marker.
+   Those two still stand. The archive card carries no Flare or Marigold mark:
+   the month strip is drawn in --ink and its one accent is the Acid .kept-chip,
+   which is delimited by its 2px keyline rather than its fill (Graphite ring
+   9.5:1 on Sand, Graphite ink on Acid 11.2:1 — the same argument that rule
+   already makes in the other direction, where the ring is invisible and the
+   fill carries it).
+   (The Marigold .xp-fill used to be a third candidate and is no longer on the
+   sheet at all: it merged into QuestCard, which stands on the Bone reading
+   ground — see QuestCard and .xp-fill in app.css.)
+
+   COLLECTIONCARD JOINED, AND §5B IS WHY IT DIDN'T BEFORE. The earlier version
+   of this rule held the collection back on one sentence: §5B says "4-up grid of
+   badges ON ESPRESSO", and this card is that sentence twice. The sentence is
+   still true and still binding — in LIGHT, where the page ground is Bone and an
+   Espresso sheet is a real, measured offset (ΔRGB 348). In DARK it describes
+   nothing: §2.2 swaps the ground to Espresso, so "badges on Espresso" became
+   badges on the same hex as the page, the card and the recess — card-to-sheet
+   1.00:1, ΔRGB 0. A layout rule that names a FIGURE-AND-GROUND relationship
+   cannot be satisfied by painting the figure the colour of the ground; §5B is
+   what this change SERVES in dark, not what it overrides, and the light theme
+   renders §5B verbatim either way because this rule is inside the dark query.
+
+   It passes the same arithmetic gate the archive passed. The card carries no
+   Flare and no Marigold: .codex-tile and .ach-tile are `background: var(--ink)`
+   with `color: var(--counter)` (app.css), which on this ground inverts to
+   Sand-on-Graphite at 9.52:1; .codex-locked and .ach-locked recess to --sunken
+   and keep their dashed --ink keyline, Graphite on Sand, the same 9.52:1 both
+   ways. .ach-medal's --counter ring is that pair again. Nothing on the card
+   needs an --on-accent, so no fourth tone appears.
+
+   IT IS ALSO THE CARD WITH THE MOST TO GIVE. On a fresh install almost all 41
+   tiles are locked, i.e. --sunken, i.e. (before this) Espresso on Espresso: the
+   tallest card in the stack paid its whole height into the field bucket and
+   returned Bone-family pixels only as keylines and text.
+
+   THE HONEST COST, stated because it is the reason this stops where it does.
+   Bone-family pixels are bright pixels: there is no way to pay §2's 30% Bone
+   budget in dark without emitting more light. Three states of the 375px dark
+   phone were measured with the pixel census, and only three — that census is
+   not in this repo, so the numbers below are quoted, never interpolated:
+     HEAD (no re-grounding)        luminance 0.139   deviation 51.6
+     archive card only            luminance 0.200   deviation 31.0
+     the WHOLE sheet re-grounded  luminance 0.314   deviation 14.0
+     (the LIGHT theme, for scale) luminance 0.389
+   This rule is now archive + collection: strictly between the second and third
+   rows on both axes, and much nearer the third, because the collection is the
+   tallest card on the sheet. IT HAS NOT BEEN RE-CENSUSED, and no fourth number
+   is written here rather than guessed — a measurement is a measurement. Boss
+   and the foot stay Espresso on the contrast grounds above, so the third row
+   remains an upper bound this cannot reach. The dial that is left is those two
+   cards, and it is closed by contrast arithmetic, not by taste.
+
+   THE DOUBLED SELECTOR IS LOAD-BEARING. `.spec-sheet.archive-card` is (0,2,0)
+   and beats the (0,1,0) `.spec-sheet` above regardless of source order — a bare
+   `.archive-card` would be a coin-flip on cascade order. It is also why this
+   must name .spec-sheet: the card is still a spec sheet, re-grounded, not a
+   card that left the sheet. `.spec-sheet.collection-card` is the same shape for
+   the same reason.
+
+   Every derived token is re-declared for the same reason .spec-sheet re-declares
+   them: a custom property's var() references are substituted where it is
+   DECLARED, so an inherited --spec is already a resolved hex measured against
+   the wrong ground. And the mixes are DEEPER than the 70/80 the other grounds
+   use — 80/88 — because Sand is a light surface with less headroom: at 70% the
+   quiet register computes to #605F57, 4.40:1, under §2.1's 4.5:1 body floor,
+   which is the identical trap tokens.css already documents for the light Sand
+   recess. At 80% it is #4E4F49 / 5.67:1 and at 88% #40413D / 7.04:1.
+
+   Measured pairs on this surface: --ink (Graphite on Sand) 9.5:1 both ways,
+   --spec 5.7:1, --spec-sunken 7.0:1, the sheet against the Espresso card it
+   follows 11.1:1, and its Graphite keyline against the Flare stage 3.79:1 —
+   over §2.1's 3:1 non-text floor. The Sand FIELD against that stage is 2.51:1,
+   which is why the keyline is what delimits the card, exactly as the light
+   theme's 3.02:1 Bone card is delimited by its Graphite keyline today. */
+@media (prefers-color-scheme: dark) {
+  .spec-sheet.archive-card,
+  .spec-sheet.collection-card {
+    --ground: var(--sand);
+    --field: var(--sand);
+    --sunken: var(--sand);
+    --ink: var(--graphite);
+    --counter: var(--sand);
+    --keyline: var(--ink);
+    --spec: color-mix(in srgb, var(--ink) 80%, var(--ground));
+    --spec-sunken: color-mix(in srgb, var(--ink) 88%, var(--ground));
+  }
 }
 
 /* Same squircle corner on every other radiused box — controls, tiles and the
@@ -558,7 +865,8 @@ h3 {
    pair: ink at 40% over Bone is 2.22:1, and a dimmed .btn-flame label is
    1.42:1. §2.1 rule 3 has no inactive-component carve-out, so the dim is
    replaced by a measured pair — --spec-sunken on --sunken is 5.35:1 light /
-   7.70:1 dark — and the dashed keyline says "pending, not pressable" in the
+   10.31:1 dark, and 7.04:1 on the dark counter sheet — and the dashed keyline
+   says "pending, not pressable" in the
    same language .codex-locked and .quest-auto already speak. Never put
    `opacity` on a control whose foreground and field are both tokenised.
    --spec-sunken, not --spec: --spec is mixed toward the GROUND and falls to
@@ -583,12 +891,26 @@ h3 {
   border-radius: var(--r-lg);
 }
 /* Primary action. See --cta-field: a Flare fill would put a 13px label on a
-   3.79:1 field, which §2.1 rule 1 forbids, so Flare is the keyline and the
-   plate is Graphite. */
+   3.79:1 field, which §2.1 rule 1 forbids, so the plate is Graphite.
+
+   THE RING IS THE PLATE, and it stopped being Flare on purpose. §11 caps a
+   component at three colours and §1 trait 06 spends them as field + form +
+   counter, with "a 4th colour" allowed only as AN EVENT. A permanent Flare
+   keyline here was a fifth hue on LogCard — Bone field, Graphite form/plate,
+   Sand recess, Marigold second action, Flare ring — and a fourth on
+   ProfileCard. Nothing was riding on it: the Graphite plate carrying Bone type
+   at 11.44:1 on a Bone card is the primary marker, and §5's 2px border is
+   still drawn, in the plate's own tone.
+   --cta-field, NOT --keyline: --keyline resolves through --ink, which is Bone
+   in dark, so the landing's pinned Bone plate would have lost the button's
+   edge entirely. These three --cta-* values do not theme-flip (see their
+   declarations), which is exactly why the CTA reads the same on both grounds.
+   Flare survives on this control as the HOVER ring below — transient, i.e.
+   trait 06's event, and the one thing that rule actually sanctions. */
 .btn-flame {
   background: var(--cta-field);
   color: var(--cta-ink);
-  border-color: var(--cta-keyline);
+  border-color: var(--cta-field);
 }
 /* Same aria-disabled exclusion as the base hover rule — without it a
    flame-styled inert control would re-open the ring the base rule just
@@ -600,7 +922,7 @@ h3 {
    both clear AA for body text, so these two may carry a 13px label where
    Flare may not. */
 .btn-gold { background: var(--reward); color: var(--on-accent); border-color: var(--keyline); }
-.btn-teal { background: var(--data); color: var(--on-accent); border-color: var(--keyline); }
+.btn-data { background: var(--data); color: var(--on-accent); border-color: var(--keyline); }
 
 /* §11: all numerals render in the mono stack, uppercase, +0.14em. tabular-nums
    is what stops a rolling counter from reflowing its neighbours mid-index. */

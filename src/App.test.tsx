@@ -6,6 +6,7 @@ import { computeHealthScore } from './engine/healthScore.ts'
 import { deriveHealthInputs, finalizeHealthThrough, DEMO_PROFILE } from './engine/profile.ts'
 import { LESSONS, lessonForDay } from './content/lessons.ts'
 import { NOTE_MAX_LEN, todayISO, type Transaction } from './state/store.ts'
+import { XP_REWARDS } from './engine/xp.ts'
 
 // Sounds are reinforcement only; jsdom has no AudioContext, so stub the module.
 vi.mock('./audio/chiptune.ts', () => ({
@@ -173,7 +174,7 @@ describe('logging flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
     expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
     expect(xpNow()).toBe(0)
-    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
+    expect(screen.getByText("No record yet. That's fine.")).toBeTruthy()
   })
 
   it('rejects an amount that parses to Infinity instead of logging it', () => {
@@ -184,7 +185,7 @@ describe('logging flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
     expect(xpNow()).toBe(0)
-    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
+    expect(screen.getByText("No record yet. That's fine.")).toBeTruthy()
   })
 })
 
@@ -257,7 +258,7 @@ describe('logging quick wins', () => {
     expect(xpNow()).toBe(5)
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(xpNow()).toBe(0)
-    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
+    expect(screen.getByText("No record yet. That's fine.")).toBeTruthy()
     const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
     expect(saved.transactions).toHaveLength(0)
     // The grant leaves with the row — log→undo cycles farm nothing.
@@ -394,7 +395,7 @@ describe('daily lesson + codex', () => {
     expect(text.closest('li')!.className).toContain('done')
   })
 
-  it('stands the whole archive half on §5B’s spec sheet, and nothing else', () => {
+  it('stands every read-only surface on §5B’s spec sheet, and nothing else', () => {
     render(<App />)
     // §5 layout B is "a 4-up grid of badges ON ESPRESSO, captioned with mono
     // index labels" — the codex and the badge shelf are literally that, and
@@ -403,34 +404,110 @@ describe('daily lesson + codex', () => {
     // tokens.css), so this class IS the layout.
     //
     // IT IS ALSO THE APP'S ONLY LEVER ON §2's RATIO LAW, which is why the list
-    // grew past the two shelves. A census put the 375px light page at 20.4%
-    // field against a 60% floor and 68.5% Bone against a 30% budget; the two
-    // shelves took it to ~47%, and the month card and the ledger — the same
-    // read-only surfaces, everything below .month-card's --s4 macro-break —
-    // take it to ~62% / ~38%. That budget was a claim only a stylesheet
-    // comment made. It is this assertion.
-    const sheets = [...document.querySelectorAll('main .spec-sheet')].map(
-      (el) =>
-        el.id ||
-        [...el.classList].find((c) => c.endsWith('-card') && c !== 'card') ||
-        '?',
-    )
-    // In render order, not sorted: the sheet is the archive half of the stack
-    // and it has to stay contiguous below the macro-break, or the page reads
-    // as two grounds interleaved rather than as two halves.
-    expect(sheets).toEqual(['month-card', 'ledger-card', 'codex', 'badges'])
+    // grew past the two shelves. Structural field on a 375px phone is capped
+    // near 19% — the column IS the viewport, so there are no gutters, and the
+    // hero is deliberately held off 100vh so the log card stays above the fold
+    // — so every remaining field pixel has to come out of a card body. Cards
+    // shot at 375x812 populated, light: 53.5 field / 40.0 Bone before XpCard,
+    // BossCard and the foot moved across, 59.7 / 33.7 after. That budget used
+    // to be a claim only a stylesheet comment made. It is this assertion.
+    //
+    // Identified by their §11 corner marks rather than by class: the index is
+    // the card's own printed name, it is on every card, and it does not drift
+    // when a styling class is renamed.
+    const mark = (el: Element) => el.querySelector('.spec-label')?.textContent ?? '?'
+    const sheets = [...document.querySelectorAll('main .spec-sheet')].map(mark)
+    // In render order, not sorted. The archive (ARC/COL) stays contiguous below
+    // .archive-card's macro-break; BOS—04 sits above it, and that is the point
+    // — the macro-break is a SEQUENCE fact (what you do today vs what you read
+    // back), the ground is a SURFACE fact (whether anything on the card is
+    // operated). They are different axes and only the first one has to be
+    // contiguous.
+    //
+    // Three sheets where there were six, and the same pixels: the codex and the
+    // badge shelf merged into COL—09, the month card and the ledger into
+    // ARC—08, and the XP bar left the sheet entirely for QuestCard's Bone
+    // ground (see QuestCard / .xp-fill). Consolidation, not retreat — the list
+    // is asserted as an equality, so a card silently leaving the sheet fails.
+    expect(sheets).toEqual(['BOS—04', 'ARC—08', 'COL—09'])
     // Still cards: the sheet is a surface role, not a replacement container.
     for (const el of document.querySelectorAll('main .spec-sheet')) {
       expect(el.className).toContain('card')
     }
-    // …and the act-now half stays on the reading ground: that is where the
-    // forms and the primary actions are, and Bone is what they were measured
-    // on. Naming them keeps "and nothing else" from being vacuous.
-    for (const sel of ['.hero-card', '#log', '#quests', '.sim-card']) {
-      const card = document.querySelector(`main ${sel}`)
+    // The foot is not a card and is not in <main> — it is the plate that closes
+    // the archive, and its only control is a plain .btn drawing
+    // `background: var(--field)`, i.e. its own plate's colour separated by a
+    // keyline. It reads identically on either ground, so the sheet costs it
+    // nothing and closes at two tones there.
+    expect(document.querySelector('footer.foot')!.className).toContain('spec-sheet')
+  })
+
+  it('hands the dark counter ground to the archive card that can take it', () => {
+    render(<App />)
+    // §2.2 swaps the GROUND and stops there. Nothing in it swaps the COUNTER,
+    // and §4 says "Counters are BONE" unconditionally — so in dark the counter
+    // role was spent nowhere: ground, card and sheet all Espresso, card-to-sheet
+    // 1.00:1 / ΔRGB 0 across a third of the page. tokens.css gives it back to
+    // .spec-sheet.archive-card in Sand; this is the DOM half of that selector,
+    // so the rule cannot go on matching nothing. It is ONE card now where it
+    // was two — the same pixels, since the month figures and the day list
+    // merged rather than either one leaving the sheet.
+    const mark = (el: Element) => el.querySelector('.spec-label')?.textContent ?? '?'
+    const grounded = [...document.querySelectorAll('.archive-card')]
+    expect(grounded.map(mark)).toEqual(['ARC—08'])
+    // It must still BE a spec sheet — the doubled selector is (0,2,0) over
+    // .spec-sheet, so a card that dropped the sheet class would silently fall
+    // back to the ordinary Espresso card fill instead of taking Sand.
+    for (const el of grounded) expect(el.className).toContain('spec-sheet')
+    // And the exclusions are the point, not an oversight. Flare on Sand is
+    // 2.51:1, so .boss-fill's bar and .export-note's Flare fault bar drop under
+    // WCAG 1.4.11's 3:1 non-text floor on this ground; the collection sheet is
+    // the literal subject of §5B's "4-up grid of badges ON ESPRESSO", twice
+    // over. Neither may pick up a counter-ground hook.
+    for (const el of document.querySelectorAll('.spec-sheet')) {
+      if (grounded.includes(el)) continue
+      expect(`${mark(el)}: ${el.classList.contains('archive-card')}`).toBe(`${mark(el)}: false`)
+    }
+  })
+
+  it('keeps a persistent accent off the spec sheet — §11’s three-colour cap', () => {
+    render(<App />)
+    // THE RULE THAT DECIDES WHICH CARDS MAY MOVE, and it is arithmetic, not
+    // taste. §2.1 rule 2 pins the foreground on ANY accent fill to Graphite and
+    // never flips it. On the Bone ground Graphite is ALSO the form, so a card
+    // with an accent control closes at exactly three tones (§1 trait 06, §11
+    // "max three colours per component"). On the Espresso sheet the form is
+    // Bone, so that same mandatory Graphite becomes a FOURTH tone — and it
+    // cannot be re-roled away, because Graphite on Espresso is 1.09:1.
+    //
+    // Bare accent fills are exempt: .boss-fill is a Flare bar with nothing
+    // drawn ON it, so no --on-accent appears and the sheet still closes at
+    // three. Transient chips are exempt too — §1 trait 06 allows a 4th colour
+    // as "an event" (.xp-gain, .boss-won, .kept-chip, which the archive has
+    // carried on the sheet since round 3).
+    const PERSISTENT_ACCENT = '.btn-gold, .btn-data, .btn-flame, .sim-result, .stage-badge'
+    for (const el of document.querySelectorAll('.spec-sheet')) {
+      expect(el.querySelector(PERSISTENT_ACCENT)).toBeNull()
+    }
+    // The other direction, so "and nothing else" is not vacuous: every card
+    // still on the reading ground is there because it carries one.
+    for (const sel of ['.hero-card', '#log', '.sim-card']) {
+      const card = document.querySelector<HTMLElement>(`main ${sel}`)
       expect(card).not.toBeNull()
       expect(card!.classList.contains('spec-sheet')).toBe(false)
+      expect(card!.querySelector(PERSISTENT_ACCENT)).not.toBeNull()
     }
+    // …and the one card the cap would ALLOW to move, held back on purpose.
+    // QuestCard's accents are the transient all-complete chip and the bare
+    // .xp-fill bar it absorbed from XpCard, so it is eligible — it stays Bone
+    // because §2's 30% has to be spent on something, and the reading ground is
+    // where the hands go: this is the app's most tapped list, eleven 48px rows
+    // of it. Converting it also overshoots, the page is at 59.7 field already,
+    // and .xp-fill's Marigold has a measured pair on the Sand recess that the
+    // Espresso sheet does not share (see .xp-fill in app.css).
+    const quests = document.querySelector('main #quests')!
+    expect(quests.classList.contains('spec-sheet')).toBe(false)
+    expect(quests.querySelector(PERSISTENT_ACCENT)).toBeNull()
   })
 
   it('collects the lesson into the codex and persists it', () => {
@@ -981,7 +1058,7 @@ describe('the date-grouped ledger', () => {
     category: 'Food',
     ...over,
   })
-  const ledger = () => screen.getByRole('main').querySelector('.ledger-card') as HTMLElement
+  const ledger = () => screen.getByRole('main').querySelector('.archive-card') as HTMLElement
   const dayLabels = () =>
     [...ledger().querySelectorAll('.day-label')].map((n) => n.textContent)
 
@@ -1075,20 +1152,34 @@ describe('the date-grouped ledger', () => {
     ).toBeTruthy()
   })
 
-  it('keeps the empty copy and shows no day scaffold with nothing logged', () => {
+  it('keeps ONE empty copy and shows no day scaffold with nothing logged', () => {
     render(<App />)
-    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
+    // One empty state for the whole archive, not two: the month card's note
+    // and the ledger's "Nothing logged yet. First log is +5 XP." used to be a
+    // doubled statement on one screen, and the survivor is the one that
+    // carries no XP figure onto a money surface (§12.1 — see ArchiveCard).
+    expect(screen.getByText("No record yet. That's fine.")).toBeTruthy()
+    expect(screen.queryByText(/Nothing logged yet/)).toBeNull()
     expect(dayLabels()).toEqual([])
     expect(within(ledger()).queryAllByRole('heading', { level: 3 })).toEqual([])
-    // Nothing to scope yet, so no scope line either — it rides with the list.
-    expect(within(ledger()).queryByText(/No averages/)).toBeNull()
     expect(screen.queryByRole('button', { name: /earlier day/ })).toBeNull()
+    // The scope line no longer rides with the list: the month figures above it
+    // always render, so there is always something to scope.
+    expect(within(ledger()).getByText(/No averages/)).toBeTruthy()
   })
 
   it('states its scope as a permanent property, never as a countdown', () => {
     seed(FOUR_DAYS)
     render(<App />)
-    expect(within(ledger()).getByText(/Totals only\. No averages, no comparisons\./)).toBeTruthy()
+    expect(
+      within(ledger()).getByText('Totals only. No targets. No averages. No projections.'),
+    ).toBeTruthy()
+    // ONE line where there were two. The month card promised "No target, no
+    // projection." and the ledger promised "No averages, no comparisons." a
+    // scroll below — one commitment stated twice, which a reader had to
+    // assemble. Neither old string survives anywhere on the page.
+    expect(document.body.textContent).not.toMatch(/No target, no projection/)
+    expect(document.body.textContent).not.toMatch(/No averages, no comparisons/)
     // No "yet", and no Day n / 90 index. Both were promises: the app has
     // committed never to average (the assertion below is what enforces it),
     // and a 90-day counter is Trust Rule 5's disclosure about the SCORE —
@@ -1148,8 +1239,12 @@ describe('the date-grouped ledger', () => {
     render(<App />)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Ember')
-    // The card still names itself once at h2; the days hang off it at h3.
-    expect(within(ledger()).getByRole('heading', { level: 2 }).textContent).toBe('Recent')
+    // The card still names itself once at h2; the days hang off it at h3. The
+    // ledger's own "Recent" heading is gone with the merge — one head for the
+    // archive, and the days stay one level under it instead of being pushed to
+    // h4 by a sub-head naming the rows the card is already about.
+    expect(within(ledger()).getByRole('heading', { level: 2 }).textContent).toBe('The record')
+    expect(screen.queryByRole('heading', { name: 'Recent' })).toBeNull()
     expect(within(ledger()).getAllByRole('heading', { level: 3 })).toHaveLength(3)
   })
 
@@ -1255,7 +1350,7 @@ describe('the cash-note keypad', () => {
     expect(screen.getByRole('alert').textContent).toBe('Clear the amount first.')
     expect(sfx.deny).toHaveBeenCalled()
     expect(xpNow()).toBe(0)
-    expect(screen.getByText(/Nothing logged yet/)).toBeTruthy()
+    expect(screen.getByText("No record yet. That's fine.")).toBeTruthy()
   })
 
   it('clears only the amount — never the category, the flag, or anything logged', () => {
@@ -1444,7 +1539,7 @@ describe('the row note — what it was', () => {
      same second, and rows logged before it shipped simply carry none — never
      a placeholder, never a prompt to go back and fill them in. */
   const saved = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
-  const ledger = () => screen.getByRole('main').querySelector('.ledger-card') as HTMLElement
+  const ledger = () => screen.getByRole('main').querySelector('.archive-card') as HTMLElement
   const what = () => screen.getByLabelText('What was it?') as HTMLInputElement
   const logIt = (amount: string, note?: string) => {
     fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: amount } })
@@ -1734,9 +1829,9 @@ describe('the month so far', () => {
     category: 'Food',
     ...over,
   })
-  const card = () => screen.getByRole('main').querySelector('.month-card') as HTMLElement
+  const card = () => screen.getByRole('main').querySelector('.archive-card') as HTMLElement
   const cells = () => [...card().querySelectorAll('.month-cell')]
-  const ledgerCard = () => screen.getByRole('main').querySelector('.ledger-card') as HTMLElement
+  const ledgerCard = () => screen.getByRole('main').querySelector('.archive-card') as HTMLElement
 
   const AUGUST = [
     tx({ id: 'd', amountDA: 400, date: '2026-08-04' }),
@@ -1748,7 +1843,7 @@ describe('the month so far', () => {
   it('states where you are in the month, what it cost, and how much is left', () => {
     seed(AUGUST)
     render(<App />)
-    expect(within(card()).getByRole('heading', { level: 2 }).textContent).toBe('This month')
+    expect(within(card()).getByRole('heading', { level: 2 }).textContent).toBe('The record')
     expect(within(card()).getByText('Day 4 / 31')).toBeTruthy()
     expect(within(card()).getByText('1,670 DA logged')).toBeTruthy()
     expect(within(card()).getByText('27 days left.')).toBeTruthy()
@@ -1917,7 +2012,9 @@ describe('the month so far', () => {
     )
     // §12.5 in its own words: no run-rate, no forecast off four days.
     expect(card().textContent).not.toMatch(/at this pace|on track|projected|forecast|estimate/i)
-    expect(within(card()).getByText('Totals only. No target, no projection.')).toBeTruthy()
+    expect(
+      within(card()).getByText('Totals only. No targets. No averages. No projections.'),
+    ).toBeTruthy()
   })
 
   it('carries no engagement number onto the money surface (Trust Rule 1)', () => {
@@ -1932,12 +2029,17 @@ describe('the month so far', () => {
     expect(screen.getByText(/^Health \d+(\.\d)?$/).textContent).toBe(health)
   })
 
-  it('adds no second h1, one h2, one spec label and no landmark of its own', () => {
+  it('adds no second h1, ONE h2, one spec label and no landmark of its own', () => {
     seed(AUGUST)
     render(<App />)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    // One h2 for the whole archive — the merge's headline claim. The month
+    // figures and the day list used to carry an h2 each, one scroll apart.
     expect(within(card()).getAllByRole('heading', { level: 2 })).toHaveLength(1)
-    expect(within(card()).queryAllByRole('heading', { level: 3 })).toEqual([])
+    // …and the days hang directly off it at h3, never at h4.
+    expect(within(card()).getAllByRole('heading', { level: 3 })).toHaveLength(3)
+    expect(within(card()).queryAllByRole('heading', { level: 4 })).toEqual([])
+    // One card, so one printed corner mark where there were two.
     expect(card().querySelectorAll('.spec-label')).toHaveLength(1)
     expect(within(card()).queryAllByRole('region')).toEqual([])
     // Card titles stay unique across the whole outline.
@@ -1954,11 +2056,19 @@ describe('the month so far', () => {
     expect(card().querySelector('.month-index')?.className).not.toContain('index-roll')
   })
 
-  it('opens the archive half of the stack, directly above the ledger', () => {
+  it('IS the ledger — one archive card, not two adjacent ones', () => {
     seed(AUGUST)
     render(<App />)
+    // The month figures and the day list are the same node. This is the merge
+    // asserted structurally: any regression that splits them back into two
+    // cards fails here and again in the §11 corner-index run.
+    expect(ledgerCard()).toBe(card())
+    expect(screen.getByRole('main').querySelectorAll('.archive-card')).toHaveLength(1)
+    // It still OPENS the archive half of the stack — the macro-break rides on
+    // it (see .archive-card in app.css), and the collection sheet follows it.
     const stack = [...screen.getByRole('main').querySelectorAll('section.card')]
-    expect(stack.indexOf(ledgerCard()) - stack.indexOf(card())).toBe(1)
+    expect(stack.indexOf(card())).toBe(stack.length - 2)
+    expect(stack[stack.length - 1].querySelector('.spec-label')!.textContent).toBe('COL—09')
   })
 })
 
@@ -2286,5 +2396,360 @@ describe('§11 — the printed corner index is the card’s real position', () =
     for (const el of document.querySelectorAll('.spec-label')) {
       expect(el.getAttribute('aria-hidden')).toBe('true')
     }
+  })
+})
+
+/**
+ * THE DECISION RECORD.
+ *
+ * The simulator was the deepest engine in the app behind the shallowest
+ * surface: a 365-line model whose entire output was a render-local string in
+ * SimCard, thrown away on the next mount. The only trace a run ever left was a
+ * bare XP grant with no amount and no purchase behind it.
+ *
+ * Each case below pins a real failure mode rather than a screenshot:
+ * persistence (the bug), the frozen line (§12.5), the two tracks (§12.1), the
+ * voice (§12.3/§12.6/§7), the hand-off (§12.8) and the cold start (§12.5).
+ */
+describe('the decision record', () => {
+  const simAmount = () => screen.getByLabelText('Purchase amount (DA)') as HTMLInputElement
+  const runSim = (amount: string) => {
+    fireEvent.change(simAmount(), { target: { value: amount } })
+    fireEvent.click(screen.getByRole('button', { name: 'Run simulation' }))
+  }
+  const simCard = () => screen.getByRole('main').querySelector('.sim-card') as HTMLElement
+  const savedState = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
+  const boughtBtn = () => screen.getByRole('button', { name: 'Bought it' })
+  const waitedBtn = () => screen.getByRole('button', { name: 'Waited' })
+  const resistedBtn = () => screen.getByRole('button', { name: 'Resisted it' })
+
+  it('remembers the run across a reload, line for line', () => {
+    // THE BUG, as a test. simText was useState: the projection existed until the
+    // next mount and then had never happened.
+    render(<App />)
+    runSim('5000')
+    const line = savedState().decisions[0].line as string
+    expect(line.length).toBeGreaterThan(10)
+    expect(savedState().decisions).toHaveLength(1)
+    expect(savedState().decisions[0]).toMatchObject({ amountDA: 5000, outcome: 'open' })
+
+    cleanup()
+    render(<App />)
+    // Same string, byte for byte, rendered from the store rather than re-derived.
+    expect(within(simCard()).getByText(line)).toBeTruthy()
+    expect(within(simCard()).getByText('5,000 DA')).toBeTruthy()
+    // …and it is still answerable after the reload.
+    expect(boughtBtn()).toBeTruthy()
+  })
+
+  it('announces a repeated identical run instead of leaving the sound to carry it', () => {
+    // The region announces text CHANGES. Two runs at the same amount produce
+    // the same projection string, which reconciles into the same text node and
+    // fires no mutation — so the second press was announced by nothing but
+    // sfx.reveal(), i.e. sound alone (§10), and silence under the app's mute.
+    // useAnnouncer's alternating trailing NBSP is what makes the repeat a real
+    // change; the string a user reads or hears is identical.
+    render(<App />)
+    const region = screen.getByRole('status', { name: 'Simulation result' })
+    runSim('5000')
+    const first = region.textContent!
+    expect(first.trim().length).toBeGreaterThan(10)
+    runSim('5000')
+    expect(region.textContent).not.toBe(first)
+    expect(region.textContent!.trim()).toBe(first.trim())
+  })
+
+  it('keeps a pre-setup run disclosed as placeholder numbers after setup lands', () => {
+    // Trust Rule 5. The scope note above the form flips to "your numbers" the
+    // moment the profile saves — correctly, it describes the NEXT run — but the
+    // rows beneath it are frozen lines computed from DEMO_PROFILE's invented
+    // income and invented goal. Provenance therefore travels on the row.
+    render(<App />)
+    expect(screen.getByText(/demo profile/i)).toBeTruthy()
+    runSim('9000')
+    expect(savedState().decisions[0].demo).toBe(true)
+    expect(within(simCard()).getAllByText('Placeholder numbers')).toHaveLength(1)
+
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '250000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), {
+      target: { value: '90000' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
+    // The card now says "your numbers" — and the old row still says whose
+    // numbers IT used.
+    expect(screen.getByText(/your numbers/i)).toBeTruthy()
+    expect(within(simCard()).getAllByText('Placeholder numbers')).toHaveLength(1)
+
+    // A run made AFTER setup carries no tag, and does not retro-tag the old one.
+    runSim('9000')
+    expect(savedState().decisions[0].demo).toBe(false)
+    expect(savedState().decisions[1].demo).toBe(true)
+    expect(within(simCard()).getAllByText('Placeholder numbers')).toHaveLength(1)
+  })
+
+  it('freezes the line — editing My numbers cannot rewrite what it said', () => {
+    // §12.5. Re-deriving the line against today's profile would silently
+    // rewrite the app's own past every time the user changes their income.
+    render(<App />)
+    runSim('12000')
+    const before = savedState().decisions[0]
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '250000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '9000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
+    expect(savedState().profile.monthlyIncome).toBe(250_000)
+    expect(savedState().decisions[0]).toEqual(before)
+    // Scoped to the rendered row: the same string is also standing in the
+    // simulator's live region from the run itself.
+    expect(simCard().querySelector('.decision-line')!.textContent).toBe(before.line)
+  })
+
+  it('pays nothing for answering — Waited moves no counter at all', () => {
+    render(<App />)
+    runSim('5000')
+    const afterRun = xpNow()
+    const grants = savedState().xpLog.length
+    fireEvent.click(waitedBtn())
+    // §12.1: the record measures nothing. No XP, no grant, no row, no score.
+    expect(xpNow()).toBe(afterRun)
+    expect(savedState().xpLog).toHaveLength(grants)
+    expect(savedState().transactions).toEqual([])
+    expect(savedState().decisions[0].outcome).toBe('waited')
+  })
+
+  it('pays a resisted decision exactly what the resist button already pays', () => {
+    render(<App />)
+    runSim('5000')
+    const before = savedState().xp.totalXp
+    fireEvent.click(resistedBtn())
+    // +50, through the ordinary capped resist path — not a bonus for using the
+    // simulator first. The row is an ordinary resist row with provenance.
+    expect(savedState().xp.totalXp).toBe(before + 50)
+    const rows = savedState().transactions
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ amountDA: 5000, resistedImpulse: true })
+    expect(savedState().decisions[0].txId).toBe(rows[0].id)
+    // Every grant on the log is still an action the reward table knows about —
+    // no new "closedDecision" payout snuck in.
+    for (const g of savedState().xpLog) {
+      expect(Object.keys(XP_REWARDS)).toContain(g.action)
+    }
+  })
+
+  it('honours the daily resist cap through the record too', () => {
+    render(<App />)
+    for (const amount of ['1000', '2000', '3000']) {
+      runSim(amount)
+      fireEvent.click(screen.getAllByRole('button', { name: 'Resisted it' })[0])
+    }
+    // Two paid resists a day, exactly as the log form is capped — the record is
+    // not a second door onto the same grant.
+    const resistGrants = savedState().xpLog.filter((g: { action: string }) => g.action === 'resistImpulse')
+    expect(resistGrants).toHaveLength(2)
+    expect(savedState().transactions).toHaveLength(3)
+  })
+
+  it('hands a bought decision to the log form instead of logging it', () => {
+    render(<App />)
+    runSim('7500')
+    const before = savedState().xp.totalXp
+    fireEvent.click(boughtBtn())
+    // Nothing is logged: the app did not observe a purchase, the user reported
+    // one, and the confirmation is theirs to make.
+    expect(savedState().transactions).toEqual([])
+    expect(savedState().xp.totalXp).toBe(before)
+    expect(savedState().decisions[0].outcome).toBe('bought')
+    // The amount is in the log field, and focus went with it — the button that
+    // was pressed unmounts in the same commit (§12.8).
+    const amount = screen.getByLabelText('Amount (DA)') as HTMLInputElement
+    expect(amount.value).toBe('7500')
+    expect(document.activeElement).toBe(amount)
+    expect(document.activeElement).not.toBe(document.body)
+    // …and the transfer is announced, not left to the sighted.
+    expect(screen.getByRole('status', { name: 'Amount entered' }).textContent).toContain(
+      '7,500 DA',
+    )
+    // Confirming it pays the ordinary +5 and links the row to the decision.
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(savedState().xp.totalXp).toBe(before + 5)
+    expect(savedState().decisions[0].txId).toBe(savedState().transactions[0].id)
+  })
+
+  it('never staples an unrelated purchase to an abandoned "Bought it"', () => {
+    // The prefill has no dismiss and the link had no expiry, so answering
+    // "Bought it" on a large decision, walking away from the form, and logging
+    // something else later stapled THAT row's id to the decision. txId has no
+    // on-screen reader, so the only place the wrong claim surfaced was the
+    // export the user is promised under Trust Rule 7 — the one artifact that
+    // has to be right. The link now lands only on a row matching the amount
+    // the record handed over.
+    render(<App />)
+    runSim('180000')
+    fireEvent.click(boughtBtn())
+    // Abandon it: type a different purchase over the prefilled figure.
+    const amount = screen.getByLabelText('Amount (DA)') as HTMLInputElement
+    fireEvent.change(amount, { target: { value: '200' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(savedState().transactions).toHaveLength(1)
+    expect(savedState().transactions[0].amountDA).toBe(200)
+    // The row exists, pays the ordinary +5, and claims nothing about the
+    // decision. The outcome the user actually gave is still recorded.
+    expect(savedState().decisions[0].txId).toBeUndefined()
+    expect(savedState().decisions[0].outcome).toBe('bought')
+    // …and the stale link cannot land on a later row either.
+    fireEvent.change(amount, { target: { value: '180000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(savedState().transactions).toHaveLength(2)
+    expect(savedState().decisions[0].txId).toBeUndefined()
+  })
+
+  it('keeps the record out of the Health Score entirely (Trust Rule 1)', () => {
+    // The two-track rule as an assertion, not a promise.
+    //
+    // THE ENGINE HALF USED TO BE A TAUTOLOGY: `bare` and `withRecord` were the
+    // identical call with the identical arguments, so the comparison could not
+    // fail for ANY implementation, including one that read the record. What is
+    // actually assertable at engine level is the structural fact — the health
+    // inputs are a function of (transactions, profile, day) and there is no
+    // fourth parameter a decision could arrive through — so that is asserted
+    // directly, and the behavioural half runs through the rendered app where
+    // the wiring is what is under test.
+    const today = todayISO()
+    const rows: Transaction[] = [
+      { id: 'a', amountDA: 4_000, category: 'Food', date: today },
+      { id: 'b', amountDA: 0, category: 'Other', date: today, resistedImpulse: true },
+    ]
+    expect(deriveHealthInputs.length).toBe(3)
+    // …and the rows it takes are Transactions: a decision-shaped object carries
+    // no amountDA/category/date, so it cannot even be smuggled in as one.
+    expect(Object.keys(deriveHealthInputs(rows, DEMO_PROFILE, today))).not.toContain('decisions')
+
+    // THE REAL EVIDENCE. Same transactions, one state with a record and one
+    // without, and the record's figures are deliberately enormous — 5,000,000
+    // DA bought, which would swamp every component that reads spend if any of
+    // them read it.
+    localStorage.setItem('ember-state-v1', JSON.stringify({ transactions: rows }))
+    render(<App />)
+    const scoreWithout = screen.getByText(/^Health \d+(\.\d)?$/).textContent
+    fireEvent.click(screen.getByRole('button', { name: /Why this stage/ }))
+    const bars = () =>
+      [...document.querySelectorAll('.health-bar-row')].map((n) => n.textContent)
+    const barsWithout = bars()
+    expect(barsWithout.length).toBeGreaterThan(0)
+    cleanup()
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        transactions: rows,
+        decisions: [
+          { id: 'd1', date: today, amountDA: 5_000_000, line: 'Buy path ends lower.', outcome: 'bought', outcomeDate: today },
+          { id: 'd2', date: today, amountDA: 40_000, line: 'Buy path ends lower.', outcome: 'waited', outcomeDate: today },
+          { id: 'd3', date: today, amountDA: 900_000, line: 'Buy path ends lower.', outcome: 'resisted', outcomeDate: today },
+        ],
+      }),
+    )
+    render(<App />)
+    expect(screen.getByText(/^Health \d+(\.\d)?$/).textContent).toBe(scoreWithout)
+    // Not just the headline number — every explainability component too, since
+    // a leak into one of the five would be invisible in a rounded total.
+    fireEvent.click(screen.getByRole('button', { name: /Why this stage/ }))
+    expect(bars()).toEqual(barsWithout)
+  })
+
+  it('states nothing it has not earned before the first run', () => {
+    // Trust Rule 5's smallest form, and §7's empty-state register: it says what
+    // it has, points at the action that fills it, and stops. No "0 / n", no
+    // progress element, no streak, no promise about what it will tell you.
+    render(<App />)
+    expect(within(simCard()).getByText('No decisions recorded. Run one above.')).toBeTruthy()
+    expect(within(simCard()).queryAllByRole('progressbar')).toEqual([])
+    expect(simCard().querySelector('.decision-list')).toBeNull()
+    expect(simCard().textContent).not.toMatch(/\b0\s*\/\s*\d/)
+    expect(simCard().textContent).not.toMatch(/streak|so far you|day \d+ of/i)
+    // The empty state is gone the moment there is something to show — first
+    // content in minutes, not in three weeks.
+    runSim('5000')
+    expect(within(simCard()).queryByText('No decisions recorded. Run one above.')).toBeNull()
+  })
+
+  it('never renders an answer as a verdict about the user', () => {
+    render(<App />)
+    for (const [amount, answer] of [
+      ['1000', 'Bought it'],
+      ['2000', 'Waited'],
+    ] as const) {
+      runSim(amount)
+      fireEvent.click(screen.getAllByRole('button', { name: answer })[0])
+    }
+    const text = simCard().textContent ?? ''
+    // §12.3 / §12.6 — no regret vocabulary anywhere near a recorded purchase.
+    expect(text).not.toMatch(/worth it|regret|wasted|should have|mistake|failed|bad call/i)
+    // §7.4 — no exclamation marks, and none of §7.5's banned words.
+    expect(text).not.toMatch(/!/)
+    expect(text).not.toMatch(/premium|curated|elevated|seamless|journey|unlock|crafted/i)
+    // NO TALLY, EVER. "You bought 6 of 9" is one step from a verdict about the
+    // user's character, and it is the single most obvious thing to add here.
+    expect(text).not.toMatch(/\d+\s*(of|\/)\s*\d+\s*(bought|waited|resisted)/i)
+    expect(text).not.toMatch(/\d+%/)
+    expect(text).not.toMatch(/bought\s*:\s*\d|waited\s*:\s*\d/i)
+    // Both answers render in the same element, with the same class — no colour
+    // split, no ✓/✗, no weight difference (§12.6).
+    const marks = [...simCard().querySelectorAll('.decision-outcome')].map((n) => n.className)
+    expect(marks).toEqual(['decision-outcome', 'decision-outcome'])
+  })
+
+  it('names the button group, announces the answer, and keeps focus alive', () => {
+    render(<App />)
+    runSim('5000')
+    // A named group, so AT hears which decision the three buttons belong to
+    // rather than three loose verbs.
+    const group = screen.getByRole('group', { name: /What happened: 5,000 DA/ })
+    expect([...group.querySelectorAll('button')].map((b) => b.textContent)).toEqual([
+      'Bought it',
+      'Waited',
+      'Resisted it',
+    ])
+    // Mounted EMPTY: a region that arrives already holding its message is silent.
+    const region = screen.getByRole('status', { name: 'Decision record' })
+    expect(region.textContent).toBe('')
+    const run = screen.getByRole('button', { name: 'Run simulation' })
+    fireEvent.click(waitedBtn())
+    expect(region.textContent).toContain('Waited. 5,000 DA. Recorded.')
+    // The buttons are gone; focus is on a live control, never on <body>.
+    expect(screen.queryByRole('button', { name: 'Waited' })).toBeNull()
+    expect(document.activeElement).toBe(run)
+    // The answer is on screen, not only in the region.
+    expect(simCard().querySelector('.decision-outcome')!.textContent).toContain('Waited')
+  })
+
+  it('puts the newest run at the top, on the day it already holds one', () => {
+    // The top row is the one the card treats as the current projection (it
+    // carries the accent panel), so a fresh run landing second would show the
+    // user the wrong sentence. Decision ids sort chronologically inside a day —
+    // see newDecisionId — which is what makes this hold without an extra field.
+    render(<App />)
+    runSim('1000')
+    runSim('2000')
+    const rows = [...simCard().querySelectorAll('.decision-amount')].map((n) => n.textContent)
+    expect(rows).toEqual(['2,000 DA', '1,000 DA'])
+    // …and the one accent panel is spent on that top row, not on the older one.
+    const panels = [...simCard().querySelectorAll('.sim-result')]
+    expect(panels).toHaveLength(1)
+    expect(panels[0].closest('.decision')!.textContent).toContain('2,000 DA')
+  })
+
+  it('keeps the record inside the simulator — no thirteenth card', () => {
+    render(<App />)
+    runSim('5000')
+    // Depth, not breadth: the run and its record are one object, so the card
+    // count and the §11 corner-index run are unchanged by this feature.
+    const cards = screen.getByRole('main').querySelectorAll('section.card')
+    expect(cards).toHaveLength(9)
+    expect(simCard().querySelectorAll('.spec-label')).toHaveLength(1)
+    expect(within(simCard()).getAllByRole('heading', { level: 2 })).toHaveLength(1)
+    expect(simCard().querySelector('.decision-record')).not.toBeNull()
+    // The record's own head is an h3 under the card's h2 — no second card
+    // title, and the page keeps exactly one h1.
+    expect(within(simCard()).getByRole('heading', { level: 3 }).textContent).toBe('Record')
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 })

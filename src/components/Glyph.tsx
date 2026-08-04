@@ -28,7 +28,7 @@ import { bandPath, boxPath, dotPath, segPath, starPath } from './shape.ts'
  *   check          → the quest's own label ("… — done") on the row button
  *   pets           → role="img" + "Companions: …" on the strip
  *   monster        → "The Impulse Monster" in the sentence it prefixes
- *   shield         → the word "Resisted" beside it (Ledger)
+ *   shield         → the word "Resisted" beside it (ArchiveCard)
  *   medal          → the .sr-only "Earned: " prefix + badge name + date
  *   sound / muted  → the mute button's own aria-label + aria-pressed
  *   locked         → the .sr-only "Locked lesson" on the tile it sits in

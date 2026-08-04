@@ -5,7 +5,7 @@ import { addNote, NOTE_DENOMINATIONS_DA } from '../engine/keypad.ts'
 import { useAnnouncer } from '../hooks/useAnnouncer.ts'
 
 /** Exported for the tests only: the landing surface's product shot renders
-    sample rows through the real <Ledger>, and sampleLedger.test asserts every
+    sample rows through the real <ArchiveCard>, and sampleLedger.test asserts every
     one of their categories is a category this picker can actually produce — a
     shot showing a category the app cannot log is a mockup. */
 export const CATEGORIES = ['Food', 'Transport', 'Fun', 'Bills', 'Health', 'Other']
@@ -24,6 +24,7 @@ export function LogCard({
   onLog,
   onUndo,
   resistXpCapped,
+  prefill,
 }: {
   transactions: Transaction[]
   /** Logs the entry and returns the new transaction's id (for Undo). */
@@ -36,6 +37,10 @@ export function LogCard({
   ) => string
   onUndo: (id: string) => void
   resistXpCapped: boolean
+  /** An amount handed over from another card — today, the decision record's
+   *  "Bought it". `seq` is what makes a repeat of the SAME amount arrive: the
+   *  value alone would compare equal and the effect would never re-run. */
+  prefill?: { amountDA: number; seq: number } | null
 }) {
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(CATEGORIES[0])
@@ -77,6 +82,28 @@ export function LogCard({
   const [undoHeld, setUndoHeld] = useState(false)
   const submitRef = useRef<HTMLButtonElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
+  const amountRef = useRef<HTMLInputElement>(null)
+
+  // A handover from another card (the decision record's "Bought it"). Three
+  // things have to happen together or the move is worse than not making it:
+  //
+  //  · the amount lands in the field — the card the user came from already
+  //    knew it, and retyping it is the friction this app exists to remove;
+  //  · FOCUS follows it. The button that was pressed unmounts in the same
+  //    commit, and an unmounting focused element drops focus to <body>
+  //    silently. This is the other half of SimCard's hand-off (§12.8);
+  //  · the region says so. Setting an input's value from code announces
+  //    nothing at all, so without this the whole transfer is sighted-only.
+  //
+  // It fills the field and STOPS. Nothing is logged: the app did not observe a
+  // purchase, the user reported one, and the confirmation is theirs to make.
+  useEffect(() => {
+    if (!prefill) return
+    setAmount(String(prefill.amountDA))
+    setError(null)
+    amountRef.current?.focus()
+    announcePad(`Amount ${prefill.amountDA.toLocaleString()} DA. Ready to log.`)
+  }, [prefill, announcePad])
 
   // Mis-taps are the number-one anxiety of manual logging: every log opens a
   // short Undo window (UNDO_TX removes the row AND its XP grant, so the grace
@@ -158,7 +185,7 @@ export function LogCard({
   // nonsense row that JSON round-trips as null and silently vanishes on
   // reload — XP granted, record lost.
   // A resist needs no amount — but a typed one is never thrown away: it logs
-  // as the avoided amount (the Ledger shows "N DA avoided"), because the
+  // as the avoided amount (the archive shows "N DA avoided"), because the
   // price of what you didn't buy may be the app's most motivating stat.
   // Clearing the field while recording 0 would silently imply capture.
   function fail(text: string) {
@@ -266,7 +293,7 @@ export function LogCard({
     // announce the section by name instead of a bare "region".
     <section className="card" id="log" tabIndex={-1} aria-labelledby="log-title">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
-      <span className="spec-label" aria-hidden="true">LOG—03</span>
+      <span className="spec-label" aria-hidden="true">LOG—02</span>
       <h2 id="log-title">Log it</h2>
       {chips.length > 0 && (
         <div className="chip-row" role="group" aria-label="Repeat a recent purchase">
@@ -310,6 +337,7 @@ export function LogCard({
               type="text"
               inputMode="decimal"
               placeholder="0"
+              ref={amountRef}
               value={amount}
               onChange={(e) => {
                 setAmount(e.target.value)

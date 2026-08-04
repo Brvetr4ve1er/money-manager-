@@ -44,12 +44,26 @@
    Marigold, where a Bone ring is invisible. Trust Rule 8 — focus stays
    visible — so the ring is pinned to the form colour like everything else
    here. 3px and never lower, matching tokens.css.
-   Checked against every focusable element on the page: the two CTAs and the
-   spec-sheet anchor sit on Bone plates (Graphite ring, 11.4:1), the footer
-   links on Marigold (6.2:1). The Graphite .btn-flame plate gets its ring from
-   the 2px offset, which falls on the Bone plate behind it. A future control on
-   the Espresso section would need --lp-counter and its own rule. */
+   Checked against every focusable element on the page — and the enumeration is
+   the point, because the first version of it was missing one: the two CTAs and
+   the spec-sheet anchor sit on Bone plates (Graphite ring, 11.4:1), the footer
+   links on Marigold (6.2:1), and .lp-spec ITSELF is focusable (tabIndex -1, the
+   jump target) on the Espresso field — which takes --lp-counter and its own
+   rule, immediately below. */
 .landing :focus-visible { outline: 3px solid var(--lp-form); outline-offset: 2px; }
+/* THE ELEMENT THE LIST ABOVE USED TO MISS. The old comment even predicted it —
+   "a future control on the Espresso section would need --lp-counter and its own
+   rule" — while the control already existed. .lp-spec is `tabIndex={-1}` because it
+   is the "Spec sheet" jump target (Landing.tsx), so activating the page's only
+   in-page link lands focus on the Espresso field. Graphite on Espresso is
+   1.16:1, and the section is full-bleed, so the ring's left and right segments
+   fall off-viewport: what a keyboard user actually got was two horizontal lines
+   sitting 2px outside the section's own 2px Graphite border. Bone is 13.3:1
+   here, and the NEGATIVE offset pulls the ring inside the section so it cannot
+   be read as a neighbouring section keyline — the same construction
+   .hero-nav a:focus-visible uses in app.css.
+   CONSTRAINT: Trust Rule 8 / WCAG 2.4.7 — focus stays visible. */
+.lp-spec:focus-visible { outline-color: var(--lp-counter); outline-offset: -6px; }
 
 /* THE STACK (§9 move 1) at every width. app.css only attaches .hero-rise's
    animation at ≥1024px (the mobile topbar has nothing to stage); this page is
@@ -96,7 +110,8 @@
      one button. min-height, never a fixed 100vh: a 100vh wall on a 568px
      phone in landscape pushes the CTA below the fold, and the CTA is the
      point of the section. */
-  min-height: min(100vh, 900px);
+  /* 896px = 112 baseline steps (§5); 900 was off the grid. */
+  min-height: min(100vh, 896px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -120,15 +135,16 @@
   transform: translateY(-50%) rotate(-38deg);
   pointer-events: none;
 }
-/* §8's fine offset-print grain at 6%, the same inline feTurbulence tile the
-   hero uses — no asset request, no dependency. This and the halftone inside
+/* §8's fine offset-print grain at 6% — --grain-tile from tokens.css, which is
+   literally the same tile the app hero uses rather than a copy of it that has
+   to be kept identical by hand. This and the halftone inside
    the display letterforms are the only two textures in the product, which is
    the whole §8 texture budget. */
 .lp-wall::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: var(--grain-tile);
   opacity: 0.06;
   /* multiply, not overlay — the grain sits directly behind the d1 wordmark,
      the one string on this page legally on Flare at 3.01:1, i.e. with 0.02 of
@@ -246,10 +262,32 @@
   corner-shape: superellipse(2.07);
   padding: var(--s3);
 }
+/* THE MISSING STEP, second and last instance — the poster half of it.
+   A census of every declared size on this page read 112 / 72 / 30 / 22 / 17:
+   --fs-h1 (42px) had zero uses here, so the ramp fell 2.4× in one jump from
+   the d2 section brick to this line, and 3.7× from the d1 lockup that stands
+   directly above it in the wall. app.css's .hero-thesis took the step for the
+   product at ≥1024; this is the same defect on the page that has to sell it,
+   and it survived that fix because the landing has its own stylesheet.
+
+   THIS LINE AND NOT THE LEDE BELOW IT, because the two jumps are different
+   kinds of gap. The section brick over a lede (72 → 22) is a SIGN over COPY —
+   two roles, and the size difference is the role difference. This is the
+   page's promise line: the first reading-tier string under the mark in the
+   wall (§5A) and under the specimen in the object (§5E). At h2 it rendered at
+   exactly the size of a card title inside the app and only 1.36× its own lede,
+   which is a nudge and not a hierarchy. At h1 it is 1.9× the lede and the ramp
+   reads 112 / 42 / 22 / 17 in the wall.
+   Tier 2 (Grotesk 700) is unchanged and correct: §3 reserves the display face
+   for 1–3 stacked words, and "Built flat. Logged in DA." is five. Taking the
+   h1 SIZE tier does not make it the page h1 either — that is the wordmark, and
+   there is still exactly one.
+   On a 375px plate --fs-h1 clamps to 32px against h2's 24px, so the step
+   survives the clamp on the phone rather than only reading at 1440. */
 .lp-thesis {
-  font-size: var(--fs-h2);
-  line-height: var(--lh-h2);
-  letter-spacing: var(--tr-h2);
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  letter-spacing: var(--tr-h1);
   margin-bottom: var(--s2);
   /* "Built flat. Logged in DA." wrapped to an orphan "DA." on a 375px plate —
      a two-word second line under a five-word first. Balanced wrapping splits
@@ -404,7 +442,7 @@
    There is no such split here: both cards ARE the subject, and the month card
    is the first thing in its figure. Zeroed rather than left alone because that
    --s4 step would otherwise print as a hanging gap above the shot. */
-.lp-shot-frame .month-card { margin-top: 0; }
+.lp-shot-frame .archive-card { margin-top: 0; }
 /* The caption is the shot's alt text (the shot is aria-hidden), so it is real
    body copy, not a footnote: Bone on Espresso, 13.4:1. */
 .lp-shot-cap {
@@ -466,8 +504,16 @@
      minimum picked four, and four columns over six badges leaves a two-badge
      orphan row on the widest, most-composed view of the page. The count is not
      hard-coded anywhere; if the roster changes, this is the number to re-derive
-     against it. */
-  grid-template-columns: repeat(auto-fit, minmax(296px, 1fr));
+     against it.
+     min(296px, 100%), NOT a bare 296px: a fixed track minimum cannot shrink
+     below itself, and .lp-measure inside .lp-spec's `var(--s5) var(--s3)`
+     padding is only 272px at the stated 320px floor — so the grid overflowed
+     by 24px and, because .lp-spec is the one section without overflow:hidden,
+     the whole document scrolled sideways (WCAG 1.4.10 Reflow, failing for
+     every viewport at or under 343px). min() clamps the floor to the container
+     and is a no-op from 344px up, so the 3-up/2-up/1-up choice above is
+     unchanged. */
+  grid-template-columns: repeat(auto-fit, minmax(min(296px, 100%), 1fr));
   gap: var(--s2);
 }
 /* Each badge is a Bone plate: the body copy inside is 17px, and 17px Bone on
@@ -518,6 +564,64 @@
   padding: var(--s5) var(--s3);
   overflow: hidden;
 }
+/* THE LANE — the phone's answer to §5D, and the reason the marks below are no
+   longer switched off there.
+
+   THE UNFINISHED HALF. The construction documented under .lp-band solves the
+   occlusion for a section that is WIDER THAN IT IS TALL: at 1440 the diagonal
+   has a 678px run through a 530px-tall box, the rules grid is four 258px
+   columns, and there is band left over above and beside it for whole marks to
+   stand in. None of that is true on a phone. Below 720px the grid collapses to
+   one full-measure column, the column IS the viewport, and the band's visible
+   run is reduced to ~60px slivers between stacked plates — so the marks were
+   gated off and the stated primary device shipped §5D's first clause and none
+   of its second. That gate was honest about the symptom. It was not a fix.
+
+   THE COLLISION IS THE OVERLAP, so the fix is to stop overlapping. The band
+   stops passing behind the plates on the phone and gets a canvas of its own:
+   a full-bleed panel between the sign and the plates, splitting the section
+   into what it says and what it lists. Nothing is drawn over it, so nothing
+   occludes it, and the marks are legible at every width instead of at four of
+   them. §5D is satisfied more literally here than at 1440, not less — one 38°
+   band, splitting a canvas, with type parallel to it and no plate in the way.
+
+   THE HEIGHT IS THE ANGLE, not a chosen number, which is why it is a ratio and
+   not a token. tan 38° = 0.78129, so a lane whose height is its width times
+   that tangent is the box whose corner-to-corner diagonal IS 38°: the band's
+   centreline enters at the bottom-left corner and leaves at the top-right one,
+   touching both side edges at every viewport. One step shorter and the band no
+   longer reaches the side edges — it exits through the top and bottom instead
+   and dies to a sliver in each bottom corner, which is the same fragment
+   artefact one level up. aspect-ratio rather than a vw calc so the ratio is
+   measured against the lane's own box and a scrollbar cannot skew it.
+
+   §5's 8px grid is untouched by this: the lane declares no length. Its height
+   is the geometric consequence of one angle and the canvas width, the same way
+   .card::before's 24px inner radius is 28 minus its inset rather than a new
+   step in the radius set.
+
+   display: contents at ≥720 dissolves the lane completely — no box, so no
+   containing block, so the band falls back to being absolutely positioned in
+   .lp-shear exactly as it was. One band element, one rule set, two geometries:
+   the phone gets a lane, the desktop keeps the composition round 3 verified on
+   pixels at 768 / 1024 / 1440. */
+.lp-band-lane {
+  position: relative;
+  overflow: hidden;
+  /* Full-bleed out of the section's --s3 inline padding. .lp-shear clips, so
+     this can never open a horizontal scrollbar. */
+  margin: var(--s4) calc(-1 * var(--s3));
+  /* The lane's only in-flow content is an absolutely-positioned band, so
+     height:auto is 0 and the ratio is the only thing giving it a box. This
+     floor is the failure mode, not the design: on an engine that ignores
+     aspect-ratio the lane would collapse and the phone would lose the band
+     entirely — worse than the typeless band it replaces. --s7 is below the
+     geometric height at every viewport from 320px up (250px there, 293px at
+     375px), so it never binds where aspect-ratio works. */
+  min-height: var(--s7);
+  aspect-ratio: 1 / 0.78129; /* tan 38° */
+}
+
 /* THE BAND IS A FIELD, NOT A TEXT BLOCK, and that is a correction.
    It used to carry the section's line — `text-align: center` + `nowrap`,
    rotated about the section centre, which is exactly where the rule plates
@@ -547,6 +651,10 @@
    previous note said would be needed is needed to run a SENTENCE along the
    diagonal. It is not needed to run an index along it.
 
+   That argument holds where the plates leave gaps, which is ≥720px only. Below
+   it the band no longer passes behind the plates at all — see .lp-band-lane,
+   which is where the phone's half of §5D lives.
+
    §2.1 rule 1 is why the marks are display-tier and not the mono spec size the
    rest of the poster captions with: Flare is a FIELD, and no string under 24px
    may sit on it. --fs-h2 floors at 24px and these are set at 700, where the
@@ -562,7 +670,13 @@
   top: 50%;
   left: -20%;
   width: 140%;
-  height: var(--s5);
+  /* --s6 at every width now, not --s5 below 720. On the desktop composition
+     this was already --s6 (see the ≥720 block, which no longer needs to say
+     so); on the phone the band has stopped being a stripe passing behind the
+     content and become the section's principal graphic, so it takes the same
+     weight. 104px against the lane's 132px of vertical thickness is ~45% of a
+     375px lane — a band that splits its canvas rather than crossing it. */
+  height: var(--s6);
   margin: 0;
   transform: translateY(-50%) rotate(-38deg);
   background: var(--lp-flare);
@@ -571,12 +685,23 @@
   pointer-events: none;
   /* The marks are children, so they inherit the rotation and are parallel BY
      CONSTRUCTION — there is no second angle to keep in sync with the first.
-     Both band ends sit outside the section at every width (the run is only
-     inside the box within ±(H/2)/tan38 of the centre), so the overflow clip
-     lands off-canvas and no mark is ever cut in half on screen. */
+     The clip has to land off-canvas, and it does in both geometries for two
+     different reasons: at ≥720 both band ends sit outside the section (the run
+     is only inside the box within ±(H/2)/tan38 of the centre), and inside the
+     lane the marks are centred and capped in number so they never reach the
+     band's ends at all. No mark is ever cut in half on screen at any width. */
   overflow: hidden;
   display: flex;
   align-items: center;
+  /* CENTRED, which is what keeps the phone's marks off the clip. Inside the
+     lane the band's centre coincides with the lane's centre, and the lane's
+     centre is the deepest point of the crossing: the run reaches ±W/(2·cos38)
+     from there before it meets a corner — 238px at 375, 305px at 480. Three
+     marks measure 288px end to end (±144) and five measure 522px (±261), so
+     both sit inside the run with >40px of margin at every width they are drawn
+     at. Reset to flex-start at ≥720, where the band is absolute across the
+     whole section and its ends are off-canvas anyway. */
+  justify-content: center;
   gap: var(--s5);
   padding-inline: var(--s5);
   color: var(--lp-form);
@@ -602,17 +727,28 @@
    one glyph down. Overflow past the band's off-canvas end is the correct
    place for the surplus to go.
 
-   HIDDEN BELOW 720px, and this is the honest half of the "an index has no
-   middle" argument rather than an exception to it. The argument holds while
-   whole marks survive between the plates. Below 720 the rules grid collapses
-   to ONE full-measure column (auto-fit at minmax(260px) opens its second track
-   at ~584px, and 720 is where this file's composition already changes), so the
-   band's visible run is reduced to ~60px slivers between stacked plates and
-   every mark on screen is cut mid-glyph — measured at 375, and it is exactly
-   the rotated-fragment artefact this construction exists to avoid. Where there
-   is no lane, the band carries §5D alone. Verified on pixels at 375 / 768 /
-   1024 / 1440: fragments at 375, whole marks at every width above the gate. */
+   THE COUNT IS THE GATE NOW, not the display. This rule used to switch every
+   mark off below 720px, because the band's only run there was ~60px slivers
+   between stacked plates and each one cut a glyph in half. .lp-band-lane
+   removes the plates from the band's path entirely, so the constraint is no
+   longer "is there a gap" but "how long is the run": the lane's corner-to-
+   corner diagonal is W/cos38, and the marks are centred on it, so what has to
+   fit is the mark run inside that length.
+     <480   3 marks, 288px end to end, in a run of ≥406px (320px lane)
+     ≥480   5 marks, 522px, in a run of ≥609px
+     ≥720   all 18 — the desktop composition, where the band spans 140% of the
+            section and both its ends are outside the frame.
+   18 marks are still rendered at every width; the surplus is not drawn rather
+   than drawn and clipped, so no mark is ever cut mid-glyph on any screen. That
+   was the whole point of the original gate and it is preserved, at the cost of
+   nothing this time.
+
+   Cascade note: the ≥720 rule is (0,1,0) and these are (0,2,0), so the nth
+   rules keep winning there — which is fine, because both say `block`. The base
+   `display: none` is what the ≥720 rule overrides, and it is the same
+   specificity, so source order decides and the media block is last. */
 .lp-band-mark { display: none; flex-shrink: 0; }
+.lp-band-mark:nth-child(-n + 3) { display: block; }
 .lp-rules-body { position: relative; z-index: 1; }
 .lp-spec-lede-dark { max-width: 46ch; }
 .lp-rules {
@@ -620,7 +756,11 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  /* min(), for the reflow reason .lp-grid documents in full: a bare track
+     minimum cannot shrink below itself, and this section clips rather than
+     scrolls (overflow: hidden), so the failure here is lost content instead of
+     a sideways document. No-op above 308px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: var(--s2);
 }
 /* Bone plates over the band. Sand would also carry this copy at 9.4:1, but the
@@ -735,6 +875,13 @@
   transition: transform var(--t-instant) var(--ease-primary);
 }
 
+/* ≥480px: the lane's diagonal run has grown by ~200px, so two more marks fit
+   inside it. Nothing else on the page changes here — this breakpoint exists
+   only because the mark count is a function of the run length. */
+@media (min-width: 480px) {
+  .lp-band-mark:nth-child(-n + 5) { display: block; }
+}
+
 /* ≥720px: the wall's plate stops running full-bleed and the composition gets
    its 60% negative field back. */
 @media (min-width: 720px) {
@@ -743,11 +890,28 @@
   .lp-spec,
   .lp-shear,
   .lp-object { padding: var(--s6) var(--s5); }
-  /* One line at this width, so the stadium is honest again. */
-  .lp-facts { border-radius: var(--r-pill); }
-  /* The band grows with the composition it splits. */
-  .lp-band { height: var(--s6); }
-  /* …and this is where the rules grid stops being one full-measure column, so
-     the band finally has a lane for §5D's parallel type. See .lp-band-mark. */
+  /* One line at this width, so the stadium is honest again. corner-shape has
+     to be reset WITH the radius: the base rule cuts an n=2.07 superellipse, and
+     that declaration is inherited by this one — a 999px radius under a
+     superellipse cut renders as a superellipse-ended bar, not a stadium, which
+     is the exact pairing tokens.css excludes pills from the corner-shape list
+     to prevent and which the base rule's own comment claims to avoid. */
+  .lp-facts {
+    border-radius: var(--r-pill);
+    corner-shape: round;
+  }
+  /* THE LANE DISSOLVES. display: contents generates no box, so it stops being
+     a containing block and .lp-band goes back to being absolutely positioned
+     in .lp-shear — the composition round 3 verified on pixels, unchanged. The
+     phone keeps the lane; this is where the section is wider than it is tall
+     and the diagonal has a run the plates cannot cover. */
+  .lp-band-lane { display: contents; }
+  /* Free-flowing rather than centred: the band spans 140% of the section here
+     and both its ends are outside the frame, so the marks run from the band's
+     own start and the surplus clips off-canvas. */
+  .lp-band { justify-content: flex-start; }
+  /* All 18, which is enough to run the full 140% band width at 1440 and to
+     overflow it below that. Below this width the count is capped instead — see
+     .lp-band-mark. */
   .lp-band-mark { display: block; }
 }

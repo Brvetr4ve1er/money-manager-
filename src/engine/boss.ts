@@ -10,19 +10,13 @@
  */
 
 import { ESSENTIAL_CATEGORIES } from './profile.ts'
-import type { Transaction } from '../state/store.ts'
+import { addDaysISO, type Transaction } from '../state/store.ts'
 
-function localDayISO(d: Date): string {
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${dd}`
-}
-
-/** Local-calendar day key `n` days after `dayISO` (pure — no wall clock). */
-export function addDaysISO(dayISO: string, n: number): string {
-  const [y, m, d] = dayISO.split('-').map(Number)
-  return localDayISO(new Date(y, m - 1, d + n))
-}
+/* Re-exported, not redefined. The local-day rule has ONE implementation (see
+   store.ts) and this module's callers — achievements.ts, useBossBattle.ts,
+   boss.test.ts — reach it here because week arithmetic is what this engine is
+   about. The definition is not. */
+export { addDaysISO }
 
 /**
  * Monday of the week containing `dayISO` — weeks run Mon–Sun on local dates,

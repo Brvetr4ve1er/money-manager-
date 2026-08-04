@@ -134,7 +134,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
 
   // Codex collection milestones — every 5 lessons gets the rare-pull shimmer.
   // The toast is the sparkle's visible counterpart (sound never carries the
-  // moment alone), and the CodexCard count is its persistent one.
+  // moment alone), and CollectionCard's codex count is its persistent one.
   const prevLessons = useRef(state.lessonsSeen.length)
   useEffect(() => {
     const n = state.lessonsSeen.length
@@ -151,7 +151,7 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
 
   // Achievement unlocks — the rare-pull shimmer with its visible counterpart:
   // one toast PER badge names it and its pet (the queue takes turns in the
-  // live region), and AchievementsCard/the pet strip are the persistent
+  // live region), and CollectionCard's badge grid and pet strip are the persistent
   // state, so the sparkle never carries the moment alone. Diffing persisted
   // ids keeps this origin-agnostic (a peer tab's unlock still toasts here)
   // while the ref initializer keeps long-held badges from re-celebrating on

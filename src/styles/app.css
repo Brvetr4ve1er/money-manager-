@@ -3,7 +3,14 @@
    (--s1…--s7), including the fine typographic margins — the chip family's
    sub-8px padding is expressed as calc(var(--s1) / 2) rather than as a loose
    rem, so it is a half-step OF the scale and not a value beside it. Type sizes
-   go through the §3 tier tokens (--fs-*); there is no ad-hoc rem here. */
+   go through the §3 tier tokens (--fs-*).
+
+   THE TWO NON-TIER rem VALUES, named so the sentence above stays checkable:
+   `.mark` and `.field` are both `1rem`, and neither is type. `.mark` sizes a
+   1em glyph BOX inside a 32px badge; `.field` is pinned at exactly 16px
+   because iOS Safari auto-zooms a focused input under it (see the rule). The
+   glyph sizes that ARE a scale — the mute control, the hero plate and the
+   stage flame — moved onto --glyph-md/--glyph-lg in tokens.css. */
 
 /* The shell no longer holds the measure — it is the full-width stack, and the
    MEASURE moved down onto .main-stack and .foot (see below).
@@ -27,10 +34,10 @@
    --s3 rather than --s2 on purpose — it is the STAGE showing beside the
    containers, and at 375px that is 12.8% of the page: real field, not a
    hairline inset. The foot carries the same measure as a plate.
-   RHYTHM: --s3 between cards, not --s2. Eleven cards at one 16px gap read as a
+   RHYTHM: --s3 between cards, not --s2. Nine cards at one 16px gap read as a
    single undifferentiated ribbon, and §5's grid is 8px-snapped at every step.
    The macro-break that separates the act-now cards from the archive is on
-   .ledger-card below — one gap value for a whole page is not rhythm. */
+   .archive-card below — one gap value for a whole page is not rhythm. */
 .main-stack {
   display: flex;
   flex-direction: column;
@@ -41,15 +48,22 @@
   padding-inline: var(--s3);
 }
 /* THE MACRO-BREAK. Everything above is something to do today (log, quests,
-   boss, lesson, simulator, setup); the month card, ledger, codex and badge
-   shelf are the archive — you read them, you do not act on them. --s3 gap +
+   boss, lesson, simulator, setup); the archive card and the collection sheet
+   are the archive — you read them, you do not act on them. --s3 gap +
    --s4 margin = --s5 of stage between the two halves, so the break is a whole
    step of the scale and reads as one at a glance.
-   It rides on whichever card OPENS the archive, which is now the month card
-   rather than the ledger. Leaving it on .ledger-card would have cut the break
-   between the month and the days inside it — two views of one thing, split by
-   the page's loudest gap. */
-.month-card { margin-top: var(--s4); }
+
+   IT IS NOT THE SAME LINE AS THE GROUND, and the two are easy to confuse now
+   that BossCard stands on .spec-sheet above it. This break is a
+   SEQUENCE fact — what you do today, then what you read back. The Bone/Espresso
+   split is a SURFACE fact — whether a card carries a persistent accent-inked
+   element, which is what §11's three-colour cap actually decides (see
+   .spec-sheet in tokens.css). Two axes, one of which has to be contiguous and
+   one of which does not.
+   It rides on whichever card OPENS the archive, which is the archive card
+   itself — the month figures and the days under them are one surface now, so
+   there is no longer a seam inside the archive for this break to fall into. */
+.archive-card { margin-top: var(--s4); }
 
 /* One header, two lives (see HeroShell.tsx): these base rules are the phone
    and tablet band, the ≥1024px block at the end of this file turns the SAME
@@ -137,8 +151,9 @@
   transform: translateY(-50%) rotate(-38deg);
   pointer-events: none;
 }
-/* Grain over the whole field: a tiny inline feTurbulence SVG tile — no asset
-   request, no dependency. 6% is the §8 texture spec exactly. This and the
+/* Grain over the whole field: --grain-tile, the ONE inline feTurbulence tile
+   (tokens.css) — no asset request, no dependency, and no second copy of the
+   texture to drift from this one. 6% is the §8 texture spec exactly. This and the
    halftone inside the letterforms are the only two textures in the app, which
    is the whole §8 budget.
 
@@ -152,7 +167,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: var(--grain-tile);
   opacity: 0.06;
   mix-blend-mode: multiply;
   pointer-events: none;
@@ -190,8 +205,8 @@
   gap: var(--s2);
   /* THE DISPLAY TIER, in the product and not only on the poster. --fs-d2
      bottoms out at 40px, comfortably inside §2.1 rule 1's ≥24px allowance for
-     type on a Flare field, and it is what breaks the app's 144→22→17→13→11
-     scale — a 122px hole followed by four sizes inside one octave. */
+     type on a Flare field, and it is what breaks the app's 112→22→17→13→11
+     scale — a 90px hole followed by four sizes inside one octave. */
   font-size: var(--fs-d2);
 }
 .hero-nav,
@@ -292,7 +307,7 @@
   right: var(--s2);
   z-index: 3;
 }
-.hero-mute .glyph { font-size: 1.5rem; }
+.hero-mute .glyph { font-size: var(--glyph-md); }
 
 /* §8's drawn glyph set (see Glyph.tsx), sized off the type it sits with: a 1em
    box means .stage-flame's 2.6rem and a .mark's 1rem both land without a
@@ -484,8 +499,10 @@
    surface, against §2's "more than one accent per surface" ban and §1 trait
    06's three-tone cap. Trust Rule 1 is untouched by the swap: it forbids the
    score wearing the ENGAGEMENT track's colour, and ink is neither track.
-   Ink on --sunken is 9.5:1 light (Graphite on Sand) / 11.4:1 dark (Bone on
-   Graphite), so the fill/empty boundary
+   Ink on --sunken is 9.5:1 light (Graphite on Sand) / 15.3:1 dark (Bone on
+   Void — the dark recess is Void, not Graphite: see the dark block in
+   tokens.css for why a recess has to be darker than its card), so the
+   fill/empty boundary
    clears WCAG 1.4.11 on its own and the hard leading-edge keyline the Acid
    fill needed is gone with it. */
 .health-track {
@@ -523,15 +540,17 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--keyline-w);
-  max-width: 92px;
+  /* 96px = 12 baseline steps, matching .stage-badge exactly (§5). */
+  max-width: 96px;
   line-height: 1.2;
 }
 /* Stage mark container. The fill AND its foreground both arrive inline from
    STAGE_META (see HeroCard) — every pair in that table is checked against
    §2.1 before it ships, so the badge must not set its own colour here. */
 .stage-badge {
-  width: 92px;
-  height: 92px;
+  /* 96px, not 92: §5's baseline is 8 and everything snaps to it. */
+  width: 96px;
+  height: 96px;
   border-radius: var(--r-pill);
   border: var(--keyline-w) solid var(--keyline);
   display: flex;
@@ -541,7 +560,7 @@
   /* §9 move 4: the stage indexes, it does not fade between colours. */
   transition: background var(--t-base) var(--ease-index);
 }
-.stage-flame { font-size: 2.6rem; }
+.stage-flame { font-size: var(--glyph-lg); }
 /* §1 trait 01 — nothing floats. Every loose glyph in the app sits in one of
    these: a 1:1 keyline badge. Square aspect, so it takes a radius token, not
    the clip-path superellipse (§11 draws that line at aspect 1.5).
@@ -562,8 +581,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  /* 32px = 4 baseline steps (§5), and the same box .quest-box uses. */
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-pill);
@@ -571,7 +591,7 @@
   font-size: 1rem;
   line-height: 1;
   /* The badge is taller than the text it sits beside (boss name, ledger row).
-     On the default baseline a 28px box drags the whole line box down and
+     On the default baseline a 32px box drags the whole line box down and
      opens a gap above the row; middle centres it on the text instead. */
   vertical-align: middle;
 }
@@ -632,10 +652,24 @@
   font-weight: 700;
   color: var(--spec);
 }
+/* h1, NOT d2, and the fix is where the cliff actually is. The card stack ran
+   72 → 30 → 22 → 17: a 2.4× fall from this readout to .card h2 with §3's 42px
+   step defined and unused. The step was previously added to .hero-thesis,
+   which lives in the hero band inside `@media (min-width: 1024px)` — a
+   different composition, and `display: none` on the phone that is the stated
+   primary device, so the ramp the census measured never moved.
+   It is also the tier this element should always have had. §3 reserves d1/d2
+   for BLOKFORM — "only for 1–3 words, always stacked, always inside a
+   container" — and this is a Grotesk 700 numeral, which is §3's h1 verbatim
+   (42 / 0.95 / -0.02em). d2 stays where §3 puts it: on .hero-lockup, which is
+   the stacked wordmark in its brick. The stack now reads 42 → 30 → 22 → 17 →
+   13 → 11, every defined step used, no hole.
+   Taking the size tier does not make this a heading — the page has exactly one
+   h1 and it is the wordmark. */
 .score-value {
-  font-size: var(--fs-d2);
-  line-height: var(--lh-d2);
-  letter-spacing: var(--tr-d2);
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  letter-spacing: var(--tr-h1);
   font-weight: 700;
 }
 
@@ -648,9 +682,10 @@
    ground; computed against --field per §2.1 rule 3 it lands at 4.78:1 (light,
    #676562 on Bone) and 7.19:1 (dark, #B8AAA4 on the Espresso card field —
    the dark block re-roled --field off Graphite, so the old 6.17 figure named a
-   surface the app no longer paints). On the .spec-sheet cards it is the dark
-   pair in BOTH themes, 7.19:1, since the sheet is Espresso unconditionally.
-   All three clear the
+   surface the app no longer paints). On the .spec-sheet cards it is that same
+   dark pair in both themes, 7.19:1 — except on the two archive cards that take
+   the Sand counter ground in dark, where the mix deepens to 80% and measures
+   5.67:1 (see the counter-sheet block in tokens.css). All of them clear the
    4.5:1 body-text minimum, which this must, since it is a sentence and not a
    decorative corner mark. */
 .calibrating {
@@ -667,8 +702,17 @@
   flex-wrap: wrap;
   margin-bottom: var(--s1);
 }
+/* The level line. Not a heading any more (see QuestCard) — the h2 tier belongs
+   to the card's own title — so it takes the h3 step and carries the weight
+   itself instead of inheriting it. */
+.xp-level {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: 700;
+}
 .xp-numbers { display: inline-flex; align-items: baseline; gap: var(--s1); }
-/* Transient +XP chip (see XpCard): a non-audio, non-motion confirmation of a
+/* Transient +XP chip (see QuestCard): a non-audio, non-motion confirmation of a
    gain — visible to muted and reduced-motion users, and in --reward like the
    bar it feeds. It appears/disappears by state swap, never by animation
    alone. */
@@ -698,10 +742,19 @@
 .xp-fill {
   height: 100%;
   background: var(--reward);
-  /* Hard ink leading edge: Marigold on the Sand track is ~1.4:1 — the
-     fill/empty boundary fails WCAG 1.4.11 without it. Ink flips with the
-     ground, so the edge clears 3:1 on both tracks. XpCard skips rendering the
-     fill at 0 XP so the border can never show as a phantom sliver. */
+  /* CONSTRAINT: WCAG 1.4.11, and the edge is LOAD-BEARING again.
+     The XP bar merged into QuestCard, which stands on the Bone reading ground,
+     so the track is --sunken: Sand in light, Void in dark. Marigold on Void is
+     8.4:1 and clears on its own; MARIGOLD ON SAND IS 1.49:1 and does not —
+     the fill/empty boundary is carried entirely by this 2px --keyline stroke,
+     which measures 6.38:1 against the Marigold fill and 9.52:1 against the Sand
+     track. Both sides of the boundary clear the 3:1 non-text floor against the
+     stroke, which is what 1.4.11 asks for. Do not remove it, and do not change
+     the track to a fill Marigold cannot be delimited against.
+     (This is also the pair that disqualified the old XpCard from the dark
+     counter sheet, where the same 1.49:1 would have applied — see tokens.css.)
+     QuestCard skips rendering the fill at 0 XP so the border can never show as
+     a phantom sliver on an empty bar. */
   border-right: var(--keyline-w) solid var(--keyline);
   /* steps(6, end), not a slow ease: §9 move 4 — a numeral never smooth-tweens,
      and the XP bar is the level counter in bar form. */
@@ -770,15 +823,15 @@
      card it sits in and as the page behind that — three nested surface levels,
      one colour, every scrap of depth riding on the 2px keyline. §5 puts depth
      in "colour offset + keylines"; this is the offset half. Sand under Bone in
-     light, Graphite under Espresso in dark: --ink reads 9.4:1 / 11.4:1 on it,
-     both well clear. */
+     light, Void under Espresso in dark: --ink reads 9.4:1 / 15.3:1 on it, both
+     well clear. */
   background: var(--sunken);
   color: var(--ink);
 }
 /* Placeholders are examples, not labels (see .field-label) — pinned to a
    measured value rather than the UA-default gray. --spec-sunken, NOT --spec:
    --spec is mixed toward --ground and computes to 3.98:1 on the Sand recess,
-   under the 4.5:1 body floor. The deeper mix lands at 5.35:1 / 7.70:1. */
+   under the 4.5:1 body floor. The deeper mix lands at 5.35:1 / 10.31:1. */
 .field::placeholder { color: var(--spec-sunken); opacity: 1; }
 /* "I bought it anyway" self-report. The whole label is the toggle and its
    min-height makes it a 48px target; accent-color keeps the native checkbox
@@ -878,7 +931,7 @@
 .note-keys { display: flex; gap: var(--s1); flex-wrap: wrap; }
 /* --sunken, not the card fill: the pad IS the amount input, so it takes the
    input's recessed surface (see .field) rather than reading as a second row of
-   repeat chips. --ink on --sunken is 9.5:1 light / 11.4:1 dark, and §2.1 rule 1
+   repeat chips. --ink on --sunken is 9.5:1 light / 15.3:1 dark, and §2.1 rule 1
    is why the numerals may not go on the Flare field at this size. The .btn base
    supplies the 48px floor, the 2px keyline and THE PRESS.
    min-width, not a fixed width: "2,000" and "100" stay one tap-sized key each
@@ -915,14 +968,23 @@
    a strip the user reaches for under time pressure. */
 .undo-btn { font-size: var(--fs-spec); padding: var(--s1) var(--s2); min-height: 48px; }
 /* Inline validation message: ink text (contrast-safe on the field in both
-   themes) with a Flare bar at the heavy keyline width — the error never
-   relies on the denial blip alone, and Flare stays a field/keyline colour
-   rather than becoming a text background (§2.1 rule 1). */
+   themes) with a bar at the heavy keyline width — the error never relies on
+   the denial blip alone.
+
+   THE BAR IS INK, not Flare, and §12.8 is the reason rather than the obstacle:
+   "never rely on hue" cuts both ways, and the message is carried by the words,
+   the role="alert" announcement and the 6px rule §6 defines for exactly this.
+   A permanent Flare bar was the fifth hue on LogCard and the fifth on SimCard
+   (Bone / Graphite / Sand / accent / Flare), which §11's three-colour cap and
+   §1 trait 06 both forbid — an error that can stand on screen for as long as
+   the field is empty is not trait 06's "event". --alert keeps its Flare on the
+   two markers that ARE events and are not inside a card: .persist-fault and
+   .export-note, both of which mark a FAULT rather than a typo. */
 .field-error {
   margin: var(--s1) 0 0;
   font-size: var(--fs-cap);
   font-weight: 700;
-  border-left: var(--keyline-heavy) solid var(--alert);
+  border-left: var(--keyline-heavy) solid var(--keyline);
   padding-left: var(--s1);
 }
 
@@ -1129,9 +1191,11 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
 .boss-fill {
   height: 100%;
   background: var(--alert);
-  /* Hard ink leading edge, same 1.4.11 rationale as .xp-fill: the fill/empty
-     boundary must clear 3:1 on both themes' tracks. Indexed, not tweened —
-     see .xp-fill. */
+  /* Hard ink leading edge, same 1.4.11 rationale as .xp-fill. This card now
+     stands on .spec-sheet in both themes, so the pair is fixed rather than
+     theme-dependent: Flare on the sheet's Espresso track is 4.41:1, the widest
+     surface offset in the app, and the Bone edge is 13.4:1 against the same
+     track. Indexed, not tweened — see .xp-fill. */
   border-right: var(--keyline-w) solid var(--keyline);
   transition: width var(--t-base) var(--ease-index);
 }
@@ -1164,6 +1228,16 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
 .card .lesson-title { font-size: var(--fs-h3); margin-bottom: var(--s1); }
 .lesson-body { margin: 0 0 var(--s1); font-size: var(--fs-body); }
 
+/* THE COLLECTION SHEET — the codex and the badge shelf on one card (see
+   CollectionCard). The two halves are separated by space, not by a second
+   container: §1 trait 01 wants every mark inside a shape, and the shape here is
+   the card — nesting a second keyline inside it would draw a border the phone
+   cannot afford for a boundary the heading already states. */
+.collection-part + .collection-part { margin-top: var(--s3); }
+/* Sub-heading scale, like .lesson-title: these are sections INSIDE a card, and
+   §3's h2 step belongs to the card's own title. */
+.collection-card h3 { font-size: var(--fs-h3); }
+
 /* Codex — the lesson collection. */
 .codex-head {
   display: flex;
@@ -1172,14 +1246,18 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   gap: var(--s1);
   flex-wrap: wrap;
 }
-.codex-head h2 { margin-bottom: var(--s1); }
+.codex-head h3 { margin-bottom: var(--s1); }
 .codex-count { font-size: var(--fs-cap); font-weight: 700; }
 .codex-grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  /* min(), same reflow rule as landing.css's .lp-grid: a fixed track minimum
+     cannot shrink below itself, so at the 320px floor a tile grid inside a
+     padded card is one padding change away from pushing the document sideways
+     (WCAG 1.4.10). No-op at any width that fits the track. */
+  grid-template-columns: repeat(auto-fill, minmax(min(128px, 100%), 1fr));
   gap: var(--s1);
   /* Locked tiles hold one mark and collapse to --s5; collected ones hold a
      title and a line. Without this the whole row stretched to the tallest
@@ -1204,7 +1282,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
    the fill AND the solid-vs-dashed keyline AND an .sr-only prefix, so nothing
    here rides on hue (§12.8). Trust Rule 1's two-track colour coding is
    untouched: --reward and --data still mark the engagement/reality split where
-   it is actually read — XpCard, .kept-chip, .sim-result. */
+   it is actually read — the XP bar, .kept-chip, .sim-result. */
 .codex-tile {
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-sm);
@@ -1263,14 +1341,18 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   gap: var(--s1);
   flex-wrap: wrap;
 }
-.ach-head h2 { margin-bottom: var(--s1); }
+.ach-head h3 { margin-bottom: var(--s1); }
 .ach-count { font-size: var(--fs-cap); font-weight: 700; }
 .ach-grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  /* min(), same reflow rule as landing.css's .lp-grid: a fixed track minimum
+     cannot shrink below itself, so at the 320px floor a tile grid inside a
+     padded card is one padding change away from pushing the document sideways
+     (WCAG 1.4.10). No-op at any width that fits the track. */
+  grid-template-columns: repeat(auto-fill, minmax(min(128px, 100%), 1fr));
   gap: var(--s1);
 }
 .ach-tile {
@@ -1336,9 +1418,25 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
    an elliptical corner ~160px wide, which would peel the bar away from the
    card's own 28px corner and open the field through the gap. corner-shape (in
    tokens.css's :where list) reshapes the radius without detaching anything. */
+/* THE SECOND CONTOUR, RE-EXPRESSED. .card::before is `position: absolute`,
+   .window-bar is an in-flow div, and positioned descendants paint above
+   non-positioned in-flow boxes — so on this card the trait 05 ring was drawn
+   ON TOP of the bar, in --keyline, which resolves to --ink, which is the bar's
+   own fill. Its whole top edge and the upper ~30px of both flanks vanished,
+   and SIM—06 read as a three-sided contour starting at the bar's bottom edge:
+   trait 05's first half again and none of its second, on the one card the fix
+   was supposed to be universal across.
+   z-index lifts the bar over the ring, and the bar then draws the missing run
+   itself in its own counter — 11.44:1 light, 13.32:1 dark — so the contour is
+   continuous and measurable across the plate instead of disappearing into it.
+   CONSTRAINT: §1 trait 05, and no new hue: --counter is already the bar's
+   foreground. */
 .window-bar {
   background: var(--ink);
   color: var(--counter);
+  position: relative;
+  z-index: 1;
+  border-bottom: var(--keyline-w) solid var(--counter);
   padding: var(--s1) var(--s2);
   font-size: var(--fs-spec);
   font-weight: 700;
@@ -1359,11 +1457,19 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
    that happens to contain a number — uppercasing it at +0.14em would make
    the one disclosure the card owes the user the hardest thing on it to read. */
 .sim-note { margin: 0 0 var(--s1); font-size: var(--fs-spec); color: var(--spec); }
-/* Visual panel only, rendered once a result exists and aria-hidden: the
-   announcement runs through a permanently-mounted .sr-only status region in
-   SimCard, so this box can mount/unmount freely without muting it. --data
-   (Acid) with --on-accent is 9.7:1 — the strongest pair in the table, and it
-   keeps the simulator on the financial-reality track. */
+/* THE NEWEST RECORD ROW'S LINE, and the comment that used to sit here
+   described a structure that no longer exists. Before the decision record
+   merged in, this was a standalone panel that mounted only while a result was
+   on screen and carried aria-hidden. It is now the `i === 0` row of the record
+   list (SimCard) — real, permanent content with no aria-hidden on it.
+   THE DUPLICATION IS DELIBERATE. The same sentence is also held in the
+   permanently-mounted .sr-only status region above the list, so AT reads the
+   projection twice when browsing the card. That is the accepted cost of Trust
+   Rule 8: a live region announces text CHANGES, so it has to be mounted before
+   the change and cannot be the record row itself. The record list is NOT a
+   live region, so nothing is announced twice — only re-read on browse.
+   --data (Acid) with --on-accent is 9.7:1 — the strongest pair in the table,
+   and it keeps the simulator on the financial-reality track. */
 .sim-result {
   margin: var(--s1) 0 0;
   background: var(--data);
@@ -1372,6 +1478,89 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   border-radius: var(--r-sm);
   padding: var(--s2);
   font-size: var(--fs-body);
+}
+
+/* THE DECISION RECORD — what the simulator said, and what the user did.
+   Inside the sim card, never a card of its own: the run and its record are one
+   object, and a thirteenth section on a 375px column is the breadth this round
+   is spending its budget against. */
+.decision-record { margin-top: var(--s2); }
+/* h3 in the cap register rather than the h2 tier: this is a section INSIDE a
+   card, and §3's ramp gives the card's own h2 the 30px step. Matching it here
+   would put two headings of equal weight on one surface. */
+.decision-title {
+  font-size: var(--fs-cap);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin: 0 0 var(--s1);
+}
+.decision-list { list-style: none; margin: 0; padding: 0; }
+/* Ink rule between rows, same family as .tx and .profile-row: §11 has exactly
+   one border and it is 2px graphite. */
+.decision {
+  padding: var(--s1) 0;
+  border-bottom: var(--keyline-w) solid var(--keyline);
+}
+.decision:last-child { border-bottom: none; }
+.decision-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin: 0;
+  font-size: var(--fs-cap);
+}
+.decision-amount { font-weight: 700; }
+.decision-when { color: var(--spec); }
+/* WHOSE NUMBERS THIS ROW USED (Trust Rule 5). §1 trait 10's register — a mono
+   spec stamp, ringed by the card's own keyline so the mark sits inside a shape
+   (trait 01) rather than floating beside the day. NO NEW COLOUR: --spec is the
+   quiet ink already on this row and --keyline is the card's only border, so the
+   surface stays Bone / Graphite / Sand and the accent stays unspent. Ratios are
+   the ones tokens.css measures for --spec (7.2:1 on Espresso, 5.7:1 on Sand,
+   5.6:1 on Bone) — over §2.1's 4.5:1 body floor at any size. */
+.decision-basis {
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+  color: var(--spec);
+  border: var(--keyline-w) solid var(--keyline);
+  border-radius: var(--r-xs);
+  padding: 0 calc(var(--s1) / 2);
+}
+/* The frozen line on every row but the newest. Plain ink at body size — the
+   accent panel (.sim-result) is spent once, on the row at the top, so the card
+   never stacks accents (§1 trait 06 / §11's three-colour cap). */
+.decision-line {
+  margin: calc(var(--s1) / 2) 0 0;
+  font-size: var(--fs-cap);
+}
+/* …and when the row IS the newest, .sim-result wins the fill and this only
+   still has to correct the size back up to the panel's body tier. */
+.sim-result.decision-line { font-size: var(--fs-body); }
+.decision-actions {
+  display: flex;
+  gap: var(--s1);
+  flex-wrap: wrap;
+  margin-top: var(--s1);
+}
+/* §11's 48px floor comes from .btn; this only shrinks the type, exactly like
+   .chip and .ledger-more. NO COLOUR SPLIT between the three (§12.6): all three
+   are the same plain .btn, because "Bought it" is not a failure state and the
+   stylesheet is the easiest place to accidentally say that it is. */
+.decision-btn {
+  padding: var(--s1) var(--s2);
+  font-size: var(--fs-spec);
+}
+/* The recorded answer. Same ink, same weight, same size for all three
+   outcomes — see .decision-btn. */
+.decision-outcome {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-cap);
+  font-weight: 700;
 }
 
 /* Setup / "My numbers" card. Fieldsets group the optional sections (real
@@ -1401,7 +1590,7 @@ form > .profile-note { margin-top: var(--s1); }
    state the blank ≠ 0 contract promises, so it must never look like an error. */
 .profile-unset { color: var(--spec); font-size: var(--fs-cap); text-align: right; }
 
-/* THE MONTH SO FAR (see MonthCard.tsx). Two tones and a rule: ink bars on the
+/* THE MONTH SO FAR (see ArchiveCard.tsx). Two tones and a rule: ink bars on the
    card's own field, with the quiet register carrying the boundary marks. No
    accent anywhere on it — --reward would put the engagement track's colour on
    a financial surface (Trust Rule 1, drawn in colour) and --data would make
@@ -1431,8 +1620,10 @@ form > .profile-note { margin-top: var(--s1); }
   margin: 0 0 var(--s2);
   font-size: var(--fs-cap);
 }
-/* The month's one number, at the row tier and in plain ink — 13.4:1 on this
-   card's Espresso .spec-sheet field. Weight is the only emphasis it gets. */
+/* The month's one number, at the row tier and in plain ink — 13.3:1 on this
+   card's Espresso .spec-sheet field, 9.5:1 on the Sand counter ground it takes
+   in dark (see the counter-sheet block in tokens.css). Weight is the only
+   emphasis it gets. */
 .month-spend { font-weight: 700; }
 /* A calendar fact, not the subject: quiet register, so the money reads first. */
 .month-left { color: var(--spec); }
@@ -1461,9 +1652,12 @@ form > .profile-note { margin-top: var(--s1); }
    get the dashed quiet rule instead. Dashed is already this app's mark for
    "not a live fact" (.tx-impulse, .btn[aria-disabled]), so a blank cell over a
    dashed rule cannot be misread as a day that cost nothing. Both marks clear
-   WCAG 1.4.11's 3:1 for non-text: on this card's .spec-sheet field --ink is
-   13.4:1 and --spec 7.2:1. The distinction is also stated in words (.month-note) — this is the
-   redundant half, never the only one. */
+   WCAG 1.4.11's 3:1 for non-text on both of this card's grounds: --ink is
+   13.3:1 / --spec 7.2:1 on the Espresso sheet, and --ink 9.5:1 / --spec 5.7:1
+   on the Sand counter ground it takes in dark — the deeper 80% mix is what
+   keeps the dashed rule legal there (a 70% mix on Sand is 4.4:1). The
+   distinction is also stated in words (.month-note) — this is the redundant
+   half, never the only one. */
 .month-cell.is-recorded { border-bottom: var(--keyline-w) solid var(--keyline); }
 .month-cell.is-no-record,
 .month-cell.is-ahead { border-bottom: var(--keyline-w) dashed var(--spec); }
@@ -1487,30 +1681,30 @@ form > .profile-note { margin-top: var(--s1); }
   color: var(--spec);
 }
 
-.ledger-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--s1);
-  flex-wrap: wrap;
-}
-.ledger-head h2 { margin-bottom: var(--s1); }
 /* "Resisted, not spent" — resisted DA summed for the month. The class name is
    the older noun and stays for churn's sake; the RENDERED word is "resisted",
-   because the app observed the tap and not the outcome (see Ledger.tsx).
+   because the app observed the tap and not the outcome (see ArchiveCard.tsx).
+   It rides on .month-facts now rather than a head of its own: "this month" is
+   in its own words, so it is a month figure and belongs on the month line —
+   which is also what let the ledger's separate head go when the two merged.
    --data, not --reward:
    it is a mirror of the user's own resists, not an award in the reward
    family (Trust Rule 1, drawn in colour).
    THE 4TH TONE HERE IS DELIBERATE and is the distinction §1 trait 06 draws:
-   "a 4th color is an event". This card now stands on .spec-sheet (Espresso
-   field, Bone form), so an Acid chip with its mandatory Graphite ink is a
-   fourth hue — but it appears only when the user has resisted something this
-   month, which is exactly the event the trait allows. The 41 codex/badge tiles
-   that used to carry --reward were not an event, they were the surface, which
-   is why they lost the accent instead (see .codex-tile). Bone keyline on Acid
-   is 1.03:1, but the chip is delimited by its fill against the Espresso card
-   behind it, not by the ring — the same argument .ach-medal could NOT make,
-   which is why that one is pinned instead. */
+   "a 4th color is an event". On the LIGHT theme's Espresso .spec-sheet (Bone
+   form) an Acid chip with its mandatory Graphite ink is a fourth hue — but it
+   appears only when the user has resisted something this month, which is
+   exactly the event the trait allows. The 41 codex/badge tiles that used to
+   carry --reward were not an event, they were the surface, which is why they
+   lost the accent instead (see .codex-tile).
+   IN DARK THIS CARD TAKES THE SAND COUNTER GROUND, where --ink IS Graphite, so
+   §2.1 rule 2's mandatory chip ink is the card's own form and the surface
+   closes at three tones with no carve-out needed. What flips with it is which
+   half of the chip draws its edge: on Espresso the fill carries it (Acid on
+   Espresso 13.0:1) and the Bone ring is 1.03:1; on Sand the fill is 1.17:1 and
+   the RING carries it (Graphite on Sand 9.5:1, Graphite ink on Acid 11.2:1).
+   One of the two is always well over the 3:1 non-text floor, which is the
+   argument .ach-medal could NOT make — hence that one is pinned instead. */
 .kept-chip {
   background: var(--data);
   color: var(--on-accent);
@@ -1564,8 +1758,9 @@ form > .profile-note { margin-top: var(--s1); }
 /* Money, stated flat. No accent fill: --reward would put the engagement track's
    colour on a financial number (Trust Rule 1, drawn in colour) and --data would
    make every day look like a verdict the card is explicitly not passing. Ink on
-   --field, 13.4:1 on the ledger's .spec-sheet surface, at the row tier — the
-   day's own rows are what it sums. */
+   --field, 13.3:1 on the ledger's Espresso .spec-sheet surface and 9.5:1 on the
+   Sand counter ground it takes in dark, at the row tier — the day's own rows
+   are what it sums. */
 .day-total {
   font-size: var(--fs-cap);
   font-weight: 700;
@@ -1597,8 +1792,9 @@ form > .profile-note { margin-top: var(--s1); }
 }
 /* The note itself. Same size as the category above it — a memory is not a
    footnote — in the quiet ink register, which is the ONE distinction the row
-   gets: no accent, no border, no badge. --spec measures 4.6:1 on --ground and
-   the card fill it sits on (§2.1); --spec-sunken is the deeper mix reserved
+   gets: no accent, no border, no badge. --spec measures 4.78:1 on the light
+   Bone ground and 5.67:1 on the Sand counter ground this card takes in dark,
+   both over §2.1's 4.5:1 body floor; --spec-sunken is the deeper mix reserved
    for the recessed surfaces and would be needlessly heavy here.
    overflow-wrap for the same reason as min-width above: user free text has no
    obligation to contain a space. */
@@ -1623,6 +1819,11 @@ form > .profile-note { margin-top: var(--s1); }
    on it outright. So the foot becomes a container like everything else that
    stands in the field — same fill, same 2px keyline, same corner as a card, so
    it closes the stack instead of reading as loose text under it. */
+/* The closing plate. It carries .spec-sheet from App.tsx rather than a rule
+   here, for the same reason the archive cards do: the sheet is a token scope,
+   not a paint, so everything inside re-derives against Espresso — --spec at
+   7.19:1, the export bar at 4.41:1, the plain .btn at 13.4:1. Nothing here
+   needed changing, which is the test that the scope is the right mechanism. */
 .foot {
   display: flex;
   align-items: center;
@@ -1651,8 +1852,11 @@ form > .profile-note { margin-top: var(--s1); }
    .persist-fault already use to mark a fault. It carries BOTH outcomes rather
    than only the failure: a success line that changed register on failure would
    make the marker the message, and the words are what say which it is
-   (§12.8 — never colour alone). The bar reads 3.02:1 light / 4.41:1 dark on
-   the foot's --field plate, over §2.1's 3:1 non-text floor. */
+   (§12.8 — never colour alone). The foot carries .spec-sheet now (see App.tsx
+   — it is the plate that closes the archive), so its plate is Espresso in BOTH
+   themes and the bar is a single fixed pair: Flare on Espresso, 4.41:1, over
+   §2.1's 3:1 non-text floor and wider than the 3.02:1 it used to have on the
+   light Bone plate. */
 .export-note {
   margin: 0;
   border-left: var(--keyline-heavy) solid var(--alert);
@@ -1728,10 +1932,8 @@ form > .profile-note { margin-top: var(--s1); }
      itself at the exact moment something has gone wrong. Spanning both tracks
      keeps the card packing identical in both states. */
   .persist-fault,
-  .ledger-card,
-  .month-card,
-  #codex,
-  #badges { grid-column: 1 / -1; }
+  .archive-card,
+  .collection-card { grid-column: 1 / -1; }
 }
 
 @media (min-width: 1024px) {
@@ -1857,7 +2059,11 @@ form > .profile-note { margin-top: var(--s1); }
   /* The lockup steps from d2 (the band) up to d1 (the hero). Everything else
      about it — the flex row, the stacked rows, the em-scaled brick — is on the
      base rules, so the mark and the word can never drift apart. */
-  .hero-lockup { font-size: clamp(4.5rem, 10vw, 9rem); }
+  /* --fs-d1 VERBATIM, not a hand-rolled clamp. The old value topped out at
+     144px — 32px over §3's d1 ceiling of 112 and off the scale entirely, while
+     the comment above claimed it stepped up to d1. landing.css:193 does the
+     same lockup the correct way. */
+  .hero-lockup { font-size: var(--fs-d1); }
 
   /* §8's second and last texture: a 1px halftone line screen, permitted ONLY
      inside display letterforms. Void lines over the Graphite form, so the
@@ -1900,14 +2106,17 @@ form > .profile-note { margin-top: var(--s1); }
     border-top: var(--keyline-w) solid var(--brand-form);
     padding-top: var(--s3);
   }
-  /* THE MISSING STEP. A census of everything ≥28px painted at 1440 read
-     144 / 72 / 30 / 22 / 17 — the --fs-h1 step (42px) had zero uses anywhere
-     in src/, so the ramp fell 2.4× in one jump from the health readout to the
-     section heads. §3 defines that step as "h1 42 / 0.95 / -0.02em Grotesk
-     700", and this line is already Grotesk 700; it is the one run of type in
-     the product that stands beside a 144px lockup, so 22px was the cliff's
-     near edge rather than a considered size. Taking the size tier does not
-     make it a heading — the page has exactly one h1 and it is the wordmark.
+  /* The same step, in the band. This was once billed as closing the ramp's
+     2.4× hole, and it did not: the hole is in the CARD STACK (health readout →
+     .card h2), and this rule is inside `@media (min-width: 1024px)` on an
+     element the phone never renders. .score-value is where that fix belongs
+     and now carries it — see .score-value. What this rule is FOR is the band's
+     own ramp: it is the one run of type in the product that stands beside a
+     112px lockup, so 22px was the cliff's near edge rather than a considered
+     size, and §3 defines the step above it as "h1 42 / 0.95 / -0.02em Grotesk
+     700", which this line already was.
+     Taking the size tier does not make it a heading — the page has exactly one
+     h1 and it is the wordmark.
      The measure drops with the size (34ch of 42px type is a 900px line): 20ch
      sets it as three short fragments, which is what §7's sub-nine-word
      sentences are. */
@@ -1939,14 +2148,16 @@ form > .profile-note { margin-top: var(--s1); }
     padding: var(--s1) var(--s2);
   }
   .hero-stage-badge {
-    width: 44px;
-    height: 44px;
+    /* 48px: on the 8px baseline (§5) AND on §11's 48px touch floor — the
+       badge sits in the hero bar beside the mute control. */
+    width: 48px;
+    height: 48px;
     border-radius: var(--r-pill);
     border: var(--keyline-w) solid var(--brand-form);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.4rem;
+    font-size: var(--glyph-md);
     flex-shrink: 0;
     /* §9 move 4: the stage indexes, it does not fade between colours. */
     transition: background var(--t-base) var(--ease-index);
@@ -2036,7 +2247,7 @@ form > .profile-note { margin-top: var(--s1); }
   .main-stack { max-width: calc(1080px + var(--s3) * 2); }
   .foot { max-width: 1080px; }
   /* The macro-break grows a step with the field it is cut into. */
-  .month-card { margin-top: var(--s6); }
+  .archive-card { margin-top: var(--s6); }
 
   /* The hero plate owns the stage BADGE, name and rating at this width, so the
      card sheds those three — never two sources for one mark. It keeps the

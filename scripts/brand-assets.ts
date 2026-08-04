@@ -5,9 +5,10 @@
  *   public/icon.svg           the favicon — the EMB badge, 1:1
  *   public/icon-maskable.svg  the Android maskable icon — the badge inside a
  *                             full-bleed Flare field, mark held in the safe zone
- *   public/og.svg             the 1200x630 social card — §5A, THE BRICK WALL
- *   public/og.png             the same card as a raster — §5E, THE OBJECT
+ *   public/og.png             the 1200x630 social card — §5E, THE OBJECT
  *   public/apple-touch-icon.png  the iOS home-screen icon, 180x180
+ *   docs/brand/og.svg         the same card as §5A, THE BRICK WALL — README's
+ *                             header, and NOT a served asset (see DOCS below)
  *
  * WHY A SCRIPT AND NOT HAND-DRAWN SVG. Every previous Ember brand asset was
  * drawn by hand and every one of them drifted: the old favicon was a gold flame
@@ -59,7 +60,16 @@ const DISPLAY = "'Archivo Black','Arial Black','Helvetica Neue',Helvetica,sans-s
 const UI = "'Space Grotesk','Archivo',Helvetica,Arial,sans-serif"
 const MONO = "'JetBrains Mono','Martian Mono',ui-monospace,Menlo,Consolas,monospace"
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public')
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+/** Served assets. Everything written here is fetched by a real client — the
+    manifest, the favicon, the touch icon, the crawler's card. */
+const OUT = join(ROOT, 'public')
+/** Documentation assets. og.svg lives here, NOT in public/, because nothing on
+    the web ever requests it: index.html points every crawler at og.png (they
+    reject SVG) and the manifest points at the two icons. Its only reader is
+    README's header, which GitHub resolves against the repo, not the origin — so
+    shipping it in public/ put 6.5 KB of never-fetched bytes in every deploy. */
+const DOCS = join(ROOT, 'docs', 'brand')
 
 /** The mark, as SVG elements in its own viewBox coordinates. `keyline` is
     drawn outside any clip — a clipped stroke loses its outer half. */
@@ -261,13 +271,14 @@ function round(n: number): number {
 }
 
 mkdirSync(OUT, { recursive: true })
-for (const [name, body] of [
-  ['icon.svg', icon()],
-  ['icon-maskable.svg', maskable()],
-  ['og.svg', og()],
+mkdirSync(DOCS, { recursive: true })
+for (const [dir, label, name, body] of [
+  [OUT, 'public', 'icon.svg', icon()],
+  [OUT, 'public', 'icon-maskable.svg', maskable()],
+  [DOCS, 'docs/brand', 'og.svg', og()],
 ] as const) {
-  writeFileSync(join(OUT, name), body + '\n')
-  console.log(`[ember] wrote public/${name}`)
+  writeFileSync(join(dir, name), body + '\n')
+  console.log(`[ember] wrote ${label}/${name}`)
 }
 for (const [name, body] of [
   ['og.png', ogPng()],

@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { appReducer } from './reducer.ts'
-import { defaultState, NOTE_MAX_LEN, type Transaction } from './store.ts'
+import { XP_REWARDS } from '../engine/xp.ts'
+import {
+  defaultState,
+  NOTE_MAX_LEN,
+  sanitizeState,
+  type Decision,
+  type Transaction,
+} from './store.ts'
 
 const tx = (over: Partial<Transaction> = {}): Transaction => ({
   id: 't1',
@@ -415,5 +422,200 @@ describe('UNLOCK_ACHIEVEMENTS', () => {
       { id: 'first-log', date: '2026-08-01' },
       { id: 'ten-logs', date: '2026-08-09' },
     ])
+  })
+})
+
+/**
+ * RUN_SIM / CLOSE_DECISION — the decision record's transitions.
+ *
+ * The two-track rule (§12.1) is the whole point of this block: recording what
+ * the simulator said, and what the user did about it, must move the XP counter
+ * by EXACTLY what the equivalent ordinary action already pays, and must never
+ * reach a health input. Both are asserted rather than promised.
+ */
+describe('the decision record', () => {
+  const decision = (over: Partial<Decision> = {}): Decision => ({
+    id: 'd1',
+    date: '2026-08-04',
+    amountDA: 5_000,
+    line: 'Buy path ends lower. About 6 points below waiting.',
+    // Explicit: Decision.demo is required, and the fixture defaults to the
+    // demo basis because that is what an un-set-up app actually runs on.
+    demo: true,
+    outcome: 'open',
+    ...over,
+  })
+  const withDecision = (over: Partial<Decision> = {}) => ({
+    ...defaultState(),
+    decisions: [decision(over)],
+  })
+
+  it('persists a run — the simulator stops throwing its output away', () => {
+    const next = appReducer(defaultState(), { type: 'RUN_SIM', decision: decision() })
+    expect(next.decisions).toEqual([decision()])
+  })
+
+  it('pays no XP for a run: the sim quest is still the only vehicle', () => {
+    const next = appReducer(defaultState(), { type: 'RUN_SIM', decision: decision() })
+    expect(next.xp.totalXp).toBe(0)
+    expect(next.xpLog).toEqual([])
+    // …and the quest still pays exactly once, through its own guarded path.
+    const paid = appReducer(next, { type: 'COMPLETE_QUEST', id: 'sim' })
+    expect(paid.xp.totalXp).toBe(XP_REWARDS.runSimulation)
+    expect(appReducer(paid, { type: 'COMPLETE_QUEST', id: 'sim' }).xp.totalXp).toBe(
+      XP_REWARDS.runSimulation,
+    )
+  })
+
+  it('re-validates the decision on the way in, like PROFILE_SET does', () => {
+    // The amount comes from a free-text field and the line from describeResult:
+    // anything the sanitizer would reject at next load must not render now.
+    const bad = appReducer(defaultState(), {
+      type: 'RUN_SIM',
+      decision: decision({ amountDA: Number.POSITIVE_INFINITY }),
+    })
+    expect(bad.decisions).toEqual([])
+  })
+
+  it('ignores a repeat of an id it already holds', () => {
+    const once = appReducer(defaultState(), { type: 'RUN_SIM', decision: decision() })
+    const twice = appReducer(once, { type: 'RUN_SIM', decision: decision({ amountDA: 99 }) })
+    expect(twice).toBe(once)
+  })
+
+  it('records an outcome once, and pays nothing for it', () => {
+    const state = withDecision()
+    const closed = appReducer(state, {
+      type: 'CLOSE_DECISION',
+      id: 'd1',
+      outcome: 'waited',
+      date: '2026-08-06',
+    })
+    expect(closed.decisions[0].outcome).toBe('waited')
+    expect(closed.decisions[0].outcomeDate).toBe('2026-08-06')
+    // §12.1: no XP, no grant, no health snapshot, no transaction.
+    expect(closed.xp).toEqual(state.xp)
+    expect(closed.xpLog).toEqual([])
+    expect(closed.transactions).toEqual([])
+    expect(closed.prevHealthScore).toBe(state.prevHealthScore)
+  })
+
+  it('refuses to re-answer a decision that is already closed', () => {
+    const closed = appReducer(withDecision(), {
+      type: 'CLOSE_DECISION',
+      id: 'd1',
+      outcome: 'bought',
+      date: '2026-08-06',
+    })
+    // A double tap, a StrictMode double-dispatch, or a stale peer answer: all
+    // no-ops after the first, like COMPLETE_QUEST's atomic guard.
+    const again = appReducer(closed, {
+      type: 'CLOSE_DECISION',
+      id: 'd1',
+      outcome: 'waited',
+      date: '2026-08-07',
+    })
+    expect(again).toBe(closed)
+    expect(appReducer(closed, {
+      type: 'CLOSE_DECISION',
+      id: 'missing',
+      outcome: 'waited',
+      date: '2026-08-07',
+    })).toBe(closed)
+  })
+
+  it('never rewrites the line — a later profile edit cannot change history', () => {
+    // §12.5. The record shows what the app said THEN; recomputing it against
+    // today's numbers would silently rewrite the past every time My numbers is
+    // edited, which is the one thing a record may not do.
+    const before = withDecision()
+    const after = appReducer(before, {
+      type: 'PROFILE_SET',
+      profile: {
+        monthlyIncome: 250_000,
+        monthlyEssentials: 10_000,
+        efBalance: null,
+        debt: null,
+        goal: null,
+        savedDate: '2026-08-09',
+      },
+    })
+    expect(after.profile).not.toBeNull()
+    expect(after.decisions[0].line).toBe(before.decisions[0].line)
+    expect(after.decisions).toEqual(before.decisions)
+  })
+
+  it('links the row a decision produced, and pays it exactly the normal rate', () => {
+    const state = withDecision()
+    const linked = appReducer(state, {
+      type: 'LOG_TX',
+      tx: tx({ id: 'bought-1', amountDA: 5_000, date: '2026-08-06' }),
+      decisionId: 'd1',
+    })
+    expect(linked.decisions[0].txId).toBe('bought-1')
+    // The link stamps an id and nothing else: same +5, same grant, as the
+    // identical log with no decision behind it.
+    const unlinked = appReducer(state, {
+      type: 'LOG_TX',
+      tx: tx({ id: 'bought-1', amountDA: 5_000, date: '2026-08-06' }),
+    })
+    expect(linked.xp).toEqual(unlinked.xp)
+    expect(linked.xpLog).toEqual(unlinked.xpLog)
+  })
+
+  it('links the first row only — a later log is a different purchase', () => {
+    const first = appReducer(withDecision(), {
+      type: 'LOG_TX',
+      tx: tx({ id: 'a' }),
+      decisionId: 'd1',
+    })
+    const second = appReducer(first, {
+      type: 'LOG_TX',
+      tx: tx({ id: 'b' }),
+      decisionId: 'd1',
+    })
+    expect(second.decisions[0].txId).toBe('a')
+  })
+
+  it('drops the link when the row is undone, and keeps the answer', () => {
+    const linked = appReducer(withDecision({ outcome: 'bought', outcomeDate: '2026-08-06' }), {
+      type: 'LOG_TX',
+      tx: tx({ id: 'a' }),
+      decisionId: 'd1',
+    })
+    const undone = appReducer(linked, { type: 'UNDO_TX', id: 'a' })
+    // A record citing a transaction the ledger no longer holds is a dangling
+    // claim — but undoing a mis-typed amount is not a retraction of what the
+    // user said they did.
+    expect(undone.decisions[0].txId).toBeUndefined()
+    expect(undone.decisions[0].outcome).toBe('bought')
+    expect(undone.transactions).toEqual([])
+  })
+
+  it('keeps one canonical key order however a decision grew its fields', () => {
+    // mergeStates compares whole states as JSON STRINGS. A row that gained
+    // txId before outcomeDate would never string-equal the same row loaded from
+    // disk, and the merge fixpoint would never settle.
+    const viaClose = appReducer(
+      appReducer(withDecision(), {
+        type: 'LOG_TX',
+        tx: tx({ id: 'a' }),
+        decisionId: 'd1',
+      }),
+      { type: 'CLOSE_DECISION', id: 'd1', outcome: 'resisted', date: '2026-08-06' },
+    )
+    const viaLog = appReducer(
+      appReducer(withDecision(), {
+        type: 'CLOSE_DECISION',
+        id: 'd1',
+        outcome: 'resisted',
+        date: '2026-08-06',
+      }),
+      { type: 'LOG_TX', tx: tx({ id: 'a' }), decisionId: 'd1' },
+    )
+    expect(JSON.stringify(viaClose.decisions)).toBe(JSON.stringify(viaLog.decisions))
+    expect(JSON.stringify(sanitizeState(viaClose).decisions)).toBe(
+      JSON.stringify(viaClose.decisions),
+    )
   })
 })

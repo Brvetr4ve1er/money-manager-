@@ -120,7 +120,9 @@ export function HeroCard({
               <Glyph name="star" key={i} />
             ))}
           </div>
-          {/* THE readout, at §3's d2 display tier (see .score-value). This is
+          {/* THE readout, at §3's h1 tier (see .score-value — h1 rather than a
+              display tier because this is a Grotesk 700 numeral, and d1/d2 are
+              BLOKFORM's stacked-wordmark tiers). This is
               the most important number the product computes and it rendered at
               13px in the quiet ink — smaller than the card's own title. At
               ≥1024 it is also the only thing left on this card above the

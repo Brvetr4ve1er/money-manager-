@@ -1,7 +1,7 @@
 /**
  * THE ROWS BEHIND THE LANDING SURFACE'S PRODUCT SHOT.
  *
- * The landing renders the app's own <Ledger> with these rows rather than a
+ * The landing renders the app's own <ArchiveCard> with these rows rather than a
  * picture of it (see Landing.tsx). That is the whole point: the shot is
  * produced by the shipped component and the shipped grouping engine, so it
  * cannot drift from the product the way an exported PNG does. What lives here
@@ -15,26 +15,26 @@
  * are offsets here and are resolved at render.
  *
  * WHY THE RESIST SITS ON DAY 0.
- * Ledger's month chip filters the CURRENT calendar month. A resist parked on
+ * ArchiveCard's resisted chip filters the CURRENT calendar month. A resist parked on
  * "yesterday" would drop out of the shot on the 1st of every month, taking the
  * resisted chip with it — the one row that shows money NOT leaving would be
  * missing from the shot twelve days a year.
  *
  * WHY ONLY SOME ROWS CARRY A NOTE.
- * The "what was it" field is optional and Ledger renders nothing at all for a
- * row without one — no placeholder, no prompt. Noting every sample row would
+ * The "what was it" field is optional and ArchiveCard renders nothing at all for
+ * a row without one — no placeholder, no prompt. Noting every sample row would
  * turn a shot of an optional field into a shot of a required one, and the
  * first thing a new user does is log a row with the note left empty.
  *
  * HONESTY (Trust Rule 5). These are sample rows, the caption beside them says
  * so in those words, and nothing derived from them is a reading of anybody:
- * there is no score, no stage and no projection anywhere in Ledger's output.
+ * there is no score, no stage and no projection anywhere in ArchiveCard's output.
  * Root.test asserts both halves of that.
  */
 
-import type { Transaction } from '../state/store.ts'
+import { addDaysISO, type Transaction } from '../state/store.ts'
 
-/** Distinct days the sample covers — the shot's whole window (Ledger shows 3
+/** Distinct days the sample covers — the shot's whole window (ArchiveCard shows 3
     days before it grows an expand control, and a control inside an
     aria-hidden shot would be a focus trap with no accessible name). */
 export const SAMPLE_LEDGER_DAYS = 3
@@ -62,7 +62,7 @@ interface SampleRow {
 
 /**
  * Newest first, matching what the store hands the component: LOG_TX prepends
- * and mergeStates sorts date-desc, and Ledger renders a day's rows in the
+ * and mergeStates sorts date-desc, and ArchiveCard renders a day's rows in the
  * order it receives them.
  *
  * Amounts are ordinary Algerian ones — a bus fare, a lunch, a monthly bill —
@@ -88,24 +88,10 @@ const ROWS: SampleRow[] = [
   { daysAgo: 2, amountDA: 200, category: 'Transport' },
 ]
 
-/**
- * Shift a local day key back by whole days.
- *
- * The LOCAL Date constructor, deliberately: it normalises the calendar
- * (month and year underflow) and never touches a duration, so it is DST-safe
- * for this direction. ledger.ts's dayIndex does UTC arithmetic for the opposite
- * reason — it measures a DIFFERENCE between two local midnights, which is 23 or
- * 25 hours apart twice a year. Same care, opposite tool.
- */
-function shiftDay(dayISO: string, daysBack: number): string {
-  const [y, m, d] = dayISO.split('-').map(Number)
-  const at = new Date(y, m - 1, d - daysBack)
-  const mm = String(at.getMonth() + 1).padStart(2, '0')
-  const dd = String(at.getDate()).padStart(2, '0')
-  return `${at.getFullYear()}-${mm}-${dd}`
-}
-
-/** The sample ledger as the component consumes it, dated against `today`. */
+/** The sample ledger as the component consumes it, dated against `today`.
+    Dates come from store.ts's addDaysISO — the same local-calendar arithmetic
+    the app stamps real rows with, so a sample row cannot land on a different
+    day from a real one logged at the same moment. */
 export function sampleLedgerRows(today: string): Transaction[] {
   return ROWS.map((r, i) => ({
     // Stable and human-readable: these are React keys on a list that never
@@ -113,7 +99,7 @@ export function sampleLedgerRows(today: string): Transaction[] {
     id: `sample-${String(i + 1).padStart(2, '0')}`,
     amountDA: r.amountDA,
     category: r.category,
-    date: shiftDay(today, r.daysAgo),
+    date: addDaysISO(today, -r.daysAgo),
     ...(r.resistedImpulse ? { resistedImpulse: true } : {}),
     // Spread-in rather than `note: r.note`, so a noteless sample row produces
     // a row with NO note key at all — byte-identical to what LOG_TX writes

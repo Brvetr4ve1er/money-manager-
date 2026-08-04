@@ -12,17 +12,23 @@ import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 import type { Stage } from '../engine/healthScore.ts'
 import { LESSON_IDS } from '../content/lessons.ts'
 import {
+  canonicalDecisions,
   mergeStates,
   rollQuests,
+  sanitizeDecision,
   sanitizeProfile,
   withSanitizedNote,
   type AppState,
+  type Decision,
+  type DecisionOutcome,
   type ProfileData,
   type Transaction,
 } from './store.ts'
 
 export type AppAction =
-  | { type: 'LOG_TX'; tx: Transaction }
+  /** `decisionId` links the row to the decision that predicted it — see
+   *  LOG_TX. Optional and usually absent: an ordinary log has no decision. */
+  | { type: 'LOG_TX'; tx: Transaction; decisionId?: string }
   | { type: 'UNDO_TX'; id: string }
   | { type: 'COMPLETE_QUEST'; id: string }
   | { type: 'READ_LESSON'; id: string; date: string }
@@ -32,6 +38,13 @@ export type AppAction =
   | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
   | { type: 'PROFILE_SET'; profile: ProfileData }
+  | { type: 'RUN_SIM'; decision: Decision }
+  | {
+      type: 'CLOSE_DECISION'
+      id: string
+      outcome: Exclude<DecisionOutcome, 'open'>
+      date: string
+    }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -56,8 +69,32 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         : 0
       const grantsXp = !resisted || resistGrantsToday < RESIST_XP_DAILY_CAP
       const xpAction = resisted ? 'resistImpulse' : 'logExpense'
+      // Decision link. The row is the money event a decision predicted, so the
+      // record can point at it instead of asserting it happened. Written once
+      // and never overwritten: a decision already holding a txId has its money
+      // event, and a later log is a different purchase.
+      //
+      // IT PAYS NOTHING AND CHANGES NO GRANT (§12.1): the branches above are
+      // computed from the transaction alone, and this only stamps an id onto a
+      // row of the record. A linked log earns exactly what the same log earns
+      // unlinked.
+      const decisions =
+        action.decisionId !== undefined &&
+        state.decisions.some((d) => d.id === action.decisionId && d.txId === undefined)
+          ? state.decisions.map((d) =>
+              // Rebuilt through the sanitizer, not spread in place: it is the
+              // one canonical key-order builder for a decision, and mergeStates
+              // compares whole states as JSON STRINGS — a row that grew its
+              // fields in a different order would never string-equal the same
+              // row loaded from disk, and the merge fixpoint would never settle.
+              d.id === action.decisionId
+                ? (sanitizeDecision({ ...d, txId: action.tx.id }) ?? d)
+                : d,
+            )
+          : state.decisions
       return {
         ...state,
+        decisions,
         // Note sanitised on the way in, for the same reason PROFILE_SET
         // re-validates a form-checked profile: the string comes from a
         // free-text field, and a note that only the sanitizer would reject
@@ -98,6 +135,18 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const grant = state.xpLog.find((g) => g.id === grantId)
       return {
         ...state,
+        // The row is gone, so the decision's pointer to it is gone with it —
+        // a record citing a transaction the ledger no longer holds is a
+        // dangling claim. The OUTCOME stays: the user said what they did, and
+        // undoing a mis-typed amount is not a retraction of that.
+        decisions: state.decisions.some((d) => d.txId === action.id)
+          ? state.decisions.map((d) => {
+              if (d.txId !== action.id) return d
+              const next = { ...d }
+              delete next.txId
+              return next
+            })
+          : state.decisions,
         transactions: state.transactions.filter((t) => t.id !== action.id),
         xp: grant ? xpStateFromTotal(Math.max(0, state.xp.totalXp - grant.amount)) : state.xp,
         xpLog: grant ? state.xpLog.filter((g) => g.id !== grantId) : state.xpLog,
@@ -211,6 +260,44 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // canonical key order — mergeStates compares profiles as JSON strings.
       const profile = sanitizeProfile(action.profile)
       return profile === null ? state : { ...state, profile }
+    }
+    case 'RUN_SIM': {
+      // The simulator's output stops being a render-local string. Re-validated
+      // on the way in for the same reason PROFILE_SET is: the line comes from
+      // describeResult and the amount from a free-text field, and anything the
+      // sanitizer would reject at next load must not render now — what is on
+      // screen has to be what reloads.
+      //
+      // NO XP HERE (§12.1). The daily runSimulation grant travels through
+      // COMPLETE_QUEST('sim') exactly as it did before this record existed, so
+      // recording a decision pays nothing extra and a run pays once.
+      const decision = sanitizeDecision(action.decision)
+      if (decision === null) return state
+      if (state.decisions.some((d) => d.id === decision.id)) return state
+      return { ...state, decisions: canonicalDecisions([decision, ...state.decisions]) }
+    }
+    case 'CLOSE_DECISION': {
+      // What happened, recorded once. Only an OPEN decision closes: a second
+      // dispatch before re-render (double tap, StrictMode) sees a closed row
+      // and is a no-op, and a peer tab's answer is never overwritten by a
+      // stale one — the same atomic guard COMPLETE_QUEST uses.
+      //
+      // NO XP, NO HEALTH INPUT (§12.1). Nothing here touches xp, xpLog,
+      // prevHealthScore or transactions. The resist branch's money event is an
+      // ORDINARY LOG_TX dispatched beside this one, so it earns through the
+      // capped path every other resist earns through and feeds Impulse Control
+      // as itself, not as a decision.
+      const target = state.decisions.find((d) => d.id === action.id)
+      if (!target || target.outcome !== 'open') return state
+      return {
+        ...state,
+        decisions: state.decisions.map((d) =>
+          // Canonical rebuild, same reason as LOG_TX's link above.
+          d.id === action.id
+            ? (sanitizeDecision({ ...d, outcome: action.outcome, outcomeDate: action.date }) ?? d)
+            : d,
+        ),
+      }
     }
   }
 }

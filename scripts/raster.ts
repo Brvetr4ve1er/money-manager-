@@ -396,31 +396,96 @@ function chunk(type: string, body: Buffer): Buffer {
   return Buffer.concat([len, tagged, crc])
 }
 
+/** The PNG spec's own ceiling on an 8-bit palette. Past it the image has to be
+    truecolour, and this writer says so rather than quantising: these are brand
+    assets, and a silent lossy path is how a mark drifts. */
+const PALETTE_MAX = 256
+
 /**
- * PNG, 8-bit truecolour, filter type 0 on every row.
+ * PNG, filter type 0 on every row — palette (colour type 3) when the image has
+ * ≤256 distinct colours, 8-bit truecolour (colour type 2) when it does not.
  *
- * No per-row filter heuristic: these are flat-colour compositions with long
- * runs of identical bytes, which deflate already collapses — a Paeth pass buys
- * single-digit percentages on a 40 KB file and costs a page of code that has
- * to be right.
+ * WHY PALETTE, MEASURED. These compositions are flat §2 hexes plus §8's grain,
+ * which is quantised to four levels ON PURPOSE (see `grain`), plus the
+ * antialiased edges of one mark. og.png resolves to 206 distinct colours —
+ * every one of them exactly preserved by an index, so this is LOSSLESS, not a
+ * quantisation. It is the compression win the byte budget actually had:
+ *
+ *     1200x630 og.png   truecolour 105,639 B  ->  palette 74,743 B   (-29%)
+ *
+ * The IDAT is a third of the input bytes (one index per pixel instead of three
+ * channel bytes) and deflate's 32 KB window then reaches ~3x further back in
+ * the image, so it matches the grain tile's 120px horizontal period across many
+ * more rows. That asset is the growth surface's own payload — every WhatsApp,
+ * Facebook and Telegram unfurl fetches it, some under a preview-size ceiling —
+ * so 31 KB off it is worth more than 31 KB off anything else this repo emits.
+ *
+ * Still no per-row filter heuristic, and now there is a measurement rather than
+ * an assertion behind that: on the palette image Up filtering came out WORSE
+ * (93,148 B vs 74,092 B for the IDAT), because the grain's vertical period is
+ * 120 rows and every row within deflate's window differs from its neighbour.
+ * Sub on truecolour was worse still (133,470 B). Filter 0 is the right one here
+ * and the numbers are in the commit that added this comment.
+ *
+ * Palette order is FIRST APPEARANCE in scan order — deterministic, so the
+ * committed PNGs stay byte-stable across runs and a re-run on an unchanged mark
+ * produces no diff (README's deploy checklist promises exactly that).
  */
 export function encodePng(s: Surface): Buffer {
   const rgb = resolve(s)
-  const stride = s.w * 3
-  const raw = Buffer.alloc((stride + 1) * s.h)
-  for (let y = 0; y < s.h; y++) {
-    raw[y * (stride + 1)] = 0
-    Buffer.from(rgb.buffer, y * stride, stride).copy(raw, y * (stride + 1) + 1)
+  const n = s.w * s.h
+  // First-appearance palette build. Keyed on the packed 24-bit colour, so the
+  // lookup is one integer compare rather than three.
+  const index = new Map<number, number>()
+  const palette: number[] = []
+  const idx = new Uint8Array(n)
+  let paletted = true
+  for (let i = 0; i < n; i++) {
+    const key = (rgb[i * 3] << 16) | (rgb[i * 3 + 1] << 8) | rgb[i * 3 + 2]
+    let at = index.get(key)
+    if (at === undefined) {
+      if (palette.length === PALETTE_MAX) {
+        paletted = false
+        break
+      }
+      at = palette.length
+      palette.push(key)
+      index.set(key, at)
+    }
+    idx[i] = at
   }
+
   const ihdr = Buffer.alloc(13)
   ihdr.writeUInt32BE(s.w, 0)
   ihdr.writeUInt32BE(s.h, 4)
-  ihdr[8] = 8 /* bit depth */
-  ihdr[9] = 2 /* colour type: truecolour */
-  return Buffer.concat([
+  ihdr[8] = 8 /* bit depth: 8, indices or channel bytes alike */
+  ihdr[9] = paletted ? 3 : 2 /* colour type: indexed / truecolour */
+
+  const stride = paletted ? s.w : s.w * 3
+  const raw = Buffer.alloc((stride + 1) * s.h)
+  for (let y = 0; y < s.h; y++) {
+    raw[y * (stride + 1)] = 0 /* filter type 0 — see above */
+    const row = paletted
+      ? Buffer.from(idx.buffer, y * stride, stride)
+      : Buffer.from(rgb.buffer, y * stride, stride)
+    row.copy(raw, y * (stride + 1) + 1)
+  }
+
+  const chunks = [
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw, { level: 9 })),
-    chunk('IEND', Buffer.alloc(0)),
-  ])
+  ]
+  if (paletted) {
+    // PLTE must precede IDAT (PNG spec 4.1.2), and for colour type 3 it is
+    // required, not optional.
+    const plte = Buffer.alloc(palette.length * 3)
+    palette.forEach((c, i) => {
+      plte[i * 3] = (c >> 16) & 255
+      plte[i * 3 + 1] = (c >> 8) & 255
+      plte[i * 3 + 2] = c & 255
+    })
+    chunks.push(chunk('PLTE', plte))
+  }
+  chunks.push(chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0)))
+  return Buffer.concat(chunks)
 }

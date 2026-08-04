@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
+  DECISION_LINE_MAX_LEN,
+  DECISION_MAX,
   defaultState,
   exportJSON,
   mergeStates,
+  newDecisionId,
   newId,
   NOTE_MAX_LEN,
   sanitizeState,
   todayISO,
   rollQuests,
   type AppState,
+  type Decision,
   type Transaction,
 } from './store.ts'
 import { MAX_TOTAL_XP, xpStateFromTotal } from '../engine/xp.ts'
@@ -378,6 +382,38 @@ describe('sanitizeState', () => {
     })
     expect(state.xpLog).toEqual([g])
     expect(state.xp.totalXp).toBe(5) // the log is evidence the counter lost
+  })
+
+  it('drops a grant dated on a day that does not exist', () => {
+    // The gap was real and it BOUGHT something. isXpGrant validated the date
+    // with the shape regex alone while every other date in the sanitizer went
+    // through the calendar check — and xpFromLog buckets resist grants BY DATE,
+    // so each impossible key minted its own bucket and its own allowance
+    // against RESIST_XP_DAILY_CAP. Three grants on 2026-02-30 plus one on
+    // 2026-99-99 survived intact and folded to 150 XP.
+    const resist = (id: string, date: string) => ({
+      id: `tx:${id}`,
+      action: 'resistImpulse' as const,
+      amount: 50,
+      date,
+    })
+    const state = sanitizeState({
+      xpLog: [
+        resist('r0', '2026-02-28'),
+        resist('r1', '2026-02-30'),
+        resist('r2', '2026-02-30'),
+        resist('r3', '2026-99-99'),
+      ],
+    })
+    expect(state.xpLog.map((g) => g.id)).toEqual(['tx:r0'])
+    // One real day, one day's cap — not four days' worth bought with three
+    // dates the calendar does not have.
+    expect(state.xp.totalXp).toBe(50)
+    // Same rule for the two loose day keys, for consistency rather than for a
+    // live exploit: both are rescued downstream, and neither should need to be.
+    const dates = sanitizeState({ healthDate: '2026-02-30', questsDate: '2026-99-99' })
+    expect(dates.healthDate).toBe('')
+    expect(dates.questsDate).toBe(defaultState().questsDate)
   })
 
   it('banks a pre-log XP total as a mergeable legacy baseline grant', () => {
@@ -833,5 +869,203 @@ describe('achievement persistence', () => {
     ]
     expect(mergeStates(a, b).achievements).toEqual(expected)
     expect(mergeStates(b, a).achievements).toEqual(expected)
+  })
+})
+
+/**
+ * THE DECISION RECORD in the store — the layer that makes the simulator stop
+ * forgetting. Each case below is a failure mode the surface cannot defend
+ * against on its own: a corrupt payload, two tabs answering the same decision,
+ * and the export promise (Trust Rule 7) reaching a field that did not exist
+ * when that promise was written.
+ */
+describe('decisions — sanitize, merge, export', () => {
+  const decision = (over: Partial<Decision> = {}): Decision => ({
+    id: 'd1',
+    date: '2026-08-04',
+    amountDA: 5_000,
+    line: 'Buy path ends lower. About 6 points below waiting.',
+    // Explicit: Decision.demo is required, and the fixture defaults to the
+    // demo basis because that is what an un-set-up app actually runs on.
+    demo: true,
+    outcome: 'open',
+    ...over,
+  })
+
+  it('round-trips a decision through the sanitizer unchanged', () => {
+    const d = decision()
+    expect(sanitizeState({ decisions: [d] }).decisions).toEqual([d])
+    // Idempotent: the merge fixpoint compares whole states as JSON strings, so
+    // a second pass must not produce a different one.
+    const once = sanitizeState({ decisions: [d] })
+    expect(JSON.stringify(sanitizeState(once))).toBe(JSON.stringify(once))
+  })
+
+  it('treats an unmarked decision as placeholder-based, never as personalised', () => {
+    // Trust Rule 5. A row with no `demo` field is a row whose basis cannot be
+    // verified — written by an older build, hand-edited, merged from a peer.
+    // The honest reading of "we cannot tell" is "not the user's numbers", so
+    // only an explicit false retires the disclosure.
+    const { demo: _drop, ...unmarked } = decision()
+    expect(sanitizeState({ decisions: [unmarked] }).decisions[0].demo).toBe(true)
+    expect(sanitizeState({ decisions: [decision({ demo: false })] }).decisions[0].demo).toBe(false)
+    // Non-booleans are not a licence to claim personalisation either.
+    expect(
+      sanitizeState({ decisions: [{ ...decision(), demo: 'no' }] }).decisions[0].demo,
+    ).toBe(true)
+  })
+
+  it('defaults to an empty record, and an empty record is not an error', () => {
+    expect(defaultState().decisions).toEqual([])
+    expect(sanitizeState({}).decisions).toEqual([])
+    expect(sanitizeState({ decisions: 'nope' }).decisions).toEqual([])
+  })
+
+  it('drops a malformed decision while the transactions beside it survive', () => {
+    // "A bad memo costs the memo, never the row", applied one level up: a
+    // decision is an independent record, so one corrupt entry must not take the
+    // rest of the record — or the money rows in the same payload — with it.
+    const good = decision({ id: 'ok' })
+    const tx: Transaction = {
+      id: 't1',
+      amountDA: 1_200,
+      category: 'Food',
+      date: '2026-08-04',
+    }
+    const out = sanitizeState({
+      transactions: [tx],
+      decisions: [
+        { ...decision(), id: 'nan', amountDA: Number.NaN },
+        { ...decision(), id: 'inf', amountDA: Number.POSITIVE_INFINITY },
+        { ...decision(), id: 'neg', amountDA: -1 },
+        // Shape-valid, calendar-impossible — it would sort above every real day
+        // in its year forever (the same rule transaction dates are held to).
+        { ...decision(), id: 'feb30', date: '2026-02-30' },
+        { ...decision(), id: 'verdict', outcome: 'regretted' },
+        { ...decision(), id: 'noline', line: 42 },
+        { ...decision(), id: 123 },
+        { ...decision(), id: '' },
+        good,
+      ],
+    })
+    expect(out.decisions).toEqual([good])
+    expect(out.transactions).toEqual([tx])
+  })
+
+  it('caps a pasted megabyte of a line instead of failing every later write', () => {
+    // Same quota argument as NOTE_MAX_LEN: one multi-megabyte string exhausts
+    // the origin's ~5MB budget by itself, after which saveState returns false
+    // forever and the app runs permanently in its persistFailed state.
+    const out = sanitizeState({
+      decisions: [decision({ line: 'x'.repeat(4_000_000) })],
+    })
+    expect(out.decisions[0].line).toHaveLength(DECISION_LINE_MAX_LEN)
+    // The row itself survives — the cap costs the tail of the line, not the
+    // decision it describes.
+    expect(out.decisions[0].amountDA).toBe(5_000)
+  })
+
+  it('holds the record to a bounded length, dropping the oldest', () => {
+    const many = Array.from({ length: DECISION_MAX + 20 }, (_, i) =>
+      decision({
+        id: `d${String(i).padStart(3, '0')}`,
+        // Two days: the newer day must be the one that survives.
+        date: i < 20 ? '2026-08-01' : '2026-08-04',
+      }),
+    )
+    const out = sanitizeState({ decisions: many })
+    expect(out.decisions).toHaveLength(DECISION_MAX)
+    // Newest day first, and nothing from the older day made the cut.
+    expect(out.decisions.every((d) => d.date === '2026-08-04')).toBe(true)
+    // The trim is a pure function of the SET, not of arrival order — that is
+    // what lets sanitize and merge agree about which rows survive.
+    expect(sanitizeState({ decisions: [...many].reverse() }).decisions).toEqual(out.decisions)
+  })
+
+  it('repairs an outcomeDate that does not belong to the outcome', () => {
+    // An open decision has no outcome day; a stray one would render "Recorded"
+    // beside a question the user never answered.
+    const out = sanitizeState({
+      decisions: [decision({ outcome: 'open', outcomeDate: '2026-08-05' })],
+    })
+    expect(out.decisions[0].outcomeDate).toBeUndefined()
+    expect(out.decisions[0].outcome).toBe('open')
+  })
+
+  it('converges when two tabs answer different decisions', () => {
+    const a: AppState = {
+      ...defaultState(),
+      decisions: [decision({ id: 'a', date: '2026-08-04' })],
+    }
+    const b: AppState = {
+      ...defaultState(),
+      decisions: [decision({ id: 'b', date: '2026-08-03' })],
+    }
+    // merge(A,B) deep-equals merge(B,A): crossed writes settle on one payload
+    // instead of each tab adopting the other's ordering forever.
+    expect(mergeStates(a, b).decisions).toEqual(mergeStates(b, a).decisions)
+    expect(mergeStates(a, b).decisions.map((d) => d.id)).toEqual(['a', 'b'])
+  })
+
+  it('keeps a decision closed in either tab closed', () => {
+    const open: AppState = { ...defaultState(), decisions: [decision()] }
+    const closed: AppState = {
+      ...defaultState(),
+      decisions: [decision({ outcome: 'bought', outcomeDate: '2026-08-05', txId: 't9' })],
+    }
+    // Recording an outcome is a user action the other tab has no evidence
+    // against; reviving it as open would ask the same question twice.
+    for (const merged of [mergeStates(open, closed), mergeStates(closed, open)]) {
+      expect(merged.decisions[0].outcome).toBe('bought')
+      expect(merged.decisions[0].txId).toBe('t9')
+    }
+    expect(mergeStates(open, closed)).toEqual(mergeStates(closed, open))
+  })
+
+  it('settles two DIFFERENT answers to one decision on the same string', () => {
+    // No recency signal exists (both closed the same day), so the tie-break is
+    // arbitrary but SYMMETRIC — what matters is that both tabs land on one
+    // payload rather than swapping answers forever.
+    const a: AppState = {
+      ...defaultState(),
+      decisions: [decision({ outcome: 'bought', outcomeDate: '2026-08-05' })],
+    }
+    const b: AppState = {
+      ...defaultState(),
+      decisions: [decision({ outcome: 'waited', outcomeDate: '2026-08-05' })],
+    }
+    expect(JSON.stringify(mergeStates(a, b))).toBe(JSON.stringify(mergeStates(b, a)))
+    expect(mergeStates(a, b).decisions).toHaveLength(1)
+    // …and re-merging the result changes nothing (the fixpoint).
+    const once = mergeStates(a, b)
+    expect(mergeStates(once, a)).toEqual(once)
+    expect(mergeStates(once, b)).toEqual(once)
+  })
+
+  it('mints ids that sort chronologically inside a day', () => {
+    // The record renders newest-first and the top row is the one the card
+    // treats as the current projection, so ordering inside a day has to be
+    // chronological — a bare uuid would put a fresh run second.
+    const early = newDecisionId()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.now() + 60_000))
+    const late = newDecisionId()
+    vi.useRealTimers()
+    expect(late > early).toBe(true)
+    // Fixed width, so the comparison stays lexicographic rather than numeric.
+    expect(early.split('-')[0]).toHaveLength(9)
+    expect(late.split('-')[0]).toHaveLength(9)
+  })
+
+  it('carries the record into the export — Trust Rule 7 covers it too', () => {
+    const state: AppState = {
+      ...defaultState(),
+      decisions: [decision({ outcome: 'waited', outcomeDate: '2026-08-05' })],
+    }
+    const parsed = JSON.parse(exportJSON(state)) as { decisions: Decision[] }
+    expect(parsed.decisions).toEqual(state.decisions)
+    // The frozen projection leaves with it: an export that dropped the line
+    // would hand back an amount and a date with no record of what was said.
+    expect(parsed.decisions[0].line).toBe(state.decisions[0].line)
   })
 })

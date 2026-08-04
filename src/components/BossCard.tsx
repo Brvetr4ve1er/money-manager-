@@ -19,9 +19,20 @@ export function BossCard({
   wonLastWeek: boolean
 }) {
   return (
-    <section className="card">
+    // spec-sheet: §5 layout B, same rule as the collection sheet — the card carries no
+    // control, so it is a read surface and stands on the sheet (see
+    // .spec-sheet in tokens.css). Three tones: Espresso field, Bone form, and
+    // the monster's Flare HP bar, which is a core colour rather than an accent
+    // and needs no --on-accent ink because nothing is drawn on it. Flare on
+    // the sheet's Espresso track is 4.41:1, the widest surface offset in the
+    // app, so the fill/empty boundary clears WCAG 1.4.11 before the leading
+    // keyline is counted. The claimed-win chip is the allowed 4th colour —
+    // §1 trait 06's "event" — for the same reason .kept-chip is on the ledger.
+    // Trust Rule 6 is untouched by the ground swap: the sheet reads as a plate,
+    // not as a warning, and none of the beatable framing changes.
+    <section className="card spec-sheet">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
-      <span className="spec-label" aria-hidden="true">BOS—05</span>
+      <span className="spec-label" aria-hidden="true">BOS—04</span>
       <div className="boss-head">
         <h2>Weekly boss</h2>
         {/* Persistent marker for a claimed win — the fanfare/toast's visible
