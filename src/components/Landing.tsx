@@ -427,7 +427,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                   the day. Summed for the month. One line at the head of the
                   record — on the sample rows below,{' '}
                   <span className="lp-quote">{shotResistedLine}</span>. A feed
-                  cannot see money that never moved. This row exists nowhere
+                  cannot see money that never moved, so this row exists nowhere
                   else. Buy it anyway and it logs the same. Full XP either way.
                 </p>
                 <p className="lp-share-call">
@@ -460,8 +460,8 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
               <p className="lp-sub">
                 Built for Algeria. Every amount in DA, entered by hand. Hand
                 entry is what makes the row above possible. A feed imports
-                events. Not buying is not an event. A bank feed knows what a
-                bank saw. Not the cash. Not the taxi. Not what a friend paid
+                events. Not buying is not an event. And a feed knows only what a
+                bank saw — not the cash, not the taxi, not what a friend paid
                 back. Nothing here is imported, so nothing is guessed. Every row
                 is one you put there.
               </p>

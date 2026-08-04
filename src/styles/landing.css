@@ -418,6 +418,35 @@
   font-size: var(--fs-body);
   font-weight: 500;
 }
+/* THE SECOND COUNTER PLATE IN THE WALL, AND IT IS STRIPING, NOT DECORATION.
+   CONSTRAINT §2.1b. Moving the hand-off above the market argument moved the
+   plate that carries the wall's only counter ground with it, and the bottom of
+   the wall went flat: in the artifact AT COMMIT 80f643d, landing.375x812 window
+   @812 read 33.72% field / 51.46% Bone in both themes — under the 35 floor, and
+   the page's worst window after @4872. The
+   layout probe behind that attribution puts .lp-share at 452–976, .lp-sub at
+   984–1239 and this block at 1247–1349, i.e. ~500px of unbroken Bone plate from
+   984 to the wall's foot inside an 812px window.
+   THE TERMS ARE THE RIGHT BLOCK TO GIVE BACK, and .lp-sub is not: plating the
+   paragraph instead would join it to .lp-share into one 787px field run, past
+   §2.1b's derived ~702px limit for a field run against the 15% Bone floor. This
+   one leaves .lp-sub as a Bone island between two counter plates, which is the
+   alternation the law asks for rather than a longer run of the other ground.
+   Below 720px only, exactly as .lp-share is scoped and for the same measured
+   reason: at ≥720 the wall's plate is shorter than the viewport and there is no
+   run to break.
+   CONTRAST: Bone on Espresso at 13.4:1, up from 11.4:1 Graphite on Bone, and
+   nothing focusable lives in this paragraph. */
+@media (max-width: 719px) {
+  .lp-terms {
+    background: var(--lp-espresso);
+    color: var(--lp-counter);
+    border-radius: var(--r-lg);
+    corner-shape: squircle;
+    corner-shape: superellipse(2.07);
+    padding: var(--s2);
+  }
+}
 .lp-actions {
   display: flex;
   flex-wrap: wrap;
@@ -527,6 +556,34 @@
      invisible product shot, on the developer's dark machine only. The card
      takes the app's own ink, which is what makes it the app's card. */
   color: var(--ink);
+  /* THE MAT — Bone paper under the specimen, and it is §2.1b's theme-twin
+     check answered rather than a frame for its own sake.
+     THE DEFECT: the card is the one element on this poster that is NOT pinned
+     (see the block above — it is the app's card, so it paints what the app
+     paints), and its .reading-plate regions are Bone in light and Espresso in
+     dark. So the window over the shot measured 78.13% field / 14.50% Bone in
+     dark against 45.87 / 45.47 in light — landing.375x812 @1624 in the artifact
+     AT COMMIT 80f643d, the same DOM in the same place, one breaching the 15%
+     Bone floor and the other 15pp off the target in the opposite direction.
+     §2.1b: that is one defect seen twice, and the fix is a ground the two
+     themes share.
+     A MAT IS THAT GROUND. It is the page's paper, not the card's paint, so it
+     adds nothing to the shot's inside and the specimen still renders exactly
+     what the app renders. It reads as a mount — §1 trait 01, the mark inside a
+     shape — and it settles a second thing the block above only half-solved: an
+     Espresso card on an Espresso field is a 1.00:1 fill offset holding on a
+     single 2px keyline. On paper it is delimited by the field it stands on.
+     MEASURED against that commit, in the artifact this tree ships: it lands
+     the same Bone in BOTH themes across the windows the shot spans — @1624 came
+     back at 72.03 / 20.79 dark and 40.28 / 51.32 light, both inside the band,
+     which is what a shared ground is for.
+     Radius one step out from the card's own --r-lg so the mount reads as
+     outside the plate rather than as a second edge on it. */
+  background: var(--lp-counter);
+  padding: var(--s2);
+  border-radius: calc(var(--r-lg) + var(--s2));
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
 }
 /* app.css cuts a macro-break above the month card because there it opens the
    archive half of the app's stack — everything you read rather than act on.
@@ -534,6 +591,22 @@
    is the first thing in its figure. Zeroed rather than left alone because that
    --s4 step would otherwise print as a hanging gap above the shot. */
 .lp-shot-frame .archive-card { margin-top: 0; }
+/* THE MAT IS PAID FOR OUT OF THE SECTION'S GUTTER, NOT OUT OF THE SPECIMEN.
+   .lp-spec already insets --s3 either side, so on a 375px phone the card was
+   327px wide; the mat's --s2 would have taken it to 295, narrower than any
+   phone this product is built for, and a specimen that narrow is no longer
+   "the card anyone will use" (see the max-width above). Full-bleeding the
+   frame out of that gutter gives the mat the margin instead: the card comes
+   back at 343px — WIDER than it was before the mat — and the paper runs to the
+   edges, which is §8's "let the container touch the frame edge in one place
+   per layout" spent on the one element that is a photograph of the product.
+   Phone only: from 720px up the frame is inside its 560px measure with the
+   section's gutter to spare, and there is nothing to reclaim. */
+@media (max-width: 719px) {
+  .lp-shot-frame {
+    margin-inline: calc(-1 * var(--s3));
+  }
+}
 /* The caption is the shot's alt text (the shot is aria-hidden), so it is real
    body copy, not a footnote: Bone on Espresso, 13.4:1. */
 .lp-shot-cap {
@@ -950,7 +1023,32 @@
 .lp-band-mark { display: none; flex-shrink: 0; }
 .lp-band-mark:nth-child(-n + 3) { display: block; }
 .lp-rules-body { position: relative; z-index: 1; }
-.lp-spec-lede-dark { max-width: 46ch; }
+/* THE SECTION'S SENTENCE TAKES THE SAME PLATE ITS LIST DOES, and it is the
+   §2.1b give-back for this section's head.
+   The rules below were moved onto Espresso plates when this section measured
+   9.18% field at tree 71b5608; the HEAD was left on Sand, and the head is
+   252px of it (heading + this line) before the band lane starts. In the
+   artifact AT COMMIT 80f643d, landing.375x812 window @4872 read 33.65% field /
+   61.50% Bone in both themes — the page's worst window, breaching the 35 floor
+   and the 55 cap at once — and a layout probe over that tree puts exactly this
+   region in it: shear head 4890–5142, band lane 5142–5435, first rule at 5475,
+   window ending 5684.
+   NOT THE HEADING TOO: §5D's sign is the one mark on this section that belongs
+   on the paper, and a d2 brick at 9.4:1 on Sand is legal where 17px body copy
+   is the marginal case this plate improves (13.4:1 on Espresso).
+   AT EVERY WIDTH, unlike the wall's two plates: the 1440 row's @2700 window is
+   Bone-heavy as well (41.43% field / 53.90% Bone at the same commit), so this
+   plate moves both viewports the same direction. */
+.lp-spec-lede-dark {
+  max-width: 46ch;
+  background: var(--lp-espresso);
+  color: var(--lp-counter);
+  border: var(--keyline-w) solid var(--lp-counter);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+}
 .lp-rules {
   list-style: none;
   margin: 0;

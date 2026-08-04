@@ -37,6 +37,11 @@ declare module 'node:fs' {
   ): Array<{ name: string; isDirectory(): boolean }>
   /** Names only — the public/ audit in brandAssets.test.ts needs nothing else. */
   export function readdirSync(path: URL): string[]
+  /** Existence, for src/README.test.ts's claim-surface check: every repo path
+      the README, index.html and the landing page point a reader at has to be a
+      path that is on disk. A boolean is the whole question — a `statSync` stub
+      would be standing in for a type nobody here checks. */
+  export function existsSync(path: URL): boolean
 }
 
 declare module 'node:zlib' {

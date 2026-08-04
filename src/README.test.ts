@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 /* From disk, like shareCard.test.ts and design.test.ts: the subject is a file
    nothing imports and no render can reach. A .ts file, not .tsx — jsdom gives
    import.meta.url an http:// URL that readFileSync rejects. */
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { MECHANICS, HAND_OFF_LEAD } from './components/Landing.tsx'
 import { RESIST_LABEL } from './components/LogCard.tsx'
 import { WINDOW_DAYS, EXPAND_STEP_DAYS, resistedChipLabel } from './components/ArchiveCard.tsx'
@@ -307,6 +307,96 @@ const GONE = [
   'QuestCard',
   'Ledger.tsx',
 ] as const
+
+/**
+ * THE CLAIM SURFACES — the three documents that describe this product to
+ * somebody who is not holding the code: the repo's front page, the head a
+ * crawler and a SERP read, and the page a stranger lands on. GONE above is a
+ * TYPED roster and it only bans what a human remembered to add to it; this set
+ * gets the derived check below, which needs nobody to remember anything.
+ *
+ * Root.test.tsx and the components' own headers are deliberately NOT in here.
+ * They are allowed to say "it said <Ledger> until this round" — a rationale
+ * that records a deletion is the thing this codebase writes comments FOR, and a
+ * ban that cannot tell a record from a pointer would delete the record.
+ */
+const CLAIM_SURFACES: ReadonlyArray<readonly [string, string]> = [
+  ['README.md', README],
+  ['index.html', readFileSync(new URL('../index.html', import.meta.url), 'utf8')],
+  [
+    'src/components/Landing.tsx',
+    readFileSync(new URL('./components/Landing.tsx', import.meta.url), 'utf8'),
+  ],
+]
+
+/** Every .ts/.tsx module under src/, by basename — the roster the check below
+    resolves component names against. WALKED OFF THE DISK, which is the whole
+    point: a deleted component updates this by being deleted, where the GONE
+    list above updates only when somebody remembers to type into it. */
+const MODULES = (() => {
+  const names = new Set<string>()
+  const walk = (dir: URL) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) walk(new URL(`${entry.name}/`, dir))
+      else if (/\.tsx?$/.test(entry.name)) names.add(entry.name.replace(/\.tsx?$/, ''))
+    }
+  }
+  walk(new URL('.', import.meta.url))
+  return names
+})()
+
+describe('every file and component the claim surfaces point at exists', () => {
+  /**
+   * THE DRIFT THIS ROUND ACTUALLY FOUND, made unrepeatable.
+   *
+   * Landing.tsx's jump-target rationale read "Same construction as
+   * LogCard/QuestCard/SimCard" for a tree in which QuestCard had been deleted —
+   * a sentence sending the next contributor to a file that is not there. The
+   * GONE roster above would have caught it, but only because a human had
+   * already written `QuestCard` into GONE; the round before, `Ledger.tsx` sat
+   * in Root.test's own header for two rounds with nothing looking at it.
+   *
+   * These two cases need no roster. They ask the filesystem.
+   */
+  it('names no component whose module was deleted', () => {
+    // Two forms, and they are the two a reader FOLLOWS: the JSX reference
+    // (`<ArchiveCard>`) and the bare card name (`LogCard`). Prose about "the
+    // quest card" in lower case is not a pointer and is not matched — a
+    // document may describe a surface it deleted, it may not send anyone to it.
+    for (const [name, text] of CLAIM_SURFACES) {
+      const named = new Set([
+        ...[...text.matchAll(/<([A-Z][A-Za-z0-9]*)>/g)].map((m) => m[1]),
+        ...[...text.matchAll(/\b([A-Z][A-Za-z0-9]*(?:Card|Strip|Shell))\b/g)].map((m) => m[1]),
+      ])
+      // Non-empty, or the regexes rotted rather than the docs improving.
+      expect(`${name} names components: ${named.size > 0}`).toBe(`${name} names components: true`)
+      for (const component of named) {
+        expect(`${name} -> ${component}: ${MODULES.has(component)}`).toBe(
+          `${name} -> ${component}: true`,
+        )
+      }
+    }
+  })
+
+  it('points at no repo path that is not on disk', () => {
+    // The README's "Project layout" is thirty-odd paths and it is the section a
+    // new contributor navigates by; index.html and Landing.tsx cite modules for
+    // every claim they make. A path that stops resolving is the same defect as
+    // a deleted component with its name still in the copy, one level up.
+    for (const [name, text] of CLAIM_SURFACES) {
+      const paths = new Set(
+        [...text.matchAll(/\b(?:src|scripts|docs|public)\/[A-Za-z0-9_./-]+/g)]
+          // Trailing sentence punctuation is not part of the path.
+          .map((m) => m[0].replace(/[.,;:)]+$/, '')),
+      )
+      expect(`${name} cites paths: ${paths.size > 0}`).toBe(`${name} cites paths: true`)
+      for (const p of paths) {
+        const exists = existsSync(new URL(`../${p}`, import.meta.url))
+        expect(`${name} -> ${p}: ${exists}`).toBe(`${name} -> ${p}: true`)
+      }
+    }
+  })
+})
 
 describe('the README names no component that no longer exists', () => {
   it('does not describe the surfaces that were merged away', () => {

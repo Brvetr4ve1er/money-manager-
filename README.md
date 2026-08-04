@@ -44,11 +44,6 @@ total — money that did not move is not spend — and it sums into one line at 
 head of the record card: `3,500 DA resisted this month`. A bank feed can only
 ever see money that moved, so this row does not exist anywhere else.
 
-That figure is not written here. It is the line the landing page's sample rows
-print, computed for this file by the card's own `resistedChipLabel` over the
-same `sampleLedger` rows the page renders through the real component — the one
-number in this section, read from the code like every other number in it.
-
 **Hand entry is what makes the row possible**, which is the part that reframes
 manual logging from a cost into the position. A feed imports events. Not buying
 is not an event, so no amount of automation reaches that row: the only product
@@ -61,6 +56,12 @@ anyway", and the row reads the same as any other: full XP, a quiet marker,
 no colour, no lecture. That is what makes Impulse Control a real two-sided
 ratio instead of a resist-only self-report — and it is why the honest log is
 the one you keep using.
+
+That `3,500 DA resisted this month` is not typed: `src/README.test.ts` builds it
+with the record card's own `resistedChipLabel` over the same `sampleLedger` rows
+the landing page renders through the real component, and the landing's fold
+prints it the same way. Neither document can quote a line this product does not
+print.
 
 ## Is it for you
 
@@ -417,8 +418,10 @@ image, or a row that will not hold still, reports rather than blocks.
 - `src/engine/profile.ts` — user profile, demo fallback, calibration window
 - `src/engine/boss.ts` — weekly boss battle engine
 - `src/engine/achievements.ts` — badge roster and pixel pets
-- `src/engine/ledger.ts` — day grouping, day totals, the day headings, and
-  `monthToDate` (the month's per-day totals, day index and record window)
+- `src/engine/ledger.ts` — day grouping, day totals, the day headings,
+  `monthToDate` (the month's per-day totals, day index and record window) and
+  `resistedThisMonthDA` — the month's resisted total, in the engine because the
+  record card and the landing page's pitch both state it
 - `src/engine/keypad.ts` — cash denominations and the amount composition
 - `src/content/lessons.ts` — the 30-lesson codex content
 - `src/content/sampleLedger.ts` — the sample rows behind the landing's product
@@ -446,8 +449,8 @@ image, or a row that will not hold still, reports rather than blocks.
 - `src/components/Landing.tsx` — the marketing surface. Its product shot is a
   live `<ArchiveCard>`, not an image: the page renders the shipped component
   through the shipped engines, so the screenshot cannot drift from the app. The mechanic count, the
-  cash denominations and the note cap are read from code rather than typed into
-  the copy, for the same reason
+  cash denominations, the note cap and the resisted line the fold quotes are
+  read from code rather than typed into the copy, for the same reason
 - `src/components/ArchiveCard.tsx` — the record: day index, month-to-date
   total, days left, the per-day strip, and the day-grouped ledger under them.
   One card, one heading, one scope line — it was a month card and a ledger

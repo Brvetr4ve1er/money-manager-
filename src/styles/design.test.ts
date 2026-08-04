@@ -1031,8 +1031,52 @@ describe('§2.2 — the product shot is themed, not pinned', () => {
   })
 
   it('repaints nothing inside the card — a restyled shot is not a shot', () => {
-    const inside = [...LANDING.matchAll(/\.lp-shot-frame [^{]*\{([^}]*)\}/g)].map((m) => m[1])
-    for (const body of inside) expect(body).not.toMatch(/background|border|font-size/)
+    /**
+     * DESCENDANTS ONLY, AND THAT IS A CORRECTION TO THE PATTERN, NOT A RELAXING
+     * OF THE RULE. It read `\.lp-shot-frame [^{]*\{`, and `[^{]*` matches the
+     * empty string — so `.lp-shot-frame {` matched too and every property on
+     * the MOUNT was checked as though it had been painted onto the card. The
+     * subject of this rule is the card, so the pattern now requires a
+     * descendant selector, and the set of banned properties gains `color`:
+     * repainting the shot's ink is exactly as much of a lie about the product
+     * as repainting its fill, and the old pattern did not ban it.
+     * The mount's own paint is the next case down, where it can be stated
+     * precisely instead of by accident.
+     */
+    const inside = [...LANDING.matchAll(/\.lp-shot-frame\s+\.[^{]*\{([^}]*)\}/g)].map((m) => m[1])
+    // Non-empty, or this is asserting over nothing.
+    expect(inside.length).toBeGreaterThan(0)
+    for (const body of inside) expect(body).not.toMatch(/background|border|color|font-size/)
+  })
+
+  it('mounts the shot on paper without drawing a second edge around the card', () => {
+    /**
+     * THE MOUNT MAY PAINT; THE CARD MAY NOT BE PAINTED. The frame carries a
+     * Bone mat (see landing.css) because the card is the one unpinned element
+     * on this poster — its plates are Bone in light and Espresso in dark, so
+     * the window over the shot (landing.375x812 @1624, in the artifact at
+     * commit 80f643d) measured 78.13% field / 14.50% Bone in dark against
+     * 45.87 / 45.47 in light, which §2.1b calls one defect seen twice.
+     * The mat is a ground the two themes share, and it is the page's paper
+     * rather than the card's fill.
+     *
+     * WHAT IT MAY NOT DO. A `border` on the mount would be a third contour
+     * 16px outside a card that already carries §11's 2px keyline and §1 trait
+     * 05's second contour — a frame the product does not have. A `font-size`
+     * would resize type that belongs to the app. And the mat is paid for out
+     * of the section gutter on the phone (margin-inline), never out of the
+     * specimen's width: a card narrower than the narrowest phone is not "the
+     * card anyone will use".
+     */
+    const frame = /\n\.lp-shot-frame \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
+    expect(frame).toMatch(/background: var\(--lp-counter\)/)
+    expect(frame).toMatch(/padding: var\(--s2\)/)
+    expect(frame).not.toMatch(/border:/)
+    expect(frame).not.toMatch(/font-size/)
+    // The gutter give-back, phone-scoped, and paint-free.
+    const bleed = /@media \(max-width: 719px\) \{\s*\.lp-shot-frame \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
+    expect(bleed).toMatch(/margin-inline: calc\(-1 \* var\(--s3\)\)/)
+    expect(bleed).not.toMatch(/background|border|color|font-size/)
   })
 })
 
