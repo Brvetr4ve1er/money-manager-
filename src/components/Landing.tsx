@@ -11,6 +11,7 @@ import {
   CHECK_BACK_DAYS,
 } from '../state/store.ts'
 import { NOTE_DENOMINATIONS_DA } from '../engine/keypad.ts'
+import { RESIST_LABEL } from './LogCard.tsx'
 import { sampleLedgerRows } from '../content/sampleLedger.ts'
 
 /**
@@ -53,14 +54,23 @@ import { sampleLedgerRows } from '../content/sampleLedger.ts'
  * line stops being true, delete the line, not the qualifier. README.test.ts
  * holds the README's copy of this grid to the same source.
  *
- * SIX CLAIMS ARE MECHANICALLY BOUND rather than typed, because those are the
- * ones that rot first: the note-key strip renders FROM NOTE_DENOMINATIONS_DA,
- * the note's length claim reads NOTE_MAX_LEN, the record's three answers are
- * DECISION_ANSWERS — the very array SimCard's buttons render — the record's
- * depth reads DECISION_MAX, the grid's count is the length of MECHANICS
- * (stated in the lede AND in every index label), and the product shot is
- * rendered BY <ArchiveCard> itself. Change a denomination, either cap, an
- * answer, the roster or that card and this page changes with them.
+ * EVERY CLAIM THAT CAN BE BOUND IS BOUND rather than typed, because those are
+ * the ones that rot first — and the list is deliberately not given a COUNT,
+ * because the count is itself a typed claim and it was already wrong twice
+ * (it read "six" through the check-back's two bindings). Bound today:
+ *   · the note-key strip renders FROM NOTE_DENOMINATIONS_DA
+ *   · the note's length claim reads NOTE_MAX_LEN
+ *   · the record's three answers are DECISION_ANSWERS — the very array
+ *     SimCard's buttons render — and its depth reads DECISION_MAX
+ *   · the check-back's answers and horizon are CHECK_BACK_ANSWERS /
+ *     CHECK_BACK_DAYS
+ *   · the grid's count is the length of MECHANICS (stated in the lede AND in
+ *     every index label)
+ *   · the hand-off above the fold prints its row's index INTO that same grid,
+ *     and quotes LogCard's RESIST_LABEL for the button it tells you to press
+ *   · the product shot is rendered BY <ArchiveCard> itself
+ * Change a denomination, either cap, an answer, a horizon, the roster, that
+ * button or that card and this page changes with them.
  *
  * THE PRODUCT SHOT. This page used to argue that no screenshot was possible,
  * on the grounds that the only thing available to show was a demo profile's
@@ -220,6 +230,39 @@ export const MECHANICS: ReadonlyArray<{ title: string; body: ReactNode }> = [
   },
 ]
 
+/**
+ * THE HAND-OFF — the single reason someone forwards this, named as a row of
+ * the grid above rather than as a paragraph of its own words.
+ *
+ * WHY IT IS AN INDEX AND NOT A SENTENCE. The app has had five rounds of
+ * engineering and the pitch had one, and the failure mode of a pitch is not
+ * that it is dull — it is that it outlives the thing it sells. So the fold's
+ * reason is a LOOKUP into MECHANICS: the hero cannot advertise a mechanic the
+ * spec sheet does not ship, and deleting `The resist` from that roster leaves
+ * `HAND_OFF_ROW` at -1, which Root.test fails on rather than shipping a fold
+ * that sells a deleted feature. The printed `02/08` is the same decorative
+ * truth-telling as the grid's own labels (§1 trait 10) doing real work: it
+ * tells a reader the claim has a spec-sheet row, and where.
+ *
+ * WHY THE RESIST AND NOT ANOTHER ROW. It is the only mechanic here a
+ * bank-linked tracker cannot do AT ALL — a feed sees money that moved, and
+ * this row is money that did not. Every other row on the grid is something a
+ * competitor could ship next quarter.
+ */
+const HAND_OFF_TITLE = 'The resist'
+const HAND_OFF_ROW = MECHANICS.findIndex((m) => m.title === HAND_OFF_TITLE)
+
+/**
+ * The lead sentence, exported because the README prints the same one.
+ *
+ * The pitch exists in two documents — this page for a stranger, README.md for
+ * whoever the repo link reaches — and the second copy of anything is the copy
+ * that rots (that is README.test.ts's whole thesis). This is the one sentence
+ * both of them lead with, so it is one string, asserted into the README rather
+ * than typed there. §7 rule 1: lead with the object.
+ */
+export const HAND_OFF_LEAD = 'Ember logs the thing you did not buy.'
+
 /** The Trust Rules (§12) as the manifesto they are, in the Fabricator register.
     Each one is enforced somewhere in src/engine — this list is a mirror of the
     code, not a promise about it. */
@@ -304,14 +347,24 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                 is guessed. Every row is one you put there.
               </p>
               {/* THE HAND-OFF — the reason to send this to someone, above the
-                  fold, on the accent bar.
+                  fold, on the accent bar. See HAND_OFF_TITLE above for why the
+                  row is an index into MECHANICS and not a sentence.
 
                   IT NAMES A MECHANIC, NOT A MOOD, and that is the correction.
-                  This paragraph used to be four refusals ("no account, no bank
+                  This block used to be four refusals ("no account, no bank
                   login, no card") — true, but a list of things Ember does not
                   do is a reason to TOLERATE an app, never a reason to send it
                   to someone. The refusals moved down one line, where they
                   belong, and the reason took their place.
+
+                  IT NOW LEADS WITH THE OBJECT AND CLOSES WITH THE INSTRUCTION,
+                  which is the round-5 sharpening and §7 rule 1 read literally.
+                  It ran the other way — "Send it to a friend who overspends"
+                  first, the mechanic second — which frames the strongest thing
+                  on the page as an errand, and forces the mechanic into the
+                  third person ("the thing THEY did not buy") on a page whose
+                  reader is the one who has to be convinced. The directive is
+                  still here; it is the last line, where a Fabricator puts it.
 
                   The reason is the resist row, because it is the one thing here
                   that no bank-linked tracker can do at all: a bank feed can
@@ -319,25 +372,47 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                   LOG_TX writes a row with resistedImpulse (reducer.ts),
                   groupTransactionsByDay adds 0 for it (ledger.ts), ArchiveCard sums
                   the month into the resisted chip, and the shot below renders
-                  exactly that pair. "The row reads the same" is Trust Rule 3:
-                  an impulse the user gave in to logs at full XP with a quiet,
-                  uncoloured marker (see .tx-impulse — a dashed keyline badge in
-                  the --spec register; "lowercase" stood here and was simply
-                  wrong, the badge is uppercase like the rest of that family) —
-                  the app states the fact and stops.
+                  exactly that pair. The button it names is LogCard's own label,
+                  read from RESIST_LABEL, so the instruction cannot send anyone
+                  looking for a control that has been renamed. "It logs the
+                  same" is Trust Rule 3: an impulse the user gave in to logs at
+                  full XP with a quiet, uncoloured marker (see .tx-impulse — a
+                  dashed keyline badge in the --spec register; "lowercase" stood
+                  here and was simply wrong, the badge is uppercase like the
+                  rest of that family) — the app states the fact and stops.
 
                   Scoped on purpose: full XP is claimed, and a clean score is
                   NOT. profile.ts feeds yielded impulses to impulseControlScore,
                   so "buying is never counted against you" would be false. On a
                   page whose subject is the trust boundary, this is the second
                   claim that must not overstate it. */}
-              <p className="lp-share">
-                Send it to a friend who overspends. Ember logs the thing they
-                did not buy. What it would have cost, recorded. Nothing added
-                to the day. Summed for the month. Buy it anyway: the row reads
-                the same as any other log. Full XP either way. That pair is the
-                mechanic.
-              </p>
+              <div className="lp-share">
+                {/* The row's place in the spec sheet below (§1 trait 10). The
+                    FRACTION is aria-hidden — "zero two slash zero eight" ahead
+                    of the sentence it labels is noise, the same reason
+                    .lp-index carries the attribute — and the TITLE is not, so
+                    the block still announces the name of the thing it is
+                    about. */}
+                <p className="lp-share-tag">
+                  <span aria-hidden="true">
+                    {String(HAND_OFF_ROW + 1).padStart(2, '0')}/
+                    {String(MECHANICS.length).padStart(2, '0')}
+                    {' · '}
+                  </span>
+                  {HAND_OFF_TITLE}
+                </p>
+                <p className="lp-share-lead">{HAND_OFF_LEAD}</p>
+                <p className="lp-share-body">
+                  Type the amount. Press &ldquo;{RESIST_LABEL}&rdquo; instead of
+                  Log. The row keeps what it would have cost. Nothing added to
+                  the day. Summed for the month. A feed cannot see money that
+                  never moved. This row exists nowhere else. Buy it anyway and
+                  it logs the same. Full XP either way.
+                </p>
+                <p className="lp-share-call">
+                  Send it to a friend who overspends.
+                </p>
+              </div>
               {/* The refusals, demoted to terms — which is what they are. Each
                   one is a real absence: no auth, no server and no network call
                   in src; nothing reads a bank, which is why logging is manual;
@@ -385,8 +460,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
             the sequential-focus navigation starting point; Safari/VoiceOver do
             not. The section already has an accessible name from aria-labelledby,
             so tabIndex alone makes the arrival announce "The spec sheet,
-            region". Same construction as LogCard/QuestCard/SimCard/
-            CollectionCard. */}
+            region". Same construction as LogCard/QuestCard/SimCard. */}
         <section id="spec" className="lp-spec" tabIndex={-1} aria-labelledby="lp-spec-h">
           <div className="lp-measure">
             <h2 id="lp-spec-h" className="lp-section-h">

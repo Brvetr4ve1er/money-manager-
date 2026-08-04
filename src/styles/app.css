@@ -1232,10 +1232,11 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
    stack's rendered elements on install day and 59.9% at day 40, measured by a
    jsdom render probe on the ROUND-5 tree (a2d4e6d), last in the stack, behind
    ~1,644px of 375px column. The whole block is deleted rather than commented
-   out: a
-   stylesheet that keeps rules for a surface no build renders is the same class
-   of lie as a README naming a deleted component, and this file's own selectors
-   are asserted against the DOM in src/styles/design.test.ts.
+   out: a stylesheet that keeps rules for a surface no build renders is the
+   same class of lie as a README naming a deleted component, and this file's
+   own selectors are asserted against the DOM in src/styles/design.test.ts.
+   The two glyphs those tiles were the only call sites of went the same way —
+   see the roster note in src/components/Glyph.tsx.
    What survived is one count line — see .lesson-count above, and LessonCard for
    why the count had to survive when the grid did not (§10: a sparkle may never
    carry a milestone alone). */
@@ -1700,9 +1701,19 @@ form > .profile-note { margin-top: var(--s1); }
    keeps the 48px floor, the focus ring and THE PRESS without competing with
    the card's primary actions. */
 .ledger-more {
-  margin-top: var(--s2);
   padding: var(--s1) var(--s2);
   font-size: var(--fs-spec);
+}
+/* The row that holds them. There are TWO controls while the window is partly
+   out (see ArchiveCard): the expand grows it by a run, the collapse takes it
+   back. Same class, same treatment, no colour split — neither direction is the
+   recommended one. The margin moved off .ledger-more onto this row so the two
+   sit on one baseline instead of stacking their own top margins. */
+.ledger-controls {
+  display: flex;
+  gap: var(--s1);
+  flex-wrap: wrap;
+  margin-top: var(--s2);
 }
 .empty { font-size: var(--fs-body); color: var(--spec); margin: 0; }
 

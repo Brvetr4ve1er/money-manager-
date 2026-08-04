@@ -4,7 +4,7 @@ import { bandPath, boxPath, dotPath, segPath, starPath } from './shape.ts'
 /**
  * The glyph set (§8): flat vector marks on squircle geometry, replacing the
  * emoji that used to carry the stage flame, the companions, the boss, the
- * ledger shield, the medal and the mute state. §8 retires emoji as UI
+ * ledger shield and the mute state. §8 retires emoji as UI
  * iconography outright, and emoji were never neutral here anyway — they are a
  * different vendor's illustration on every device, they render in colours
  * nothing in this palette can answer for, and their contrast is unmeasurable.
@@ -29,10 +29,17 @@ import { bandPath, boxPath, dotPath, segPath, starPath } from './shape.ts'
  *   pets           → role="img" + "Companions: …" on the strip
  *   monster        → "The Impulse Monster" in the sentence it prefixes
  *   shield         → the word "Resisted" beside it (ArchiveCard)
- *   medal          → the .sr-only "Earned: " prefix + badge name + date
  *   sound / muted  → the mute button's own aria-label + aria-pressed
- *   locked         → the .sr-only "Locked lesson" on the tile it sits in
  * A glyph added without one of those is a regression, not a style choice.
+ *
+ * TWO MARKS LEFT THE SET WITH THE SURFACE THAT RENDERED THEM. `medal` sat on
+ * the badge shelf's earned tiles and `locked` on the codex's unreached ones;
+ * the collection sheet is deleted (see App's card stack), and nothing else ever
+ * drew either. A glyph nothing renders is not a spare — it is a text
+ * alternative nobody can supply, described by a table entry naming a tile that
+ * no build produces. `glyphRoster.test.ts` is the standing form of that rule:
+ * every name in GLYPHS must be reachable from a call site, so the next surface
+ * that goes takes its marks with it instead of leaving fossils here.
  */
 
 export type GlyphName =
@@ -41,10 +48,8 @@ export type GlyphName =
   | 'check'
   | 'monster'
   | 'shield'
-  | 'medal'
   | 'sound'
   | 'muted'
-  | 'locked'
   | 'kit'
   | 'sabr'
   | 'nahla'
@@ -107,10 +112,6 @@ const GLYPHS: Record<GlyphName, GlyphShape> = {
     ink: [boxPath(5, 3, 22, 17, 7), boxPath(10, 15, 12, 13, 6)],
     cut: [boxPath(10, 8, 12, 8, 3.5)],
   },
-  medal: {
-    ink: [boxPath(8, 2, 5, 12, 2), boxPath(19, 2, 5, 12, 2), boxPath(7, 11, 18, 18, 9)],
-    cut: [boxPath(13, 17, 6, 6, 3)],
-  },
   sound: {
     ink: [
       boxPath(3, 12, 8, 8, 3),
@@ -126,20 +127,6 @@ const GLYPHS: Record<GlyphName, GlyphShape> = {
     // slash laid ACROSS the form would need a gutter cut through it, and at
     // 24px that severs the speaker into unreadable pieces.
     ink: [boxPath(3, 12, 8, 8, 3), boxPath(8, 7, 8, 18, 4), bandPath(23, 16, 15, 3.2, -38)],
-  },
-  // The not-yet mark on a locked codex tile. It was the character '?', which
-  // §8 retires as UI iconography along with the emoji — and a question mark
-  // reads as "unknown", which is wrong: the tile is not a mystery, it is a
-  // lesson you have not reached. A padlock body with the shackle drawn as a
-  // counter: squircle chassis, one cut, no third tone, like the rest of the
-  // set. Never a countdown or a date — locked is neutral (Trust Rule 6).
-  locked: {
-    // The shackle counter STOPS at the body's top edge (y=13). Running it to
-    // y=16, as it did, subtracted a 6-wide notch out of the top of the lock
-    // body between the shackle legs — ~3.8px deep at the 40px .codex-locked
-    // size, on every one of the 30 locked tiles.
-    ink: [boxPath(5, 13, 22, 17, 7), boxPath(9, 2, 14, 14, 6)],
-    cut: [boxPath(13, 6, 6, 7, 3), boxPath(13.6, 19, 4.8, 6, 2.4)],
   },
 
   // ── Companions ──────────────────────────────────────────────────────────
@@ -241,6 +228,16 @@ const GLYPHS: Record<GlyphName, GlyphShape> = {
     ],
   },
 }
+
+/**
+ * The roster as a runtime value, for the orphan test (see the header).
+ *
+ * Object.keys over the table rather than a hand-kept array: GLYPHS is typed
+ * `Record<GlyphName, GlyphShape>`, so TypeScript already rejects a key that is
+ * not in the union and a union member with no shape. Reading the keys back
+ * cannot drift from the union the way a second list would.
+ */
+export const GLYPH_NAMES = Object.keys(GLYPHS) as GlyphName[]
 
 export function Glyph({
   name,

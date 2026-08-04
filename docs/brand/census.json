@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "tool": "scripts/census/run.ts",
-  "capturedAt": "2026-08-04T15:31:28.188Z",
+  "capturedAt": "2026-08-04T16:47:16.110Z",
   "tree": {
-    "sha": "a2d4e6d7c44b1acfe24e24114288fdafab583dac",
+    "sha": "73b9260d44e25a8ce719af209c5ea9e76f1be372",
     "branch": "claude/money-app-market-analysis-oi2pht",
     "dirty": true
   },
-  "inputsHash": "sha256:0fec4d3b79502e9730223ebbdaaa57139dfc00e35f02ebd1cdcb38ab9e9b6619",
+  "inputsHash": "sha256:296d9cb1bb9315181c026563653289cfe2d3cfabc5a52eb975ef0063c1db7395",
   "env": {
     "node": "v22.22.2",
     "chrome": "Chrome/141.0.7390.37",
@@ -1466,75 +1466,75 @@
       "state": "fresh",
       "dimensions": {
         "width": 1440,
-        "height": 4322
+        "height": 4406
       },
       "pixels": {
-        "total": 6223680
+        "total": 6344640
       },
       "buckets": {
         "field": {
-          "pixels": 3650255,
-          "pct": 58.65
+          "pixels": 3707717,
+          "pct": 58.44
         },
         "bone": {
-          "pixels": 2177171,
-          "pct": 34.98
+          "pixels": 2239015,
+          "pct": 35.29
         },
         "graphite": {
-          "pixels": 230307,
-          "pct": 3.70
+          "pixels": 231365,
+          "pct": 3.65
         },
         "accent": {
-          "pixels": 165947,
-          "pct": 2.67
+          "pixels": 166543,
+          "pct": 2.62
         }
       },
-      "deviation": 11.30,
+      "deviation": 11.83,
       "tokens": {
-        "flare": 28.87,
-        "graphite": 3.70,
-        "bone": 18.33,
-        "espresso": 29.78,
-        "sand": 16.66,
+        "flare": 29.23,
+        "graphite": 3.65,
+        "bone": 18.92,
+        "espresso": 29.21,
+        "sand": 16.37,
         "fog": 0.00,
         "void": 0.00,
         "acid": 0.08,
-        "marigold": 2.16,
+        "marigold": 2.12,
         "cobalt": 0.00,
         "signal": 0.06,
-        "moss": 0.36
+        "moss": 0.37
       },
       "strays": {
-        "pctOverDeltaE12": 1.38,
+        "pctOverDeltaE12": 1.39,
         "meanDeltaE": 0.48,
         "top": [
           {
             "hex": "#f73e06",
-            "pct": 6.84,
+            "pct": 7.12,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 3.66,
+            "pct": 3.82,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 2.57,
+            "pct": 2.69,
             "nearest": "flare",
             "deltaE": 1.21
           },
           {
             "hex": "#f53e06",
-            "pct": 0.45,
+            "pct": 0.47,
             "nearest": "flare",
             "deltaE": 1.61
           },
           {
             "hex": "#f73d06",
-            "pct": 0.30,
+            "pct": 0.32,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -1544,65 +1544,66 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 58.31,
-          "bone": 35.42,
-          "graphite": 3.70,
+          "field": 57.45,
+          "bone": 36.38,
+          "graphite": 3.60,
           "accent": 2.57
         },
-        "meanDeviation": 11.99,
-        "inkOnPaper": 9.57,
+        "meanDeviation": 13.90,
+        "inkOnPaper": 9.37,
         "worst": {
           "top": 2700,
-          "deviation": 67.65
+          "deviation": 76.77
         },
         "breaches": [
-          "window @2700: field 32.17 under the 35 band",
-          "window @2700: bone 63.82 over the 55 band",
-          "accent 2.67 over the 2 document cap"
+          "window @2700: field 27.86 under the 35 band",
+          "window @2700: bone 68.38 over the 65 cap",
+          "mean bone 36.38 outside 30±6",
+          "accent 2.62 over the 2 document cap"
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 66.98,
-              "bone": 27.79,
-              "graphite": 4.78,
-              "accent": 0.45
+              "field": 62.98,
+              "bone": 32.51,
+              "graphite": 4.04,
+              "accent": 0.47
             },
-            "deviation": 13.95
+            "deviation": 10.97
           },
           {
             "top": 900,
             "pct": {
-              "field": 70.75,
-              "bone": 26.55,
-              "graphite": 1.97,
+              "field": 73.48,
+              "bone": 23.10,
+              "graphite": 2.69,
               "accent": 0.73
             },
-            "deviation": 21.49
+            "deviation": 26.96
           },
           {
             "top": 1800,
             "pct": {
-              "field": 56.22,
-              "bone": 39.74,
-              "graphite": 3.42,
-              "accent": 0.62
+              "field": 57.49,
+              "bone": 38.68,
+              "graphite": 3.20,
+              "accent": 0.63
             },
-            "deviation": 19.48
+            "deviation": 17.37
           },
           {
             "top": 2700,
             "pct": {
-              "field": 32.17,
-              "bone": 63.82,
-              "graphite": 3.59,
-              "accent": 0.43
+              "field": 27.86,
+              "bone": 68.38,
+              "graphite": 3.36,
+              "accent": 0.40
             },
-            "deviation": 67.65
+            "deviation": 76.77
           },
           {
-            "top": 3422,
+            "top": 3506,
             "pct": {
               "field": 65.44,
               "bone": 19.21,
@@ -1626,75 +1627,75 @@
       "state": "fresh",
       "dimensions": {
         "width": 1440,
-        "height": 4322
+        "height": 4406
       },
       "pixels": {
-        "total": 6223680
+        "total": 6344640
       },
       "buckets": {
         "field": {
-          "pixels": 3650255,
-          "pct": 58.65
+          "pixels": 3707717,
+          "pct": 58.44
         },
         "bone": {
-          "pixels": 2177171,
-          "pct": 34.98
+          "pixels": 2239015,
+          "pct": 35.29
         },
         "graphite": {
-          "pixels": 230307,
-          "pct": 3.70
+          "pixels": 231365,
+          "pct": 3.65
         },
         "accent": {
-          "pixels": 165947,
-          "pct": 2.67
+          "pixels": 166543,
+          "pct": 2.62
         }
       },
-      "deviation": 11.30,
+      "deviation": 11.83,
       "tokens": {
-        "flare": 28.87,
-        "graphite": 3.70,
-        "bone": 18.33,
-        "espresso": 29.78,
-        "sand": 16.66,
+        "flare": 29.23,
+        "graphite": 3.65,
+        "bone": 18.92,
+        "espresso": 29.21,
+        "sand": 16.37,
         "fog": 0.00,
         "void": 0.00,
         "acid": 0.08,
-        "marigold": 2.16,
+        "marigold": 2.12,
         "cobalt": 0.00,
         "signal": 0.06,
-        "moss": 0.36
+        "moss": 0.37
       },
       "strays": {
-        "pctOverDeltaE12": 1.38,
+        "pctOverDeltaE12": 1.39,
         "meanDeltaE": 0.48,
         "top": [
           {
             "hex": "#f73e06",
-            "pct": 6.84,
+            "pct": 7.12,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 3.66,
+            "pct": 3.82,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 2.57,
+            "pct": 2.69,
             "nearest": "flare",
             "deltaE": 1.21
           },
           {
             "hex": "#f53e06",
-            "pct": 0.45,
+            "pct": 0.47,
             "nearest": "flare",
             "deltaE": 1.61
           },
           {
             "hex": "#f73d06",
-            "pct": 0.30,
+            "pct": 0.32,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -1704,65 +1705,66 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 58.31,
-          "bone": 35.42,
-          "graphite": 3.70,
+          "field": 57.45,
+          "bone": 36.38,
+          "graphite": 3.60,
           "accent": 2.57
         },
-        "meanDeviation": 11.99,
-        "inkOnPaper": 9.57,
+        "meanDeviation": 13.90,
+        "inkOnPaper": 9.37,
         "worst": {
           "top": 2700,
-          "deviation": 67.65
+          "deviation": 76.77
         },
         "breaches": [
-          "window @2700: field 32.17 under the 35 band",
-          "window @2700: bone 63.82 over the 55 band",
-          "accent 2.67 over the 2 document cap"
+          "window @2700: field 27.86 under the 35 band",
+          "window @2700: bone 68.38 over the 65 cap",
+          "mean bone 36.38 outside 30±6",
+          "accent 2.62 over the 2 document cap"
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 66.98,
-              "bone": 27.79,
-              "graphite": 4.78,
-              "accent": 0.45
+              "field": 62.98,
+              "bone": 32.51,
+              "graphite": 4.04,
+              "accent": 0.47
             },
-            "deviation": 13.95
+            "deviation": 10.97
           },
           {
             "top": 900,
             "pct": {
-              "field": 70.75,
-              "bone": 26.55,
-              "graphite": 1.97,
+              "field": 73.48,
+              "bone": 23.10,
+              "graphite": 2.69,
               "accent": 0.73
             },
-            "deviation": 21.49
+            "deviation": 26.96
           },
           {
             "top": 1800,
             "pct": {
-              "field": 56.22,
-              "bone": 39.74,
-              "graphite": 3.42,
-              "accent": 0.62
+              "field": 57.49,
+              "bone": 38.68,
+              "graphite": 3.20,
+              "accent": 0.63
             },
-            "deviation": 19.48
+            "deviation": 17.37
           },
           {
             "top": 2700,
             "pct": {
-              "field": 32.17,
-              "bone": 63.82,
-              "graphite": 3.59,
-              "accent": 0.43
+              "field": 27.86,
+              "bone": 68.38,
+              "graphite": 3.36,
+              "accent": 0.40
             },
-            "deviation": 67.65
+            "deviation": 76.77
           },
           {
-            "top": 3422,
+            "top": 3506,
             "pct": {
               "field": 65.44,
               "bone": 19.21,
@@ -1786,63 +1788,63 @@
       "state": "fresh",
       "dimensions": {
         "width": 375,
-        "height": 6203
+        "height": 6338
       },
       "pixels": {
-        "total": 2326125
+        "total": 2376750
       },
       "buckets": {
         "field": {
-          "pixels": 1030669,
-          "pct": 44.31
+          "pixels": 1038285,
+          "pct": 43.69
         },
         "bone": {
-          "pixels": 1068307,
-          "pct": 45.93
+          "pixels": 1109267,
+          "pct": 46.67
         },
         "graphite": {
-          "pixels": 140351,
-          "pct": 6.03
+          "pixels": 141801,
+          "pct": 5.97
         },
         "accent": {
-          "pixels": 86798,
-          "pct": 3.73
+          "pixels": 87397,
+          "pct": 3.68
         }
       },
-      "deviation": 35.32,
+      "deviation": 36.70,
       "tokens": {
-        "flare": 12.22,
-        "graphite": 6.03,
-        "bone": 23.06,
-        "espresso": 32.08,
-        "sand": 22.87,
+        "flare": 12.27,
+        "graphite": 5.97,
+        "bone": 24.23,
+        "espresso": 31.42,
+        "sand": 22.44,
         "fog": 0.00,
         "void": 0.00,
-        "acid": 0.24,
-        "marigold": 2.44,
+        "acid": 0.23,
+        "marigold": 2.39,
         "cobalt": 0.00,
         "signal": 0.07,
-        "moss": 0.98
+        "moss": 0.99
       },
       "strays": {
-        "pctOverDeltaE12": 3.44,
+        "pctOverDeltaE12": 3.47,
         "meanDeltaE": 0.95,
         "top": [
           {
             "hex": "#f73e06",
-            "pct": 2.96,
+            "pct": 3.02,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 1.58,
+            "pct": 1.62,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 1.10,
+            "pct": 1.12,
             "nearest": "flare",
             "deltaE": 1.21
           },
@@ -1864,106 +1866,106 @@
         "viewportHeight": 812,
         "count": 8,
         "mean": {
-          "field": 44.26,
-          "bone": 46.03,
-          "graphite": 6.11,
-          "accent": 3.60
+          "field": 42.73,
+          "bone": 47.71,
+          "graphite": 5.95,
+          "accent": 3.61
         },
-        "meanDeviation": 35.27,
-        "inkOnPaper": 11.61,
+        "meanDeviation": 38.64,
+        "inkOnPaper": 11.33,
         "worst": {
           "top": 4872,
-          "deviation": 91.31
+          "deviation": 109.87
         },
         "breaches": [
-          "window @0: field 32.35 under the 35 band",
-          "window @0: bone 57.40 over the 55 band",
-          "window @1624: field 20.52 under the 35 band",
-          "window @1624: bone 72.64 over the 65 cap",
-          "window @3248: field 89.75 over the 85 cap",
-          "window @3248: bone 7.77 under the 15 band",
-          "window @4872: field 16.96 under the 35 band",
-          "window @4872: bone 75.65 over the 65 cap",
-          "window @5391: field 31.60 under the 35 band",
-          "mean field 44.26 outside 60±8",
-          "mean bone 46.03 outside 30±6",
-          "accent 3.73 over the 2 document cap"
+          "window @0: field 32.41 under the 35 band",
+          "window @0: bone 58.02 over the 55 band",
+          "window @1624: field 12.80 under the 35 band",
+          "window @1624: bone 77.99 over the 65 cap",
+          "window @3248: field 89.77 over the 85 cap",
+          "window @3248: bone 7.71 under the 15 band",
+          "window @4872: field 9.20 under the 35 band",
+          "window @4872: bone 84.93 over the 65 cap",
+          "window @5526: field 31.59 under the 35 band",
+          "mean field 42.73 outside 60±8",
+          "mean bone 47.71 outside 30±6",
+          "accent 3.68 over the 2 document cap"
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 32.35,
-              "bone": 57.40,
-              "graphite": 8.96,
-              "accent": 1.29
+              "field": 32.41,
+              "bone": 58.02,
+              "graphite": 8.33,
+              "accent": 1.25
             },
-            "deviation": 56.71
+            "deviation": 56.69
           },
           {
             "top": 812,
             "pct": {
-              "field": 44.43,
-              "bone": 42.36,
-              "graphite": 10.59,
-              "accent": 2.62
+              "field": 44.64,
+              "bone": 44.18,
+              "graphite": 10.38,
+              "accent": 0.80
             },
-            "deviation": 31.14
+            "deviation": 33.12
           },
           {
             "top": 1624,
             "pct": {
-              "field": 20.52,
-              "bone": 72.64,
-              "graphite": 5.54,
-              "accent": 1.30
+              "field": 12.80,
+              "bone": 77.99,
+              "graphite": 6.09,
+              "accent": 3.12
             },
-            "deviation": 85.28
+            "deviation": 98.22
           },
           {
             "top": 2436,
             "pct": {
-              "field": 71.22,
-              "bone": 24.34,
-              "graphite": 3.09,
-              "accent": 1.35
+              "field": 66.22,
+              "bone": 28.70,
+              "graphite": 3.63,
+              "accent": 1.45
             },
-            "deviation": 22.43
+            "deviation": 12.44
           },
           {
             "top": 3248,
             "pct": {
-              "field": 89.75,
-              "bone": 7.77,
-              "graphite": 1.44,
+              "field": 89.77,
+              "bone": 7.71,
+              "graphite": 1.48,
               "accent": 1.04
             },
-            "deviation": 59.51
+            "deviation": 59.54
           },
           {
             "top": 4060,
             "pct": {
-              "field": 47.24,
-              "bone": 49.15,
-              "graphite": 2.79,
-              "accent": 0.81
+              "field": 55.22,
+              "bone": 41.22,
+              "graphite": 2.72,
+              "accent": 0.84
             },
-            "deviation": 38.30
+            "deviation": 22.44
           },
           {
             "top": 4872,
             "pct": {
-              "field": 16.96,
-              "bone": 75.65,
-              "graphite": 6.54,
-              "accent": 0.84
+              "field": 9.20,
+              "bone": 84.93,
+              "graphite": 5.08,
+              "accent": 0.79
             },
-            "deviation": 91.31
+            "deviation": 109.87
           },
           {
-            "top": 5391,
+            "top": 5526,
             "pct": {
-              "field": 31.60,
+              "field": 31.59,
               "bone": 38.96,
               "graphite": 9.89,
               "accent": 19.55
@@ -1985,63 +1987,63 @@
       "state": "fresh",
       "dimensions": {
         "width": 375,
-        "height": 6203
+        "height": 6338
       },
       "pixels": {
-        "total": 2326125
+        "total": 2376750
       },
       "buckets": {
         "field": {
-          "pixels": 1283468,
-          "pct": 55.18
+          "pixels": 1290766,
+          "pct": 54.31
         },
         "bone": {
-          "pixels": 835742,
-          "pct": 35.93
+          "pixels": 877011,
+          "pct": 36.90
         },
         "graphite": {
-          "pixels": 121742,
-          "pct": 5.23
+          "pixels": 123200,
+          "pct": 5.18
         },
         "accent": {
-          "pixels": 85173,
-          "pct": 3.66
+          "pixels": 85773,
+          "pct": 3.61
         }
       },
-      "deviation": 15.18,
+      "deviation": 17.02,
       "tokens": {
-        "flare": 12.22,
-        "graphite": 5.23,
-        "bone": 23.88,
-        "espresso": 42.95,
-        "sand": 12.05,
+        "flare": 12.27,
+        "graphite": 5.18,
+        "bone": 25.04,
+        "espresso": 42.04,
+        "sand": 11.86,
         "fog": 0.00,
         "void": 0.00,
-        "acid": 0.24,
-        "marigold": 2.44,
+        "acid": 0.23,
+        "marigold": 2.39,
         "cobalt": 0.00,
         "signal": 0.07,
-        "moss": 0.91
+        "moss": 0.92
       },
       "strays": {
-        "pctOverDeltaE12": 3.46,
-        "meanDeltaE": 0.95,
+        "pctOverDeltaE12": 3.48,
+        "meanDeltaE": 0.96,
         "top": [
           {
             "hex": "#f73e06",
-            "pct": 2.96,
+            "pct": 3.02,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 1.58,
+            "pct": 1.62,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 1.10,
+            "pct": 1.12,
             "nearest": "flare",
             "deltaE": 1.21
           },
@@ -2063,105 +2065,105 @@
         "viewportHeight": 812,
         "count": 8,
         "mean": {
-          "field": 54.64,
-          "bone": 36.49,
-          "graphite": 5.34,
-          "accent": 3.53
+          "field": 53.10,
+          "bone": 38.18,
+          "graphite": 5.19,
+          "accent": 3.54
         },
-        "meanDeviation": 16.04,
-        "inkOnPaper": 12.71,
+        "meanDeviation": 19.44,
+        "inkOnPaper": 12.32,
         "worst": {
           "top": 4872,
-          "deviation": 91.31
+          "deviation": 109.87
         },
         "breaches": [
-          "window @0: field 32.35 under the 35 band",
-          "window @0: bone 57.40 over the 55 band",
-          "window @1624: field 91.16 over the 85 cap",
-          "window @1624: bone 7.11 under the 15 band",
-          "window @3248: field 89.75 over the 85 cap",
-          "window @3248: bone 7.77 under the 15 band",
-          "window @4872: field 16.96 under the 35 band",
-          "window @4872: bone 75.65 over the 65 cap",
-          "window @5391: field 31.60 under the 35 band",
-          "mean bone 36.49 outside 30±6",
-          "accent 3.66 over the 2 document cap"
+          "window @0: field 32.41 under the 35 band",
+          "window @0: bone 58.02 over the 55 band",
+          "window @1624: field 89.40 over the 85 cap",
+          "window @1624: bone 7.09 under the 15 band",
+          "window @3248: field 89.77 over the 85 cap",
+          "window @3248: bone 7.71 under the 15 band",
+          "window @4872: field 9.20 under the 35 band",
+          "window @4872: bone 84.93 over the 65 cap",
+          "window @5526: field 31.59 under the 35 band",
+          "mean bone 38.18 outside 30±6",
+          "accent 3.61 over the 2 document cap"
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 32.35,
-              "bone": 57.40,
-              "graphite": 8.96,
-              "accent": 1.29
+              "field": 32.41,
+              "bone": 58.02,
+              "graphite": 8.33,
+              "accent": 1.25
             },
-            "deviation": 56.71
+            "deviation": 56.69
           },
           {
             "top": 812,
             "pct": {
-              "field": 56.82,
-              "bone": 31.51,
-              "graphite": 9.08,
-              "accent": 2.59
+              "field": 46.17,
+              "bone": 43.08,
+              "graphite": 9.96,
+              "accent": 0.79
             },
-            "deviation": 6.36
+            "deviation": 30.07
           },
           {
             "top": 1624,
             "pct": {
-              "field": 91.16,
-              "bone": 7.11,
-              "graphite": 0.94,
-              "accent": 0.80
+              "field": 89.40,
+              "bone": 7.09,
+              "graphite": 0.89,
+              "accent": 2.62
             },
-            "deviation": 62.31
+            "deviation": 60.04
           },
           {
             "top": 2436,
             "pct": {
-              "field": 71.22,
-              "bone": 24.34,
-              "graphite": 3.09,
-              "accent": 1.35
+              "field": 71.00,
+              "bone": 24.43,
+              "graphite": 3.15,
+              "accent": 1.42
             },
-            "deviation": 22.43
+            "deviation": 22.01
           },
           {
             "top": 3248,
             "pct": {
-              "field": 89.75,
-              "bone": 7.77,
-              "graphite": 1.44,
+              "field": 89.77,
+              "bone": 7.71,
+              "graphite": 1.48,
               "accent": 1.04
             },
-            "deviation": 59.51
+            "deviation": 59.54
           },
           {
             "top": 4060,
             "pct": {
-              "field": 47.24,
-              "bone": 49.15,
-              "graphite": 2.79,
-              "accent": 0.81
+              "field": 55.22,
+              "bone": 41.22,
+              "graphite": 2.72,
+              "accent": 0.84
             },
-            "deviation": 38.30
+            "deviation": 22.44
           },
           {
             "top": 4872,
             "pct": {
-              "field": 16.96,
-              "bone": 75.65,
-              "graphite": 6.54,
-              "accent": 0.84
+              "field": 9.20,
+              "bone": 84.93,
+              "graphite": 5.08,
+              "accent": 0.79
             },
-            "deviation": 91.31
+            "deviation": 109.87
           },
           {
-            "top": 5391,
+            "top": 5526,
             "pct": {
-              "field": 31.60,
+              "field": 31.59,
               "bone": 38.96,
               "graphite": 9.89,
               "accent": 19.55

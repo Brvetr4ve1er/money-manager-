@@ -116,7 +116,7 @@ export function groupTransactionsByDay(
     // typed amount here would report a day's spending as the sum of what was
     // spent and what was avoided — the day total is money, and Trust Rule 1
     // keeps the self-reported resist story in the month "resisted" line instead
-    // (see Ledger.tsx — "kept" was retired because it asserts an outcome about
+    // (see ArchiveCard.tsx — "kept" was retired because it asserts an outcome about
     // money the user only says they did not spend).
     spentDA: rows.reduce((sum, t) => (t.resistedImpulse ? sum : sum + t.amountDA), 0),
     rows,

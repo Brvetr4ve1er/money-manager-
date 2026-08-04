@@ -107,7 +107,17 @@ export default function App({
   // Deterministic pick for the hook's day — same lesson on every render,
   // reload, and tab of that day, and stable across "Got it" (lessonForDay
   // keeps today's own entry in the pool on purpose).
-  const todayLesson = lessonForDay(today, state.lessonsSeen)
+  // MEMOISED like every derivation around it, and for the reason spelled out
+  // above `pets`: useRewards schedules two extra renders of this whole tree per
+  // grant (chip clear at 1800ms, toast shift at 2600ms), and unmemoised this
+  // rebuilt a Set of every collected lesson and re-filtered the 30-lesson
+  // roster on each of them. It was the one derivation left in this render body
+  // without a memo — the pick is deterministic, so the answer was always the
+  // one already on screen.
+  const todayLesson = useMemo(
+    () => lessonForDay(today, state.lessonsSeen),
+    [today, state.lessonsSeen],
+  )
   const lessonReadToday = state.quests.some((q) => q.id === 'lesson' && q.done)
   // Memoised like `pets`, and computed off the hook's `today` rather than a
   // fresh todayISO() for the same reason every other date in this render is.

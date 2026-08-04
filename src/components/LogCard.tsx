@@ -19,6 +19,18 @@ const CHIP_MAX = 3
 /** How long the post-log Undo affordance stays available. */
 const UNDO_WINDOW_MS = 5_000
 
+/**
+ * The resist button's label, minus the XP suffix the cap swaps out.
+ *
+ * EXPORTED BECAUSE THE PITCH QUOTES IT. Landing.tsx's hand-off — the reason
+ * anyone forwards this product — tells a stranger which button to press, and
+ * this file's rule for the marketing surface is that it prints the app's own
+ * words or it prints nothing (same discipline as NOTE_DENOMINATIONS_DA,
+ * DECISION_ANSWERS and NOTE_MAX_LEN). Rename the button and the sentence above
+ * the fold renames itself; there is no second copy to forget.
+ */
+export const RESIST_LABEL = 'I resisted an impulse'
+
 export function LogCard({
   transactions,
   onLog,
@@ -478,8 +490,8 @@ export function LogCard({
               resists past the daily cap still log, they just earn nothing. */}
           <button type="button" className="btn btn-gold" onClick={() => submit(true)}>
             {resistXpCapped
-              ? 'I resisted an impulse (XP capped today)'
-              : 'I resisted an impulse (+50 XP)'}
+              ? `${RESIST_LABEL} (XP capped today)`
+              : `${RESIST_LABEL} (+50 XP)`}
           </button>
         </div>
       </form>

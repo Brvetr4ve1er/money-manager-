@@ -851,6 +851,54 @@ describe('Trust Rule 8 — the focus ring is a mechanism, not a default', () => 
     }
   })
 
+  /**
+   * The other half of Trust Rule 8's "live regions stay mounted", and until
+   * now it lived only in prose.
+   *
+   * App, LogCard, SimCard, ProfileCard and ArchiveCard between them mount TEN
+   * permanently-present announcement surfaces, every one of them empty at
+   * boot. Mounting is not enough: a region hidden with `display: none` or
+   * `visibility: hidden` is removed from the accessibility tree, so its
+   * reappearance with text reads as a brand-new region and VoiceOver (and
+   * sometimes NVDA) skip the announcement entirely. That is the exact failure
+   * the mounted-empty pattern exists to prevent, re-introduced from the
+   * stylesheet. Three rules carry the whole mechanism — .sr-only, which nine
+   * of the ten use, plus the two in-flow regions that hide themselves while
+   * empty — and each one is a single line away from silencing the app.
+   *
+   * The rationale is written at all three rules in app.css. This is the test
+   * that makes the rationale enforceable.
+   */
+  it('hides an announcement surface by geometry, never by removing it from the tree', () => {
+    const HIDDEN_FROM_AT = /(display\s*:\s*none|visibility\s*:\s*hidden|content-visibility\s*:\s*hidden)/
+    const rule = (selector: string): string => {
+      const m = new RegExp(`(?:^|\\n)${selector.replace(/[.:]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(APP)
+      // The selector itself is part of the assertion: a rename that drops one
+      // of these rules must fail here rather than pass by finding nothing.
+      expect(m, `${selector} is missing from app.css`).not.toBeNull()
+      return m![1]
+    }
+    // The shared visually-hidden class. Clip pattern, and every one of its
+    // declarations is geometry — the region stays laid out at 1x1px and stays
+    // in the tree.
+    const srOnly = rule('.sr-only')
+    expect(srOnly).not.toMatch(HIDDEN_FROM_AT)
+    expect(srOnly).toMatch(/position:\s*absolute/)
+    expect(srOnly).toMatch(/clip:\s*rect\(/)
+    expect(srOnly).toMatch(/overflow:\s*hidden/)
+    // The storage fault: in flow and visible when it has something to say,
+    // taken out of flow by the same clip pattern when it does not.
+    const fault = rule('.persist-fault:empty')
+    expect(fault).not.toMatch(HIDDEN_FROM_AT)
+    expect(fault).toMatch(/clip:\s*rect\(/)
+    // The toast banner fades with opacity for the same reason — never
+    // display/visibility, which would drop the empty banner from the tree
+    // between messages.
+    const toast = rule('.toast:empty')
+    expect(toast).not.toMatch(HIDDEN_FROM_AT)
+    expect(toast).toMatch(/opacity:\s*0/)
+  })
+
   it('re-colours the ring on the landing’s one Espresso jump target', () => {
     // The page-wide ring is pinned to --lp-form (Graphite) because every
     // focusable thing on the landing sits on Bone or Marigold — except the

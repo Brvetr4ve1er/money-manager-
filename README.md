@@ -13,7 +13,7 @@
 </p>
 
 ```
-NO ACCOUNT  ·  NO BANK LINK  ·  EXPORT ALWAYS
+LOGGED BY HAND  ·  PRICED IN DA  ·  NO ACCOUNT  ·  NO BANK LINK  ·  EXPORT ALWAYS
 ```
 
 ## What it is
@@ -123,7 +123,7 @@ earn-only badges whose reward is a cosmetic companion beside the score, and
 chiptune cues that never carry information alone.
 
 There used to be a fourth quest — "look back over your recent purchases" — and
-a ninth card holding a 32-tile codex grid and a 9-tile badge shelf. Both are
+a ninth card holding a 30-tile codex grid and a 9-tile badge shelf. Both are
 deleted. The quest paid XP for a tap the app could not observe, which is the
 engagement track paying for nothing. The card was 60% of the app's rendered DOM
 on install day and carried no control at all: 1,644px of phone column, last in
@@ -143,6 +143,14 @@ so in words — *"Days before it are blank, not zero"* — because on install da
 the month may already be half over and Ember was not there for it. Under it the
 log is grouped by day — Today, Yesterday, then the date — with that day's spend
 beside the heading. Resists list under their day and add nothing to it.
+
+The list opens on the last 3 days and grows 30 more per press, up to
+everything. It is a step rather than one "show all" because one press used to
+render the whole record — 27,793 DOM nodes for a 5,000-row ledger, measured in
+jsdom at commit 73b9260, which a mid-range Android pays again in layout and
+raster. Nothing is hidden by it: the window keeps growing to the end, and the
+line the card announces names the real day count on every press, so a partly
+grown list never reports itself as the whole record.
 
 The scope is stated once, in the card's own words: *"Totals only. No targets.
 No averages. No projections."* There is no target line, no average, no run rate

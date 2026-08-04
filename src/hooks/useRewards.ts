@@ -86,6 +86,26 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
       // so the keyed dismiss timer below resets each time.
       const gained = state.xp.totalXp - prev.totalXp
       setXpGain((cur) => ({ amount: gained + (cur?.amount ?? 0), at: Date.now() }))
+    } else if (state.xp.totalXp < prev.totalXp) {
+      // A REVOKED GRANT MUST NOT KEEP CLAIMING A GAIN.
+      //
+      // Total XP is monotonic everywhere except one path: UNDO_TX removes the
+      // row AND its `tx:{id}` grant (see the reducer), which is the whole
+      // point of the grace window. The chip and its sr-only twin in App are
+      // the only surfaces that assert a GAIN, and they outlived it. Measured
+      // at commit 73b9260's tree: log 2,000 DA, press Undo inside the window,
+      // and the "XP gains" region still read "+5 XP" while the progress bar
+      // read 0 — one live region contradicting another, next to LogCard's
+      // "Removed. 2,000 DA log undone." Worse, the accumulator above carried
+      // the dead amount forward: the next resist announced "+55 XP" for a
+      // 50 XP grant, a figure that never happened.
+      //
+      // Cleared, not re-announced as a loss. The removal already has its
+      // announcement — from the control that caused it, naming the row — and
+      // a second region saying "-5 XP" would put a penalty register on an
+      // action that is explicitly forgiven (§12.3, §12.6). The chip means
+      // "you just earned this"; when that stops being true it says nothing.
+      setXpGain(null)
     }
     if (state.xp.level > prev.level) {
       playFanfare()
@@ -134,7 +154,15 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
 
   // Codex collection milestones — every 5 lessons gets the rare-pull shimmer.
   // The toast is the sparkle's visible counterpart (sound never carries the
-  // moment alone), and CollectionCard's codex count is its persistent one.
+  // moment alone, §10), and LessonCard's `n / 30 collected` line is its
+  // persistent one. That line is the whole reason the count survived the
+  // collection sheet's deletion: a milestone celebrated only by a sound and a
+  // 2.6-second toast leaves nothing on screen at rest to have been about.
+  // (The persistent counterpart used to be CollectionCard's grid — one tile
+  // per lesson. "32-tile" stood here and in App.test and was never true at any
+  // commit: the grid rendered LESSONS.map, and LESSONS has been 30 since it
+  // shipped. A wrong number in a comment about a DELETED surface is unfalsifiable
+  // by anything but a reading, which is why it survived four rounds.)
   const prevLessons = useRef(state.lessonsSeen.length)
   useEffect(() => {
     const n = state.lessonsSeen.length
@@ -151,8 +179,12 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
 
   // Achievement unlocks — the rare-pull shimmer with its visible counterpart:
   // one toast PER badge names it and its pet (the queue takes turns in the
-  // live region), and CollectionCard's badge grid and pet strip are the persistent
-  // state, so the sparkle never carries the moment alone. Diffing persisted
+  // live region), and the pet strip beside the score is the persistent state,
+  // so the sparkle never carries the moment alone (§10). The strip is now the
+  // ONLY persistent surface an unlock reaches — the 9-tile badge shelf that
+  // used to hold the name and the earned date went with CollectionCard — which
+  // is why every badge in the roster carries a pet and glyphRoster.test.ts
+  // holds it to that. Diffing persisted
   // ids keeps this origin-agnostic (a peer tab's unlock still toasts here)
   // while the ref initializer keeps long-held badges from re-celebrating on
   // every mount. One sparkle per batch — a merge landing several badges at

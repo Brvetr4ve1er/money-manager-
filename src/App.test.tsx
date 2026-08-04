@@ -583,7 +583,10 @@ describe('daily lesson + codex', () => {
      * defends, which is why it gets its own case (same reason localFirst.test
      * exists).
      *
-     * CollectionCard was a 32-tile lesson codex and a 9-tile badge shelf: 62.5%
+     * CollectionCard was a lesson codex of one tile per lesson (30, not the
+     * "32" this comment and useRewards.ts both claimed — the grid rendered
+     * LESSONS.map and LESSONS has been 30 since it shipped) and a 9-tile
+     * badge shelf: 62.5%
      * of the card stack's DOM on install day, 59.9% at day 40, with ZERO
      * focusable controls in either state, sitting last in the stack behind
      * ~1,644px of 375px column. It is gone: the component, its styles, its two
@@ -889,7 +892,7 @@ describe('level-up toast lifecycle', () => {
       /^First Run earned/,
       "Quest done. Read today's lesson",
       /^First Spark earned/,
-      /^Ten in the Ledger earned/,
+      /^Ten in the Record earned/,
       /^Level 2/,
       'All quests complete.',
     ]
@@ -1287,6 +1290,99 @@ describe('the date-grouped ledger', () => {
     expect(region.textContent).toBe('Showing all 4 days.')
     fireEvent.click(screen.getByRole('button', { name: 'Show fewer days' }))
     expect(region.textContent).toBe('Showing 3 of 4 days.')
+  })
+
+  /* ── The window is a RUN, not a switch ────────────────────────────────────
+     MEASURED at commit 73b9260's tree, jsdom, 8 rows per day: one press of the
+     old all-at-once expand put 3,179 DOM nodes on the page at 500 rows, 11,378
+     at 2,000 and 27,793 at 5,000 (95 / 235 / 625ms in jsdom, which does no
+     layout and no paint — a mid-range Android pays that again in style, layout
+     and raster). The control invited it: it read "Show 622 earlier days" and
+     meant it. Nothing is hidden by the step; the window keeps growing, and the
+     live region names the real total on every press. */
+  const manyDays = (n: number) =>
+    Array.from({ length: n }, (_, i) =>
+      tx({ id: `m${i}`, amountDA: 100 + i, date: addDaysISO('2026-08-04', -i) }),
+    )
+
+  it('grows the window by one run per press instead of rendering the whole record', () => {
+    seed(manyDays(100))
+    render(<App />)
+    expect(dayLabels()).toHaveLength(3)
+    // The label promises exactly what ONE press does — never the whole tail.
+    const more = screen.getByRole('button', { name: 'Show 30 earlier days' })
+    fireEvent.click(more)
+    expect(dayLabels()).toHaveLength(33)
+    // Still not a completed disclosure, and aria-expanded must not say it is.
+    expect(more.getAttribute('aria-expanded')).toBe('false')
+    // The announcement names the REAL total, so a stepped window never implies
+    // the record is smaller than it is.
+    expect(screen.getByRole('status', { name: 'Ledger range' }).textContent).toBe(
+      'Showing 33 of 100 days.',
+    )
+    fireEvent.click(more)
+    expect(dayLabels()).toHaveLength(63)
+  })
+
+  it('reaches every day it has, and only then reports itself expanded', () => {
+    seed(manyDays(100))
+    render(<App />)
+    // 3 → 33 → 63 → 93 → 100. Four presses, and no press renders more than a
+    // run's worth of new days.
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(screen.getByRole('button', { name: /Show \d+ earlier days?$/ }))
+    }
+    expect(dayLabels()).toHaveLength(100)
+    const control = screen.getByRole('button', { name: 'Show fewer days' })
+    expect(control.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('status', { name: 'Ledger range' }).textContent).toBe(
+      'Showing all 100 days.',
+    )
+    // …and the fully-out window survives a new day arriving under it: pinning
+    // the limit to the day count at the time of the press would silently drop
+    // the oldest day on the next log.
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '90' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(dayLabels()).toHaveLength(100)
+    expect(screen.getByRole('button', { name: 'Show fewer days' })).toBeTruthy()
+  })
+
+  it('offers the way back from the middle, and hands focus over when it goes', () => {
+    // With a stepped window the single toggle cannot offer both moves at once:
+    // three runs in, "Show fewer days" is not what the next press does. Without
+    // a peer, collapsing would mean first expanding all the way — paying the
+    // exact render the step exists to avoid.
+    seed(manyDays(100))
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show 30 earlier days' }))
+    const fewer = screen.getByRole('button', { name: 'Show fewer days' })
+    const more = screen.getByRole('button', { name: 'Show 30 earlier days' })
+    expect(fewer).not.toBe(more)
+    act(() => {
+      fewer.focus()
+    })
+    fireEvent.click(fewer)
+    expect(dayLabels()).toHaveLength(3)
+    expect(screen.getByRole('status', { name: 'Ledger range' }).textContent).toBe(
+      'Showing 3 of 100 days.',
+    )
+    // The button just pressed unmounts on this commit — without the hand-off
+    // focus lands on <body> and the keyboard user's place is gone.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show 30 earlier days' }))
+    expect(document.activeElement).not.toBe(document.body)
+    // One control again, so the middle state is genuinely a middle state.
+    expect(ledger().querySelectorAll('.ledger-controls button')).toHaveLength(1)
+  })
+
+  it('keeps both window controls in the same button family, with no colour split', () => {
+    // Neither direction is the recommended one (§12.6 in the register the
+    // decision answers already use): same class, same 48px floor, same ring.
+    seed(manyDays(100))
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show 30 earlier days' }))
+    const controls = [...ledger().querySelectorAll('.ledger-controls button')]
+    expect(controls).toHaveLength(2)
+    for (const b of controls) expect(b.className).toBe('btn ledger-more')
   })
 
   it('adds no second h1 and keeps day headings under the card heading', () => {
@@ -2220,6 +2316,42 @@ describe('accessibility depth — the sweep as regression tests', () => {
     // simply vanishes — so the removal has to say so itself.
     expect(logStatus().textContent).toBe('Removed. 2,000 DA log undone.')
     expect(xpNow()).toBe(0)
+  })
+
+  // ── The other half of that removal: the chip kept claiming the grant ────
+  it('stops claiming a gain the moment the grant is revoked', () => {
+    // Total XP is monotonic everywhere except UNDO_TX, which removes the row
+    // AND its grant. The +XP chip and its sr-only twin are the only surfaces
+    // that assert a GAIN, and they outlived it: the region still read "+5 XP"
+    // beside a progress bar reading 0 and a log region reading "Removed." —
+    // two live regions disagreeing about the same commit.
+    vi.useFakeTimers()
+    render(<App />)
+    const gains = screen.getByRole('status', { name: 'XP gains' })
+    logAmount('2000')
+    expect(gains.textContent).toBe('+5 XP')
+    fireEvent.click(undoBtn())
+    expect(xpNow()).toBe(0)
+    // Cleared, not restated as a loss: the removal already has its own
+    // announcement, and a "-5 XP" would put a penalty register on an action
+    // this app forgives by design.
+    expect(gains.textContent).toBe('')
+    expect(screen.queryByText('+5 XP')).toBeNull()
+  })
+
+  it('does not carry a revoked amount into the next grant', () => {
+    // The chip ACCUMULATES so two equal gains in a row still re-announce (see
+    // useRewards). With the revoked grant left standing, that accumulator
+    // added the dead +5 to the next resist and announced "+55 XP" for a 50 XP
+    // grant — a figure that never happened, in a live region.
+    vi.useFakeTimers()
+    render(<App />)
+    const gains = screen.getByRole('status', { name: 'XP gains' })
+    logAmount('2000')
+    fireEvent.click(undoBtn())
+    fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    expect(gains.textContent).toBe(`+${XP_REWARDS.resistImpulse} XP`)
+    expect(xpNow()).toBe(XP_REWARDS.resistImpulse)
   })
 
   it('names a resist removal in the resist’s own words', () => {

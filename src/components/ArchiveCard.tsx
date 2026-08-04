@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Transaction } from '../state/store.ts'
 import { dayLabel, groupTransactionsByDay, monthToDate } from '../engine/ledger.ts'
 import { Glyph } from './Glyph.tsx'
@@ -31,7 +31,43 @@ import { Glyph } from './Glyph.tsx'
  * Days rendered before the expand control. Whole DAYS, never a row count: a
  * part-rendered day would print a total its visible rows do not add up to.
  */
-const WINDOW_DAYS = 3
+export const WINDOW_DAYS = 3
+
+/**
+ * Days ADDED per press of the expand control, and the reason it is a step
+ * rather than "all of them".
+ *
+ * MEASURED at commit 73b9260's tree, jsdom, App mounted with a synthetic
+ * ledger of 8 rows per day: one press of the old all-at-once expand rendered
+ * 500 rows → 3,179 DOM nodes in 95ms; 2,000 rows → 11,378 nodes in 235ms;
+ * 5,000 rows → 27,793 nodes in 625ms. jsdom does no layout or paint, so a
+ * mid-range Android phone — the device this product is built for — pays that
+ * again in style, layout and raster, from a single tap, with no way back
+ * except a second render of the same size. The control invited the cliff:
+ * it read "Show 622 earlier days" and meant it.
+ *
+ * After this change, same harness on THIS tree: 1,887 / 1,886 / 1,886 nodes
+ * and 79 / 41 / 31ms — flat in the size of the record, which is the property
+ * the old control did not have at any size.
+ *
+ * NOTHING IS HIDDEN by this. The window grows a run at a time and keeps
+ * growing until it holds everything; the live region below names the real
+ * total on every press, so the user is never told the record is smaller than
+ * it is. A step of 30 is a month of days, which is the unit this card already
+ * counts in ("Day 5 / 31").
+ *
+ * IT BOUNDS DAYS, NOT ROWS, and that is deliberate rather than an oversight —
+ * see WINDOW_DAYS above: a part-rendered day would print a total its visible
+ * rows do not add up to. A single day holding hundreds of rows still renders
+ * whole. That trade is the one this card has always made.
+ *
+ * EXPORTED, WITH WINDOW_DAYS, BECAUSE THE README DESCRIBES THE DISCLOSURE.
+ * A user-visible control that opens on N days and grows by M is two numbers in
+ * prose, and this repo's rule is that a number in a claim is read from the code
+ * rather than typed beside it (README.test.ts). Neither export is read by the
+ * app outside this file.
+ */
+export const EXPAND_STEP_DAYS = 30
 
 /* No historyDays prop, deliberately: the scope line below is a permanent
    property of this card, not a countdown, so nothing here reads the
@@ -44,11 +80,21 @@ export function ArchiveCard({
   transactions: Transaction[]
   today: string
 }) {
-  const [expanded, setExpanded] = useState(false)
+  // How many day groups the window currently holds. POSITIVE_INFINITY once the
+  // window is fully out, NOT days.length: a number frozen at today's count
+  // would silently re-collapse the oldest day the moment a new day was logged
+  // under a fully-expanded list.
+  const [limit, setLimit] = useState<number>(WINDOW_DAYS)
   // Mounted-empty live region content (see the region below). State, not
   // derived: the announcement is about the ACT of expanding, so it must change
   // exactly when the user toggles and never on an unrelated re-render.
   const [rangeNote, setRangeNote] = useState('')
+  // Focus hand-off target. The collapse peer below exists only while the window
+  // is partly out, so pressing it unmounts the button that was just pressed —
+  // and an unmounting focused element drops focus to <body> in silence, the
+  // same failure LogCard's undo strip and ProfileCard's save hand off to avoid.
+  // Focus moves here first, onto the control that is mounted in every state.
+  const moreRef = useRef<HTMLButtonElement>(null)
 
   // All three derivations below walk the ENTIRE ledger, and App re-renders this
   // card on every toast/XP-chip timer tick as well as on real changes — so each
@@ -70,8 +116,26 @@ export function ArchiveCard({
     [transactions, monthKey],
   )
 
-  const hiddenDays = Math.max(0, days.length - WINDOW_DAYS)
-  const shown = expanded ? days : days.slice(0, WINDOW_DAYS)
+  const shown = days.slice(0, limit)
+  const hiddenDays = Math.max(0, days.length - shown.length)
+  // "Expanded" is now literally "nothing is left to show", which is what
+  // aria-expanded has to mean: a partly-grown window is not a completed
+  // disclosure, and reporting it as one would tell AT the list is whole.
+  const expanded = hiddenDays === 0
+  // What ONE more press adds — the label must promise exactly that and no more.
+  const nextRun = Math.min(hiddenDays, EXPAND_STEP_DAYS)
+
+  /** Grow the window by one run, or collapse it back to WINDOW_DAYS. */
+  function setWindow(next: number) {
+    setLimit(next)
+    // Always names the REAL total, so a stepped window never implies the
+    // record is smaller than it is.
+    setRangeNote(
+      next >= days.length
+        ? `Showing all ${days.length} days.`
+        : `Showing ${next} of ${days.length} days.`,
+    )
+  }
 
   // Singular/plural, and the last day of the month is not "0 days left".
   const left =
@@ -284,32 +348,57 @@ export function ArchiveCard({
               </li>
             ))}
           </ul>
-          {hiddenDays > 0 && (
-            // A real focusable button, never a click-handling div, and the
-            // SAME element across both states: swapping it for a different
-            // control would unmount the node holding focus and strand the
-            // keyboard user on <body>.
-            <button
-              type="button"
-              className="btn ledger-more"
-              aria-expanded={expanded}
-              aria-controls="ledger-days"
-              onClick={() => {
-                const next = !expanded
-                setExpanded(next)
-                setRangeNote(
-                  next
-                    ? `Showing all ${days.length} days.`
-                    : `Showing ${WINDOW_DAYS} of ${days.length} days.`,
-                )
-              }}
-            >
-              {expanded
-                ? 'Show fewer days'
-                : hiddenDays === 1
-                  ? 'Show 1 earlier day'
-                  : `Show ${hiddenDays} earlier days`}
-            </button>
+          {(hiddenDays > 0 || limit > WINDOW_DAYS) && (
+            <div className="ledger-controls">
+              {/* A real focusable button, never a click-handling div, and the
+                  SAME element across both states: swapping it for a different
+                  control would unmount the node holding focus and strand the
+                  keyboard user on <body>. */}
+              <button
+                type="button"
+                className="btn ledger-more"
+                ref={moreRef}
+                aria-expanded={expanded}
+                aria-controls="ledger-days"
+                onClick={() =>
+                  // POSITIVE_INFINITY on the press that reaches the end — see
+                  // the `limit` state for why the fully-out window must not be
+                  // pinned to today's day count.
+                  setWindow(
+                    expanded
+                      ? WINDOW_DAYS
+                      : limit + nextRun >= days.length
+                        ? Number.POSITIVE_INFINITY
+                        : limit + nextRun,
+                  )
+                }
+              >
+                {expanded
+                  ? 'Show fewer days'
+                  : nextRun === 1
+                    ? 'Show 1 earlier day'
+                    : `Show ${nextRun} earlier days`}
+              </button>
+              {/* THE WAY BACK, and it only exists in the middle. With a stepped
+                  window the single toggle above cannot offer both moves at
+                  once: three runs in, "Show fewer days" is not what the next
+                  press does. Without this peer a user who had grown the window
+                  could only collapse it by first expanding all the way — i.e.
+                  by paying the exact render the step exists to avoid. */}
+              {!expanded && limit > WINDOW_DAYS && (
+                <button
+                  type="button"
+                  className="btn ledger-more"
+                  onClick={() => {
+                    // FOCUS FIRST: this button unmounts on the next commit.
+                    moreRef.current?.focus()
+                    setWindow(WINDOW_DAYS)
+                  }}
+                >
+                  Show fewer days
+                </button>
+              )}
+            </div>
           )}
         </>
       )}

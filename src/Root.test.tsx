@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Root } from './Root.tsx'
-import { Landing } from './components/Landing.tsx'
+import { Landing, MECHANICS } from './components/Landing.tsx'
+import { RESIST_LABEL } from './components/LogCard.tsx'
 import {
   defaultState,
   todayISO,
@@ -249,8 +250,9 @@ describe('the landing keyboard path', () => {
     // The hero's "Spec sheet" button is a fragment link, and a fragment link
     // whose target is not focusable leaves focus on <body>: activating it
     // strands the keyboard user at the top of the document. The app fixed this
-    // on all five of its jump targets (LogCard, QuestCard, SimCard, CodexCard,
-    // AchievementsCard) and the landing's only one was left behind. Chrome
+    // on every one of its jump targets (LogCard, QuestCard, SimCard — it was
+    // five before the codex and badge sheets were deleted) and the landing's
+    // only one was left behind. Chrome
     // papers over it with the sequential-focus navigation starting point;
     // Safari/VoiceOver do not.
     const { container } = render(<Landing onEnter={() => {}} />)
@@ -383,7 +385,9 @@ describe('the landing product shot', () => {
     expect(text).toContain('Resisted')
     expect(text).toContain(`${kept.toLocaleString()} DA avoided`)
     // "resisted", not "kept": the chip names the user's observed ACTION, not
-    // an unverifiable outcome (see the chip in Ledger.tsx).
+    // an unverifiable outcome (see the chip in ArchiveCard.tsx — Ledger.tsx
+    // merged into it, and a comment pointing at a deleted file is the drift
+    // this round went looking for).
     expect(text).toContain(`${kept.toLocaleString()} DA resisted this month`)
     // …and the day heading is the spend alone. This is the two-track rule,
     // rendered, and it is the reason the shot is worth its space on the page.
@@ -534,11 +538,11 @@ describe('the landing states why anyone would pass it on', () => {
   it('leads the hand-off with a mechanic, not a list of refusals', () => {
     // The reason someone forwards this is the resist row: a bank feed can only
     // ever see money that moved. Every clause below is shipped code —
-    // reducer.ts writes the row, ledger.ts adds 0 for it, Ledger sums the month
-    // — and the shot further down renders exactly that pair.
+    // reducer.ts writes the row, ledger.ts adds 0 for it, ArchiveCard sums the
+    // month — and the shot further down renders exactly that pair.
     const { container } = render(<Landing onEnter={() => {}} />)
     const share = container.querySelector('.lp-share')?.textContent?.toLowerCase() ?? ''
-    expect(share).toContain('the thing they did not buy')
+    expect(share).toContain('the thing you did not buy')
     expect(share).toContain('nothing added to the day')
     expect(share).toContain('summed for the month')
     // Trust Rule 3, and scoped exactly as narrowly as the code allows: full XP
@@ -553,5 +557,76 @@ describe('the landing states why anyone would pass it on', () => {
     }
     // …and they are out of the paragraph that now carries the reason.
     expect(share).not.toContain('no account')
+  })
+
+  it('indexes the hand-off into the grid below, so the fold cannot outlive it', () => {
+    // THE ROUND-5 BIND, and the reason this round exists: a pitch does not fail
+    // by being dull, it fails by outliving the feature. The fold's claim is a
+    // LOOKUP into MECHANICS — the same roster the spec sheet renders — so the
+    // hero cannot sell a mechanic the grid does not ship, and deleting that row
+    // fails here instead of shipping a fold that advertises a deleted feature.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const tag = container.querySelector('.lp-share-tag')
+    expect(tag).not.toBeNull()
+    // The label is `NN/MM · Title`. Split it and check every part against the
+    // roster rather than against a typed string.
+    const [fraction, title] = (tag!.textContent ?? '').split('·').map((s) => s.trim())
+    const row = MECHANICS.findIndex((m) => m.title === title)
+    expect(`${title} is a shipped mechanic: ${row >= 0}`).toBe(`${title} is a shipped mechanic: true`)
+    expect(fraction).toBe(
+      `${String(row + 1).padStart(2, '0')}/${String(MECHANICS.length).padStart(2, '0')}`,
+    )
+    // The grid prints the same index for the same row — one fact, two places,
+    // and this is what keeps them one fact.
+    expect(container.querySelectorAll('.lp-index')[row].textContent).toBe(fraction)
+    // The FRACTION is hidden from AT and the TITLE is not: "zero two slash zero
+    // eight" ahead of the sentence it labels is noise, but the block still has
+    // to announce the name of the thing it is about.
+    expect(tag!.querySelector('[aria-hidden="true"]')?.textContent).toContain(fraction)
+    expect(tag!.querySelector(`[aria-hidden="true"]`)?.textContent).not.toContain(title)
+    // …and it is not counted as one of the grid's own index labels, which
+    // Root.test reads as a set of exactly MECHANICS.length entries above.
+    expect(tag!.classList.contains('lp-index')).toBe(false)
+  })
+
+  it('leads with the object and closes with the instruction (§7 rule 1)', () => {
+    // The block ran the other way for four rounds: "Send it to a friend who
+    // overspends" first, the mechanic second. That frames the strongest thing
+    // on the page as an errand, and it forced the mechanic into the third
+    // person on a page whose READER is the one who has to be convinced. Order
+    // is the claim here, so order is what is asserted — a later edit that
+    // reinstates the directive as the opener fails.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const block = container.querySelector('.lp-share')
+    expect([...(block?.children ?? [])].map((n) => n.className)).toEqual([
+      'lp-share-tag',
+      'lp-share-lead',
+      'lp-share-body',
+      'lp-share-call',
+    ])
+    const lead = block?.querySelector('.lp-share-lead')?.textContent ?? ''
+    // Names the product and the mechanic, in one sentence, under nine words
+    // (§7 rule 2 — a fold's lead is the one string that has no excuse).
+    expect(lead).toContain('Ember')
+    expect(lead.toLowerCase()).toContain('did not buy')
+    expect(lead.trim().split(/\s+/).length).toBeLessThan(9)
+    // The directive is the LAST line and it is not in the lead.
+    expect(block?.querySelector('.lp-share-call')?.textContent?.toLowerCase()).toContain(
+      'send it to a friend',
+    )
+    expect(lead.toLowerCase()).not.toContain('send it')
+  })
+
+  it('tells a stranger to press the button the app actually renders', () => {
+    // The hand-off names a control by label, which is the one kind of claim a
+    // rename breaks silently. The page prints LogCard's RESIST_LABEL; this
+    // asserts the other end — that the string is the accessible name of a real
+    // button in the shipped app, not just a constant both files import.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    expect(container.querySelector('.lp-share-body')?.textContent).toContain(RESIST_LABEL)
+    cleanup()
+    seedSavedState()
+    render(<Root />)
+    expect(screen.getByRole('button', { name: new RegExp(RESIST_LABEL) })).toBeTruthy()
   })
 })

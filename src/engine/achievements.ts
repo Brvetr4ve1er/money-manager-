@@ -83,10 +83,28 @@ export const ACHIEVEMENTS: ReadonlyArray<Achievement> = [
   },
   {
     id: 'ten-logs',
-    name: 'Ten in the Ledger',
+    // Renamed in round 5. This badge was named after a card that no longer
+    // exists — the one that merged into ArchiveCard, which calls itself "The
+    // record" in its own h2 — and it was the last piece of USER-FACING copy
+    // pointing at a deleted surface. A badge name is not a comment: a user
+    // hears it in a toast and goes looking for the card it names. The id is
+    // untouched, so nobody loses a badge they earned. README.test now holds
+    // this file to the same deleted-component roster as README.md and
+    // index.html, which is what would have caught it two rounds ago.
+    name: 'Ten in the Record',
     hint: 'Log 10 purchases.',
     pet: { glyph: 'nahla', name: 'Nahla' },
-    earned: (s) => s.transactions.filter(isPurchase).length >= 10,
+    // Counting loop with an early exit, not filter().length — the idiom App
+    // already uses for resistXpCapped, and for the same reason: the filter
+    // allocated an intermediate array over the WHOLE ledger to answer one
+    // boolean, and it answered the same after the tenth purchase as after the
+    // five-thousandth. This predicate runs on every dispatch until the badge
+    // is earned.
+    earned: (s) => {
+      let n = 0
+      for (const t of s.transactions) if (isPurchase(t) && ++n >= 10) return true
+      return false
+    },
   },
   {
     id: 'first-sim',

@@ -3,7 +3,9 @@ import { describe, it, expect } from 'vitest'
    nothing imports and no render can reach. A .ts file, not .tsx — jsdom gives
    import.meta.url an http:// URL that readFileSync rejects. */
 import { readFileSync } from 'node:fs'
-import { MECHANICS } from './components/Landing.tsx'
+import { MECHANICS, HAND_OFF_LEAD } from './components/Landing.tsx'
+import { RESIST_LABEL } from './components/LogCard.tsx'
+import { WINDOW_DAYS, EXPAND_STEP_DAYS } from './components/ArchiveCard.tsx'
 import {
   NOTE_MAX_LEN,
   DECISION_ANSWERS,
@@ -89,6 +91,28 @@ describe('every number in the README is the number in the code', () => {
     expect(FLAT).toContain(NOTE_DENOMINATIONS_DA.join(', '))
   })
 
+  it('counts the tiles on the card it says it deleted', () => {
+    // A DELETED surface is the one thing nobody can check by looking, so its
+    // description rots without symptom: the README, useRewards.ts and App.test
+    // all called the codex grid "32-tile" and it was never 32 at any commit —
+    // the grid rendered LESSONS.map and LESSONS has been 30 since it shipped.
+    // The paragraph is worth keeping (it is the record of WHY the card went),
+    // so the numbers in it get held to the rosters that produced them.
+    expect(FLAT).toContain(`${LESSONS.length}-tile codex grid`)
+    expect(FLAT).toContain(`${ACHIEVEMENTS.length}-tile badge shelf`)
+  })
+
+  it('states the disclosure step the record card actually opens on', () => {
+    // Added in round 5 with the windowed expand. Two numbers a reader can
+    // measure against the product in one press, so both are read from
+    // ArchiveCard rather than typed here.
+    expect(FLAT).toContain(`opens on the last ${WINDOW_DAYS} days`)
+    expect(FLAT).toContain(`grows ${EXPAND_STEP_DAYS} more per press`)
+    // The load-bearing half: a stepped window must never read as a shorter
+    // record, and the README has to say so or it is describing a truncation.
+    expect(FLAT).toContain('Nothing is hidden by it')
+  })
+
   it('counts the lessons, badges and quests that exist', () => {
     expect(FLAT).toContain(`${LESSONS.length}-lesson codex`)
     expect(FLAT).toContain(`${ACHIEVEMENTS.length} earn-only badges`)
@@ -129,6 +153,29 @@ describe('every number in the README is the number in the code', () => {
     expect(FLAT).toContain(`The last ${DECISION_MAX} runs are kept`)
     // …and the superseded claim cannot creep back in either document.
     expect(FLAT).not.toMatch(/every run (is )?kept/i)
+  })
+
+  it('leads the hand-off with the sentence the landing page leads with', () => {
+    /**
+     * THE PITCH EXISTS IN TWO DOCUMENTS. This file's whole thesis is that the
+     * second copy of a claim is the one that rots, and the pitch is the claim
+     * with the most to lose by rotting: the landing page sells it to a
+     * stranger, this file sells it to whoever the repo link reaches, and for
+     * four rounds they were two independently typed paragraphs that happened
+     * to agree.
+     *
+     * They are one string now — Landing.tsx's HAND_OFF_LEAD — so a rewrite of
+     * the fold either rewrites this file or fails here.
+     */
+    expect(FLAT).toContain(HAND_OFF_LEAD)
+    // And the button both documents tell a reader to press is LogCard's own
+    // label, not a remembered one.
+    expect(FLAT).toContain(RESIST_LABEL)
+    // The refusals that keep the claim honest, in both documents: full XP is
+    // claimed, a clean SCORE is not (profile.ts feeds yielded impulses to
+    // impulseControlScore, so "never counted against you" would be false).
+    expect(FLAT).toContain('full XP')
+    expect(FLAT).not.toMatch(/never counted against you|no penalty for buying/i)
   })
 
   it('names the three decision answers the simulator renders', () => {
@@ -183,11 +230,22 @@ describe('every command the README documents is a command that exists', () => {
     obvious one; index.html's comments and store.ts's quest rationale are the
     two that were also drifting — index.html's are stripped at build
     (scripts/htmlComments.ts) and store.ts's reach nobody at all, which is
-    precisely why nothing was pulling them back into line. */
+    precisely why nothing was pulling them back into line.
+
+    achievements.ts joined in round 5 and it is the worst offender of the four,
+    because its strings are not comments: a badge called "Ten in the Ledger"
+    was read out in a toast and sent the user looking for a card deleted two
+    rounds earlier. Copy a user can SEE naming a surface that no longer exists
+    is the failure this roster was built for; it just had not been pointed at
+    the file where the copy is data. */
 const CARD_NAMING_FILES: ReadonlyArray<readonly [string, string]> = [
   ['README.md', README],
   ['index.html', readFileSync(new URL('../index.html', import.meta.url), 'utf8')],
   ['src/state/store.ts', readFileSync(new URL('./state/store.ts', import.meta.url), 'utf8')],
+  [
+    'src/engine/achievements.ts',
+    readFileSync(new URL('./engine/achievements.ts', import.meta.url), 'utf8'),
+  ],
 ]
 
 /** Components no build renders. CollectionCard is the newest entry and the

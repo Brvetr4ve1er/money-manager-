@@ -314,6 +314,50 @@
   margin: var(--s2) 0 0;
   border-left: var(--keyline-heavy) solid var(--lp-flare);
   padding-left: var(--s2);
+}
+/* THE ROW'S INDEX. Same mono spec register as every other index on this poster
+   (.lp-index, .lp-corner, .lp-facts, .lp-shot-tag) — this one labels the fold's
+   one claim with its position in the spec sheet below, so it has to READ as one
+   of that family and not as a heading. Half-step gap, exactly as .lp-shot-tag
+   sets it: both are a caption clamped to the thing under them. */
+.lp-share-tag {
+  margin: 0 0 calc(var(--s1) / 2);
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+/* THE LEAD TAKES THE LEDE'S TIER, and that is the hierarchy fix, not a nudge.
+   The hand-off was one run of body-weight-700 text — the same size as the
+   paragraph above it and the paragraph below it — so the strongest sentence on
+   the page was distinguished from its neighbours by a 6px bar and nothing
+   else. At --fs-h3 it is the plate's second reading-tier line, under a --fs-h1
+   thesis: the ramp in the wall now reads d1 wordmark / h1 thesis / h3 lede /
+   h3 hand-off / body, and the two h3s are the two things a stranger has to
+   leave with. Still Graphite on Bone at 11.4:1 — the accent stays on the bar
+   and never touches a letterform (§2.1 rule 1). */
+.lp-share-lead {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: 700;
+  /* Same reason as .lp-thesis: an eight-word line orphans its last word on a
+     375px plate, and this is the sentence that has to survive the phone. */
+  text-wrap: balance;
+}
+/* The mechanic, in the app's own words. 500 rather than 700: the weight step
+   is the hierarchy between the claim and how it works, exactly as .lp-terms
+   steps down from the claim to the terms under it. */
+.lp-share-body {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
+/* The instruction, last, back at 700 — it is a peer of the lead, not of the
+   body between them. */
+.lp-share-call {
+  margin: var(--s1) 0 0;
   font-size: var(--fs-body);
   font-weight: 700;
 }
