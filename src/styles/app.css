@@ -48,8 +48,10 @@
   padding-inline: var(--s3);
 }
 /* THE MACRO-BREAK. Everything above is something to do today (log, quests,
-   boss, lesson, simulator, setup); the archive card and the collection sheet
-   are the archive — you read them, you do not act on them. --s3 gap +
+   boss, lesson, simulator, setup); the archive card below is the archive —
+   you read it, you do not act on it. (It used to be two cards: the collection
+   sheet sat here too, and it was the one thing in the read half that was not
+   a record. It is deleted.) --s3 gap +
    --s4 margin = --s5 of stage between the two halves, so the break is a whole
    step of the scale and reads as one at a glance.
 
@@ -595,16 +597,6 @@
      opens a gap above the row; middle centres it on the text instead. */
   vertical-align: middle;
 }
-/* Pre-empting the same trap for any future mark placed on the accent tiles.
-   Declared after .mark so it wins on source order — the :where() contributes
-   no specificity, and :not()'s does not apply to what it excludes. The locked
-   tiles are excluded on purpose: they are RECESSED (--sunken), not accent
-   fills, and on the .spec-sheet those two cards now stand on --sunken is
-   Espresso in both themes, where Graphite would be 1.15:1. There the
-   ground-swapping --keyline (Bone on the sheet, 13.4:1) is the correct ring. */
-:where(.ach-tile, .codex-tile):not(.ach-locked, .codex-locked) .mark {
-  border-color: var(--on-accent);
-}
 /* Ink, not Flare, and drawn rather than typed. Two changes, one cause:
    Flare-on-card measured 3.02:1 light and 3.79:1 dark, which is legal ONLY
    while the row counts as a graphical object (role="img") and only with 0.02
@@ -723,7 +715,7 @@
   border-radius: var(--r-sm);
   /* §5: everything snaps to the 8px baseline. The chip family (this,
      .quest-alldone, .boss-won, .lesson-collected, .kept-chip, .tx-impulse,
-     .quest-auto, .ach-medal) all ran ad-hoc rem padding between 0.02 and
+     .quest-auto) all ran ad-hoc rem padding between 0.02 and
      0.15rem; they share one half-step-of-the-scale value now. */
   padding: calc(var(--s1) / 2) var(--s1);
   font-size: var(--fs-spec);
@@ -1223,189 +1215,30 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   letter-spacing: var(--tr-cap);
   text-transform: uppercase;
 }
+/* THE CODEX, IN ONE LINE. All that is left of the deleted collection sheet
+   (see the note below .lesson-body): the `33/36` index label of §1 trait 10,
+   spent on the count itself instead of on 41 tiles drawn around it. Plain ink
+   on the card's own Bone ground at 11.4:1 — no plate, because unlike
+   .lesson-collected it is not a state marker, it is a printed figure. */
+.lesson-count { font-size: var(--fs-cap); font-weight: 700; }
 /* The lesson title is an h3 under the card's h2 — sub-heading scale, not the
    uppercase card-title rhythm, so the 2–3 sentence body reads as one unit. */
 .card .lesson-title { font-size: var(--fs-h3); margin-bottom: var(--s1); }
 .lesson-body { margin: 0 0 var(--s1); font-size: var(--fs-body); }
 
-/* THE COLLECTION SHEET — the codex and the badge shelf on one card (see
-   CollectionCard). The two halves are separated by space, not by a second
-   container: §1 trait 01 wants every mark inside a shape, and the shape here is
-   the card — nesting a second keyline inside it would draw a border the phone
-   cannot afford for a boundary the heading already states. */
-.collection-part + .collection-part { margin-top: var(--s3); }
-/* Sub-heading scale, like .lesson-title: these are sections INSIDE a card, and
-   §3's h2 step belongs to the card's own title. */
-.collection-card h3 { font-size: var(--fs-h3); }
-
-/* Codex — the lesson collection. */
-.codex-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--s1);
-  flex-wrap: wrap;
-}
-.codex-head h3 { margin-bottom: var(--s1); }
-.codex-count { font-size: var(--fs-cap); font-weight: 700; }
-.codex-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  /* min(), same reflow rule as landing.css's .lp-grid: a fixed track minimum
-     cannot shrink below itself, so at the 320px floor a tile grid inside a
-     padded card is one padding change away from pushing the document sideways
-     (WCAG 1.4.10). No-op at any width that fits the track. */
-  grid-template-columns: repeat(auto-fill, minmax(min(128px, 100%), 1fr));
-  gap: var(--s1);
-  /* Locked tiles hold one mark and collapse to --s5; collected ones hold a
-     title and a line. Without this the whole row stretched to the tallest
-     tile, so 30 near-empty boxes inherited a collected tile's height and the
-     codex ran to ~35% of the phone page at ~10% ink coverage — against §1
-     trait 08's 85–95%. Ragged rows are what an index sheet looks like. */
-  align-items: start;
-}
-/* Collected tile: the sheet's own counter pair — a Bone plate with Espresso
-   ink, 13.4:1 — not the Marigold plate it used to be. Tiles are
-   non-interactive display: they carry no press affordance, so they can never
-   be mistaken for the quest rows.
-
-   WHY THE ACCENT LEFT. This grid stands on .spec-sheet (§5B), whose field is
-   Espresso and whose ink is Bone. §2.1 rule 2 pins the ink on ANY accent fill
-   to Graphite and says it never flips — so a Marigold tile on this sheet puts
-   Espresso + Bone + Marigold + Graphite on one card, and §1 trait 06 / §11 cap
-   a surface at three (field + form + counter). The 4th tone was structural,
-   not incidental: it appeared the moment an accent tile stood on a ground
-   whose ink is not Graphite, and 32 codex tiles plus 9 badges is a surface,
-   not §1 trait 06's "a 4th color is an event". Earned-vs-locked is carried by
-   the fill AND the solid-vs-dashed keyline AND an .sr-only prefix, so nothing
-   here rides on hue (§12.8). Trust Rule 1's two-track colour coding is
-   untouched: --reward and --data still mark the engagement/reality split where
-   it is actually read — the XP bar, .kept-chip, .sim-result. */
-.codex-tile {
-  border: var(--keyline-w) solid var(--keyline);
-  border-radius: var(--r-sm);
-  background: var(--ink);
-  color: var(--counter);
-  padding: var(--s1);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-}
-/* Tier 2 at cap tracking, not the display face: §3 keeps Tier 1 for 1–3
-   stacked words in a container, and an 11px tile caption is neither. */
-.codex-tile-title {
-  font-family: var(--ui);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: var(--fs-spec);
-  letter-spacing: var(--tr-cap);
-}
-.codex-tile-line { font-size: var(--fs-cap); }
-/* Locked silhouette: recessed + dashed — the same "pending, not pressable"
-   language the verified quest box speaks. No dates, no countdowns: locked is
-   a neutral state, never a fear-of-missing-out lever.
-   On .spec-sheet --sunken IS the sheet's ground, so the locked tile is marked
-   by its dashed keyline alone and adds no fourth surface colour: 39 of these
-   at --s5 tall is exactly how the 8% Graphite budget went 6.6× over before. */
-.codex-locked {
-  border-style: dashed;
-  background: var(--sunken);
-  /* Full --ink, not --spec: --spec is mixed toward --ground and lands at
-     3.8:1 on a recessed Sand surface. The dashed keyline and the recessed
-     field already say "not yet"; the type does not need to go quiet too. */
-  color: var(--ink);
-  align-items: center;
-  justify-content: center;
-  min-height: var(--s5);
-}
-/* The mark fills the tile rather than floating in it — trait 08 again: the
-   container is the design, so the ink has to reach for its edges. */
-.codex-locked .mark {
-  width: var(--s4);
-  height: var(--s4);
-  font-size: var(--fs-h3);
-}
-
-/* Achievements — the badge shelf. Earned tiles are counter-pair plates in the
-   codex-tile family (non-interactive display, never the pressable-row
-   language of quest buttons — and see .codex-tile for why the accent left the
-   sheet); locked tiles are recessed + dashed with the earning hint visible:
-   locked is a neutral "not yet", never a shame state, and nothing on the shelf
-   is purchasable. */
-.ach-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--s1);
-  flex-wrap: wrap;
-}
-.ach-head h3 { margin-bottom: var(--s1); }
-.ach-count { font-size: var(--fs-cap); font-weight: 700; }
-.ach-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  /* min(), same reflow rule as landing.css's .lp-grid: a fixed track minimum
-     cannot shrink below itself, so at the 320px floor a tile grid inside a
-     padded card is one padding change away from pushing the document sideways
-     (WCAG 1.4.10). No-op at any width that fits the track. */
-  grid-template-columns: repeat(auto-fill, minmax(min(128px, 100%), 1fr));
-  gap: var(--s1);
-}
-.ach-tile {
-  border: var(--keyline-w) solid var(--keyline);
-  border-radius: var(--r-sm);
-  background: var(--ink);
-  color: var(--counter);
-  padding: var(--s1);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-}
-/* Wider than a 1:1 .mark because it holds two glyphs (badge + companion), but
-   still under aspect 1.5 — radius token, not clip-path. */
-.ach-medal {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--s1) / 2);
-  align-self: flex-start;
-  padding: calc(var(--s1) / 2) var(--s1);
-  border: var(--keyline-w) solid var(--keyline);
-  border-radius: var(--r-pill);
-  /* An icon box, not type: the two glyphs inside are 1em squares, so this
-     font-size IS their size. On the scale anyway, so it cannot drift. */
-  font-size: var(--fs-body);
-  line-height: 1;
-}
-/* The ring is --keyline (= --ink) by default, and this medal sits INSIDE
-   .ach-tile, whose fill is now that same --ink — a ring at 1:1 against the
-   plate it rings, i.e. no ring at all, and unlike the accent chips there is no
-   card field on the other side of it to work against. Pinned to the tile's own
-   foreground instead: --counter on --ink is 13.4:1 on the sheet, and the tile
-   stays inside §1 trait 06's three-tone cap. Same fix as .hero-stage-line
-   .mark, same cause — only the pair changed when the accent left. */
-.ach-tile .ach-medal { border-color: var(--counter); }
-/* Tier 2 at cap tracking, for the same reason as .codex-tile-title. */
-.ach-name {
-  font-family: var(--ui);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: var(--fs-spec);
-  letter-spacing: var(--tr-cap);
-}
-.ach-date { font-size: var(--fs-spec); }
-.ach-hint { font-size: var(--fs-cap); }
-/* Same "pending, not pressable" language as .codex-locked, and full --ink for
-   the same reason: the hint text is content (it names the action), so it must
-   not be dimmed onto a 3.8:1 pair against the recessed surface. */
-.ach-locked {
-  border-style: dashed;
-  background: var(--sunken);
-  color: var(--ink);
-}
+/* THE COLLECTION SHEET IS GONE, AND ITS RULES WENT WITH IT.
+   The codex grid and the badge shelf (.codex-*, .ach-*, .collection-*) were
+   ~41 tiles across two grids with no control on either — 62.5% of the card
+   stack's rendered elements on install day and 59.9% at day 40, measured by a
+   jsdom render probe on the ROUND-5 tree (a2d4e6d), last in the stack, behind
+   ~1,644px of 375px column. The whole block is deleted rather than commented
+   out: a
+   stylesheet that keeps rules for a surface no build renders is the same class
+   of lie as a README naming a deleted component, and this file's own selectors
+   are asserted against the DOM in src/styles/design.test.ts.
+   What survived is one count line — see .lesson-count above, and LessonCard for
+   why the count had to survive when the grid did not (§10: a sparkle may never
+   carry a milestone alone). */
 
 /* The window bar is this card's top edge, so it takes the corner strip the
    other cards reserve for the spec label. overflow:hidden is what pulls the
@@ -1563,6 +1396,67 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   font-weight: 700;
 }
 
+/* THE CHECK-BACK (see SimCard). Three states, and every one of them stays
+   inside the three tones this card already spends: --spec ink for the
+   scheduled promise, the card's own keyline for the recessed question, and
+   plain --ink for the filed answer. NO ACCENT ANYWHERE IN THIS BLOCK — the
+   card's one accent is .sim-result on the newest row (§1 trait 06 / §11's
+   three-colour cap), and a due question is not "an event" in trait 06's
+   sense: a user who buys weekly always has one. */
+
+/* "Check back in 6 days." The app naming a future it will keep, in the quiet
+   register — it is a note about this row, not a claim on the reader's
+   attention. --spec is 5.6:1 on Bone / 7.2:1 on Espresso (tokens.css). */
+.decision-schedule {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-cap);
+  color: var(--spec);
+}
+/* The due question, recessed inside its own keyline: §1 trait 01 — the group
+   is a thing, so it lives in a shape rather than floating between two
+   paragraphs. --sunken + --keyline are both already on this card, so the
+   recess adds no colour. */
+.decision-checkback {
+  margin-top: var(--s1);
+  padding: var(--s1);
+  border: var(--keyline-w) solid var(--keyline);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+}
+/* The elapsed count, in the spec register (§1 trait 10) — a printed figure,
+   not a sentence. */
+.checkback-head {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+  color: var(--spec);
+}
+/* The object, in the user's own words. Lead with the object (§7 rule 1), so
+   it takes the weight and the count above it stays a stamp. Word-break
+   because a note is free text and an 80-character run with no space in it
+   must not push the document sideways (WCAG 1.4.10). */
+.checkback-object {
+  margin: calc(var(--s1) / 2) 0 0;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+/* The filed answer. Identical declarations to .decision-outcome on purpose,
+   and separate from it on purpose too: they are different facts about the row
+   (what the user did, then what became of the object), and merging the
+   selectors would make a later change to one silently move the other. NO
+   VARIANT SELECTORS — there is no .checkback-using / .checkback-unused, so no
+   stylesheet edit can ever make one of the three peers read as the right
+   answer (§12.3 / §12.6). */
+.decision-checkback-answer {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-cap);
+  font-weight: 700;
+}
+
 /* Setup / "My numbers" card. Fieldsets group the optional sections (real
    <fieldset>/<legend> so AT reads the section name with each field) with the
    UA chrome stripped — the .field-label legend carries the visual grouping. */
@@ -1694,17 +1588,16 @@ form > .profile-note { margin-top: var(--s1); }
    "a 4th color is an event". On the LIGHT theme's Espresso .spec-sheet (Bone
    form) an Acid chip with its mandatory Graphite ink is a fourth hue — but it
    appears only when the user has resisted something this month, which is
-   exactly the event the trait allows. The 41 codex/badge tiles that used to
-   carry --reward were not an event, they were the surface, which is why they
-   lost the accent instead (see .codex-tile).
+   exactly the event the trait allows. (The 41 codex/badge tiles that used to
+   carry --reward were not an event, they were the surface — they lost the
+   accent for it, and then the whole sheet was deleted.)
    IN DARK THIS CARD TAKES THE SAND COUNTER GROUND, where --ink IS Graphite, so
    §2.1 rule 2's mandatory chip ink is the card's own form and the surface
    closes at three tones with no carve-out needed. What flips with it is which
    half of the chip draws its edge: on Espresso the fill carries it (Acid on
    Espresso 13.0:1) and the Bone ring is 1.03:1; on Sand the fill is 1.17:1 and
    the RING carries it (Graphite on Sand 9.5:1, Graphite ink on Acid 11.2:1).
-   One of the two is always well over the 3:1 non-text floor, which is the
-   argument .ach-medal could NOT make — hence that one is pinned instead. */
+   One of the two is always well over the 3:1 non-text floor. */
 .kept-chip {
   background: var(--data);
   color: var(--on-accent);
@@ -1913,7 +1806,7 @@ form > .profile-note { margin-top: var(--s1); }
    happening — iPad portrait and every half-width laptop window. The band
    already bleeds at every width now; this gives the stack a second track and
    a measure that matches the device, so the composition grows instead of
-   floating. The wide list/collection cards keep both tracks. */
+   floating. The wide list card keeps both tracks. */
 @media (min-width: 768px) {
   .main-stack {
     display: grid;
@@ -1922,8 +1815,8 @@ form > .profile-note { margin-top: var(--s1); }
     max-width: calc(760px + var(--s3) * 2);
   }
   .foot { max-width: 760px; }
-  /* The archive spans both tracks — a list and two collection grids are wide
-     content, and the macro-break above the ledger stays a full-width step
+  /* The archive spans both tracks — a day-grouped list and a per-day bar
+     strip are wide content, and the macro-break above it stays a full-width step
      because the row it opens is a full-width row.
      .persist-fault is in this list for a different reason: while empty it is
      position:absolute and not a grid item at all, so the healthy stack packs
@@ -1932,8 +1825,7 @@ form > .profile-note { margin-top: var(--s1); }
      itself at the exact moment something has gone wrong. Spanning both tracks
      keeps the card packing identical in both states. */
   .persist-fault,
-  .archive-card,
-  .collection-card { grid-column: 1 / -1; }
+  .archive-card { grid-column: 1 / -1; }
 }
 
 @media (min-width: 1024px) {

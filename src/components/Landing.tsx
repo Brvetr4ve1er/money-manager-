@@ -2,7 +2,14 @@ import { useMemo, type ReactNode } from 'react'
 import { Monogram } from './Monogram.tsx'
 import { Wordmark } from './Wordmark.tsx'
 import { ArchiveCard } from './ArchiveCard.tsx'
-import { todayISO, NOTE_MAX_LEN, DECISION_ANSWERS, DECISION_MAX } from '../state/store.ts'
+import {
+  todayISO,
+  NOTE_MAX_LEN,
+  DECISION_ANSWERS,
+  DECISION_MAX,
+  CHECK_BACK_ANSWERS,
+  CHECK_BACK_DAYS,
+} from '../state/store.ts'
 import { NOTE_DENOMINATIONS_DA } from '../engine/keypad.ts'
 import { sampleLedgerRows } from '../content/sampleLedger.ts'
 
@@ -149,6 +156,29 @@ export const MECHANICS: ReadonlyArray<{ title: string; body: ReactNode }> = [
         The last {DECISION_MAX} runs kept, with the line each printed.{' '}
         {DECISION_ANSWERS.map((a) => a.label).join(' · ')}. Answers, never a
         tally.
+      </>
+    ),
+  },
+  {
+    title: 'The check-back',
+    // THE ONE MECHANIC IN THE PRODUCT THAT SPANS WEEKS. Every "Bought it" row
+    // used to be a dead end; CHECK_BACK_DAYS after it closes, the record asks
+    // one factual question about the object and files the answer beside the
+    // projection it froze on the day.
+    // The labels are READ from CHECK_BACK_ANSWERS, like DECISION_ANSWERS above
+    // and the cash keys below: the page prints the app's own words or nothing.
+    // So is the horizon — CHECK_BACK_DAYS, not a typed 14.
+    // The last clause is the trust boundary and it is the load-bearing half.
+    // The obvious version of this feature asks "was it worth it?", which grades
+    // a past self (§12.6) — and the obvious follow-on counts the answers, which
+    // is a verdict about the user's character one step removed. Neither ships:
+    // there is no tally of these three anywhere in the product, and answering
+    // pays no XP and touches no health component.
+    body: (
+      <>
+        {CHECK_BACK_DAYS} days after &ldquo;Bought it&rdquo;, one question about
+        the object. {CHECK_BACK_ANSWERS.map((a) => a.label).join(' · ')}. Filed,
+        never counted.
       </>
     ),
   },

@@ -6,3 +6,8 @@ dist
 
 # Vitest JSON report, written in CI for the DOM-suite guard.
 vitest-report.json
+
+# Census screenshots (npm run census -- --keep-shots). The NUMBERS are the
+# committed artifact (docs/brand/census.json); the PNGs are ~40MB of evidence
+# for one run on one machine and would bloat the history within a round.
+docs/brand/census-shots/

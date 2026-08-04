@@ -128,18 +128,22 @@ describe('landing honesty (Trust Rule 5)', () => {
     }
   })
 
-  it('names seven mechanics and indexes them against their real count', () => {
+  it('names eight mechanics and indexes them against their real count', () => {
     const { container } = render(<Landing onEnter={() => {}} />)
     const indices = [...container.querySelectorAll('.lp-index')].map((n) => n.textContent)
     // §1 trait 10 is "decorative TRUTH-telling": the denominator has to be the
     // length of the list it captions, or the label is set dressing.
-    // Seven, and each one is a shipped surface: health score, resist,
-    // simulator, the decision record, monster, the month head, the row note.
-    // Written out rather than derived from MECHANICS on purpose — a test that
-    // reads the same array the component renders would pass on an empty grid.
-    // The seventh arrived with the record; a feature that ships without a claim
-    // is the same drift as a claim that ships without a feature.
-    expect(indices).toEqual(['01/07', '02/07', '03/07', '04/07', '05/07', '06/07', '07/07'])
+    // Eight, and each one is a shipped surface: health score, resist,
+    // simulator, the decision record, the check-back, monster, the month head,
+    // the row note. Written out rather than derived from MECHANICS on purpose —
+    // a test that reads the same array the component renders would pass on an
+    // empty grid. The seventh arrived with the record and the eighth with the
+    // check-back; a feature that ships without a claim is the same drift as a
+    // claim that ships without a feature, and this round shipped both a feature
+    // (the check-back) and a DELETION (the collection sheet) in one change.
+    expect(indices).toEqual([
+      '01/08', '02/08', '03/08', '04/08', '05/08', '06/08', '07/08', '08/08',
+    ])
     expect(container.querySelectorAll('.lp-badge')).toHaveLength(indices.length)
   })
 

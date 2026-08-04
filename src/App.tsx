@@ -17,16 +17,16 @@ import {
   exportJSON,
   subscribeToPeerWrites,
   todayISO,
+  type CheckBackAnswer,
   type DecisionOutcome,
   type Transaction,
 } from './state/store.ts'
 import { appReducer } from './state/reducer.ts'
 import { unlockedPets } from './engine/achievements.ts'
-import { lessonForDay } from './content/lessons.ts'
+import { lessonForDay, LESSON_IDS, LESSONS } from './content/lessons.ts'
 import { HeroShell } from './components/HeroShell.tsx'
 import { HeroCard } from './components/HeroCard.tsx'
 import { LessonCard } from './components/LessonCard.tsx'
-import { CollectionCard } from './components/CollectionCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
 import { QuestCard } from './components/QuestCard.tsx'
 import { BossCard } from './components/BossCard.tsx'
@@ -133,10 +133,29 @@ export default function App({
     }
     return false
   }, [state.xpLog, today])
-  const collectedLessonIds = useMemo(
-    () => new Set(state.lessonsSeen.map((e) => e.id)),
+  // Codex progress as ONE COUNT, which is all that is left of it. The 32-tile
+  // grid and the 9-tile badge shelf were 60% of this app's DOM and carried zero
+  // controls; they are deleted (see the card stack below). The count survives
+  // because useRewards still celebrates every fifth collected lesson, and §10
+  // is absolute — a sound may never carry a moment alone, so the milestone
+  // needs a persistent visible counterpart somewhere. One line on LessonCard is
+  // that counterpart. Counted against the roster, never the raw set size: the
+  // sanitizer drops unknown ids, but the denominator has to be the roster's.
+  const collectedLessons = useMemo(
+    () => state.lessonsSeen.filter((e) => LESSON_IDS.has(e.id)).length,
     [state.lessonsSeen],
   )
+  // Transaction id → the note the user typed on that row, for the decision
+  // record's check-back. Notes only: it is the single field on a money row that
+  // says WHAT something was, and the check-back has nothing else to name an
+  // object with (see SimCard's noteById).
+  const noteById = useMemo(() => {
+    const byId = new Map<string, string>()
+    for (const t of state.transactions) {
+      if (t.note !== undefined) byId.set(t.id, t.note)
+    }
+    return byId
+  }, [state.transactions])
 
   function readLesson() {
     // Two dispatches, one tap: READ_LESSON collects the lesson into the codex
@@ -299,6 +318,27 @@ export default function App({
     }
   }
 
+  /**
+   * THE CHECK-BACK, ANSWERED. Fourteen days after a decision was closed as
+   * "Bought it", the record asks one factual question about the object and
+   * files the answer beside the projection it froze on the day.
+   *
+   * NOTHING CROSSES HERE (§12.1), and this is the shortest handler in the file
+   * for exactly that reason: one dispatch, no XP, no grant, no health input, no
+   * counter. It is the same discipline CLOSE_DECISION follows, one step further
+   * out — a decision at least produces a money row on one of its three
+   * branches; a check-back produces nothing at all. The blip is the ordinary
+   * confirmation cue for a visible change (the buttons are replaced by the
+   * answer), never information on its own (§10).
+   */
+  function answerCheckBack(id: string, answer: CheckBackAnswer) {
+    // The hook's `today`, like every other date written in this render: the row
+    // labels the answer's day back to the user, and a fresh clock read in the
+    // minute after midnight would stamp a day the card does not believe it is.
+    dispatch({ type: 'ANSWER_CHECK_BACK', id, answer, date: today })
+    sfx.blip()
+  }
+
   function saveProfile(draft: ProfileDraft) {
     const firstSetup = state.profile === null
     // The hook's `today` for the same reason logPurchase uses it: savedDate
@@ -349,6 +389,101 @@ export default function App({
       announceExport("That didn't go through. Export blocked on this device.")
     }
   }
+
+  /**
+   * THE CARD STACK.
+   *
+   * A keyed array rather than inline JSX, and the keys are the point: a card
+   * that changes position inside a keyed list is MOVED by the reconciler
+   * instead of unmounted and remounted, so its state, its focus effects and its
+   * pending announcements survive the move. Nothing reorders today (see the
+   * note below), but the structure is what a reorder would need, and the
+   * alternative — two JSX slots for one card — silently drops focus to <body>
+   * on the exact commit that moves it.
+   *
+   * ORDER IS ALSO THE §11 CORNER INDEX. Each card prints its own position
+   * (HLT—01 … ARC—08) as decorative truth-telling (§1 trait 10), and App.test
+   * asserts the printed run is 01..n in this order. That coupling is why the
+   * order here is not conditional on state — see the note in App.test.
+   */
+  const cardStack = [
+    <HeroCard
+      key="health"
+      stage={health.stage}
+      score={health.score}
+      pets={pets}
+      components={health.components}
+      // Trust Rule 5, both halves: the score names its own calibration state
+      // under 90 days, AND names whose numbers it is scoring while the profile
+      // is still DEMO_PROFILE. Same flag SimCard reads, so the score and the
+      // simulator can never disagree about it.
+      historyDays={loggedDays}
+      isDemo={isDemo}
+    />,
+    <LogCard
+      key="log"
+      transactions={state.transactions}
+      onLog={logPurchase}
+      onUndo={undoLog}
+      resistXpCapped={resistXpCapped}
+      // Handed over by the decision record's "Bought it" (see closeDecision).
+      // The card fills its amount field and takes focus, which is also the
+      // focus hand-off for the button that just unmounted in the simulator.
+      prefill={logPrefill}
+    />,
+    // Level, XP and quests are one engagement surface — see QuestCard for why
+    // XpCard is no longer a card of its own.
+    <QuestCard
+      key="quests"
+      quests={state.quests}
+      onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })}
+      xp={state.xp}
+      gain={xpGain}
+    />,
+    <BossCard key="boss" battle={battle} wonLastWeek={wonLastWeek} />,
+    // "Got it" genuinely completes the verified lesson quest — the tap lands on
+    // today's actual lesson content, so the app observes the action instead of
+    // taking it on self-report. The codex count beside it is all that remains
+    // of the deleted collection sheet (see collectedLessons above).
+    <LessonCard
+      key="lesson"
+      lesson={todayLesson}
+      readToday={lessonReadToday}
+      onRead={readLesson}
+      collected={collectedLessons}
+      total={LESSONS.length}
+    />,
+    // Running a simulation genuinely completes the sim quest — a daily quest
+    // the app verifies instead of taking on self-report, so QuestCard renders
+    // it without a tap-to-complete button.
+    //
+    // THE DECISION RECORD AND ITS CHECK-BACK ride inside this card rather than
+    // becoming further surfaces: the simulator is the deepest engine in the
+    // app, and the fix for a shallow surface over a deep engine is depth, not
+    // breadth. See SimCard.
+    <SimCard
+      key="simulator"
+      profile={profile}
+      isDemo={isDemo}
+      today={today}
+      decisions={state.decisions}
+      noteById={noteById}
+      onRun={runSim}
+      onClose={closeDecision}
+      onCheckBack={answerCheckBack}
+    />,
+    <ProfileCard key="numbers" profile={state.profile} onSave={saveProfile} />,
+    // Opens the archive half of the stack (see .archive-card's macro-break in
+    // app.css) and, since the collection sheet was deleted, closes it too. The
+    // month figures and the days inside them are ONE surface — see ArchiveCard
+    // for why they stopped being two cards. Same `today` as every other date in
+    // this render, and for the stronger reason: this card states which day of
+    // the month it is and which group is headed "Today", so a fresh clock read
+    // here would let the page say "Day 5 / 31" over a row it had just stamped
+    // the 4th. It is handed transactions and a day and NOTHING else — no
+    // profile, so no budget figure can ever reach it (§12.3/§12.6).
+    <ArchiveCard key="archive" transactions={state.transactions} today={today} />,
+  ]
 
   return (
     <div className="shell">
@@ -419,71 +554,7 @@ export default function App({
             ? "That didn't go through. Nothing is saving to this device. Export to keep it."
             : ''}
         </p>
-        <HeroCard
-          stage={health.stage}
-          score={health.score}
-          pets={pets}
-          components={health.components}
-          // Trust Rule 5, both halves: the score names its own calibration
-          // state under 90 days, AND names whose numbers it is scoring while
-          // the profile is still DEMO_PROFILE. Same flag SimCard reads, so
-          // the score and the simulator can never disagree about it.
-          historyDays={loggedDays}
-          isDemo={isDemo}
-        />
-        <LogCard
-          transactions={state.transactions}
-          onLog={logPurchase}
-          onUndo={undoLog}
-          resistXpCapped={resistXpCapped}
-          // Handed over by the decision record's "Bought it" (see
-          // closeDecision). The card fills its amount field and takes focus,
-          // which is also the focus hand-off for the button that just
-          // unmounted in the simulator.
-          prefill={logPrefill}
-        />
-        {/* Level, XP and quests are one engagement surface — see QuestCard for
-            why XpCard is no longer a card of its own. */}
-        <QuestCard
-          quests={state.quests}
-          onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })}
-          xp={state.xp}
-          gain={xpGain}
-        />
-        <BossCard battle={battle} wonLastWeek={wonLastWeek} />
-        {/* "Got it" genuinely completes the verified lesson quest — the tap
-            lands on today's actual lesson content, so the app observes the
-            action instead of taking it on self-report. */}
-        <LessonCard lesson={todayLesson} readToday={lessonReadToday} onRead={readLesson} />
-        {/* Running a simulation genuinely completes the sim quest — a
-            daily quest the app verifies instead of taking on self-report, so
-            QuestCard renders it without a tap-to-complete button. */}
-        {/* THE DECISION RECORD rides inside this card rather than becoming a
-            thirteenth surface: the simulator is the deepest engine in the app
-            behind the shallowest surface, and the fix for that is depth, not
-            breadth. See SimCard. */}
-        <SimCard
-          profile={profile}
-          isDemo={isDemo}
-          today={today}
-          decisions={state.decisions}
-          onRun={runSim}
-          onClose={closeDecision}
-        />
-        <ProfileCard profile={state.profile} onSave={saveProfile} />
-        {/* Opens the archive half of the stack (see .archive-card's macro-break
-            in app.css). The month figures and the days inside them are ONE
-            surface — see ArchiveCard for why they stopped being two cards.
-            Same `today` as every other date in this render, and for the
-            stronger reason: this card states which day of the month it is and
-            which group is headed "Today", so a fresh clock read here would let
-            the page say "Day 5 / 31" over a row it had just stamped the 4th.
-            It is handed transactions and a day and NOTHING else — no profile,
-            so no budget figure can ever reach it (§12.3/§12.6). */}
-        <ArchiveCard transactions={state.transactions} today={today} />
-        {/* The codex and the badge shelf are one sheet — see CollectionCard
-            for why two identical tile grids stopped being two cards. */}
-        <CollectionCard collectedIds={collectedLessonIds} unlocks={state.achievements} />
+        {cardStack}
       </main>
 
       {/* spec-sheet: §5 layout B, and the closing plate of the archive it sits

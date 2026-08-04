@@ -48,6 +48,19 @@ function dayIndex(dayISO: string): number {
 }
 
 /**
+ * Whole local days from `fromISO` to `toISO`, negative when `toISO` is earlier.
+ *
+ * Exported so the check-back's scheduled line ("Check back in 6 days.") can
+ * count them without minting a fifth copy of the DST-safe day arithmetic
+ * documented at dayIndex above — that comment names the exact bug an hour-based
+ * subtraction produces twice a year, and a second implementation is a second
+ * chance for someone to write the naive one.
+ */
+export function daysBetween(fromISO: string, toISO: string): number {
+  return dayIndex(toISO) - dayIndex(fromISO)
+}
+
+/**
  * Heading for one day, computed from the `today` the caller believes it is —
  * never a fresh wall-clock read. Every date in a render must come from the one
  * day source (useHealthDay's `today`), or a list rendered at 00:00:01 labels

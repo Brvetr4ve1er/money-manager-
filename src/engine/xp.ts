@@ -15,6 +15,15 @@ export const XP_REWARDS = {
   resistImpulse: 50,
   runSimulation: 15,
   readLesson: 15,
+  // RETIRED AS A QUEST, RETAINED AS A GRANT ACTION. The `review` quest was
+  // deleted (see DEFAULT_QUESTS in state/store.ts — it paid for a tap the app
+  // could not observe), but this entry stays: XP_GRANT_ACTIONS is derived from
+  // the keys of this table, so removing it would make every persisted
+  // `quest:review:<day>` grant fail isXpGrant, and xpFromLog would then fold a
+  // smaller total than the counter the user was already shown. The engagement
+  // track may stop paying an action; it may not un-pay one it already did.
+  // Nothing dispatches it any more, so no new grant of this action can be
+  // minted — DEFAULT_QUESTS is the only vehicle that ever produced one.
   reviewRecent: 10,
   // Weekly boss victory (see engine/boss.ts): paid at most once per week via
   // the deterministic `boss:{weekStart}` grant id the BOSS_VICTORY reducer

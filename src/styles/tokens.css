@@ -84,7 +84,7 @@
   --keyline: var(--ink);
 
   /* Accent roles. Trust Rule 1 (two tracks, never crossed) is drawn in
-     colour: --reward is the engagement track (XP, quests, codex, badges),
+     colour: --reward is the engagement track (XP, quests, the lesson count),
      --data is the financial-reality track (health score, simulator, kept).
      They are never the same hue, so a reward can never be misread as a
      score. Both take --on-accent text (6.2:1 and 9.7:1, §2.1). */
@@ -302,12 +302,13 @@
 
                              §2 caps Void under 5% of surface, and that cap is
                              what used to forbid this: a census caught it at
-                             15.2% here. THAT CENSUS PREDATES .spec-sheet. The
-                             39 locked codex/badge tiles that made up most of it
-                             now recess onto the sheet's own ground, so what is
+                             15.2% here. THAT CENSUS PREDATES .spec-sheet, and
+                             the 39 locked codex/badge tiles that made up most
+                             of it have since been deleted outright. What is
                              left on --sunken in dark is five keypad keys, the
-                             profile/log inputs, the health track and one hover
-                             state — re-censused at 2.4% of the 375px page and
+                             profile/log inputs, the health track, the
+                             check-back recess and one hover state — censused
+                             at 2.4% of the 375px page and
                              1.3% at 1440, inside the cap with margin. If a new
                              surface ever takes --sunken by the screenful, this
                              is the line that has to be re-measured.
@@ -443,7 +444,7 @@ h3 {
   /* §11: every card carries a mono spec label in its top-right corner. The
      extra top padding is the reserved strip it hangs in — absolute-positioning
      it over the content would collide with the right-aligned status chips
-     (.quest-alldone, .kept-chip, .codex-count) that already live on that
+     (.quest-alldone, .kept-chip, .lesson-count) that already live on that
      line. 40px = --s4, still on the 8px grid. */
   padding: var(--s4) var(--s3) var(--s3);
 }
@@ -464,17 +465,20 @@ h3 {
    the container the mark logic already governs.
 
    INSIDE, not outside, and that is the measured half. Drawn outside, the ring
-   eats the Flare stage — trading one under-budget bucket (field, 53.5% on the
-   375px phone BEFORE the .spec-sheet swap below — superseded, kept only to
-   show what this decision was weighed against) for another (ink, 4.3% against
-   8%), which
-   is deviation-neutral and therefore pointless. Drawn inside it eats card
-   interior instead. Shot with and without, same seed, 375x812 light, ON THE
-   FINAL TREE OF THIS ROUND — this is the current figure, and the 53.5% above
-   and the ~62% projection below are both older than it:
-   60.5/33.5/3.7/2.2 without, 59.7/33.7/4.3/2.3 with — total deviation from
-   60/30/8/2 falls 8.5 -> 8.0, and -3.0 on the dark phone, where the ring is
-   Bone on Espresso and moves surplus field into the starved Bone bucket. Ink
+   eats the Flare stage — trading one bucket for another, which is
+   deviation-neutral and therefore pointless. Drawn inside it eats card
+   interior instead.
+
+   PROVENANCE: HISTORICAL, round 3 (2026, tree unrecorded — which is exactly
+   the defect round 5 built the census to end). Shot with and without, same
+   seed, 375x812 light: 60.5/33.5/3.7/2.2 without, 59.7/33.7/4.3/2.3 with —
+   deviation 8.5 -> 8.0, and -3.0 on the dark phone. THOSE FIGURES NO LONGER
+   DESCRIBE THIS FILE and are kept only as the record of what this decision was
+   weighed against: the DOM was restructured twice afterwards and the current
+   number for that screen is app.375x812.light.seeded in docs/brand/census.json,
+   which `npm run census` rewrites and src/styles/design.test.ts refuses to let
+   go stale. The DIRECTION the paragraph argues is unaffected — inside-vs-
+   outside is a choice about which bucket the ring eats, not about a level. Ink
    only rises on the six Bone-ground cards, because --keyline is --ink and --ink
    is Bone on a .spec-sheet: the ring is a Bone stroke there, not a Graphite
    one. That asymmetry is the whole reason the ink bucket cannot be filled on
@@ -505,23 +509,17 @@ h3 {
 
 /* THE SPEC SHEET (§5 layout B), as a token scope rather than a repaint.
    "B. THE SPEC SHEET — 4-up grid of badges ON ESPRESSO, captioned with mono
-   index labels." The codex and the badge shelf are literally that: two
-   auto-fill grids of badge tiles under mono counts. They were rendering as
-   ordinary Bone cards, so layout B existed nowhere in the product.
+   index labels." The codex and the badge shelf were literally that, and this
+   token scope was built for them.
 
-   IT CARRIES THE WHOLE ARCHIVE HALF OF THE STACK, not only those two cards,
-   and the extension is what finally closes §2's ratio law on a phone. A
-   full-page census put the 375px light app at 20.4% field against §2's 60%
-   floor and 68.5% Bone against a 30% budget — the two numbers are inverses,
-   because a scrolling card stack is Bone by area. Moving the codex and the
-   shelf across took the field to ~47% and Bone to ~53%: better, still broken
-   in both directions. The archive card is the same KIND of
-   surface — everything below .archive-card's --s4 macro-break is read, not
-   acted on — and it is ~990px of a ~5,500px stack at 327px wide, so the swap
-   moves a further ~324k px² out of the Bone bucket and into the field bucket:
-   field ~62%, Bone ~38% — ARITHMETIC, not a shot. The measured figure for the
-   final tree is the 59.7 recorded above; this projection ran high. Note what
-   the sheet does NOT claim to fix: §5 pins
+   THEY ARE DELETED, AND THE SCOPE OUTLIVED THEM ON PURPOSE. What still stands
+   here is the archive half of the stack — everything below .archive-card's
+   --s4 macro-break is read, not acted on, which is the same surface role §5B
+   is describing — plus BossCard and the foot. The historical arithmetic this
+   paragraph used to carry (a 375px light app at 20.4% field, then ~47%, then
+   ~62%) described trees that no longer exist and is not repeated; every
+   current figure is docs/brand/census.json, kept describing THIS tree by a
+   staleness test. Note what the sheet does NOT claim to fix: §5 pins
    the mobile grid margin at 20px, so the gutter is not a lever — every
    remaining Bone pixel is the act-now half of the stack, which has to stay the
    reading ground because that is where the forms and the primary actions are.
@@ -548,24 +546,22 @@ h3 {
    quiet register measured against the wrong ground (Graphite-mixed type on
    Espresso, ~1.5:1). Any new derived colour token must be repeated here too.
 
-   THREE TONES, and keeping it at three is why the tiles changed too. Before
-   the sheet, the codex and shelf were Bone field + Graphite form + Marigold
-   tiles, and Graphite doubled as §2.1 rule 2's mandatory --on-accent ink, so
-   the surface closed at exactly three (§1 trait 06, §11 "max three colours per
-   component"). Re-roling the field to Espresso and the form to Bone left the
-   accent tiles standing on a ground whose ink is no longer Graphite — and rule
-   2 pins the tile ink to Graphite and never flips it — so an accent grid on
-   this sheet is structurally a FOURTH tone. The tiles therefore take the
-   sheet's own counter pair instead (see .codex-tile / .ach-tile in app.css).
-   §1 trait 06 allows a 4th colour as "an event": a chip that appears when the
-   user resists (.kept-chip) is one; 41 tiles that are always there are not.
+   THREE TONES, and the rule that keeps it at three outlived the tiles that
+   forced it. Re-roling the field to Espresso and the form to Bone leaves any
+   accent fill here standing on a ground whose ink is no longer Graphite — and
+   §2.1 rule 2 pins that ink to Graphite and never flips it — so an accent
+   element on this sheet is structurally a FOURTH tone. §1 trait 06 allows a
+   4th colour as "an event": a chip that appears when the user resists
+   (.kept-chip) is one; a grid of 41 tiles that are always there was not, which
+   is why those tiles lost their accent before the card was deleted outright.
 
    THAT THREE-TONE ARITHMETIC IS ALSO THE RULE FOR WHICH CARDS MAY STAND HERE,
    and it is a harder constraint than the geometry it looks like. A page census
    of the 375px light app measured field 53.5% against §2's 60% floor and Bone
    40.0% against a 30% budget — THAT CENSUS PREDATES THIS RULE and is the
-   problem it was written to solve, not the current state; the post-fix shot is
-   59.7% field. Structural field on a phone is capped near
+   problem it was written to solve, not the current state, and 'current' has
+   moved twice since — read docs/brand/census.json. Structural field on a phone
+   is capped near
    19% (the column IS the viewport, so there are no gutters, and the hero is
    held off 100vh so the log card stays above the fold — see .hero-frame in
    app.css). Every remaining field pixel therefore has to come out of a card
@@ -577,7 +573,7 @@ h3 {
    control "closes at exactly three tones" while quietly omitting the input
    recess and the CTA keyline that are on screen permanently beside it:
      BONE CARD    field Bone · form Graphite · counter Sand (--sunken: the
-                  input, the note pad, the locked tile) · then ONE accent.
+                  input, the note pad, the check-back recess) · then ONE accent.
                   That is four hues, and it is four on purpose: it is §2's
                   ratio law spelled out — 60 field / 30 Bone / 8 Graphite / 2
                   one accent — with trait 06's three ROLES filled and the
@@ -591,7 +587,7 @@ h3 {
    The rule falls straight out of the second row. §2.1 rule 2 pins the
    foreground on ANY accent fill to Graphite and never flips it, so an accent
    control here spends the third hue on its fill and a FOURTH on its mandatory
-   ink — and Graphite on Espresso is 1.09:1, so that ink cannot be re-roled
+   ink — and Graphite on Espresso is 1.16:1, so that ink cannot be re-roled
    away either. On the Bone ground the same control costs nothing extra,
    because there Graphite is already the form.
    Hence the rule, and it is asserted in App.test.tsx rather than left here as
@@ -602,7 +598,7 @@ h3 {
    .btn-flame is the one exception the tally no longer catches and it stays off
    the sheet anyway, on the contrast rule rather than the count: since it lost
    its Flare ring it is a plain Graphite plate with a Bone label, no accent ink
-   at all — but Graphite on Espresso is that same 1.09:1, so on the sheet the
+   at all — but Graphite on Espresso is that same 1.16:1, so on the sheet the
    plate would have no edge and the primary action would read as loose Bone
    type. That leaves HeroCard (stage badge), LogCard, QuestCard (which now also
    carries the bare .xp-fill bar), LessonCard (.btn-gold), SimCard
@@ -610,21 +606,35 @@ h3 {
    Bone ground — which is 30% of the page doing the job the 30% is for: they
    are also every surface in the app with a form or a primary action on it.
 
-   Measured outcome of extending the sheet to the XP bar's old card, BossCard
-   and the foot,
-   plus the second contour above (same driver, same seed, populated state):
+   PROVENANCE: HISTORICAL, round 3, and TWO OF THE THREE ROWS WERE ALREADY
+   WRONG ABOUT THIS FILE WHEN ROUND 5 CHECKED THEM. Measured outcome of
+   extending the sheet to the XP bar's old card, BossCard and the foot, plus the
+   second contour above (same driver, same seed, populated state, tree
+   unrecorded):
      375x812 light   53.5/40.0/4.3/2.3  ->  59.7/33.7/4.3/2.3   dev 20.5 -> 8.0
      414x896 light   53.0/41.0/4.0/2.1  ->  59.5/34.4/4.0/2.1   dev 22.1 -> 9.0
      375x812 dark    85.7/ 8.9/3.4/2.1  ->  84.2/10.4/3.4/2.1   dev 51.5 -> 48.5
-   Field is now at law on the phone. The two honest gaps left are Bone (~3.7
-   over) and Ink (~3.7 under), and they are the SAME gap seen twice: ink is
-   Graphite, Graphite is legible only on Bone, Sand and (at >=24px) Flare, so
-   every point of ink this page can draw has to stand on a Bone card — and
-   every Bone card is a point of field the phone does not have. Ink and field
-   trade against each other one for one here. Closing the ink budget on a phone
-   needs a Graphite source that is not card type: that is a design-system
-   question (§5 pins borders to 2px and §6 declares an unused 6px keyline), not
-   a tuning miss, and it is deliberately left open.
+   The right-hand column claimed to describe the tree it sat in and did not: a
+   month card and a ledger card became one archive card, two more cards became
+   the collection card (since deleted), and the counter sheet below this
+   paragraph re-grounded both of those in dark — after these numbers were
+   written, in the same file. THE CURRENT FIGURES ARE docs/brand/census.json, rewritten by
+   `npm run census` and kept honest by a staleness test; the dark phone in
+   particular is nowhere near 84.2/10.4. Read them there, never from here.
+
+   WHAT SURVIVES IS THE ARGUMENT, and round 5 measured it as a law rather than
+   a claim. Ink is Graphite; Graphite is legible only on Bone, Sand and (at
+   >=24px) Flare — it is 1.16:1 on Espresso — so every point of ink this page
+   can draw has to stand on a Bone-family ground, and every Bone-family ground
+   is a point NOT in the field bucket. Ink and field trade one for one. That
+   makes an 8%-of-document ink budget and a 60%-of-document field budget
+   mutually unsatisfiable on one document, which is a defect in the target and
+   not in the app: the census records ink over the paper it can actually be
+   drawn on instead (law.scrollingForm.inkOnPaperMin, and `inkOnPaper` per row).
+   Closing the raw 8% on a phone would need a Graphite source that is not card
+   type; §5 pins borders to 2px and §6 declares an unused 6px keyline, and round
+   5 measured every keyline in the app at 1.8% of the document even if all of
+   them turned Graphite. So it is not reachable from here and is left open.
 
    Measured pairs on this surface (sRGB WCAG 2.x, computed — see the contrast
    block in design.test.ts, which recomputes them from these very mixes):
@@ -678,15 +688,14 @@ h3 {
    move (see below).
 
    WHY ONLY THIS CARD. Not taste, and not "half the sheet": every other card on
-   the sheet is held back by a rule or a measured pair.
-     · CollectionCard — §5B says "4-up grid of badges ON ESPRESSO",
-       unconditionally, and this card is that sentence twice (the codex grid and
-       the badge shelf). It stays.
+   the sheet is held back by a measured pair.
      · BossCard — .boss-fill is Flare: 2.51:1 on Sand against 4.41:1 on
        Espresso, i.e. under the 3:1 non-text floor.
      · the foot — .export-note's --keyline-heavy bar is Flare, same 2.51:1, and
        it is a fault marker.
-   Those two still stand. The archive card carries no Flare or Marigold mark:
+   Those two still stand. (A third, CollectionCard, was held back by §5B's
+   unconditional "4-up grid of badges ON ESPRESSO" and then joined in dark; the
+   card is deleted and that whole argument went with it.) The archive card carries no Flare or Marigold mark:
    the month strip is drawn in --ink and its one accent is the Acid .kept-chip,
    which is delimited by its 2px keyline rather than its fill (Graphite ring
    9.5:1 on Sand, Graphite ink on Acid 11.2:1 — the same argument that rule
@@ -696,54 +705,23 @@ h3 {
    sheet at all: it merged into QuestCard, which stands on the Bone reading
    ground — see QuestCard and .xp-fill in app.css.)
 
-   COLLECTIONCARD JOINED, AND §5B IS WHY IT DIDN'T BEFORE. The earlier version
-   of this rule held the collection back on one sentence: §5B says "4-up grid of
-   badges ON ESPRESSO", and this card is that sentence twice. The sentence is
-   still true and still binding — in LIGHT, where the page ground is Bone and an
-   Espresso sheet is a real, measured offset (ΔRGB 348). In DARK it describes
-   nothing: §2.2 swaps the ground to Espresso, so "badges on Espresso" became
-   badges on the same hex as the page, the card and the recess — card-to-sheet
-   1.00:1, ΔRGB 0. A layout rule that names a FIGURE-AND-GROUND relationship
-   cannot be satisfied by painting the figure the colour of the ground; §5B is
-   what this change SERVES in dark, not what it overrides, and the light theme
-   renders §5B verbatim either way because this rule is inside the dark query.
-
-   It passes the same arithmetic gate the archive passed. The card carries no
-   Flare and no Marigold: .codex-tile and .ach-tile are `background: var(--ink)`
-   with `color: var(--counter)` (app.css), which on this ground inverts to
-   Sand-on-Graphite at 9.52:1; .codex-locked and .ach-locked recess to --sunken
-   and keep their dashed --ink keyline, Graphite on Sand, the same 9.52:1 both
-   ways. .ach-medal's --counter ring is that pair again. Nothing on the card
-   needs an --on-accent, so no fourth tone appears.
-
-   IT IS ALSO THE CARD WITH THE MOST TO GIVE. On a fresh install almost all 41
-   tiles are locked, i.e. --sunken, i.e. (before this) Espresso on Espresso: the
-   tallest card in the stack paid its whole height into the field bucket and
-   returned Bone-family pixels only as keylines and text.
-
    THE HONEST COST, stated because it is the reason this stops where it does.
    Bone-family pixels are bright pixels: there is no way to pay §2's 30% Bone
-   budget in dark without emitting more light. Three states of the 375px dark
-   phone were measured with the pixel census, and only three — that census is
-   not in this repo, so the numbers below are quoted, never interpolated:
-     HEAD (no re-grounding)        luminance 0.139   deviation 51.6
-     archive card only            luminance 0.200   deviation 31.0
-     the WHOLE sheet re-grounded  luminance 0.314   deviation 14.0
-     (the LIGHT theme, for scale) luminance 0.389
-   This rule is now archive + collection: strictly between the second and third
-   rows on both axes, and much nearer the third, because the collection is the
-   tallest card on the sheet. IT HAS NOT BEEN RE-CENSUSED, and no fourth number
-   is written here rather than guessed — a measurement is a measurement. Boss
-   and the foot stay Espresso on the contrast grounds above, so the third row
-   remains an upper bound this cannot reach. The dial that is left is those two
-   cards, and it is closed by contrast arithmetic, not by taste.
+   budget in dark without emitting more light. Re-grounding the archive is a
+   measured step up in emitted luminance from a head with none of it, and
+   BossCard and the foot stay Espresso on the contrast grounds above, so the
+   whole-sheet state remains an upper bound this cannot reach. The dial that is
+   left is those two cards, and it is closed by contrast arithmetic, not taste.
+   (A longer version of this paragraph tracked a third card, CollectionCard,
+   through the same argument with quoted luminance figures from a census that
+   was never in this repo. The card is deleted and the quoted numbers are gone
+   with it — docs/brand/census.json is the only measurement this file cites.)
 
    THE DOUBLED SELECTOR IS LOAD-BEARING. `.spec-sheet.archive-card` is (0,2,0)
    and beats the (0,1,0) `.spec-sheet` above regardless of source order — a bare
    `.archive-card` would be a coin-flip on cascade order. It is also why this
    must name .spec-sheet: the card is still a spec sheet, re-grounded, not a
-   card that left the sheet. `.spec-sheet.collection-card` is the same shape for
-   the same reason.
+   card that left the sheet.
 
    Every derived token is re-declared for the same reason .spec-sheet re-declares
    them: a custom property's var() references are substituted where it is
@@ -760,9 +738,106 @@ h3 {
    over §2.1's 3:1 non-text floor. The Sand FIELD against that stage is 2.51:1,
    which is why the keyline is what delimits the card, exactly as the light
    theme's 3.02:1 Bone card is delimited by its Graphite keyline today. */
-@media (prefers-color-scheme: dark) {
-  .spec-sheet.archive-card,
-  .spec-sheet.collection-card {
+/* ROUND 5 EXTENDED THE ARCHIVE HALF OF THIS RULE INTO THE LIGHT THEME AT
+   >=1024px, AND THE MEASUREMENT IS WHY.
+
+   PROVENANCE, AND IT IS NO LONGER THIS TREE. Every figure in this block was
+   docs/brand/census.json as measured on the round-5 tree (a2d4e6d), which had
+   a ninth card: the collection sheet, ~1,644px of Espresso in light and Sand in
+   dark, in the tail of every app row. Round 6 DELETED it, which moved the tail
+   of every app document these numbers describe. The argument below survives
+   the deletion — a give-back only belongs where there is a surplus to give, and
+   1400 is still where the surplus is — but the SIZE of the surplus shrank with
+   the card. READ docs/brand/census.json, never this block, for what the tree
+   measures now; a staleness test keeps that file honest and nothing keeps this
+   paragraph honest but this sentence.
+
+   THE FINDING. The census's second reading (law.scrollingForm — §2 measured
+   over viewport-height windows rather than over the whole document) showed the
+   two themes failing as exact mirrors of each other on the desktop:
+
+     app.1440x900.light   head windows  72 / 53 / 53 % field
+                          tail windows  88 / 89 / 82        <- flooded
+     app.1440x900.dark    head windows  72 / 88 / 90 % field
+                          tail windows  53 / 27 / 38        <- the reverse
+
+   Same DOM, same widths. The tail is where the two spec sheets are, and in
+   dark this rule had already given both of them a Sand ground — which is why
+   dark's tail is the half that reads as paper and light's is the half that
+   reads as field. Light's tail had no Bone-family surface at all: a Flare
+   stage, two Espresso sheets, and Bone appearing only as keylines and type.
+
+   SO THE ARCHIVE TAKES THE COUNTER GROUND IN BOTH THEMES, AND THE COLLECTION
+   ONLY IN DARK. That is not a compromise between the two, it is the shape the
+   measurement asked for: exactly ONE of the two tail sheets is paper, so the
+   tail alternates instead of running as one 2300px block of a single hex. Both
+   sheets re-grounded is measurable over-correction — dark's 1440 tail window
+   at 27.0% field / 62.4% Bone is that state, breaching the amended law in the
+   opposite direction from light's 88.6% / 10.6%.
+
+   WHY THE WIDTH GATE, AND WHY 1400 RATHER THAN THE OBVIOUS 1024. This is a
+   GIVE-BACK: it only belongs where there is a surplus to give. Measured on the
+   ROUND-5 tree (a2d4e6d — see the provenance note above), light theme, before
+   the change:
+     app.375x812     51.2 field / 40.9 Bone   already UNDER the 60 target
+     app.1024x900    63.6 / 30.8              at law (window mean-dev 9.3)
+     app.1280x900    68.5 / 36.0              8pp over
+     app.1440x900    72.2 / 23.7              12pp over (window mean-dev 25.5)
+   and with the rule applied at each of those widths — all four measured, not
+   interpolated:
+     app.1024x900    47.5 / 46.1   dev 8.8 -> 32.2   window mean-dev 9.3 -> 29.3
+     app.1208x900    51.6 / 42.7                     window mean-dev      22.4
+     app.1280x900    54.3 / 40.3                     window mean-dev      17.8
+     app.1440x900    59.4 / 35.8   dev 24.4 -> 11.7  window mean-dev 25.5 -> 10.9
+   The card is worth 13-16 points wherever it lands, and only at 1440 is the
+   surplus that big. Gated at 1024 this rule is not a fix, it is the same defect
+   pointed the other way — it would take the one light desktop width that is
+   already at law and drive it 12 points under. THE SURPLUS IS THE GUTTER, and
+   that is what 1400 names: .main-stack is capped at 1128px (app.css, >=1024),
+   so above that width every additional pixel of viewport becomes bare Flare
+   stage, and 1400 is 1128 plus 136px of it per side. Below 1400 the stage has
+   not yet grown enough to have anything to give back. Both sides of the gate
+   are censused rows (scripts/census/matrix.ts) so that sentence stays a
+   measured claim rather than an argued one.
+
+   WHAT THAT LEAVES OPEN, STATED PLAINLY: 1280 light is now the worst light app
+   width in the matrix (68.5 field, 8 over) and nothing here fixes it. The lever
+   available at card granularity is 13-16 points against an 8-point debt — every
+   coin is bigger than the bill — so it is left alone rather than overpaid.
+
+   The phone is the screen this would hurt most: it is Bone-heavy already, and
+   its archive card is a far larger share of a 375px document than of a 1440px
+   one. §5 layout B keeps it on Espresso there, where the Espresso sheet against
+   the Bone reading ground is a real measured offset (ΔRGB 348) rather than a
+   ratio-law lever.
+
+   §5B IS UNTOUCHED. "4-up grid of badges ON ESPRESSO" named the COLLECTION
+   card, which no longer exists; the archive is a month strip and a day list, a
+   spec sheet in §1 trait 10's sense rather than §5B's badge grid. Its Sand is
+   §2's own word for the surface: "aged paper, spec sheets".
+
+   THE DECLARATIONS APPEAR ONCE NOW. They used to be duplicated into a second
+   media query for the collection card, with a test asserting the two bodies
+   were character-identical — derived tokens (--spec is a mix against --ground)
+   drift one value at a time, and a drifted copy is a contrast bug that shows up
+   on one branch, in one theme, at one width. Deleting the card deleted the
+   copy, which is the cheapest way that class of bug ever gets fixed.
+
+   CONTRAST IS UNCHANGED AND ALREADY IN THE TABLE BELOW: the pairs are the same
+   Graphite-on-Sand pairs the dark half has shipped since round 4, because the
+   card's own surface does not know what theme it is in. The one pair that IS
+   new is the card against the LIGHT page's Bone reading ground rather than
+   against the dark page's Espresso: Sand #DFD5BC on Bone #F5E6E0 is 1.20:1, so
+   the card is delimited by its 2px Graphite keyline (9.5:1 on Sand, 11.4:1 on
+   Bone) and not by its fill — the same construction, and the same argument,
+   that the paragraph below already makes for Sand on the Flare stage at 2.51:1.
+
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* THE ARCHIVE: the counter sheet in dark at any width, and in EITHER theme
+   from 1400px up. The comma is an OR. */
+@media (prefers-color-scheme: dark), (min-width: 1400px) {
+  .spec-sheet.archive-card {
     --ground: var(--sand);
     --field: var(--sand);
     --sunken: var(--sand);
@@ -773,6 +848,16 @@ h3 {
     --spec-sunken: color-mix(in srgb, var(--ink) 88%, var(--ground));
   }
 }
+/* THE COLLECTION SHEET HAD THE SECOND HALF OF THIS RULE, AND IT IS DELETED.
+   `.spec-sheet.collection-card` re-grounded the codex/badge card to Sand in
+   dark for the same reason the archive is re-grounded above. The card itself is
+   gone — 41 tiles, no controls, 60% of the app's DOM — so the rule went with
+   it rather than lingering as a selector that matches nothing. What that costs
+   is stated rather than hidden: the archive is now the ONLY counter-grounded
+   surface in the tail, so the alternation the paragraph above describes is no
+   longer an alternation, it is the whole tail. Read docs/brand/census.json for
+   what the tree actually measures after the deletion; nothing in this file
+   claims to know. */
 
 /* Same squircle corner on every other radiused box — controls, tiles and the
    status plates. Pills are left out on purpose: a 999px radius is already a
@@ -780,7 +865,7 @@ h3 {
    keeps specificity at zero so every component rule still wins on colour,
    size and the radius the press animates. */
 :where(
-  .btn, .field, .quest-box, .codex-tile, .ach-tile, .undo-strip, .sim-result,
+  .btn, .field, .quest-box, .undo-strip, .sim-result, .decision-checkback,
   .window-bar, .quest-alldone, .boss-won, .lesson-collected, .kept-chip,
   .xp-gain, .quest-auto, .tx-impulse
 ) {
@@ -867,7 +952,7 @@ h3 {
    replaced by a measured pair — --spec-sunken on --sunken is 5.35:1 light /
    10.31:1 dark, and 7.04:1 on the dark counter sheet — and the dashed keyline
    says "pending, not pressable" in the
-   same language .codex-locked and .quest-auto already speak. Never put
+   same language .quest-auto already speaks. Never put
    `opacity` on a control whose foreground and field are both tokenised.
    --spec-sunken, not --spec: --spec is mixed toward the GROUND and falls to
    3.98:1 on the Sand recess, under the body floor. */

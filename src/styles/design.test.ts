@@ -370,10 +370,14 @@ describe('§2 — the ratio law and the palette budget', () => {
     //
     // So the surfaces that paint the recess are ENUMERATED. Adding one fails
     // this test, which is the point: a new Void surface in dark needs a fresh
-    // census, not a passing suite. Four of these never resolve to Void at all —
-    // .boss-track and the two locked tiles sit on .spec-sheet, which re-declares
-    // --sunken as its own ground — so the live dark-Void set is the health
+    // census, not a passing suite. Two of these never resolve to Void at all —
+    // .boss-track sits on .spec-sheet, which re-declares --sunken as its own
+    // ground, and .decision-checkback is a recess inside a card that is Bone in
+    // light and Espresso in dark — so the live dark-Void set is the health
     // track, the XP track, the inputs, the keypad and one hover state.
+    // (Two more left this list entirely: .codex-locked and .ach-locked were 39
+    // of the tiles this budget was written about, and the card they were on is
+    // deleted.)
     const withoutComments = APP.replace(/\/\*[\s\S]*?\*\//g, '')
     const recessed: string[] = []
     for (const m of withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
@@ -381,9 +385,8 @@ describe('§2 — the ratio law and the palette budget', () => {
       recessed.push(m[1].trim().split('\n').map((l) => l.trim()).join(' '))
     }
     expect(recessed.sort()).toEqual([
-      '.ach-locked',
       '.boss-track',
-      '.codex-locked',
+      '.decision-checkback',
       '.field',
       '.health-track',
       '.note-key',
@@ -418,17 +421,18 @@ describe('§2 — the ratio law and the palette budget', () => {
   })
 
   describe('§1 trait 06 — dark gets the counter role back, in Sand', () => {
-    /** The dark @media rule whose selector names the month card — found by
-        searching every dark block rather than by position, so re-ordering the
-        file cannot silently make these assertions match nothing. */
-    const rule = () =>
-      [
-        ...TOKENS.matchAll(
-          /@media \(prefers-color-scheme: dark\) \{\s*([^{}]+?)\s*\{([\s\S]*?)\n  \}/g,
-        ),
-      ].find((m) => m[1].includes('archive-card'))
-    const counterSel = () => rule()?.[1] ?? ''
-    const counter = () => rule()?.[2] ?? ''
+    /** Every counter-sheet rule: a @media block, whatever its condition, whose
+        selector re-grounds a .spec-sheet card. Found by searching rather than
+        by position, so re-ordering the file cannot silently make these
+        assertions match nothing — and the condition is captured, because round
+        5 gave the two cards different ones. */
+    const rules = () => [
+      ...TOKENS.matchAll(/@media ([^{]*?) \{\s*(\.spec-sheet\.[^{}]+?)\s*\{([\s\S]*?)\n  \}/g),
+    ]
+    const ruleFor = (card: string) => rules().find((m) => m[2].includes(card))
+    const conditionFor = (card: string) => ruleFor(card)?.[1] ?? ''
+    const counterSel = () => rules().map((m) => m[2].trim())
+    const counter = () => ruleFor('archive-card')?.[3] ?? ''
 
     it('re-grounds the archive card a dark theme leaves role-less', () => {
       // §2.2 swaps the GROUND and stops there; nothing in it swaps the COUNTER,
@@ -463,14 +467,17 @@ describe('§2 — the ratio law and the palette budget', () => {
       )
     })
 
-    it('is scoped by doubled selectors, to exactly the two markless cards, in dark only', () => {
+    it('is scoped by doubled selectors, to exactly the two markless cards', () => {
       // `.spec-sheet.archive-card` is (0,2,0) and beats the (0,1,0)
       // `.spec-sheet` regardless of source order. A bare `.archive-card` is
       // (0,1,0) — a tie, and ties are settled by whichever rule comes last.
-      expect(counterSel().split(',').map((s) => s.trim())).toEqual([
-        '.spec-sheet.archive-card',
-        '.spec-sheet.collection-card',
-      ])
+      // ONE rule, where there were two. The second was
+      // `.spec-sheet.collection-card`, and the card it scoped — 41 tiles, no
+      // controls — is deleted, so the duplicated declaration body and the test
+      // that kept the two copies character-identical are both gone with it.
+      // Asserted as an equality so a selector matching no DOM cannot creep back
+      // in behind a passing suite.
+      expect(counterSel()).toEqual(['.spec-sheet.archive-card'])
       // WHY IT STOPS HERE, as arithmetic rather than taste. Flare on Sand is
       // 2.51:1 against 4.41:1 on Espresso — so .boss-fill's Flare bar and
       // .export-note's Flare fault bar would each drop under WCAG 1.4.11's 3:1
@@ -480,28 +487,19 @@ describe('§2 — the ratio law and the palette budget', () => {
       // (The Marigold .xp-fill was a third case at 1.49:1 on Sand; it left the
       // sheet entirely when the XP bar merged into QuestCard.)
       //
-      // THE COLLECTION QUALIFIES ON THE SAME GATE, and the gate is checked here
-      // rather than trusted: its 41 tiles are the sheet's own ink/counter pair,
-      // not an accent fill, so re-grounding them inverts Graphite↔Sand at
-      // 9.52:1 both ways instead of dropping an accent onto a lighter surface.
-      // If a tile ever takes --reward or --data, this fails and the card has to
-      // leave the counter ground.
-      for (const tile of ['codex-tile', 'ach-tile']) {
-        const body = new RegExp(`\\n\\.${tile} \\{([^}]*)\\}`).exec(APP)?.[1] ?? ''
-        expect(body).toMatch(/background: var\(--ink\)/)
-        expect(body).toMatch(/color: var\(--counter\)/)
+      // AND NOTHING NAMES THE DELETED CARD. A token scope whose selector
+      // matches no DOM is dead weight that reads as live rule; this is the
+      // stylesheet half of the deletion, asserted rather than assumed.
+      expect(TOKENS).not.toContain('.spec-sheet.collection-card {')
+      for (const gone of ['.codex-tile', '.ach-tile', '.codex-locked', '.ach-locked']) {
+        expect(`${gone}: ${new RegExp(`\\n\\${gone} \\{`).test(APP)}`).toBe(`${gone}: false`)
       }
-      for (const locked of ['codex-locked', 'ach-locked']) {
-        const body = new RegExp(`\\n\\.${locked} \\{([^}]*)\\}`).exec(APP)?.[1] ?? ''
-        expect(body).toMatch(/background: var\(--sunken\)/)
-        expect(body).not.toMatch(/var\(--(reward|data|alert|stage|flare|marigold)\)/)
-      }
-      //
-      // …and it is dark-only. Light's counter role is already spent by the Bone
-      // cards standing on the Espresso sheet; Sand on Bone is 1.20:1.
-      const darkBlocks = [...TOKENS.matchAll(/@media \(prefers-color-scheme: dark\) \{/g)]
-      expect(darkBlocks).toHaveLength(2)
-      expect(TOKENS.indexOf('.spec-sheet.archive-card')).toBeGreaterThan(darkBlocks[1].index!)
+      // The ARCHIVE takes it in dark at any width OR from 1400px in either
+      // theme. 1400 is measured, not chosen: docs/brand/census.json carries
+      // app.1024/1280/1440 either side of the gate, and applying this rule at
+      // 1024 was measured to drive that width from 63.6% field to 47.5% — the
+      // same defect pointed the other way. See the block above the rule.
+      expect(conditionFor('archive-card')).toBe('(prefers-color-scheme: dark), (min-width: 1400px)')
     })
   })
 
@@ -1047,6 +1045,33 @@ describe('§2.1 rule 3 — every pair on a surface is computed, not asserted', (
     expect(contrast(RAW.bone, RAW.flare)).toBeGreaterThanOrEqual(3)
   })
 
+  it('pins the two pairs the comments got wrong, so they cannot come back', () => {
+    // Round 5 recomputed every ratio it was about to quote and found two that
+    // the tree had been repeating without checking:
+    //   Graphite on Espresso — written 1.09:1 in tokens.css (three places) and
+    //     App.test.tsx, and 1.16:1 in landing.css and design.test.ts. The same
+    //     pair, two values, both load-bearing: it is the reason ink cannot be
+    //     drawn on the sheet, which is the reason the ink budget and the field
+    //     budget cannot both be met (see §2.1b).
+    //   Sand on Bone — 1.20:1, and the light counter sheet's whole argument is
+    //     that its Graphite keyline delimits it because its fill does not.
+    // The overclaim guard below could never catch either: both are UNDER the
+    // ceiling. Under-claims are the more dangerous kind, because a comment that
+    // understates a ratio makes a rule look more necessary than it is.
+    expect(round(contrast(RAW.graphite, RAW.espresso))).toBe(1.16)
+    expect(round(contrast(RAW.sand, RAW.bone))).toBe(1.2)
+    const sheets = [
+      ['tokens.css', readFileSync(new URL('./tokens.css', import.meta.url), 'utf8')],
+      ['landing.css', readFileSync(new URL('./landing.css', import.meta.url), 'utf8')],
+      ['app.css', readFileSync(new URL('./app.css', import.meta.url), 'utf8')],
+    ] as const
+    for (const [name, css] of sheets) {
+      expect(`${name}: ${css.includes('1.09:1') ? 'still says 1.09:1' : 'clean'}`).toBe(
+        `${name}: clean`,
+      )
+    }
+  })
+
   it('leaves no stylesheet comment claiming a ratio the palette cannot produce', () => {
     // Not every figure in the comments is machine-checkable — some name a pair
     // in prose — but a ratio over the palette's own maximum is always wrong.
@@ -1085,6 +1110,144 @@ describe('§2.1 rule 3 — every pair on a surface is computed, not asserted', (
       }
     }
     expect(overclaims).toEqual([])
+  })
+})
+
+/**
+ * ROUND 5's STRUCTURAL FIX, HALF TWO.
+ *
+ * Half one is the census itself (scripts/census/, docs/brand/census.json) and
+ * the staleness hash that fails the suite when the artifact stops describing
+ * the tree. This is the other half, and it exists because the artifact cannot
+ * defend the PROSE: rounds 3 and 4 both published a pixel vector that had
+ * outlived the tree it described, and round 5 found two of them still sitting
+ * in tokens.css — one 150 lines above the rule that had invalidated it, in the
+ * same file. An undated number is the defect. So a number without a stated
+ * provenance is now a test failure.
+ */
+describe('no pixel figure in a stylesheet may be undated', () => {
+  /** A ratio-law vector: `59.7/33.7/4.3/2.3`, spaces optional. */
+  const VECTOR = /\d{1,3}\.\d\s*\/\s*\d{1,3}\.\d\s*\/\s*\d{1,3}\.\d\s*\/\s*\d{1,3}\.\d/g
+  /** Every /* … *\/ block, with its offset, so a hit can be traced to one. */
+  const comments = (css: string) => [...css.matchAll(/\/\*[\s\S]*?\*\//g)]
+
+  const RAW_SHEETS: [string, string][] = [
+    ['tokens.css', readFileSync(new URL('./tokens.css', import.meta.url), 'utf8')],
+    ['app.css', readFileSync(new URL('./app.css', import.meta.url), 'utf8')],
+    ['landing.css', readFileSync(new URL('./landing.css', import.meta.url), 'utf8')],
+  ]
+
+  it('makes every quoted ratio vector name where it came from', () => {
+    const undated: string[] = []
+    for (const [name, css] of RAW_SHEETS) {
+      for (const block of comments(css)) {
+        const hits = block[0].match(VECTOR)
+        if (hits === null) continue
+        // The rule, in full: a comment block that quotes a measurement must
+        // carry a PROVENANCE line, and that line must either point at the
+        // committed artifact — which a hash keeps current — or declare itself
+        // HISTORICAL, which is a promise that nobody will steer by it.
+        const provenance = /PROVENANCE:[\s\S]*?(census\.json|HISTORICAL)/.exec(block[0])
+        if (provenance === null) {
+          const line = css.slice(0, block.index).split('\n').length
+          undated.push(`${name}:${line} quotes ${hits[0]} with no PROVENANCE line`)
+        }
+      }
+    }
+    expect(undated).toEqual([])
+  })
+
+  it('still finds the figures it is meant to be guarding', () => {
+    // A regex that matched nothing would pass the test above forever. This is
+    // the silent-skip guard: the vectors ARE there, and they are in tokens.css.
+    const found = RAW_SHEETS.flatMap(([name, css]) => (css.match(VECTOR) ?? []).map(() => name))
+    expect(found.length).toBeGreaterThanOrEqual(4)
+    expect(new Set(found).has('tokens.css')).toBe(true)
+  })
+})
+
+/**
+ * §2 / round 5 — the counter sheet, which now has two conditions and therefore
+ * two copies of one declaration body.
+ */
+describe('§2.2 — the counter sheet re-grounds the archive without drifting', () => {
+  const RAW_TOKENS = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8')
+
+  /** The declaration body of the first rule whose selector matches. */
+  const bodyOf = (selector: string): string => {
+    const at = RAW_TOKENS.indexOf(`\n  ${selector} {`)
+    expect(`${selector} present: ${at !== -1}`).toBe(`${selector} present: true`)
+    const open = RAW_TOKENS.indexOf('{', at)
+    const close = RAW_TOKENS.indexOf('}', open)
+    return RAW_TOKENS.slice(open + 1, close)
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  it('declares the counter ground exactly once', () => {
+    // It used to be twice: CSS cannot hand one declaration body to two media
+    // queries, so `.spec-sheet.collection-card` carried a character-identical
+    // copy and a test kept the two in step — --spec is a mix against --ground,
+    // so one drifted value is a contrast bug that appears on one branch, in one
+    // theme, at one width. The collection card is deleted; the copy went with
+    // it, and the eight declarations exist in exactly one place again.
+    expect(bodyOf('.spec-sheet.archive-card')).toContain('--ground: var(--sand)')
+    expect(RAW_TOKENS.split('--counter: var(--sand);')).toHaveLength(2)
+  })
+
+  it('grounds the archive on Sand from 1400px up as well as in dark', () => {
+    // The comma is an OR. The width is a MEASURED choice, not a round number:
+    // see the block above the rule, and the app.1024/1280/1440 rows in
+    // scripts/census/matrix.ts that stand either side of it.
+    expect(RAW_TOKENS).toMatch(
+      /@media \(prefers-color-scheme: dark\), \(min-width: 1400px\) \{\s*\.spec-sheet\.archive-card \{/,
+    )
+    // …and it is the only card that takes it. The second counter-grounded
+    // selector was the collection card's, which is deleted.
+    expect(RAW_TOKENS).not.toContain('collection-card {')
+  })
+})
+
+/**
+ * §5A / §1 trait 01 — a container that spans the measure is not a container.
+ */
+describe('§5A — the landing badge stops being a slab on the phone', () => {
+  it('drops the fill and keeps the keyline below 720px', () => {
+    const phone = /@media \(max-width: 719px\) \{\s*\.lp-badge \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
+    expect(phone).not.toBe('')
+    // §1 trait 05's optical outline replaces the fill: no background, and the
+    // ink and the ring both move to the counter so they read on the Espresso
+    // field (§2.1: Bone on Espresso is 13.4:1, better than the 11.4:1 pair it
+    // replaces). The shape itself — border width, radius, corner-shape,
+    // padding — is untouched, because trait 01 still applies.
+    expect(phone).toMatch(/background: none/)
+    expect(phone).toMatch(/color: var\(--lp-counter\)/)
+    expect(phone).toMatch(/border-color: var\(--lp-counter\)/)
+    expect(phone).not.toMatch(/border-radius|corner-shape|padding|border-width/)
+  })
+
+  it('leaves the badge a filled plate at the width where it is an object', () => {
+    // The base rule is unchanged: at >=720 the grid is 2-up or 3-up and the
+    // badge is one object among several standing in the field, which is the
+    // composition §5A asks for and the one the census measures at law.
+    const base = /\n\.lp-badge \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
+    expect(base).toMatch(/background: var\(--lp-counter\)/)
+    expect(base).toMatch(/color: var\(--lp-form\)/)
+  })
+
+  it('turns the badge inside out only where nothing in it can take focus', () => {
+    // CONSTRAINT: Trust Rule 8. The page-level ring is Graphite (.landing
+    // :focus-visible), which is 1.16:1 on Espresso — the exact trap
+    // .lp-spec:focus-visible exists to fix. Making the badge transparent is
+    // only safe while no control lives inside one, and Landing.tsx renders a
+    // span, an h3 and a p. If that ever changes, this rule needs the .lp-spec
+    // treatment BEFORE the fill comes off.
+    const landingTsx = readFileSync(new URL('../components/Landing.tsx', import.meta.url), 'utf8')
+    const badge = /className="lp-badge"[\s\S]*?<\/li>/.exec(landingTsx)?.[0] ?? ''
+    expect(badge).not.toBe('')
+    expect(badge).not.toMatch(/<(a|button|input|select|textarea)\b|tabIndex/)
   })
 })
 

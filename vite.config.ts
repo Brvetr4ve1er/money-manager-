@@ -96,7 +96,12 @@ export default defineConfig(({ mode, command }) => {
       // Component tests (*.test.tsx) need a DOM; engine/state tests stay on
       // the faster node environment.
       environmentMatchGlobs: [['**/*.test.tsx', 'jsdom']],
-      include: ['src/**/*.test.{ts,tsx}'],
+      // scripts/ is in the include list because scripts/census/census.test.ts
+      // holds the staleness guard for docs/brand/census.json. Without this
+      // line that file would sit in the repo looking like coverage and never
+      // execute — a silent skip, which is the failure mode this pipeline has
+      // already shipped twice (see scripts/assert-dom-tests-ran.mjs).
+      include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
     },
   }
 })

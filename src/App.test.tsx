@@ -5,7 +5,15 @@ import * as sfx from './audio/chiptune.ts'
 import { computeHealthScore } from './engine/healthScore.ts'
 import { deriveHealthInputs, finalizeHealthThrough, DEMO_PROFILE } from './engine/profile.ts'
 import { LESSONS, lessonForDay } from './content/lessons.ts'
-import { NOTE_MAX_LEN, todayISO, type Transaction } from './state/store.ts'
+import {
+  NOTE_MAX_LEN,
+  todayISO,
+  addDaysISO,
+  DEFAULT_QUESTS,
+  CHECK_BACK_DAYS,
+  CHECK_BACK_ANSWERS,
+  type Transaction,
+} from './state/store.ts'
 import { XP_REWARDS } from './engine/xp.ts'
 
 // Sounds are reinforcement only; jsdom has no AudioContext, so stub the module.
@@ -48,10 +56,25 @@ describe('quest completion', () => {
 
   it('completes a self-report quest from a tap on the quest text (whole row is the button)', () => {
     render(<App />)
-    const text = screen.getByText('Look back over your recent purchases')
+    // `log` is the ONLY self-report quest left. The `review` quest was deleted:
+    // it paid 10 XP for a tap the app could not observe, and its own rationale
+    // comment conceded that in writing. `log` at least names rows the app can
+    // see arrive in the ledger.
+    const text = screen.getByText('Log every purchase today')
     expect(text.closest('button')).not.toBeNull()
     fireEvent.click(text)
-    expect(xpNow()).toBe(10)
+    expect(xpNow()).toBe(5)
+  })
+
+  it('ships no quest the app cannot observe — the deleted one stays deleted', () => {
+    // A daily grant with no observable referent is the engagement track paying
+    // for nothing, which is exactly what Trust Rule 1 keeps away from the
+    // score — and keeping it off the score is not a licence to mint it on the
+    // engagement side. Three quests, two of them verified by the app itself.
+    render(<App />)
+    expect(screen.queryByText('Look back over your recent purchases')).toBeNull()
+    expect(DEFAULT_QUESTS.map((q) => q.id)).toEqual(['log', 'lesson', 'sim'])
+    expect(document.querySelectorAll('#quests li')).toHaveLength(3)
   })
 
   it('renders the verified sim quest without a tappable row — no XP from a tap', () => {
@@ -109,7 +132,6 @@ describe('quest completion', () => {
     // inconsistently. Each one now names its quest, in completion order.
     for (const done of [
       'Quest done. Log every purchase today',
-      'Quest done. Look back over your recent purchases',
       "Quest done. Read today's lesson",
     ]) {
       expect(toast().textContent).toBe(done)
@@ -407,10 +429,14 @@ describe('daily lesson + codex', () => {
     // grew past the two shelves. Structural field on a 375px phone is capped
     // near 19% — the column IS the viewport, so there are no gutters, and the
     // hero is deliberately held off 100vh so the log card stays above the fold
-    // — so every remaining field pixel has to come out of a card body. Cards
-    // shot at 375x812 populated, light: 53.5 field / 40.0 Bone before XpCard,
-    // BossCard and the foot moved across, 59.7 / 33.7 after. That budget used
-    // to be a claim only a stylesheet comment made. It is this assertion.
+    // — so every remaining field pixel has to come out of a card body.
+    // Historical, and dated: cards shot at 375x812 populated, light, on the
+    // ROUND-3 tree read 53.5 field / 40.0 Bone before XpCard, BossCard and the
+    // foot moved across and 59.7 / 33.7 after. Round 6 deleted the collection
+    // sheet, so neither number describes this tree — docs/brand/census.json
+    // does, and a staleness test keeps it describing the tree it ships with.
+    // What this test asserts is not a ratio but WHICH CARDS carry the class:
+    // that budget used to be a claim only a stylesheet comment made.
     //
     // Identified by their §11 corner marks rather than by class: the index is
     // the card's own printed name, it is on every card, and it does not drift
@@ -424,12 +450,13 @@ describe('daily lesson + codex', () => {
     // operated). They are different axes and only the first one has to be
     // contiguous.
     //
-    // Three sheets where there were six, and the same pixels: the codex and the
-    // badge shelf merged into COL—09, the month card and the ledger into
-    // ARC—08, and the XP bar left the sheet entirely for QuestCard's Bone
-    // ground (see QuestCard / .xp-fill). Consolidation, not retreat — the list
-    // is asserted as an equality, so a card silently leaving the sheet fails.
-    expect(sheets).toEqual(['BOS—04', 'ARC—08', 'COL—09'])
+    // TWO sheets where there were six. The month card and the ledger merged
+    // into ARC—08, the XP bar left the sheet for QuestCard's Bone ground (see
+    // QuestCard / .xp-fill), and COL—09 — the codex grid and the badge shelf,
+    // the two cards §5B's sentence was literally about — was DELETED: 41 tiles,
+    // no controls, 60% of the app's rendered DOM. The list is asserted as an
+    // equality, so a card silently joining or leaving the sheet fails here.
+    expect(sheets).toEqual(['BOS—04', 'ARC—08'])
     // Still cards: the sheet is a surface role, not a replacement container.
     for (const el of document.querySelectorAll('main .spec-sheet')) {
       expect(el.className).toContain('card')
@@ -478,7 +505,11 @@ describe('daily lesson + codex', () => {
     // with an accent control closes at exactly three tones (§1 trait 06, §11
     // "max three colours per component"). On the Espresso sheet the form is
     // Bone, so that same mandatory Graphite becomes a FOURTH tone — and it
-    // cannot be re-roled away, because Graphite on Espresso is 1.09:1.
+    // cannot be re-roled away, because Graphite on Espresso is 1.16:1.
+    // (1.16, not the 1.09 this comment and three others in tokens.css carried
+    // until round 5 recomputed it. The argument is unaffected — both are
+    // hopeless — but a wrong number in a rationale is how a wrong number gets
+    // quoted. src/styles/design.test.ts now pins this pair.)
     //
     // Bare accent fills are exempt: .boss-fill is a Flare bar with nothing
     // drawn ON it, so no --on-accent appears and the sheet still closes at
@@ -502,9 +533,12 @@ describe('daily lesson + codex', () => {
     // .xp-fill bar it absorbed from XpCard, so it is eligible — it stays Bone
     // because §2's 30% has to be spent on something, and the reading ground is
     // where the hands go: this is the app's most tapped list, eleven 48px rows
-    // of it. Converting it also overshoots, the page is at 59.7 field already,
-    // and .xp-fill's Marigold has a measured pair on the Sand recess that the
-    // Espresso sheet does not share (see .xp-fill in app.css).
+    // of it. .xp-fill's Marigold also has a measured pair on the Sand recess
+    // that the Espresso sheet does not share (see .xp-fill in app.css). The
+    // third reason this comment used to give — "the page is at 59.7 field
+    // already" — was a round-3 figure and is retired rather than restated: the
+    // phone's field number is in docs/brand/census.json and it moved when the
+    // collection sheet was deleted.
     const quests = document.querySelector('main #quests')!
     expect(quests.classList.contains('spec-sheet')).toBe(false)
     expect(quests.querySelector(PERSISTENT_ACCENT)).toBeNull()
@@ -512,6 +546,8 @@ describe('daily lesson + codex', () => {
 
   it('collects the lesson into the codex and persists it', () => {
     render(<App />)
+    // The count line on LessonCard is all that is left of the codex surface —
+    // see the deletion case at the end of this block.
     expect(screen.getByText('0 / 30 collected')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
     expect(screen.getByText('1 / 30 collected')).toBeTruthy()
@@ -541,24 +577,43 @@ describe('daily lesson + codex', () => {
     ).toBe('Codex: 5 / 30 lessons collected.')
   })
 
-  it('shows locked lessons as silhouettes without leaking their titles', () => {
+  it('deletes the trophy case and keeps everything it was the trophy for', () => {
+    /**
+     * THE DELETION, ASSERTED AS AN ABSENCE — the one claim no feature test
+     * defends, which is why it gets its own case (same reason localFirst.test
+     * exists).
+     *
+     * CollectionCard was a 32-tile lesson codex and a 9-tile badge shelf: 62.5%
+     * of the card stack's DOM on install day, 59.9% at day 40, with ZERO
+     * focusable controls in either state, sitting last in the stack behind
+     * ~1,644px of 375px column. It is gone: the component, its styles, its two
+     * jump targets and its tests.
+     *
+     * What it was the trophy case FOR is untouched, and that is the half a
+     * halfway deletion gets wrong. Badges still unlock, still announce, and
+     * still bring a companion to the score. The codex still rotates and still
+     * counts. Only the boxes are gone.
+     */
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        lessonsSeen: LESSONS.slice(0, 3).map((l) => ({ id: l.id, date: '2026-08-01' })),
+        achievements: [{ id: 'first-log', date: '2026-08-01' }],
+      }),
+    )
     render(<App />)
-    // Queried by TEXT, not by aria-label: the locked tile now names its state
-    // with an .sr-only prefix inside the <li> instead of an aria-label on it.
-    // aria-label on a listitem is inconsistently honoured, and where it is
-    // ignored the tile computed an empty name — this asserts the mechanism
-    // that works everywhere. The "no title leaked" half is unchanged and now
-    // strictly tighter: the silhouette is a drawn glyph (§8 retires character
-    // glyphs as UI iconography, and '?' read as "unknown" rather than "not
-    // reached"), so the tile's ENTIRE text is the state marker and nothing
-    // else. Exact equality, so any leaked title still fails this.
-    const locked = screen.getAllByText('Locked lesson')
-    expect(locked).toHaveLength(30)
-    for (const label of locked.slice(0, 3)) {
-      expect(label.closest('li')?.textContent).toBe('Locked lesson')
-      // …and the mark is drawn, not typed.
-      expect(label.closest('li')?.querySelector('svg.glyph')).not.toBeNull()
+    // The surface, its containers and its two named sections: all absent.
+    for (const sel of ['.collection-card', '.codex-grid', '.ach-grid', '#codex', '#badges']) {
+      expect(`${sel}: ${document.querySelector(sel) === null}`).toBe(`${sel}: true`)
     }
+    expect(screen.queryAllByText('Locked lesson')).toEqual([])
+    expect(screen.queryByRole('heading', { name: 'Collection' })).toBeNull()
+    // …and the codex count survives, because useRewards still sparkles on
+    // every fifth lesson and §10 forbids a sound carrying a moment alone.
+    expect(screen.getByText(`3 / ${LESSONS.length} collected`)).toBeTruthy()
+    // The badge's reward is the companion beside the score, and it is still
+    // there — this is what "badges keep working without the shelf" means.
+    expect(screen.getAllByRole('img', { name: /^Companions:/ }).length).toBeGreaterThan(0)
   })
 })
 
@@ -807,32 +862,32 @@ describe('level-up toast lifecycle', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     // Lesson quest (verified): +15 → 30.
     fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
-    // Log quest: +5 → 35.
-    fireEvent.click(screen.getByRole('button', { name: /Mark done: Log every purchase today/ }))
-    // Prime the bar just below the level-2 boundary: 12 × +5 → 95 total.
-    for (let i = 0; i < 12; i++) {
+    // Prime the bar just below the level-2 boundary: 13 × +5 → 95 total.
+    for (let i = 0; i < 13; i++) {
       fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '100' } })
       fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     }
     const toast = () => screen.getByRole('status', { name: 'Announcements' })
-    // The FINAL quest (+10 → 105) crosses the boundary, so the level-up and
+    // The FINAL quest (+5 → 100) crosses the boundary, so the level-up and
     // all-quests-complete toasts land in the same commit. The quest toast
     // used to stomp the level-up before the live region ever carried it —
-    // leaving the fanfare to announce the level alone.
+    // leaving the fanfare to announce the level alone. (`log` is the last one
+    // standing because it is now the roster's only self-report quest — the
+    // fourth, `review`, was deleted.)
     fireEvent.click(
-      screen.getByRole('button', { name: /Mark done: Look back over your recent purchases/ }),
+      screen.getByRole('button', { name: /Mark done: Log every purchase today/ }),
     )
-    // Everything queued above, in the order it was queued: three per-quest
+    // Everything queued above, in the order it was queued: two per-quest
     // completions (a11y sweep finding 6), the three badges earned along the
     // way (first sim, first purchase, ten purchases), then the level-up, then
-    // the all-complete. The level-up is the assertion this test exists for —
-    // it must still be in the queue, not stomped by the quest effect that
-    // ran in the same commit.
+    // the all-complete — which SUBSUMES the third quest's own toast, because
+    // that completion is the one that finishes the set. The level-up is the
+    // assertion this test exists for: it must still be in the queue, not
+    // stomped by the quest effect that ran in the same commit.
     const queued = [
       'Quest done. Run one decision simulation',
       /^First Run earned/,
       "Quest done. Read today's lesson",
-      'Quest done. Log every purchase today',
       /^First Spark earned/,
       /^Ten in the Ledger earned/,
       /^Level 2/,
@@ -1800,9 +1855,9 @@ describe('storage that refuses the write', () => {
     render(<App />)
     expect(fault().textContent).not.toBe('')
     spy.mockRestore()
-    fireEvent.click(screen.getByText('Look back over your recent purchases'))
+    fireEvent.click(screen.getByText('Log every purchase today'))
     expect(fault().textContent).toBe('')
-    expect(JSON.parse(localStorage.getItem('ember-state-v1')!).xp.totalXp).toBe(10)
+    expect(JSON.parse(localStorage.getItem('ember-state-v1')!).xp.totalXp).toBe(5)
   })
 
   it('never lets the fault line steal the single-h1 outline or the toast region', () => {
@@ -2064,11 +2119,13 @@ describe('the month so far', () => {
     // cards fails here and again in the §11 corner-index run.
     expect(ledgerCard()).toBe(card())
     expect(screen.getByRole('main').querySelectorAll('.archive-card')).toHaveLength(1)
-    // It still OPENS the archive half of the stack — the macro-break rides on
-    // it (see .archive-card in app.css), and the collection sheet follows it.
+    // It is the archive half of the stack, and now the WHOLE of it: the
+    // collection sheet used to follow it and was the one thing below the
+    // macro-break that was not a record. Deleted, so the archive both opens and
+    // closes the read-back half.
     const stack = [...screen.getByRole('main').querySelectorAll('section.card')]
-    expect(stack.indexOf(card())).toBe(stack.length - 2)
-    expect(stack[stack.length - 1].querySelector('.spec-label')!.textContent).toBe('COL—09')
+    expect(stack.indexOf(card())).toBe(stack.length - 1)
+    expect(document.querySelector('.collection-card')).toBeNull()
   })
 })
 
@@ -2281,7 +2338,12 @@ describe('accessibility depth — the sweep as regression tests', () => {
     render(<App />)
     const nav = screen.getByRole('navigation', { name: 'Sections' })
     const hrefs = [...nav.querySelectorAll('a')].map((a) => a.getAttribute('href'))
-    expect(hrefs).toEqual(['#log', '#quests', '#simulator', '#codex', '#badges'])
+    // THREE, not five. #codex and #badges pointed at the collection sheet,
+    // which had no control on it at all — two of five nav entries spent on a
+    // surface nobody could operate. Deleting the card deleted its anchors, and
+    // an anchor to a removed id lands focus on <body>, which is the failure
+    // every remaining target below carries tabindex -1 to avoid.
+    expect(hrefs).toEqual(['#log', '#quests', '#simulator'])
     expect(screen.getByRole('link', { name: /Start logging/ }).getAttribute('href')).toBe(
       '#log',
     )
@@ -2289,8 +2351,6 @@ describe('accessibility depth — the sweep as regression tests', () => {
       ['log', 'Log it'],
       ['quests', "Today's quests"],
       ['simulator', 'Decision simulator'],
-      ['codex', 'Lesson codex'],
-      ['badges', 'Achievements'],
     ]) {
       const section = document.getElementById(id)!
       expect(section.tagName).toBe('SECTION')
@@ -2381,7 +2441,7 @@ describe('§11 — the printed corner index is the card’s real position', () =
     const printed = marks()
     // Every card carries one (§11), so the run has to be as long as the stack.
     expect(printed.length).toBe(document.querySelectorAll('main .card').length)
-    expect(printed.length).toBeGreaterThan(8)
+    expect(printed.length).toBe(8)
     // The prefix is the card's own three-letter code; only the index is
     // derived, so this asserts position without freezing the vocabulary.
     expect(printed.map((m) => m.split('—')[1])).toEqual(
@@ -2653,6 +2713,38 @@ describe('the decision record', () => {
     // a leak into one of the five would be invisible in a rounded total.
     fireEvent.click(screen.getByRole('button', { name: /Why this stage/ }))
     expect(bars()).toEqual(barsWithout)
+
+    // …AND ANSWERING THE CHECK-BACK MOVES NEITHER. The check-back is the one
+    // write in the product that lands on a record row weeks after the money
+    // did, which is exactly the shape that tempts a "well, this one is
+    // outcome data" exception. There is none: every answer leaves the score
+    // and all five bars byte-identical.
+    cleanup()
+    const closed = addDaysISO(today, -CHECK_BACK_DAYS)
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        transactions: rows,
+        decisions: CHECK_BACK_ANSWERS.map((_answer, i) => ({
+          id: `c${i}`,
+          date: closed,
+          amountDA: 5_000_000,
+          line: 'Buy path ends lower.',
+          outcome: 'bought',
+          outcomeDate: closed,
+        })),
+      }),
+    )
+    render(<App />)
+    for (const a of CHECK_BACK_ANSWERS) {
+      fireEvent.click(screen.getAllByRole('button', { name: a.label })[0])
+    }
+    expect(screen.getByText(/^Health \d+(\.\d)?$/).textContent).toBe(scoreWithout)
+    fireEvent.click(screen.getByRole('button', { name: /Why this stage/ }))
+    expect(bars()).toEqual(barsWithout)
+    // Nothing on the engagement side either — no grant, no counter.
+    expect(xpNow()).toBe(0)
+    expect(savedState().xpLog).toEqual([])
   })
 
   it('states nothing it has not earned before the first run', () => {
@@ -2743,7 +2835,7 @@ describe('the decision record', () => {
     // Depth, not breadth: the run and its record are one object, so the card
     // count and the §11 corner-index run are unchanged by this feature.
     const cards = screen.getByRole('main').querySelectorAll('section.card')
-    expect(cards).toHaveLength(9)
+    expect(cards).toHaveLength(8)
     expect(simCard().querySelectorAll('.spec-label')).toHaveLength(1)
     expect(within(simCard()).getAllByRole('heading', { level: 2 })).toHaveLength(1)
     expect(simCard().querySelector('.decision-record')).not.toBeNull()
@@ -2751,5 +2843,279 @@ describe('the decision record', () => {
     // title, and the page keeps exactly one h1.
     expect(within(simCard()).getByRole('heading', { level: 3 }).textContent).toBe('Record')
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+  })
+})
+
+/**
+ * THE CHECK-BACK.
+ *
+ * Every "Bought it" row in the decision record used to be a dead end: the app
+ * froze what it said, the user said what they did, and nothing ever read it
+ * back. CHECK_BACK_DAYS after the row closes, the record asks ONE factual
+ * question about the object and files the answer beside the frozen line.
+ *
+ * The constraint that shapes it is not a nice-to-have. The obvious phrasing —
+ * "weeks later, was it worth it?" — asks the user to grade a past self, which
+ * §12.6 forbids and which the voice case in this file already bans as a literal
+ * string. The obvious follow-on — counting how many they stopped using — is a
+ * verdict about the user's character one step removed. Neither ships, and the
+ * cases below are what stops either from creeping back in.
+ */
+describe('the check-back', () => {
+  const simCard = () => screen.getByRole('main').querySelector('.sim-card') as HTMLElement
+  const savedState = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
+  const TODAY = () => todayISO()
+  /** One decision, closed as bought `daysAgo` days ago. */
+  const seedBought = (daysAgo: number, over: Record<string, unknown> = {}) => {
+    const closed = addDaysISO(TODAY(), -daysAgo)
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        decisions: [
+          {
+            id: 'd1',
+            date: closed,
+            amountDA: 12_000,
+            line: 'Buy path ends lower. About 6 points below waiting.',
+            demo: true,
+            outcome: 'bought',
+            outcomeDate: closed,
+            ...over,
+          },
+        ],
+        ...(over.transactions !== undefined ? { transactions: over.transactions } : {}),
+      }),
+    )
+  }
+
+  it('names the day it will ask, from the moment the row closes', () => {
+    // TRUST RULE 5, AND IT IS THE WHOLE COLD-START MITIGATION. This mechanic
+    // needs one closed purchase plus CHECK_BACK_DAYS of real elapsed time, so
+    // a day-1 user genuinely has nothing — and the honest answer to that is not
+    // a progress bar, it is the app naming a future it will actually keep.
+    seedBought(0)
+    render(<App />)
+    expect(within(simCard()).getByText(`Check back in ${CHECK_BACK_DAYS} days.`)).toBeTruthy()
+    // …and it counts DOWN, rather than promising fourteen days forever.
+    cleanup()
+    seedBought(CHECK_BACK_DAYS - 3)
+    render(<App />)
+    expect(within(simCard()).getByText('Check back in 3 days.')).toBeTruthy()
+    cleanup()
+    seedBought(CHECK_BACK_DAYS - 1)
+    render(<App />)
+    expect(within(simCard()).getByText('Check back tomorrow.')).toBeTruthy()
+    // No question until the day arrives, at any of those distances.
+    expect(screen.queryByRole('button', { name: 'Still using it' })).toBeNull()
+  })
+
+  it('asks once the horizon passes, and only about a bought row', () => {
+    seedBought(CHECK_BACK_DAYS)
+    render(<App />)
+    const group = screen.getByRole('group', { name: /^Check back: 12,000 DA, bought / })
+    expect([...group.querySelectorAll('button')].map((b) => b.textContent)).toEqual(
+      CHECK_BACK_ANSWERS.map((a) => a.label),
+    )
+    // The elapsed count is the prompt, and it is the REAL elapsed count — a
+    // user who did not open the app on day 14 is asked on day 20 and told 20.
+    expect(within(simCard()).getByText(`${CHECK_BACK_DAYS} days on.`)).toBeTruthy()
+    // The scheduled line is gone the moment the question arrives.
+    expect(simCard().textContent).not.toContain('Check back in')
+
+    for (const outcome of ['waited', 'resisted', 'open'] as const) {
+      cleanup()
+      seedBought(CHECK_BACK_DAYS, {
+        outcome,
+        ...(outcome === 'open' ? { outcomeDate: undefined } : {}),
+      })
+      render(<App />)
+      expect(screen.queryByRole('group', { name: /^Check back:/ })).toBeNull()
+      expect(simCard().textContent).not.toContain('days on.')
+    }
+  })
+
+  it('files the answer, announces it, and never drops focus to <body>', () => {
+    seedBought(CHECK_BACK_DAYS)
+    render(<App />)
+    // Mounted EMPTY: a region that arrives already holding its message is
+    // silent for a screen reader.
+    const region = screen.getByRole('status', { name: 'Decision record' })
+    expect(region.textContent).toBe('')
+    const run = screen.getByRole('button', { name: 'Run simulation' })
+    fireEvent.click(screen.getByRole('button', { name: 'Not any more' }))
+    // The three buttons unmounted on that commit; focus is on a live control.
+    expect(screen.queryByRole('button', { name: 'Not any more' })).toBeNull()
+    expect(document.activeElement).toBe(run)
+    expect(document.activeElement).not.toBe(document.body)
+    // Names the answer and the object, and stops (§7.1) — no praise, no
+    // consolation, and no count of anything.
+    expect(region.textContent).toBe('Not any more. 12,000 DA. Recorded.')
+    // Filed on the row, and persisted.
+    expect(simCard().querySelector('.decision-checkback-answer')!.textContent).toContain(
+      'Not any more',
+    )
+    expect(savedState().decisions[0]).toMatchObject({
+      checkBack: 'stopped',
+      checkBackDate: TODAY(),
+    })
+  })
+
+  it('names the object in the user’s words, or makes no claim about it at all', () => {
+    // THE HONEST DEGRADATION. `txId` lands only when the prefilled amount was
+    // logged unedited, and `note` is optional forever — so most rows cannot be
+    // named, and the app must not invent one. Note when it exists; the amount
+    // and the day otherwise, which the row head already carries.
+    seedBought(CHECK_BACK_DAYS, {
+      txId: 'tx1',
+      transactions: [
+        { id: 'tx1', amountDA: 12_000, category: 'Other', date: addDaysISO(TODAY(), -CHECK_BACK_DAYS), note: 'running shoes' },
+      ],
+    })
+    render(<App />)
+    // Verbatim — not title-cased, not re-worded, not categorised.
+    expect(within(simCard()).getByText('running shoes')).toBeTruthy()
+    expect(screen.getByRole('group', { name: /^Check back: running shoes, bought \w/ })).toBeTruthy()
+    // …and the amount is NOT substituted for the object once a name exists.
+    expect(screen.queryByRole('group', { name: /^Check back: 12,000 DA/ })).toBeNull()
+
+    // A LINKED ROW WITH NO NOTE: amount and day, nothing more.
+    cleanup()
+    seedBought(CHECK_BACK_DAYS, {
+      txId: 'tx1',
+      transactions: [
+        { id: 'tx1', amountDA: 12_000, category: 'Other', date: addDaysISO(TODAY(), -CHECK_BACK_DAYS) },
+      ],
+    })
+    render(<App />)
+    expect(simCard().querySelector('.checkback-object')).toBeNull()
+    expect(screen.getByRole('group', { name: /^Check back: 12,000 DA, bought / })).toBeTruthy()
+
+    // NO LINK AT ALL: the same, because there is nothing more to say.
+    cleanup()
+    seedBought(CHECK_BACK_DAYS)
+    render(<App />)
+    expect(simCard().querySelector('.checkback-object')).toBeNull()
+    // The category is NOT a name for the object and must never stand in as one.
+    expect(simCard().textContent).not.toContain('Other')
+  })
+
+  it('renders the three answers as peers, and counts none of them', () => {
+    // §12.3 / §12.6. Seed three due rows, answer each differently, and assert
+    // that the card cannot tell you which one was the right answer.
+    const closed = addDaysISO(TODAY(), -CHECK_BACK_DAYS)
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        decisions: CHECK_BACK_ANSWERS.map((_, i) => ({
+          id: `d${i}`,
+          date: closed,
+          amountDA: 1_000 * (i + 1),
+          line: 'Buy path ends lower.',
+          demo: true,
+          outcome: 'bought',
+          outcomeDate: closed,
+        })),
+      }),
+    )
+    render(<App />)
+    // Before: every button in every group is the same class, in roster order.
+    const btnClasses = [...simCard().querySelectorAll('.decision-checkback button')].map(
+      (b) => b.className,
+    )
+    expect(new Set(btnClasses)).toEqual(new Set(['btn decision-btn']))
+    for (const a of CHECK_BACK_ANSWERS) {
+      fireEvent.click(screen.getAllByRole('button', { name: a.label })[0])
+    }
+    // After: one element per answer, all three with the identical class — no
+    // colour split, no ✓/✗, no weight difference. This is the assertion a
+    // stylesheet change would have to defeat to make one answer read as wrong.
+    const filed = [...simCard().querySelectorAll('.decision-checkback-answer')]
+    expect(filed.map((n) => n.className)).toEqual(
+      CHECK_BACK_ANSWERS.map(() => 'decision-checkback-answer'),
+    )
+    expect(filed).toHaveLength(3)
+
+    const text = simCard().textContent ?? ''
+    // NO REGRET VOCABULARY, and "worth it" in particular: the thesis phrasing
+    // for this feature was "weeks later, was it worth it?" and it is banned.
+    expect(text).not.toMatch(/worth it|regret|wasted|should have|mistake|failed|bad call/i)
+    // §7.4 and §7.5.
+    expect(text).not.toMatch(/!/)
+    expect(text).not.toMatch(/premium|curated|elevated|seamless|journey|unlock|crafted/i)
+    // NO TALLY, EVER. Not "2 of 3 still in use", not a percentage, not a ratio.
+    expect(text).not.toMatch(/\d+\s*(of|\/)\s*\d+\s*(still|using|used|stopped)/i)
+    expect(text).not.toMatch(/\d+%/)
+    expect(text).not.toMatch(/still using\s*:\s*\d|never used\s*:\s*\d/i)
+  })
+
+  it('lifts a due question to the top without stealing the card’s one accent', () => {
+    // The record reads top-down and SimCard is sixth in the stack; a question
+    // twenty rows down is a question nobody answers, and the app has no push
+    // channel to chase it with. But .sim-result marks the CURRENT projection,
+    // so the accent stays on the newest run wherever it renders (§1 trait 06).
+    const closed = addDaysISO(TODAY(), -CHECK_BACK_DAYS)
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        decisions: [
+          { id: 'z-new', date: TODAY(), amountDA: 7_000, line: 'Newest run.', demo: true, outcome: 'open' },
+          { id: 'a-old', date: closed, amountDA: 3_000, line: 'Older run.', demo: true, outcome: 'bought', outcomeDate: closed },
+        ],
+      }),
+    )
+    render(<App />)
+    const order = [...simCard().querySelectorAll('.decision-amount')].map((n) => n.textContent)
+    expect(order).toEqual(['3,000 DA', '7,000 DA'])
+    const panels = [...simCard().querySelectorAll('.sim-result')]
+    expect(panels).toHaveLength(1)
+    expect(panels[0].closest('.decision')!.textContent).toContain('7,000 DA')
+    // The count of pending QUESTIONS is not a tally of ANSWERS: it rides in the
+    // card's aria-hidden spec strip, and every question it counts renders below
+    // with its own named group, so nothing is announced only there.
+    const bar = simCard().querySelector('.window-bar')!
+    expect(bar.textContent).toBe('DECISION_SIM.EXE · 1 DUE')
+    expect(bar.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('states nothing at all before there is anything to state', () => {
+    // Trust Rule 5 in its smallest form, and the shipped empty-state ban: no
+    // "0 / n", no progressbar, no streak language, and no promise about what
+    // the answers will tell you.
+    render(<App />)
+    expect(simCard().querySelector('.decision-checkback')).toBeNull()
+    expect(simCard().querySelector('.decision-schedule')).toBeNull()
+    expect(simCard().querySelector('.window-bar')!.textContent).toBe('DECISION_SIM.EXE')
+    expect(simCard().textContent).not.toMatch(/\b0\s*\/\s*\d/)
+    expect(simCard().textContent).not.toMatch(/streak|so far you|day \d+ of|check back/i)
+    expect(within(simCard()).queryAllByRole('progressbar')).toEqual([])
+  })
+
+  it('adds no heading level and no second h1 (§12.8)', () => {
+    seedBought(CHECK_BACK_DAYS)
+    render(<App />)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(within(simCard()).getAllByRole('heading', { level: 2 })).toHaveLength(1)
+    // The record's h3 is still the only one on this card — the question is a
+    // named group, not a fourth-level section.
+    expect(within(simCard()).getAllByRole('heading', { level: 3 })).toHaveLength(1)
+    // 48px targets come from .btn, like every other control in the app.
+    for (const b of simCard().querySelectorAll('.decision-checkback button')) {
+      expect(b.className).toContain('btn')
+    }
+  })
+
+  it('survives a reload and leaves with the export', () => {
+    seedBought(CHECK_BACK_DAYS)
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Still using it' }))
+    cleanup()
+    render(<App />)
+    // Filed, not re-asked: the question the user answered does not come back.
+    expect(screen.queryByRole('group', { name: /^Check back:/ })).toBeNull()
+    expect(simCard().querySelector('.decision-checkback-answer')!.textContent).toContain(
+      'Still using it',
+    )
+    // Trust Rule 7 — the answer is in the payload the export hands back.
+    expect(savedState().decisions[0].checkBack).toBe('using')
   })
 })

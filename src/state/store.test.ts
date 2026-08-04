@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
+  addDaysISO,
+  CHECK_BACK_ANSWERS,
+  CHECK_BACK_DAYS,
+  checkBackDueOn,
+  checkBackState,
   DECISION_LINE_MAX_LEN,
   DECISION_MAX,
   defaultState,
@@ -572,8 +577,13 @@ describe('sanitizeState', () => {
     const log = state.quests.find((q) => q.id === 'log')!
     expect(log.done).toBe(true)
     expect(log.text).toBe('Log every purchase today') // roster owns the copy
-    // Quests absent from the payload (here: 'review') come back undone.
-    expect(state.quests.find((q) => q.id === 'review')?.done).toBe(false)
+    // Quests absent from the payload (here: 'lesson') come back undone.
+    expect(state.quests.find((q) => q.id === 'lesson')?.done).toBe(false)
+    // …and a quest the roster no longer ships never comes back at all. The
+    // `review` quest was deleted (it paid XP for a tap the app could not
+    // observe); a persisted payload still naming it must not resurrect a
+    // tappable, XP-paying row from an older release.
+    expect(state.quests.map((q) => q.id)).not.toContain('review')
   })
 })
 
@@ -619,7 +629,7 @@ describe('mergeStates', () => {
 
   it('keeps BOTH tabs’ XP grants when the tabs diverged — evidence unions, counters race', () => {
     // A frozen background tab missed a storage event, then the user acted in
-    // it: A logged a purchase (+5) while B completed the review quest (+10).
+    // it: A logged a purchase (+5) while B read the lesson (+15).
     // max(totalXp) alone would silently drop the +5 forever, even though the
     // merged transactions and quest flags keep both pieces of evidence.
     const local = base({
@@ -628,12 +638,12 @@ describe('mergeStates', () => {
       xpLog: [{ id: 'tx:a', action: 'logExpense', amount: 5, date: '2026-08-01' }],
     })
     const incoming = base({
-      quests: defaultState().quests.map((q) => ({ ...q, done: q.id === 'review' })),
-      xp: { level: 1, xpIntoLevel: 10, totalXp: 10 },
-      xpLog: [{ id: 'quest:review:2026-08-01', action: 'reviewRecent', amount: 10, date: '2026-08-01' }],
+      quests: defaultState().quests.map((q) => ({ ...q, done: q.id === 'lesson' })),
+      xp: { level: 1, xpIntoLevel: 15, totalXp: 15 },
+      xpLog: [{ id: 'quest:lesson:2026-08-01', action: 'readLesson', amount: 15, date: '2026-08-01' }],
     })
-    expect(mergeStates(local, incoming).xp.totalXp).toBe(15)
-    expect(mergeStates(incoming, local).xp.totalXp).toBe(15)
+    expect(mergeStates(local, incoming).xp.totalXp).toBe(20)
+    expect(mergeStates(incoming, local).xp.totalXp).toBe(20)
   })
 
   it('re-applies the resist daily cap across the merged grant union', () => {
@@ -670,6 +680,10 @@ describe('mergeStates', () => {
     const b = base({
       transactions: [mkTx('y'), mkTx('shared')],
       xp: { level: 1, xpIntoLevel: 10, totalXp: 10 },
+      // reviewRecent, on purpose: the quest that minted this action is deleted
+      // but the ACTION stays in XP_REWARDS so historical grants survive the
+      // sanitizer (see the note beside it in engine/xp.ts). This is the
+      // regression that would catch its removal.
       xpLog: [{ id: 'quest:review:2026-08-01', action: 'reviewRecent', amount: 10, date: '2026-08-01' }],
       prevHealthScore: 44,
       stage: 'hearth',
@@ -710,7 +724,7 @@ describe('mergeStates', () => {
     const merged = mergeStates(base({ quests: localQuests }), base({ quests: incomingQuests }))
     expect(merged.quests.find((q) => q.id === 'log')?.done).toBe(true)
     expect(merged.quests.find((q) => q.id === 'sim')?.done).toBe(true)
-    expect(merged.quests.find((q) => q.id === 'review')?.done).toBe(false)
+    expect(merged.quests.find((q) => q.id === 'lesson')?.done).toBe(false)
   })
 
   it('unions the codex across tabs — a lesson collected in either tab stays collected', () => {
@@ -1067,5 +1081,144 @@ describe('decisions — sanitize, merge, export', () => {
     // The frozen projection leaves with it: an export that dropped the line
     // would hand back an amount and a date with no record of what was said.
     expect(parsed.decisions[0].line).toBe(state.decisions[0].line)
+  })
+
+  // ── THE CHECK-BACK ──────────────────────────────────────────────────────
+  //
+  // Fourteen days after a decision closes as "Bought it", the record asks one
+  // factual question about the object and files the answer. The storage layer's
+  // whole job is that the answer survives a reload and a cross-tab merge
+  // WITHOUT disturbing anything else on the row (§12.5) and without ever
+  // becoming a number (§12.6).
+
+  const bought = (over: Partial<Decision> = {}): Decision =>
+    decision({ outcome: 'bought', outcomeDate: '2026-08-04', txId: 't1', ...over })
+
+  it('schedules a check-back only for a bought row, and only after the horizon', () => {
+    const b = bought()
+    expect(checkBackDueOn(b)).toBe(addDaysISO('2026-08-04', CHECK_BACK_DAYS))
+    // A row closed TODAY renders the scheduled line, never the question — and
+    // that boundary is a property of the constant, not of a comparison.
+    expect(checkBackState(b, '2026-08-04')).toBe('scheduled')
+    expect(checkBackState(b, addDaysISO('2026-08-04', CHECK_BACK_DAYS - 1))).toBe('scheduled')
+    expect(checkBackState(b, addDaysISO('2026-08-04', CHECK_BACK_DAYS))).toBe('due')
+    // …and stays due afterwards: a user who did not open the app on day 14
+    // must not lose the question on day 20.
+    expect(checkBackState(b, addDaysISO('2026-08-04', 60))).toBe('due')
+    // Nothing else schedules one. "Waited" and "Resisted it" bought no object,
+    // and an open row has not said anything happened at all.
+    for (const outcome of ['open', 'waited', 'resisted'] as const) {
+      const other = decision({ outcome, outcomeDate: outcome === 'open' ? undefined : '2026-08-04' })
+      expect(`${outcome}: ${checkBackDueOn(other)}`).toBe(`${outcome}: null`)
+      expect(checkBackState(other, '2027-01-01')).toBe('none')
+    }
+    // A bought row with no outcomeDate has no anchor to count from, so it
+    // schedules nothing rather than guessing one.
+    const undated = decision({ outcome: 'bought' })
+    expect(checkBackDueOn(undated)).toBeNull()
+  })
+
+  it('keeps only an enumerated answer, and a bad one costs the answer not the row', () => {
+    const answered = bought({ checkBack: 'using', checkBackDate: '2026-08-18' })
+    expect(sanitizeState({ decisions: [answered] }).decisions).toEqual([answered])
+    // Round-trips to an identical JSON string: the merge fixpoint compares
+    // whole states as strings, so a second pass must not reorder the keys.
+    const once = sanitizeState({ decisions: [answered] })
+    expect(JSON.stringify(sanitizeState(once))).toBe(JSON.stringify(once))
+    for (const junk of ['loved it', 'worth it', '', 42, null, { a: 1 }]) {
+      const [row] = sanitizeState({
+        decisions: [{ ...bought(), checkBack: junk, checkBackDate: '2026-08-18' }],
+      }).decisions
+      // The row survives with every money fact intact…
+      expect(row).toMatchObject({ id: 'd1', amountDA: 5_000, outcome: 'bought', txId: 't1' })
+      // …and the answer is simply not there — no default, no guess.
+      expect(`${JSON.stringify(junk)}: ${row.checkBack}`).toBe(
+        `${JSON.stringify(junk)}: undefined`,
+      )
+      expect(row.checkBackDate).toBeUndefined()
+    }
+    // An impossible day key loses the DATE and keeps the answer — same repair
+    // rule outcomeDate follows, for the same reason: the user still said it.
+    const repaired = sanitizeState({
+      decisions: [bought({ checkBack: 'unused', checkBackDate: '2026-02-30' })],
+    }).decisions[0]
+    expect(repaired.checkBack).toBe('unused')
+    expect(repaired.checkBackDate).toBeUndefined()
+  })
+
+  it('refuses an answer on a row the app would never have asked about', () => {
+    // Only 'bought' rows are ever asked (see checkBackDueOn), so an answer on a
+    // waited or resisted row is data this build could not have written. It
+    // costs the answer, never the row.
+    for (const outcome of ['open', 'waited', 'resisted'] as const) {
+      const [row] = sanitizeState({
+        decisions: [
+          {
+            ...decision({ outcome, outcomeDate: outcome === 'open' ? undefined : '2026-08-04' }),
+            checkBack: 'using',
+          },
+        ],
+      }).decisions
+      expect(`${outcome}: ${row.outcome} ${row.checkBack}`).toBe(`${outcome}: ${outcome} undefined`)
+    }
+  })
+
+  it('answers survive a merge — answered beats unanswered, in either order', () => {
+    // AND THE JSON TIE-BREAK GETS THIS BACKWARDS ON ITS OWN. `checkBack` is the
+    // last key in canonical order, so the unanswered row ends `"txId":"t1"}`
+    // where the answered one continues `"txId":"t1","checkBack":…` — and '}'
+    // (0x7D) sorts above ',' (0x2C). Without the explicit clause in
+    // preferDecision, a question the user already answered comes back after
+    // every peer write.
+    const open = { ...defaultState(), decisions: [bought()] }
+    const done = { ...defaultState(), decisions: [bought({ checkBack: 'stopped', checkBackDate: '2026-08-18' })] }
+    for (const merged of [mergeStates(open, done), mergeStates(done, open)]) {
+      expect(merged.decisions[0].checkBack).toBe('stopped')
+      expect(merged.decisions[0].checkBackDate).toBe('2026-08-18')
+    }
+    // Commutative, and it settles: two DIFFERENT answers carry no recency
+    // signal, so the greater JSON string wins — arbitrary but symmetric.
+    const a = { ...defaultState(), decisions: [bought({ checkBack: 'using', checkBackDate: '2026-08-18' })] }
+    const b = { ...defaultState(), decisions: [bought({ checkBack: 'unused', checkBackDate: '2026-08-19' })] }
+    expect(mergeStates(a, b)).toEqual(mergeStates(b, a))
+    const settled = mergeStates(a, b)
+    expect(mergeStates(settled, b)).toEqual(settled)
+    expect(CHECK_BACK_ANSWERS.map((x) => x.answer)).toContain(settled.decisions[0].checkBack)
+  })
+
+  it('freezes everything else on the row when the answer lands', () => {
+    // §12.5. A check-back ANSWERS the record; it does not edit it.
+    const before = bought({ demo: false })
+    const after = sanitizeState({
+      decisions: [{ ...before, checkBack: 'using', checkBackDate: '2026-08-18' }],
+    }).decisions[0]
+    const { checkBack: _a, checkBackDate: _d, ...rest } = after
+    expect(rest).toEqual(before)
+  })
+
+  it('carries the answer into the export — Trust Rule 7 covers it too', () => {
+    const state: AppState = {
+      ...defaultState(),
+      decisions: [bought({ checkBack: 'stopped', checkBackDate: '2026-08-18' })],
+    }
+    const parsed = JSON.parse(exportJSON(state)) as { decisions: Decision[] }
+    expect(parsed.decisions[0].checkBack).toBe('stopped')
+    expect(parsed.decisions[0].checkBackDate).toBe('2026-08-18')
+  })
+
+  it('states the cap edge it cannot fix, rather than pretending it has none', () => {
+    // DECISION_MAX trims from the OLDEST end, which is exactly where the most
+    // overdue check-backs live. A user who runs more than DECISION_MAX sims
+    // inside the window loses pending questions silently. Asserted so the edge
+    // is a known, tested property instead of a surprise — see the note above
+    // canonicalDecisions for why it is not "fixed" by exempting these rows.
+    const many = Array.from({ length: DECISION_MAX + 5 }, (_, i) =>
+      bought({ id: `d${String(i).padStart(3, '0')}`, date: addDaysISO('2026-08-04', i) }),
+    )
+    const kept = sanitizeState({ decisions: many }).decisions
+    expect(kept).toHaveLength(DECISION_MAX)
+    // The five oldest — the five nearest their due day — are the ones gone.
+    expect(kept.some((d) => d.id === 'd000')).toBe(false)
+    expect(kept.some((d) => d.id === `d${String(DECISION_MAX + 4).padStart(3, '0')}`)).toBe(true)
   })
 })

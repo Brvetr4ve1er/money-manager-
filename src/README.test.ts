@@ -4,7 +4,13 @@ import { describe, it, expect } from 'vitest'
    import.meta.url an http:// URL that readFileSync rejects. */
 import { readFileSync } from 'node:fs'
 import { MECHANICS } from './components/Landing.tsx'
-import { NOTE_MAX_LEN, DECISION_ANSWERS, DECISION_MAX } from './state/store.ts'
+import {
+  NOTE_MAX_LEN,
+  DECISION_ANSWERS,
+  DECISION_MAX,
+  CHECK_BACK_ANSWERS,
+  CHECK_BACK_DAYS,
+} from './state/store.ts'
 import { NOTE_DENOMINATIONS_DA } from './engine/keypad.ts'
 import { LESSONS } from './content/lessons.ts'
 import { ACHIEVEMENTS } from './engine/achievements.ts'
@@ -85,11 +91,32 @@ describe('every number in the README is the number in the code', () => {
 
   it('counts the lessons, badges and quests that exist', () => {
     expect(FLAT).toContain(`${LESSONS.length}-lesson codex`)
-    expect(FLAT).toContain(`${LESSONS.length} collectible one-screen lessons`)
     expect(FLAT).toContain(`${ACHIEVEMENTS.length} earn-only badges`)
     expect(FLAT).toContain(
       `${DEFAULT_QUESTS.length} daily quests (${DEFAULT_QUESTS.filter((q) => q.verified).length} of them verified`,
     )
+    // The quest roster SHRANK, and a count is exactly the claim that rots when
+    // a feature is removed rather than added — the README described four
+    // quests and a collectible grid for a build with three and neither. The
+    // deleted quest may not be described as shipping anywhere in the file.
+    expect(FLAT).not.toContain('4 daily quests')
+    expect(FLAT).not.toContain(`${LESSONS.length} collectible one-screen lessons`)
+  })
+
+  it('states the check-back horizon and answers the app actually ships', () => {
+    // Same rule as the note cap and the decision answers: a number and a set of
+    // labels are values, so they are read from the code rather than typed
+    // beside it. The horizon appears twice (the mechanic row and the paragraph)
+    // and both have to move when CHECK_BACK_DAYS does.
+    expect(FLAT).toContain(`${CHECK_BACK_DAYS} days after "Bought it"`)
+    expect(FLAT).toContain(`Check back in ${CHECK_BACK_DAYS} days.`)
+    for (const a of CHECK_BACK_ANSWERS) expect(FLAT).toContain(a.label)
+    // AND THE REFUSALS, because they are the load-bearing half of the claim.
+    // The regret prompt and the tally are the two things this mechanic is
+    // defined by not doing (§12.6), and a README that quietly drops them is
+    // describing a different feature.
+    expect(FLAT).toContain('It never asks whether it was worth it')
+    expect(FLAT).toContain('It never counts the answers')
   })
 
   it('states the record depth the store actually keeps', () => {
@@ -111,6 +138,47 @@ describe('every number in the README is the number in the code', () => {
   })
 })
 
+describe('every command the README documents is a command that exists', () => {
+  /**
+   * The "Run it" block is an instruction, not a description: a reader types
+   * what it says. A documented script that package.json does not define fails
+   * on the first try and costs the reader their trust in the rest of the file;
+   * an UNdocumented script is worse in the other direction — `npm run census`
+   * is now load-bearing (a stale docs/brand/census.json fails the suite), and a
+   * contributor who has never heard of it gets a red suite with no way in.
+   */
+  const PKG = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+    scripts: Record<string, string>
+  }
+
+  it('documents no script package.json does not define', () => {
+    const documented = [...README.matchAll(/^npm run ([a-z:]+)/gm)].map((m) => m[1])
+    expect(documented.length).toBeGreaterThan(0)
+    for (const name of new Set(documented)) {
+      expect(`npm run ${name}: ${name in PKG.scripts}`).toBe(`npm run ${name}: true`)
+    }
+  })
+
+  it('documents the census, because a stale artifact now fails the suite', () => {
+    expect(PKG.scripts.census).toContain('scripts/census/run.ts')
+    expect(FLAT).toContain('npm run census')
+    // The subsection, not just the command line: the census has three
+    // properties a reader has to know before trusting a number out of it —
+    // it is not a gate, it is not portable across machines, and its
+    // denominator is the whole document rather than the viewport.
+    expect(FLAT).toContain('### The colour census')
+    expect(FLAT).toContain('docs/brand/census.json')
+    expect(FLAT).toContain('inputsHash')
+    // The fourth property, added in round 5 and the one most likely to be lost:
+    // the tool reads each page TWICE, and the document average — the figure
+    // every round before this one steered by — is not something anybody looks
+    // at. A README that documents only the headline number recreates the
+    // misreading. `scrollingForm` is the key in the artifact, so naming it here
+    // is what lets a reader find the second reading at all.
+    expect(FLAT).toContain('scrollingForm')
+  })
+})
+
 /** Every file that NAMES a card in prose a human will trust. The README is the
     obvious one; index.html's comments and store.ts's quest rationale are the
     two that were also drifting — index.html's are stripped at build
@@ -122,13 +190,26 @@ const CARD_NAMING_FILES: ReadonlyArray<readonly [string, string]> = [
   ['src/state/store.ts', readFileSync(new URL('./state/store.ts', import.meta.url), 'utf8')],
 ]
 
+/** Components no build renders. CollectionCard is the newest entry and the
+    first DELETION rather than a merge: the codex grid and the badge shelf were
+    60% of the app's DOM with no control on either, and a README that still
+    walks a reader to them is describing a build nobody can run. */
+const GONE = [
+  'MonthCard',
+  'XpCard',
+  'CodexCard',
+  'AchievementsCard',
+  'CollectionCard',
+  'Ledger.tsx',
+] as const
+
 describe('the README names no component that no longer exists', () => {
   it('does not describe the surfaces that were merged away', () => {
     // The consolidation collapsed twelve cards to nine. A README that still
     // walks a reader through "the month card, above the ledger" is describing a
     // build nobody can run — the most expensive kind of documentation, because
     // it reads as authoritative.
-    for (const gone of ['MonthCard', 'XpCard', 'CodexCard', 'AchievementsCard', 'Ledger.tsx']) {
+    for (const gone of GONE) {
       expect(`${gone}: ${FLAT.includes(gone)}`).toBe(`${gone}: false`)
     }
     // "the month card" / "the ledger" as things the user is told to look at.
@@ -144,7 +225,7 @@ describe('the README names no component that no longer exists', () => {
     // heading was dropped when the ledger merged into ArchiveCard) and
     // index.html attributed the month resist total to "Ledger".
     for (const [name, text] of CARD_NAMING_FILES) {
-      for (const gone of ['MonthCard', 'XpCard', 'CodexCard', 'AchievementsCard', 'Ledger.tsx']) {
+      for (const gone of GONE) {
         expect(`${name} names ${gone}: ${text.includes(gone)}`).toBe(`${name} names ${gone}: false`)
       }
       // "the Ledger" as a surface, capitalised — engine/ledger.ts, ledger.ts's

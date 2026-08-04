@@ -531,6 +531,62 @@
   flex-direction: column;
   gap: var(--s1);
 }
+
+/* THE BADGE IS A KEYLINE ON THE PHONE, AND A FILL FROM 720px UP.
+
+   PROVENANCE: docs/brand/census.json, measured by `npm run census` on the tree
+   of this commit. The landing had never been censused at phone width until
+   round 5, and it was the worst surface in the matrix by a distance:
+
+     landing.375x812.dark    28.8 field / 60.2 Bone   deviation 64.0
+     landing.375x812.light   40.1 field / 49.8 Bone   deviation 43.1
+     landing.1440x900.dark   59.6 / 34.1              deviation  9.5  <- at law
+     landing.1440x900.light  66.2 / 27.9              deviation 13.7
+
+   Same DOM, same colours, four times the deviation. Nothing on this page is
+   theme-dependent except the product shot, so the whole of that gap is WIDTH:
+   .lp-grid is 3-up at 1440 and 1-up at 375, so seven badges that read as
+   objects standing in an Espresso field at desktop become seven full-measure
+   Bone slabs stacked into a column. The census's window reading names it
+   exactly — three consecutive viewport windows at 73 / 73 / 69 percent Bone,
+   against §2's 30% budget and the amended law's 65% cap.
+
+   THE ARGUMENT IS §5A's, NOT AN OPTIMISATION. "Full-bleed colour, a single
+   centred container, 60% negative field." A container that spans the whole
+   measure is not a container standing in a field — it IS the field, and the
+   figure/ground relation §1 trait 01 asks for has quietly inverted. At 375px a
+   badge is 335 of 375 pixels wide: 89% of the line. At 1440 it is one of three
+   objects in a 1080px measure with Espresso running around and between them.
+   So the phone gets the OTHER construction the design system offers for the
+   same job — §1 trait 05, the optical keyline: "marks are ringed by a 2nd
+   contour that offsets them from the field". The badge keeps its shape, its
+   2px border, its squircle and its 48px-safe padding. It gives up its fill.
+
+   CONTRAST IS BETTER, NOT WORSE, AND THE BASE RULE'S OWN COMMENT SAYS SO:
+   "the body copy inside is 17px, and 17px Bone on Espresso would be legal".
+   §2.1's table: Bone #F5E6E0 on Espresso #2A1E18 is 13.4:1, against 11.4:1 for
+   the Graphite-on-Bone pair it replaces. The keyline is that same 13.4:1
+   against the section field. .lp-index inherits the colour and moves 11.4 ->
+   13.4 with it. Three tones on the surface becomes two (§1 trait 06).
+
+   NOTHING INSIDE A BADGE IS FOCUSABLE — .lp-badge is an <li> holding a span, an
+   h3 and a p (Landing.tsx) — so the page-level Graphite focus ring, which is
+   1.16:1 on Espresso and is the trap .lp-spec:focus-visible exists to fix,
+   never lands inside one. Root.test.tsx asserts the roster's shape; a badge
+   that grew a control would need the .lp-spec treatment first.
+
+   720px IS THE PAGE'S OWN BREAKPOINT, not a new one: it is where .lp-wall
+   stops running its plate full-bleed and "the composition gets its 60%
+   negative field back" (see the block at the end of this file). This is the
+   same sentence applied to the same section's containers. */
+@media (max-width: 719px) {
+  .lp-badge {
+    background: none;
+    color: var(--lp-counter);
+    border-color: var(--lp-counter);
+  }
+}
+
 /* The mono index caption (§1 trait 10 / §5B). Full form colour on the Bone
    badge — 11.4:1. It is NOT tinted with the section accent: Marigold reads
    7.4:1 on the Espresso ground (computed, since §2.1's table does not list the

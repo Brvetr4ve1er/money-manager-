@@ -83,16 +83,17 @@ the one you keep using.
 Ember is not treatment and does not imply it. It is a logbook with a score on
 it.
 
-## The seven mechanics
+## The eight mechanics
 
 ```
-01/07  HEALTH SCORE     Five components. Shrunk for thin data. It explains; it never advises.
-02/07  THE RESIST       Resisted, not spent. Summed for the month. The total is not a score input.
-03/07  THE SIMULATOR    Baseline against scenario. States the tradeoff. Never the verdict.
-04/07  THE RECORD       The last 60 runs kept, with the line each printed. Bought it · Waited · Resisted it. Answers, never a tally.
-05/07  THE MONSTER      This week's discretionary spend is its HP. Last week's is the line. Beatable, never shaming.
-06/07  THE MONTH SO FAR Day index, month total, days left, one bar per day. No target line. No projection.
-07/07  THE NOTE         80 characters on any row, in your words. Optional, unpaid, never asked for twice.
+01/08  HEALTH SCORE     Five components. Shrunk for thin data. It explains; it never advises.
+02/08  THE RESIST       Resisted, not spent. Summed for the month. The total is not a score input.
+03/08  THE SIMULATOR    Baseline against scenario. States the tradeoff. Never the verdict.
+04/08  THE RECORD       The last 60 runs kept, with the line each printed. Bought it · Waited · Resisted it. Answers, never a tally.
+05/08  THE CHECK-BACK   14 days after "Bought it", one question about the object. Still using it · Not any more · Never used it. Filed, never counted.
+06/08  THE MONSTER      This week's discretionary spend is its HP. Last week's is the line. Beatable, never shaming.
+07/08  THE MONTH SO FAR Day index, month total, days left, one bar per day. No target line. No projection.
+08/08  THE NOTE         80 characters on any row, in your words. Optional, unpaid, never asked for twice.
 ```
 
 This block is not prose. `src/README.test.ts` holds it to `MECHANICS` in
@@ -116,10 +117,19 @@ stand. Once you have entered your numbers, anything you leave blank — no
 emergency fund, no debt — is dropped and its weight redistributed across the
 components you did fill in, with the card naming each one it left out.
 
-Around them: XP and levels for showing up, 4 daily quests (2 of them verified
-by the app, not by a tap), 30 collectible one-screen lessons, 9 earn-only
-badges with cosmetic companions, and chiptune cues that never carry information
-alone.
+Around them: XP and levels for showing up, 3 daily quests (2 of them verified
+by the app, not by a tap), a 30-lesson codex counted on the lesson card, 9
+earn-only badges whose reward is a cosmetic companion beside the score, and
+chiptune cues that never carry information alone.
+
+There used to be a fourth quest — "look back over your recent purchases" — and
+a ninth card holding a 32-tile codex grid and a 9-tile badge shelf. Both are
+deleted. The quest paid XP for a tap the app could not observe, which is the
+engagement track paying for nothing. The card was 60% of the app's rendered DOM
+on install day and carried no control at all: 1,644px of phone column, last in
+the stack, to reach nothing you can act on. Badges still unlock, still announce
+and still bring their companion; the codex still rotates and still counts. Only
+the trophy case is gone.
 
 **The record card** is one card that answers both halves of "where am I". It
 was two — a month card stacked on a ledger, two headings and two near-identical
@@ -139,6 +149,25 @@ No averages. No projections."* There is no target line, no average, no run rate
 and no "at this pace" — a month-to-date total is exact from day one, a
 projection off twelve days is not. The component is never handed your profile,
 which is the structural reason a budget bar cannot appear on it.
+
+**The check-back** is the one mechanic here that spans weeks. Answer a record
+row "Bought it" and it says when it will ask about it — *"Check back in 14
+days."* — and on that day the row rises to the top of the record and asks once:
+what became of the object. **Still using it**, **Not any more**, **Never used
+it**. Three peer answers again, same ink, same weight, no ✓/✗.
+
+What it will not do is the version everybody writes first. It never asks
+whether it was worth it: that grades a past self, and the app cannot know the
+answer anyway. It never counts the answers — there is no "you stopped using 4
+of 7" anywhere, because a count of outcomes is a verdict about your character
+one step removed. It pays no XP and touches no health component. And it never
+invents a name for what you bought: your note if you wrote one, the amount and
+the day if you did not.
+
+It has an honest cold start and the app says so rather than dressing it up: it
+needs one closed purchase plus fourteen days of real time, so on day one there
+is nothing, and a user who never simulates never sees it. The only thing the
+app promises in the meantime is the day it will ask.
 
 **The decision record** sits inside the simulator, not beside it. The last 60
 runs are kept, each with the exact line it printed — frozen, never recomputed,
@@ -199,6 +228,8 @@ npm test        # the engine, state and component suites
 npm run build   # type-check and produce a production build
 npm run brand   # regenerate every brand asset from the mark's geometry
                 # (needs Node >= 22.6: --experimental-strip-types landed there)
+npm run census  # measure what colour the app actually is, and rewrite
+                # docs/brand/census.json (needs a local Chromium)
 ```
 
 `npm run brand` emits the favicon, the maskable icon, the social card and both
@@ -279,6 +310,52 @@ white, no emoji as iconography, and a contrast law (§2.1) that is enforced
 rather than aspirational — Flare is a field, never a text background, which is
 why every string under 24px in this product sits on a plate.
 
+### The colour census
+
+`docs/brand/census.json` is the committed answer to "what colour is this app".
+`npm run census` builds the production bundle, serves it, drives a headless
+Chromium over the DevTools protocol with no dependency added, screenshots twelve
+full pages (landing at 375/1440, app at 375/1024/1280/1440, each in both
+themes), classifies every pixel to its nearest palette token in CIELAB, and
+folds the twelve tokens into the four terms of the ratio law (§2's 60/30/8/2).
+`npm run census -- --diff` prints what moved without writing.
+
+It reads each page **twice**. The document reading is the whole-page average and
+is comparable with every figure the project published before the tool existed.
+The second reading, `scrollingForm`, cuts the document into viewport-height
+windows and measures each one, because a document average is not something
+anybody looks at: the app's 375 light page averaged 56% field while its windows
+ran 15% at the head and 91% at the tail — a vector that appears on no screen.
+§2 is unchanged for anything the eye holds at once (the poster, the mark, the
+hero band, each landing section). For a scrolling application document the
+second reading is the one that is true, and `npm run census -- --windows` prints
+the per-screen table behind it.
+
+It exists because the numbers used to live in an agent's recollection. One round
+shot its screenshots at 07:52, committed at 10:08, and published the 07:52
+figures as a description of the committed tree; the next round inherited them
+and had to throw the premise away. So the artifact carries an `inputsHash` — a
+sha256 over every file that can change a pixel — and a test in the ordinary
+suite asserts it still matches the working tree. Edit a stylesheet, commit
+without re-running the census, and the suite goes red naming the command. The
+commit SHA in the file is provenance only; it would not have caught that.
+
+Three things it deliberately is not. It is **not a gate on the ratio law** — the
+law is a target, not a direction, and a naive threshold would block the correct
+work of pulling an overshooting screen back down. It is **not portable between
+machines**: the type stacks end in system fallbacks, so the artifact records an
+`env.fingerprint` and the diff refuses to subtract across a mismatch rather than
+print a misleading delta. And its headline figure is **not a viewport
+measurement** — the denominator is the whole document, so a taller page dilutes
+every percentage without any colour changing. Read `pixels.total` before reading
+a shift as a palette change, and read `scrollingForm` before reading the
+document average as a description of anything a person saw.
+
+Everything the run needs is pinned from outside the app — frozen clock, pinned
+timezone and locale, seeded storage, `prefers-reduced-motion: reduce` — because
+a tree that renders differently while being measured is not the tree that ships.
+`src/` contains not one line that knows the census exists.
+
 ## Project layout
 
 - `src/engine/healthScore.ts` — Health Score Formula v0.1
@@ -321,13 +398,12 @@ why every string under 24px in this product sits on a plate.
 - `src/components/ArchiveCard.tsx` — the record: day index, month-to-date
   total, days left, the per-day strip, and the day-grouped ledger under them.
   One card, one heading, one scope line — it was a month card and a ledger
-- `src/components/CollectionCard.tsx` — the codex and the badge grid in one
-  card, each still a named `#codex` / `#badges` section for the hero's jumps
 - `src/components/QuestCard.tsx` — the daily quests with the XP bar and level
   above them, which was a card of its own
-- `src/components/SimCard.tsx` — the decision simulator and the decision
-  record it writes: every run is persisted with the projection it showed,
-  and answered later with Bought it / Waited / Resisted it
+- `src/components/SimCard.tsx` — the decision simulator, the decision record
+  it writes and the check-back that answers it: every run is persisted with the
+  projection it showed, answered with Bought it / Waited / Resisted it, and — if
+  it was bought — asked about once, 14 days later
 - `src/components/monogramGeometry.ts` — the mark (§4), as computed geometry
 - `src/components/` + `src/hooks/` — cards and the day/reward reaction logic
 - `src/audio/chiptune.ts` — synthesized audio cues
@@ -338,6 +414,11 @@ why every string under 24px in this product sits on a plate.
   what took `og.png` from 105 kB to 75 kB with identical pixels
 - `scripts/htmlComments.ts` — strips the served document's comments at build
   time; the source keeps every one of them
+- `scripts/census/` — the colour census: the row matrix, the tokens.css palette
+  parser and CIELAB classifier, a PNG decoder that is the inverse of
+  `raster.ts`'s writer, the CDP driver, the viewport-window reading of the ratio
+  law, and the staleness hash that keeps `docs/brand/census.json` from
+  outliving the tree it describes
 
 ## License
 

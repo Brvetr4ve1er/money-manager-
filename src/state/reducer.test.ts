@@ -618,4 +618,95 @@ describe('the decision record', () => {
       JSON.stringify(viaClose.decisions),
     )
   })
+
+  // ── ANSWER_CHECK_BACK ───────────────────────────────────────────────────
+
+  const boughtState = (over: Partial<Decision> = {}) =>
+    withDecision({ outcome: 'bought', outcomeDate: '2026-08-04', txId: 't1', ...over })
+
+  it('files a check-back answer and pays absolutely nothing for it', () => {
+    const state = boughtState()
+    const next = appReducer(state, {
+      type: 'ANSWER_CHECK_BACK',
+      id: 'd1',
+      answer: 'using',
+      date: '2026-08-18',
+    })
+    expect(next.decisions[0].checkBack).toBe('using')
+    expect(next.decisions[0].checkBackDate).toBe('2026-08-18')
+    // §12.1, and it is stricter than CLOSE_DECISION's: a decision at least
+    // produces a money row on one of its three branches. A check-back produces
+    // NOTHING — every other field of the state is byte-identical.
+    const { decisions: _a, ...restBefore } = state
+    const { decisions: _b, ...restAfter } = next
+    expect(JSON.stringify(restAfter)).toBe(JSON.stringify(restBefore))
+  })
+
+  it('answers once — a second dispatch is a no-op, like every other guard here', () => {
+    const answered = appReducer(boughtState(), {
+      type: 'ANSWER_CHECK_BACK',
+      id: 'd1',
+      answer: 'stopped',
+      date: '2026-08-18',
+    })
+    // Double tap, StrictMode double-invoke, or a stale peer answer arriving
+    // after this tab already filed one.
+    const again = appReducer(answered, {
+      type: 'ANSWER_CHECK_BACK',
+      id: 'd1',
+      answer: 'using',
+      date: '2026-08-19',
+    })
+    expect(again).toBe(answered)
+    expect(
+      appReducer(answered, {
+        type: 'ANSWER_CHECK_BACK',
+        id: 'missing',
+        answer: 'using',
+        date: '2026-08-19',
+      }),
+    ).toBe(answered)
+  })
+
+  it('refuses to answer a row the app never asked about', () => {
+    // Only a bought row is ever asked (checkBackDueOn), so a dispatch against
+    // any other outcome is not a user action this build can produce.
+    for (const outcome of ['open', 'waited', 'resisted'] as const) {
+      const state = withDecision({
+        outcome,
+        outcomeDate: outcome === 'open' ? undefined : '2026-08-04',
+      })
+      expect(
+        appReducer(state, {
+          type: 'ANSWER_CHECK_BACK',
+          id: 'd1',
+          answer: 'using',
+          date: '2026-08-18',
+        }),
+      ).toBe(state)
+    }
+  })
+
+  it('freezes the whole record row while answering it (§12.5)', () => {
+    const state = boughtState({ demo: false })
+    const before = state.decisions[0]
+    const after = appReducer(state, {
+      type: 'ANSWER_CHECK_BACK',
+      id: 'd1',
+      answer: 'unused',
+      date: '2026-08-18',
+    }).decisions[0]
+    for (const key of ['line', 'demo', 'amountDA', 'outcome', 'outcomeDate', 'txId', 'date'] as const) {
+      expect(`${key}: ${JSON.stringify(after[key])}`).toBe(`${key}: ${JSON.stringify(before[key])}`)
+    }
+    // …and the row still round-trips through the sanitizer without moving a
+    // key, so the merge fixpoint still settles.
+    const next = appReducer(state, {
+      type: 'ANSWER_CHECK_BACK',
+      id: 'd1',
+      answer: 'unused',
+      date: '2026-08-18',
+    })
+    expect(JSON.stringify(sanitizeState(next).decisions)).toBe(JSON.stringify(next.decisions))
+  })
 })

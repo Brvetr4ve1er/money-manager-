@@ -84,6 +84,38 @@ Therefore, as a hard rule:
 3. Every new foreground/field pair must be checked before it ships. If it is not in the
    table above, compute it.
 
+### 2.1b Ratio law — scrolling form
+
+§2's 60/30/8/2 is a **composition** law. It is unchanged, and it is measured over
+the whole surface, for anything the eye holds at once: the poster, the mark, the hero band,
+each landing section, the OG image.
+
+An application document is not one composition. It is a sequence of them, and the
+whole-document average is a number nobody ever looks at. Measured: the app's 375px light page
+averaged 56% field — apparently the best screen in the matrix — while its eight viewport
+windows ran 15% field at the head and 91% at the tail. That average appears on no screen.
+
+So for a **scrolling application document**, measure each viewport-height window:
+
+```
+Every window   field 35–80%  ·  Bone family 15–55%
+               hard caps: no window over 85% field or over 65% Bone
+Mean of windows  60 / 30 / 8 / 2, tolerance ±8 field, ±6 Bone
+Ink              >= 6%, measured over Bone-family-grounded area only
+Accent           <= 2% of the document — scarcity is a document property
+```
+
+**Ink is not an independent budget, and that is a correction to §2, not a loophole.**
+Graphite is 1.16:1 on Espresso, so every Ink pixel must stand on a Bone-family ground, and
+every Bone-family ground is a pixel not in the field bucket. Ink and field trade one for one.
+An 8%-of-document Ink budget and a 60%-of-document field budget are not simultaneously
+satisfiable on the same page. Ink is therefore measured over the paper it can be drawn on.
+
+The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
+test fails when it stops describing the tree. Any figure quoted about this product's pixels
+comes from that file or says which tree it came from — three rounds were steered by numbers
+that had outlived the tree they described.
+
 ### 2.2 Light / dark mapping
 
 Dark is not an inversion; it is a **ground swap**. Light ground = Bone. Dark ground = Espresso.

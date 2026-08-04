@@ -31,7 +31,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "brand": "node --experimental-strip-types scripts/brand-assets.ts"
+    "brand": "node --experimental-strip-types scripts/brand-assets.ts",
+    "census": "node --experimental-strip-types scripts/census/run.ts",
+    "census:diff": "node --experimental-strip-types scripts/census/run.ts --diff"
   },
   "dependencies": {
     "react": "^18.3.1",

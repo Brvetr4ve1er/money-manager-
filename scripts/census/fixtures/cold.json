@@ -1,0 +1,60 @@
+{
+  "transactions": [
+    {
+      "id": "c01",
+      "date": "2025-03-12",
+      "amountDA": 420,
+      "category": "Food",
+      "note": "coffee"
+    }
+  ],
+  "xp": {
+    "level": 1,
+    "xpIntoLevel": 5,
+    "totalXp": 5
+  },
+  "xpLog": [
+    {
+      "id": "c-log-1",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-12"
+    }
+  ],
+  "prevHealthScore": null,
+  "stage": null,
+  "healthDate": "2025-03-12",
+  "quests": [
+    {
+      "id": "log",
+      "text": "Log every purchase today",
+      "xpAction": "logExpense",
+      "done": true
+    },
+    {
+      "id": "lesson",
+      "text": "Read today's lesson",
+      "xpAction": "readLesson",
+      "verified": true,
+      "done": false
+    },
+    {
+      "id": "sim",
+      "text": "Run one decision simulation",
+      "xpAction": "runSimulation",
+      "verified": true,
+      "done": false
+    }
+  ],
+  "questsDate": "2025-03-12",
+  "lessonsSeen": [],
+  "muted": false,
+  "profile": null,
+  "achievements": [
+    {
+      "id": "first-log",
+      "date": "2025-03-12"
+    }
+  ],
+  "decisions": []
+}

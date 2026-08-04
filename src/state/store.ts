@@ -140,6 +140,57 @@ const DECISION_OUTCOMES: ReadonlySet<string> = new Set<string>([
 ])
 
 /**
+ * HOW LONG A BOUGHT DECISION WAITS BEFORE THE RECORD ASKS ABOUT IT.
+ *
+ * A named constant beside the type, like CALIBRATION_DAYS and
+ * RESIST_XP_DAILY_CAP, and never a literal at a call site: three surfaces read
+ * it (the scheduled line, the due test, the landing/README claim), and a
+ * hand-typed 14 in any one of them is how the app promises one horizon and
+ * keeps another.
+ *
+ * Fourteen days, not thirty: it has to be long enough that "still using it" is
+ * a real answer rather than novelty, and short enough that the object is still
+ * in memory. The app cannot validate that choice and does not pretend to — it
+ * is a product judgement, stated here rather than buried.
+ */
+export const CHECK_BACK_DAYS = 14
+
+/**
+ * THE THREE CHECK-BACK ANSWERS, AND THEY ARE PEERS (§12.3 / §12.6).
+ *
+ * Same rule as DECISION_ANSWERS below-and-above: same ink, same weight, same
+ * class, no ✓/✗, no colour split, and no ordering that reads best-to-worst.
+ *
+ * WHAT THE QUESTION MAY ASK, which is the binding constraint here. The obvious
+ * phrasing — "weeks later, was it worth it?" — is a REGRET PROMPT: it asks the
+ * user to grade a past self, which is the punitive framing §12.6 forbids and
+ * which App.test already bans as a literal string on this card. The app cannot
+ * know whether a purchase was worth it, so it does not ask. It asks a factual
+ * question about the OBJECT — is it in use — and files the answer.
+ *
+ * AND NOTHING IS EVER COUNTED. There is deliberately no tally of these three
+ * anywhere in the product, for the same reason there is no bought-vs-waited
+ * tally: "you stopped using 4 of 7" is one step from a verdict about the
+ * user's character, and it is exactly the number a scoring product would ship.
+ */
+export type CheckBackAnswer = 'using' | 'stopped' | 'unused'
+
+export const CHECK_BACK_ANSWERS: ReadonlyArray<{
+  answer: CheckBackAnswer
+  label: string
+}> = [
+  { answer: 'using', label: 'Still using it' },
+  { answer: 'stopped', label: 'Not any more' },
+  { answer: 'unused', label: 'Never used it' },
+]
+
+/** Derived from the roster, so a fourth answer cannot be added to the UI and
+    silently fail the sanitizer on reload (same shape as DECISION_OUTCOMES). */
+const CHECK_BACK_VALUES: ReadonlySet<string> = new Set<string>(
+  CHECK_BACK_ANSWERS.map((a) => a.answer),
+)
+
+/**
  * THE DECISION RECORD — one simulation the user ran, and what they did about
  * it. The simulator used to throw its whole output away (a `useState` string in
  * SimCard), so the deepest engine in the app left no trace but a bare XP grant.
@@ -174,6 +225,49 @@ export interface Decision {
   outcomeDate?: string
   /** The transaction the outcome produced, when it produced one. */
   txId?: string
+  /**
+   * THE CHECK-BACK ANSWER. Present only on a 'bought' row, and only once the
+   * user answered — the app never fills it in, guesses it, or defaults it.
+   *
+   * It is the one field on this record written LATER than the row itself, and
+   * writing it must not disturb anything else on the row: `line`, `demo`,
+   * `amountDA`, `outcome`, `outcomeDate` and `txId` are frozen the moment they
+   * land (§12.5), so a check-back answers the record without editing it.
+   */
+  checkBack?: CheckBackAnswer
+  /** Local day the check-back was answered; absent until then. */
+  checkBackDate?: string
+}
+
+/**
+ * The day this row's check-back comes due, or null when it never does.
+ *
+ * Only a 'bought' row schedules one: 'waited' and 'resisted' bought no object,
+ * so there is nothing to be using or not using, and an 'open' row has not said
+ * anything happened at all. Pure — no wall clock — so the card, the reducer
+ * and the tests all read the same rule.
+ */
+export function checkBackDueOn(d: Decision): string | null {
+  if (d.outcome !== 'bought' || d.outcomeDate === undefined) return null
+  return addDaysISO(d.outcomeDate, CHECK_BACK_DAYS)
+}
+
+export type CheckBackState = 'none' | 'scheduled' | 'due' | 'answered'
+
+/**
+ * Where a row stands in the check-back cycle, as one value the UI switches on.
+ *
+ * Day keys compare lexicographically (that is the whole reason every date in
+ * this product is YYYY-MM-DD), so `due <= today` needs no arithmetic and no
+ * timezone. A row closed today is 'scheduled', never 'due' — CHECK_BACK_DAYS
+ * is 14 and 14 > 0, so the boundary is a property of the constant, and the
+ * test that pins it is testing the constant as much as this function.
+ */
+export function checkBackState(d: Decision, today: string): CheckBackState {
+  if (d.checkBack !== undefined) return 'answered'
+  const due = checkBackDueOn(d)
+  if (due === null) return 'none'
+  return due <= today ? 'due' : 'scheduled'
 }
 
 export interface AppState {
@@ -214,22 +308,24 @@ export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   // it (see SimCard's onRun in App) — and because it is verified, QuestCard
   // renders it without a tap-to-complete button.
   { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', verified: true },
-  // ArchiveCard's day-grouped list is the surface this quest points at — the
-  // stack of day headings, each with its own total, under that card's single
-  // h2. (It used to name a "Recent" heading on a separate ledger card; both
-  // merged into ArchiveCard and that heading was dropped in the same change,
-  // so the rationale for a shipped quest named a surface no build renders.) It
-  // now genuinely groups by day with per-day totals, so the old constraint here
-  // ("must not promise a yesterday view the app doesn't have") is satisfied and
-  // the wording is free to move. It deliberately hasn't, and it stays a
-  // self-report tap rather than joining the verified quests, for one reason:
-  // the only thing the app can OBSERVE on that card is the expand control, and
-  // that control does not exist until a fourth logged day. Verifying against it
-  // would make a DAILY quest unreachable for the whole first week — and naming
-  // "yesterday" in the text would promise a heading a day-1 archive cannot
-  // render. A quest the app cannot observe is honest as a self-report; a
-  // verified flag over an unobservable action is the hollow grant.
-  { id: 'review', text: 'Look back over your recent purchases', xpAction: 'reviewRecent' },
+  // THERE WAS A FOURTH, AND IT IS GONE. `review` — "Look back over your recent
+  // purchases" — paid 10 XP for a tap, and the tap was the entire evidence. The
+  // comment that used to stand here conceded exactly that in its own words: the
+  // only thing the app can OBSERVE on the archive card is an expand control
+  // that does not exist until a fourth logged day. Every other quest in this
+  // roster is either verified by the app or a self-report about an action the
+  // app can at least see happen (`log` names the rows in the ledger). This one
+  // was neither. A daily grant with no observable referent is the engagement
+  // track paying for nothing, which is the failure Trust Rule 1 exists to keep
+  // away from the score — and keeping it away from the score is not a licence
+  // to mint it on the other side of the wall.
+  //
+  // `reviewRecent` STAYS IN XP_REWARDS on purpose. Removing it would drop it
+  // out of XP_GRANT_ACTIONS, the sanitizer would reject every historical
+  // `quest:review:<day>` grant, and xpFromLog would fold a SMALLER total than
+  // the counter the user was already shown — silently taking back XP that was
+  // genuinely earned under the old roster. See the xpLog note in NOTE_MAX_LEN:
+  // the grant log is evidence, and evidence is not retroactively edited.
 ]
 
 /**
@@ -535,6 +631,14 @@ export const DECISION_LINE_MAX_LEN = 400
  * The cap is applied AFTER the canonical sort, never on arrival order, so
  * trimming is a pure function of the set: sanitize and merge cannot disagree
  * about which rows survive, which is what the merge fixpoint needs.
+ *
+ * KNOWN EDGE, STATED RATHER THAN HIDDEN: the sort is newest-day-first, so the
+ * trim falls on the OLDEST rows — which is exactly where the most overdue
+ * check-backs live (see CHECK_BACK_DAYS). A user who runs more than
+ * DECISION_MAX simulations inside a 14-day window loses pending questions
+ * silently. It is not fixed here on purpose: exempting answered-or-pending rows
+ * from the cap would make the cap unbounded in exactly the case the quota
+ * argument was written for, and a record is a log before it is a queue.
  */
 export const DECISION_MAX = 60
 
@@ -577,7 +681,47 @@ export function sanitizeDecision(v: unknown): Decision | null {
     out.outcomeDate = v.outcomeDate
   }
   if (typeof v.txId === 'string' && v.txId !== '') out.txId = v.txId
+  // GATED ON 'bought', because that is the only row the app ever asks about
+  // (see checkBackDueOn). An answer on a waited or resisted row is data this
+  // build could not have written — a hand-edit or a payload from something
+  // that is not Ember — and the same rule the note follows applies: dropping
+  // it costs the ANSWER, never the row and never the money facts on it.
+  if (
+    out.outcome === 'bought' &&
+    typeof v.checkBack === 'string' &&
+    CHECK_BACK_VALUES.has(v.checkBack)
+  ) {
+    out.checkBack = v.checkBack as CheckBackAnswer
+    // Repaired rather than dropped, exactly like outcomeDate above: an answer
+    // with no day still says what the user said, and the row renders it
+    // without a date instead of losing it.
+    if (typeof v.checkBackDate === 'string' && isValidDayKey(v.checkBackDate)) {
+      out.checkBackDate = v.checkBackDate
+    }
+  }
   return out
+}
+
+/**
+ * Which of two versions of the SAME decision survives a merge.
+ *
+ * ANSWERED BEATS UNANSWERED, and it needs its own clause rather than falling
+ * through to the JSON tie-break, because the tie-break gets this exactly
+ * backwards. `checkBack` is the last key in the canonical order, so an
+ * unanswered row's serialisation ends `…"txId":"abc"}` where the answered
+ * one continues `…"txId":"abc","checkBack":…`. '}' is 0x7D and ',' is 0x2C, so
+ * the string comparison prefers the row WITHOUT the answer — and a question the
+ * user already answered would be asked again after any cross-tab merge.
+ *
+ * Two DIFFERENT answers carry no recency signal (checkBackDate can tie), so
+ * they fall to the same arbitrary-but-SYMMETRIC greater-JSON rule the rest of
+ * this file uses: both tabs converging matters more than which one wins.
+ */
+function preferDecision(a: Decision, b: Decision): Decision {
+  const aAnswered = a.checkBack !== undefined
+  const bAnswered = b.checkBack !== undefined
+  if (aAnswered !== bAnswered) return aAnswered ? a : b
+  return JSON.stringify(a) > JSON.stringify(b) ? a : b
 }
 
 /**
@@ -587,10 +731,13 @@ export function sanitizeDecision(v: unknown): Decision | null {
  *
  * CLOSED BEATS OPEN: recording an outcome in either tab is a user action the
  * other tab has no evidence against, and reviving it as open would ask the same
- * question twice. Two DIFFERENT closed outcomes carry no recency signal at all
- * (outcomeDate can tie), so the greater JSON string wins — arbitrary but
- * SYMMETRIC, the same tie-break the profile uses, because both tabs agreeing
- * matters more than which of the two survives.
+ * question twice. ANSWERED BEATS UNANSWERED for the identical reason one level
+ * down — see preferDecision, which also explains why that clause cannot be left
+ * to the JSON tie-break. Two DIFFERENT closed outcomes (or two different
+ * check-back answers) carry no recency signal at all (outcomeDate can tie), so
+ * the greater JSON string wins — arbitrary but SYMMETRIC, the same tie-break the
+ * profile uses, because both tabs agreeing matters more than which of the two
+ * survives.
  */
 export function canonicalDecisions(entries: Decision[]): Decision[] {
   const byId = new Map<string, Decision>()
@@ -601,11 +748,11 @@ export function canonicalDecisions(entries: Decision[]): Decision[] {
       continue
     }
     if (prev.outcome === d.outcome) {
-      byId.set(d.id, JSON.stringify(d) > JSON.stringify(prev) ? d : prev)
+      byId.set(d.id, preferDecision(prev, d))
     } else if (prev.outcome === 'open') {
       byId.set(d.id, d)
     } else if (d.outcome !== 'open') {
-      byId.set(d.id, JSON.stringify(d) > JSON.stringify(prev) ? d : prev)
+      byId.set(d.id, preferDecision(prev, d))
     }
   }
   return (

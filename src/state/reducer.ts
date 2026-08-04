@@ -19,6 +19,7 @@ import {
   sanitizeProfile,
   withSanitizedNote,
   type AppState,
+  type CheckBackAnswer,
   type Decision,
   type DecisionOutcome,
   type ProfileData,
@@ -45,6 +46,7 @@ export type AppAction =
       outcome: Exclude<DecisionOutcome, 'open'>
       date: string
     }
+  | { type: 'ANSWER_CHECK_BACK'; id: string; answer: CheckBackAnswer; date: string }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -295,6 +297,40 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           // Canonical rebuild, same reason as LOG_TX's link above.
           d.id === action.id
             ? (sanitizeDecision({ ...d, outcome: action.outcome, outcomeDate: action.date }) ?? d)
+            : d,
+        ),
+      }
+    }
+    case 'ANSWER_CHECK_BACK': {
+      // THE CHECK-BACK, ANSWERED ONCE. Only a BOUGHT row that has not been
+      // answered accepts one: a second dispatch before re-render (double tap,
+      // StrictMode) sees a filled `checkBack` and is a no-op, and a peer tab's
+      // answer is never overwritten by a stale one — the same atomic guard
+      // CLOSE_DECISION and COMPLETE_QUEST use.
+      //
+      // NO XP, NO HEALTH INPUT, NO TALLY (§12.1). Nothing here touches xp,
+      // xpLog, transactions, prevHealthScore, stage or quests, and there is no
+      // counter anywhere that this increments. Answering is the whole event:
+      // the record files what the user said and stops (§7.1).
+      //
+      // AND NOTHING ELSE ON THE ROW MOVES (§12.5). The rebuild spreads the
+      // EXISTING row and adds two keys, so `line`, `demo`, `amountDA`,
+      // `outcome`, `outcomeDate` and `txId` come through byte-identical —
+      // an answer answers the record, it does not edit it. Canonical rebuild
+      // through the sanitizer for the same reason as LOG_TX's link: it is the
+      // one key-order builder for a decision, and mergeStates compares whole
+      // states as JSON strings.
+      const target = state.decisions.find((d) => d.id === action.id)
+      if (!target || target.outcome !== 'bought' || target.checkBack !== undefined) return state
+      return {
+        ...state,
+        decisions: state.decisions.map((d) =>
+          d.id === action.id
+            ? (sanitizeDecision({
+                ...d,
+                checkBack: action.answer,
+                checkBackDate: action.date,
+              }) ?? d)
             : d,
         ),
       }
