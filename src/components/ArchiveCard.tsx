@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { Transaction } from '../state/store.ts'
-import { dayLabel, groupTransactionsByDay, monthToDate } from '../engine/ledger.ts'
+import { dayLabel, ledgerWindow, monthToDate, resistedThisMonthDA } from '../engine/ledger.ts'
 import { Glyph } from './Glyph.tsx'
 
 /**
@@ -69,6 +69,24 @@ export const WINDOW_DAYS = 3
  */
 export const EXPAND_STEP_DAYS = 30
 
+/**
+ * The record's resisted line, in the card's own words.
+ *
+ * EXPORTED BECAUSE THE PITCH QUOTES IT. The landing's hand-off tells a stranger
+ * that a resist "sums for the month" and then shows the line that sum lands in;
+ * the README makes the same claim to whoever the repo link reaches. Both used to
+ * type the sentence out. A control named by label is the one claim a rename
+ * breaks in silence, and this string is a control's output — so the two claim
+ * surfaces print this function's return value, over the same sample rows the
+ * shot renders, and a reword here rewords both or fails README.test/Root.test.
+ *
+ * "resisted", not "kept": the app observed the tap, not the outcome (see the
+ * chip below).
+ */
+export function resistedChipLabel(totalDA: number): string {
+  return `${totalDA.toLocaleString()} DA resisted this month`
+}
+
 /* No historyDays prop, deliberately: the scope line below is a permanent
    property of this card, not a countdown, so nothing here reads the
    calibration clock. Trust Rule 5's 90-day threshold covers the SCORE — see
@@ -81,7 +99,7 @@ export function ArchiveCard({
   today: string
 }) {
   // How many day groups the window currently holds. POSITIVE_INFINITY once the
-  // window is fully out, NOT days.length: a number frozen at today's count
+  // window is fully out, NOT totalDays: a number frozen at today's count
   // would silently re-collapse the oldest day the moment a new day was logged
   // under a fully-expanded list.
   const [limit, setLimit] = useState<number>(WINDOW_DAYS)
@@ -101,23 +119,31 @@ export function ArchiveCard({
   // is memoised on the only inputs it reads. Nothing about the output changes;
   // the scan just stops repeating for renders that changed neither.
   const month = useMemo(() => monthToDate(transactions, today), [transactions, today])
-  const days = useMemo(() => groupTransactionsByDay(transactions, today), [transactions, today])
+  // THE WINDOW IS PUSHED INTO THE DERIVATION, not taken as a slice off a fully
+  // materialised record — see ledgerWindow, which carries the measurement. The
+  // memo keys on `limit` as well, so growing the window re-scans; that press
+  // already renders a run of days and pays far more in DOM than in the scan,
+  // while the case this exists for — every logged purchase, and every toast /
+  // XP-chip timer render — recomputes at WINDOW_DAYS or not at all.
+  const { days: shown, totalDays } = useMemo(
+    () => ledgerWindow(transactions, today, limit),
+    [transactions, today, limit],
+  )
   // "Resisted, not spent": resisted amounts compound into one visible number
   // instead of scattering per-row. Current calendar month, resists with a typed
   // amount only. A motivational mirror over self-reported data — deliberately
   // NOT a Health Score input (the two-track rule): the score reads financial
   // reality, this line reads the user's own resist story.
-  const monthKey = today.slice(0, 7)
+  // IN THE ENGINE, not inline here, because the landing's hand-off states this
+  // figure for its sample rows — see resistedThisMonthDA. Same rule the day
+  // totals and the month figures already follow: the marketing surface computes
+  // with the app's derivations or it is a second implementation of them.
   const resistedDA = useMemo(
-    () =>
-      transactions
-        .filter((t) => t.resistedImpulse && t.amountDA > 0 && t.date.slice(0, 7) === monthKey)
-        .reduce((s, t) => s + t.amountDA, 0),
-    [transactions, monthKey],
+    () => resistedThisMonthDA(transactions, today),
+    [transactions, today],
   )
 
-  const shown = days.slice(0, limit)
-  const hiddenDays = Math.max(0, days.length - shown.length)
+  const hiddenDays = Math.max(0, totalDays - shown.length)
   // "Expanded" is now literally "nothing is left to show", which is what
   // aria-expanded has to mean: a partly-grown window is not a completed
   // disclosure, and reporting it as one would tell AT the list is whole.
@@ -131,9 +157,9 @@ export function ArchiveCard({
     // Always names the REAL total, so a stepped window never implies the
     // record is smaller than it is.
     setRangeNote(
-      next >= days.length
-        ? `Showing all ${days.length} days.`
-        : `Showing ${next} of ${days.length} days.`,
+      next >= totalDays
+        ? `Showing all ${totalDays} days.`
+        : `Showing ${next} of ${totalDays} days.`,
     )
   }
 
@@ -175,68 +201,88 @@ export function ArchiveCard({
           The index is this card's real position in App's stack — App.test
           derives the whole run from render order, so inserting or merging a
           card fails the suite rather than silently printing a lie. */}
-      <span className="spec-label" aria-hidden="true">ARC—08</span>
-      <div className="month-head">
-        {/* One head for the whole archive. "The record" rather than "This
-            month": the card is the month figures AND the days under them, and
-            naming it after half of itself is what left the ledger printing a
-            second heading and a second promise one scroll down. */}
-        <h2>The record</h2>
-        {/* §1 trait 10 — the fractional index as decorative truth-telling,
-            except it is not decorative here: "where am I in the month" is
-            half the feature. NOT index-rolled: §9 move 4 is for a numeral the
-            user's action moves, and this one ticks over at midnight with
-            nobody watching. */}
-        <span className="month-index mono">Day {month.dayOfMonth} / {month.daysInMonth}</span>
-      </div>
-      <p className="month-facts">
-        {/* "logged", not "spent". Every amount in Ember is typed by hand, so
-            the honest claim is what the user recorded — the app cannot see the
-            rest and must not imply it did. INDEX ROLL (§9 move 4) on the one
-            numeral a log moves; dropped to a plain value change under
-            prefers-reduced-motion by the gate on .index-roll. */}
-        <span className="month-spend mono index-roll" key={month.spentDA}>
-          {month.spentDA.toLocaleString()} DA logged
-        </span>
-        <span className="month-left">{left}</span>
-        {/* The resisted mirror moved up here from the ledger's own head when
-            the two merged: it is a MONTH figure ("this month" is in its own
-            words), so it belongs on the month line rather than over the day
-            list. "resisted", not "kept": the verb names the user's ACTION,
-            which the app observed — the tap happened. "Kept" asserts an
-            outcome nothing here can verify, since this sums the prices of
-            things the user says they did not buy. INDEX ROLL on the total. */}
-        {resistedDA > 0 && (
-          <span className="kept-chip mono index-roll" key={resistedDA}>
-            {resistedDA.toLocaleString()} DA resisted this month
+      <span className="spec-label" aria-hidden="true">ARC—07</span>
+      {/* CONSTRAINT §2.1b — THE MONTH HALF TAKES THE READING PLATE, i.e. the
+          opposite ground to the sheet it stands on, exactly as the day groups
+          below it do. The day list alone left the archive's HEAD unbroken:
+          docs/brand/census.json at tree 12bbf5e read app.375x812.dark.seeded
+          window @4060 at 45.42% field / 46.88% Bone (the row's worst, deviation
+          33.76) and its light twin at 72.11 / 21.30 — the same window, the two
+          themes as mirrors, because the first ~227px of this card is one ground
+          in whichever theme you are in. Plated, they read 61.04 / 32.50 (dark)
+          and 56.83 / 34.91 (light).
+          IT IS NOT PART OF THE DAY ALTERNATION and does not shift its phase:
+          this is the card's head, the days are its body. Flipping the days to
+          keep a strict head/day/day/day alternation was measured and is worse —
+          window @4872 came back at 39.79% field / 53.63% Bone in dark, the
+          row's new worst at deviation 47.30, because it halves the plate the
+          tail is short of. Head plate then day 0 plate is a 430px field run
+          with a 16px seam in it, inside §2.1b's derived ~702px limit.
+          The .kept-chip inside is §1 trait 06's event, which a plate may carry
+          (see .counter-plate in tokens.css); nothing here is accent-INKED. */}
+      <div className="month-block reading-plate">
+        <div className="month-head">
+          {/* One head for the whole archive. "The record" rather than "This
+              month": the card is the month figures AND the days under them, and
+              naming it after half of itself is what left the ledger printing a
+              second heading and a second promise one scroll down. */}
+          <h2>The record</h2>
+          {/* §1 trait 10 — the fractional index as decorative truth-telling,
+              except it is not decorative here: "where am I in the month" is
+              half the feature. NOT index-rolled: §9 move 4 is for a numeral the
+              user's action moves, and this one ticks over at midnight with
+              nobody watching. */}
+          <span className="month-index mono">Day {month.dayOfMonth} / {month.daysInMonth}</span>
+        </div>
+        <p className="month-facts">
+          {/* "logged", not "spent". Every amount in Ember is typed by hand, so
+              the honest claim is what the user recorded — the app cannot see the
+              rest and must not imply it did. INDEX ROLL (§9 move 4) on the one
+              numeral a log moves; dropped to a plain value change under
+              prefers-reduced-motion by the gate on .index-roll. */}
+          <span className="month-spend mono index-roll" key={month.spentDA}>
+            {month.spentDA.toLocaleString()} DA logged
           </span>
-        )}
-      </p>
-      {/* Decoration, and aria-hidden for it — the same call BossCard's HP bar
-          and the XP track make. The figures above are the data; a strip of
-          31 cells would otherwise add 31 announcements and a second
-          progressbar/meter to the page for a quantity AT users already have as
-          text. The record-window distinction it draws is carried in words by
-          .month-note below, which is why hiding it costs nothing. */}
-      <div className="month-strip" aria-hidden="true">
-        {month.days.map((d) => (
-          <span key={d.date} className={`month-cell is-${d.state}`}>
-            {/* Skipped entirely at 0, like .xp-fill and .boss-fill: a
-                zero-height box with a border would draw a phantom sliver on a
-                day nothing happened. The 6% floor keeps a real but tiny day
-                visible — a 40 DA day beside a 40,000 DA one rounds to nothing
-                otherwise, and a day that happened must not render as a day
-                that did not. */}
-            {d.spentDA > 0 && month.maxDayDA > 0 && (
-              <span
-                className="month-bar"
-                style={{ height: `${Math.max(6, (d.spentDA / month.maxDayDA) * 100)}%` }}
-              />
-            )}
-          </span>
-        ))}
+          <span className="month-left">{left}</span>
+          {/* The resisted mirror moved up here from the ledger's own head when
+              the two merged: it is a MONTH figure ("this month" is in its own
+              words), so it belongs on the month line rather than over the day
+              list. "resisted", not "kept": the verb names the user's ACTION,
+              which the app observed — the tap happened. "Kept" asserts an
+              outcome nothing here can verify, since this sums the prices of
+              things the user says they did not buy. INDEX ROLL on the total. */}
+          {resistedDA > 0 && (
+            <span className="kept-chip mono index-roll" key={resistedDA}>
+              {resistedChipLabel(resistedDA)}
+            </span>
+          )}
+        </p>
+        {/* Decoration, and aria-hidden for it — the same call BossCard's HP bar
+            and the XP track make. The figures above are the data; a strip of
+            31 cells would otherwise add 31 announcements and a second
+            progressbar/meter to the page for a quantity AT users already have as
+            text. The record-window distinction it draws is carried in words by
+            .month-note below, which is why hiding it costs nothing. */}
+        <div className="month-strip" aria-hidden="true">
+          {month.days.map((d) => (
+            <span key={d.date} className={`month-cell is-${d.state}`}>
+              {/* Skipped entirely at 0, like .xp-fill and .boss-fill: a
+                  zero-height box with a border would draw a phantom sliver on a
+                  day nothing happened. The 6% floor keeps a real but tiny day
+                  visible — a 40 DA day beside a 40,000 DA one rounds to nothing
+                  otherwise, and a day that happened must not render as a day
+                  that did not. */}
+              {d.spentDA > 0 && month.maxDayDA > 0 && (
+                <span
+                  className="month-bar"
+                  style={{ height: `${Math.max(6, (d.spentDA / month.maxDayDA) * 100)}%` }}
+                />
+              )}
+            </span>
+          ))}
+        </div>
+        {note && <p className="month-note">{note}</p>}
       </div>
-      {note && <p className="month-note">{note}</p>}
 
       {/* Permanently mounted, and mounted EMPTY: screen readers announce text
           changes inside an existing live region, so a region that appears
@@ -252,7 +298,7 @@ export function ArchiveCard({
           note above is the survivor: it is §7's empty-state register, and the
           line it replaces carried an XP figure onto a money surface, which is
           the one thing App.test holds this card to (§12.1). */}
-      {days.length > 0 && (
+      {totalDays > 0 && (
         <>
           {/* Nested lists, not a flat run of rows: the day is the structure,
               so it is a list of days each owning a list of its own rows
@@ -384,7 +430,7 @@ export function ArchiveCard({
                   setWindow(
                     expanded
                       ? WINDOW_DAYS
-                      : limit + nextRun >= days.length
+                      : limit + nextRun >= totalDays
                         ? Number.POSITIVE_INFINITY
                         : limit + nextRun,
                   )

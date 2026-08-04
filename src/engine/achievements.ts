@@ -45,7 +45,13 @@ function isPurchase(t: Transaction): boolean {
  * persists anyway, so "longest ever" needs no reference day.
  */
 export function longestLogStreak(transactions: Transaction[]): number {
-  const days = [...new Set(transactions.map((t) => t.date))].sort()
+  // Filled by a loop, not by `new Set(transactions.map(...))`: the map built a
+  // throwaway array as long as the whole ledger to feed a Set that is at most
+  // one entry per DAY. This predicate runs on every dispatch until `streak-7`
+  // is earned, which on a fresh install is every dispatch there is.
+  const seen = new Set<string>()
+  for (const t of transactions) seen.add(t.date)
+  const days = [...seen].sort()
   let best = 0
   let run = 0
   let prev: string | null = null

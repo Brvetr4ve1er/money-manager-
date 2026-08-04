@@ -15,12 +15,11 @@ import {
   NOTE_MAX_LEN,
   sanitizeState,
   todayISO,
-  rollQuests,
   type AppState,
   type Decision,
   type Transaction,
 } from './store.ts'
-import { MAX_TOTAL_XP, xpStateFromTotal } from '../engine/xp.ts'
+import { MAX_TOTAL_XP, xpFromLog, xpStateFromTotal, type XpGrant } from '../engine/xp.ts'
 
 describe('todayISO', () => {
   it('uses the local calendar day, not UTC', () => {
@@ -53,24 +52,6 @@ describe('newId', () => {
   })
 })
 
-describe('rollQuests', () => {
-  it('returns the same state object when the quest day matches', () => {
-    const s = defaultState()
-    expect(rollQuests(s, s.questsDate)).toBe(s)
-  })
-  it('resets quests when the day changed (tab open past midnight)', () => {
-    const s = defaultState()
-    s.questsDate = '2026-07-31'
-    s.quests = s.quests.map((q) => ({ ...q, done: true }))
-    const rolled = rollQuests(s, '2026-08-01')
-    expect(rolled.questsDate).toBe('2026-08-01')
-    expect(rolled.quests.every((q) => !q.done)).toBe(true)
-    // Everything else is untouched.
-    expect(rolled.xp).toBe(s.xp)
-    expect(rolled.transactions).toBe(s.transactions)
-  })
-})
-
 describe('sanitizeState', () => {
   it('returns defaults for non-object payloads', () => {
     expect(sanitizeState(null)).toEqual(defaultState())
@@ -83,7 +64,7 @@ describe('sanitizeState', () => {
     expect(state.muted).toBe(true)
     expect(state.xp).toEqual(defaultState().xp)
     expect(state.transactions).toEqual([])
-    expect(state.quests.length).toBeGreaterThan(0)
+    expect(state.lessonsSeen).toEqual([])
   })
 
   it('drops malformed transactions but keeps valid ones', () => {
@@ -258,7 +239,6 @@ describe('sanitizeState', () => {
     b.transactions = [
       { id: 'b', amountDA: 200, category: 'Fun', note: 'cinema', date: '2026-08-01' },
     ]
-    b.questsDate = a.questsDate
     const merged = mergeStates(a, b)
     expect(merged.transactions.map((t) => t.note).sort()).toEqual(['bread', 'cinema'])
     expect(mergeStates(merged, merged)).toBe(merged)
@@ -357,9 +337,7 @@ describe('sanitizeState', () => {
   it('rejects day keys that do not hold the YYYY-MM-DD shape', () => {
     // finalizeHealthThrough walks single-day steps from healthDate — a
     // free-form string ('never', an ISO timestamp) must not reach it.
-    const state = sanitizeState({ healthDate: 'never', questsDate: '2026-08-01T00:00:00Z' })
-    expect(state.healthDate).toBe('')
-    expect(state.questsDate).toBe(defaultState().questsDate)
+    expect(sanitizeState({ healthDate: 'never' }).healthDate).toBe('')
   })
 
   it('keeps a valid persisted snapshot', () => {
@@ -414,11 +392,9 @@ describe('sanitizeState', () => {
     // One real day, one day's cap — not four days' worth bought with three
     // dates the calendar does not have.
     expect(state.xp.totalXp).toBe(50)
-    // Same rule for the two loose day keys, for consistency rather than for a
-    // live exploit: both are rescued downstream, and neither should need to be.
-    const dates = sanitizeState({ healthDate: '2026-02-30', questsDate: '2026-99-99' })
-    expect(dates.healthDate).toBe('')
-    expect(dates.questsDate).toBe(defaultState().questsDate)
+    // Same rule for the loose day key, for consistency rather than for a live
+    // exploit: it is rescued downstream, and it should not need to be.
+    expect(sanitizeState({ healthDate: '2026-02-30' }).healthDate).toBe('')
   })
 
   it('banks a pre-log XP total as a mergeable legacy baseline grant', () => {
@@ -434,38 +410,71 @@ describe('sanitizeState', () => {
     expect(state.xp.totalXp).toBe(110)
   })
 
-  it('replaces a quest list with any malformed entry', () => {
-    const state = sanitizeState({
-      quests: [{ id: 'log', text: 'Log', xpAction: 'hack', done: false }],
-    })
-    expect(state.quests).toEqual(defaultState().quests)
+  it('folds every historical quest grant at its original value (Trust Rule 7)', () => {
+    // THE ENGAGEMENT TRACK MAY STOP PAYING AN ACTION; IT MAY NEVER UN-PAY ONE.
+    // All four quests that ever shipped — log, lesson, sim and the earlier
+    // `review` — minted `quest:<id>:<day>` grants against four XP_REWARDS
+    // actions. The quests are deleted. Every one of those actions stays in the
+    // table, so isXpGrant still accepts the grants and xpFromLog still folds
+    // them; drop any of them and the counter the user was already shown would
+    // silently shrink at their next load, with no server and no way back.
+    const grants = [
+      { id: 'quest:log:2026-08-01', action: 'logExpense', amount: 5, date: '2026-08-01' },
+      { id: 'quest:lesson:2026-08-01', action: 'readLesson', amount: 15, date: '2026-08-01' },
+      { id: 'quest:sim:2026-08-01', action: 'runSimulation', amount: 15, date: '2026-08-01' },
+      { id: 'quest:review:2026-08-01', action: 'reviewRecent', amount: 10, date: '2026-08-01' },
+      { id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-02' },
+    ]
+    const state = sanitizeState({ xp: { level: 1, xpIntoLevel: 0, totalXp: 0 }, xpLog: grants })
+    expect(state.xpLog).toEqual(grants)
+    expect(state.xp).toEqual(xpFromLog(grants as XpGrant[]))
+    expect(state.xp.totalXp).toBe(195)
+    // No legacy top-up is minted either: the fold already equals the counter,
+    // so there is nothing to reconcile.
+    expect(state.xpLog.some((g) => g.action === 'legacy')).toBe(false)
   })
 
-  it('re-stamps the verified flag from the canonical roster', () => {
-    // The flag is a product invariant, not user data: an older persisted list
-    // (or a hand-edited one) must not resurrect a tappable sim quest.
+  it('loads a state written by the quest schema, losing nothing but the quests', () => {
+    // THE ONE MIGRATION THIS DELETION HAS. `quests` and `questsDate` were real
+    // persisted fields; they are read by nothing now (see XpStrip). This
+    // sanitizer builds from defaultState() and copies only keys it recognises,
+    // so an old payload still loads — the two dead fields drop out and every
+    // transaction, decision, lesson and grant beside them comes through
+    // untouched. Asserted rather than assumed: a throw here bricks the app on
+    // the one device that has the old shape, and there is no server to fix it.
     const state = sanitizeState({
       quests: [
-        { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', done: false },
-        { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense', verified: true, done: false },
+        { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense', done: true },
+        { id: 'bonus', text: 'Free XP', xpAction: 'hack', done: true },
+        'junk',
+      ],
+      questsDate: '2026-99-99',
+      transactions: [{ id: 'a', amountDA: 1200, category: 'Food', date: '2026-08-01' }],
+      lessonsSeen: [{ id: 'budget-sketch', date: '2026-08-01' }],
+      decisions: [
+        {
+          id: 'd1',
+          date: '2026-08-01',
+          amountDA: 5_000,
+          line: 'Buy path ends lower. About 6 points below waiting.',
+          demo: false,
+          outcome: 'open',
+        },
+      ],
+      xpLog: [
+        { id: 'quest:log:2026-08-01', action: 'logExpense', amount: 5, date: '2026-08-01' },
       ],
     })
-    expect(state.quests.find((q) => q.id === 'sim')?.verified).toBe(true)
-    expect(state.quests.find((q) => q.id === 'log')?.verified).toBeUndefined()
-  })
-
-  it('drops quest ids outside the canonical roster — no hand-added XP levers', () => {
-    // Unknown ids (hand-added 'log2'…'log50', ids from abandoned schemas)
-    // would each render as a tappable self-report row granting XP once — an
-    // unbounded same-day XP lever bypassing the roster.
-    const state = sanitizeState({
-      quests: [
-        ...defaultState().quests,
-        { id: 'bonus', text: 'Free XP', xpAction: 'logExpense', done: false },
-        { id: 'log2', text: 'Log again', xpAction: 'logExpense', done: false },
-      ],
-    })
-    expect(state.quests).toEqual(defaultState().quests)
+    expect(state.transactions).toHaveLength(1)
+    expect(state.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
+    expect(state.decisions.map((d) => d.id)).toEqual(['d1'])
+    expect(state.xpLog.map((g) => g.id)).toEqual(['quest:log:2026-08-01'])
+    expect(state.xp.totalXp).toBe(5)
+    // The dead fields do not survive onto the loaded state at all — a key
+    // nothing reads is a key that drifts.
+    expect('quests' in state).toBe(false)
+    expect('questsDate' in state).toBe(false)
+    expect(Object.keys(state)).toEqual(Object.keys(defaultState()))
   })
 
   it('keeps valid codex entries and drops unknown lesson ids and bad dates', () => {
@@ -567,24 +576,6 @@ describe('sanitizeState', () => {
     }
   })
 
-  it('preserves same-day done flags by id while refreshing text from the roster', () => {
-    const state = sanitizeState({
-      quests: [
-        { id: 'log', text: 'Old copy from a previous release', xpAction: 'logExpense', done: true },
-        { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', done: false },
-      ],
-    })
-    const log = state.quests.find((q) => q.id === 'log')!
-    expect(log.done).toBe(true)
-    expect(log.text).toBe('Log every purchase today') // roster owns the copy
-    // Quests absent from the payload (here: 'lesson') come back undone.
-    expect(state.quests.find((q) => q.id === 'lesson')?.done).toBe(false)
-    // …and a quest the roster no longer ships never comes back at all. The
-    // `review` quest was deleted (it paid XP for a tap the app could not
-    // observe); a persisted payload still naming it must not resurrect a
-    // tappable, XP-paying row from an older release.
-    expect(state.quests.map((q) => q.id)).not.toContain('review')
-  })
 })
 
 describe('mergeStates', () => {
@@ -597,7 +588,6 @@ describe('mergeStates', () => {
   })
   const base = (over: Partial<AppState> = {}): AppState => ({
     ...defaultState(),
-    questsDate: '2026-08-01',
     ...over,
   })
 
@@ -631,16 +621,16 @@ describe('mergeStates', () => {
     // A frozen background tab missed a storage event, then the user acted in
     // it: A logged a purchase (+5) while B read the lesson (+15).
     // max(totalXp) alone would silently drop the +5 forever, even though the
-    // merged transactions and quest flags keep both pieces of evidence.
+    // merged transactions and grant log keep both pieces of evidence.
     const local = base({
       transactions: [mkTx('a')],
       xp: { level: 1, xpIntoLevel: 5, totalXp: 5 },
       xpLog: [{ id: 'tx:a', action: 'logExpense', amount: 5, date: '2026-08-01' }],
     })
     const incoming = base({
-      quests: defaultState().quests.map((q) => ({ ...q, done: q.id === 'lesson' })),
+      lessonsSeen: [{ id: 'budget-sketch', date: '2026-08-01' }],
       xp: { level: 1, xpIntoLevel: 15, totalXp: 15 },
-      xpLog: [{ id: 'quest:lesson:2026-08-01', action: 'readLesson', amount: 15, date: '2026-08-01' }],
+      xpLog: [{ id: 'lesson:2026-08-01', action: 'readLesson', amount: 15, date: '2026-08-01' }],
     })
     expect(mergeStates(local, incoming).xp.totalXp).toBe(20)
     expect(mergeStates(incoming, local).xp.totalXp).toBe(20)
@@ -680,10 +670,10 @@ describe('mergeStates', () => {
     const b = base({
       transactions: [mkTx('y'), mkTx('shared')],
       xp: { level: 1, xpIntoLevel: 10, totalXp: 10 },
-      // reviewRecent, on purpose: the quest that minted this action is deleted
-      // but the ACTION stays in XP_REWARDS so historical grants survive the
-      // sanitizer (see the note beside it in engine/xp.ts). This is the
-      // regression that would catch its removal.
+      // reviewRecent, on purpose: the quest that minted this action is deleted,
+      // and so is every other quest, but the ACTION stays in XP_REWARDS so
+      // historical grants survive the sanitizer (see the note beside it in
+      // engine/xp.ts). This is the regression that would catch its removal.
       xpLog: [{ id: 'quest:review:2026-08-01', action: 'reviewRecent', amount: 10, date: '2026-08-01' }],
       prevHealthScore: 44,
       stage: 'hearth',
@@ -757,13 +747,24 @@ describe('mergeStates', () => {
     expect(mergeStates(base({ muted: false }), base({ muted: true })).muted).toBe(true)
   })
 
-  it('unions same-day quest done flags so neither tab can re-grant quest XP', () => {
-    const localQuests = defaultState().quests.map((q) => ({ ...q, done: q.id === 'log' }))
-    const incomingQuests = defaultState().quests.map((q) => ({ ...q, done: q.id === 'sim' }))
-    const merged = mergeStates(base({ quests: localQuests }), base({ quests: incomingQuests }))
-    expect(merged.quests.find((q) => q.id === 'log')?.done).toBe(true)
-    expect(merged.quests.find((q) => q.id === 'sim')?.done).toBe(true)
-    expect(merged.quests.find((q) => q.id === 'lesson')?.done).toBe(false)
+  it('pays the day’s lesson and sim grants ONCE across two tabs that each minted them', () => {
+    // THE MECHANISM THAT REPLACED THE QUEST DONE-FLAG UNION. Two tabs each
+    // read today's lesson and ran a simulation before seeing each other's
+    // write; both minted the same deterministic per-day ids. The grant log
+    // unions BY ID, so the merge pays 15 + 15 rather than 30 + 30 — the same
+    // result the done-flag union produced, with none of the state.
+    const grants = [
+      { id: 'lesson:2026-08-01', action: 'readLesson' as const, amount: 15, date: '2026-08-01' },
+      { id: 'sim:2026-08-01', action: 'runSimulation' as const, amount: 15, date: '2026-08-01' },
+    ]
+    const local = base({ xp: { level: 1, xpIntoLevel: 30, totalXp: 30 }, xpLog: grants })
+    const incoming = base({ xp: { level: 1, xpIntoLevel: 30, totalXp: 30 }, xpLog: grants })
+    expect(mergeStates(local, incoming).xpLog.map((g) => g.id)).toEqual([
+      'lesson:2026-08-01',
+      'sim:2026-08-01',
+    ])
+    expect(mergeStates(local, incoming).xp.totalXp).toBe(30)
+    expect(mergeStates(incoming, local).xp.totalXp).toBe(30)
   })
 
   it('unions the codex across tabs — a lesson collected in either tab stays collected', () => {
@@ -818,24 +819,19 @@ describe('mergeStates', () => {
     expect(mergeStates(merged, b)).toEqual(merged) // idempotent fixpoint
   })
 
-  it('takes the newer quest day and health snapshot across a midnight roll', () => {
+  it('takes the newer health snapshot across a midnight roll', () => {
     // Tab B rolled midnight already; tab A is still on yesterday.
     const local = base({
-      questsDate: '2026-07-31',
-      quests: defaultState().quests.map((q) => ({ ...q, done: true })),
       healthDate: '2026-07-31',
       prevHealthScore: 40,
       stage: 'ember',
     })
     const incoming = base({
-      questsDate: '2026-08-01',
       healthDate: '2026-08-01',
       prevHealthScore: 44,
       stage: 'hearth',
     })
     const merged = mergeStates(local, incoming)
-    expect(merged.questsDate).toBe('2026-08-01')
-    expect(merged.quests.every((q) => !q.done)).toBe(true)
     expect(merged.healthDate).toBe('2026-08-01')
     expect(merged.prevHealthScore).toBe(44)
     expect(merged.stage).toBe('hearth')

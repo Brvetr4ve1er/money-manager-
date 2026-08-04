@@ -576,8 +576,18 @@
    run is scoped to exactly them — the same split .calibrating makes in the app.
    .lp-count is the same treatment for a numeral that is READ from code
    (MECHANICS.length, NOTE_MAX_LEN) rather than typed into the copy. */
+/* .lp-quote is the third case and the same rule: a string the APP prints,
+   quoted verbatim in the fold (the record's resisted line — see
+   resistedChipLabel). It carries a numeral, so §11's "all numerals render in
+   the mono stack" applies; and quoting the product's own output in the product's
+   own register is what makes it read as a quotation rather than as copy.
+   NO COLOUR OF ITS OWN, deliberately: it inherits whichever pair .lp-share is
+   on — Graphite on Bone at 11.4:1 from 720px up, Bone on Espresso at 13.4:1 on
+   the phone plate — so it introduces no fourth tone (§1 trait 06) and no
+   unchecked foreground/field pair (§2.1 rule 3). */
 .lp-notes-keys,
-.lp-count {
+.lp-count,
+.lp-quote {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   font-weight: 700;

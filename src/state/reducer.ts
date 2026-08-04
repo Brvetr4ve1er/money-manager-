@@ -1,7 +1,7 @@
 /**
  * Pure AppState transitions, consumed via useReducer in App. Living outside
- * the component makes the guarded behaviors — quest double-grant protection,
- * the day-rollover health snapshot — unit-testable instead of only existing
+ * the component makes the guarded behaviors — the once-per-day XP grants, the
+ * day-rollover health snapshot — unit-testable instead of only existing
  * inside effect closures. Reducers must stay pure: StrictMode double-invokes
  * them in dev, and sounds/toasts fire from effects that watch the results.
  */
@@ -14,7 +14,6 @@ import { LESSON_IDS } from '../content/lessons.ts'
 import {
   canonicalDecisions,
   mergeStates,
-  rollQuests,
   sanitizeDecision,
   sanitizeProfile,
   withSanitizedNote,
@@ -31,7 +30,6 @@ export type AppAction =
    *  LOG_TX. Optional and usually absent: an ordinary log has no decision. */
   | { type: 'LOG_TX'; tx: Transaction; decisionId?: string }
   | { type: 'UNDO_TX'; id: string }
-  | { type: 'COMPLETE_QUEST'; id: string }
   | { type: 'READ_LESSON'; id: string; date: string }
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
   | { type: 'BOSS_VICTORY'; weekStart: string; date: string }
@@ -154,63 +152,68 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         xpLog: grant ? state.xpLog.filter((g) => g.id !== grantId) : state.xpLog,
       }
     }
-    case 'COMPLETE_QUEST': {
-      // Quest flag and XP grant happen in one atomic transition: a second
-      // dispatch before re-render sees done === true and is a no-op, so rapid
-      // double clicks can never double-grant XP.
-      const quest = state.quests.find((q) => q.id === action.id)
-      if (!quest || quest.done) return state
-      const quests = state.quests.map((q) => (q.id === action.id ? { ...q, done: true } : q))
+    case 'READ_LESSON': {
+      // TWO THINGS, ONE TAP, AND THEY ARE GUARDED SEPARATELY.
+      //
+      // The lesson goes into the codex at most once ever (lessonsSeen keeps the
+      // FIRST read date — lessonForDay's no-repeat rule keys off it), and the
+      // daily readLesson grant lands at most once per LOCAL DAY. Those are not
+      // the same condition: once the 30-lesson roster wraps, lessonForDay may
+      // serve a lesson already in the codex, and reading it still pays the day's
+      // grant. Ids outside the canonical roster never persist (the sanitizer
+      // would drop them and the codex count would lie until then).
+      //
+      // THE GRANT USED TO TRAVEL THROUGH COMPLETE_QUEST, and the quest is gone
+      // (see XpStrip). It is paid here now, on the deterministic per-day grant
+      // id `lesson:<day>` — the pattern BOSS_VICTORY has always used. The xpLog
+      // IS the persistence, so a StrictMode double-dispatch, a double tap, a
+      // reload and a peer tab claiming the same day (grant logs union by id in
+      // mergeStates) all pay exactly once, with no extra state field.
+      if (!LESSON_IDS.has(action.id)) return state
+      const grantId = `lesson:${action.date}`
+      const paid = state.xpLog.some((g) => g.id === grantId)
+      const collected = state.lessonsSeen.some((e) => e.id === action.id)
+      if (paid && collected) return state
+      const lessonsSeen = collected
+        ? state.lessonsSeen
+        : [...state.lessonsSeen, { id: action.id, date: action.date }].sort((a, b) =>
+            a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+          )
+      if (paid) return { ...state, lessonsSeen }
       return {
         ...state,
-        quests,
-        xp: grantXp(state.xp, quest.xpAction).next,
-        // Grant id is deterministic per (quest, day): two tabs completing the
-        // same quest on the same day merge to a single grant — matching the
-        // done-flag union in mergeStates, which likewise pays once.
+        lessonsSeen,
+        xp: grantXp(state.xp, 'readLesson').next,
         xpLog: [
           ...state.xpLog,
           {
-            id: `quest:${quest.id}:${state.questsDate}`,
-            action: quest.xpAction,
-            amount: XP_REWARDS[quest.xpAction],
-            date: state.questsDate,
+            id: grantId,
+            action: 'readLesson',
+            amount: XP_REWARDS.readLesson,
+            date: action.date,
           },
         ],
       }
-    }
-    case 'READ_LESSON': {
-      // Codex collection only — deliberately NO XP here. The daily readLesson
-      // grant travels through COMPLETE_QUEST('lesson') (App dispatches both on
-      // "Got it"), reusing its atomic double-grant guard and per-(quest, day)
-      // grant id; a second grant here would pay twice for one tap. Ids outside
-      // the canonical roster never persist (the sanitizer would drop them and
-      // the codex count would lie until then). Re-reading a lesson after the
-      // roster wraps keeps the ORIGINAL first-read date — lessonForDay's
-      // no-repeat rule keys off it (see LessonSeen in the store).
-      if (!LESSON_IDS.has(action.id)) return state
-      if (state.lessonsSeen.some((e) => e.id === action.id)) return state
-      const lessonsSeen = [...state.lessonsSeen, { id: action.id, date: action.date }].sort(
-        (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
-      )
-      return { ...state, lessonsSeen }
     }
     case 'ROLL_DAY': {
       // Persist a once-per-day health snapshot so asymmetric smoothing and
       // stage hysteresis actually compound day over day. Keyed on healthDate:
       // snapshotting per render would re-apply smooth() many times within a
-      // single day. Quests roll here too. Returns the same object when
-      // nothing needs to change so dispatching is render-free on no-op days.
-      if (state.healthDate === action.today && state.questsDate === action.today) return state
-      const rolled = rollQuests(state, action.today)
-      return state.healthDate === action.today
-        ? rolled
-        : {
-            ...rolled,
-            prevHealthScore: action.healthScore,
-            stage: action.healthStage,
-            healthDate: action.today,
-          }
+      // single day. Returns the same object when nothing needs to change so
+      // dispatching is render-free on no-op days.
+      //
+      // IT ROLLED THE QUEST LIST TOO, and there is no list to roll. The daily
+      // grants that outlived the quests are capped by their own per-day grant
+      // ids (`lesson:<day>`, `sim:<day>`), which need no midnight sweep: the day
+      // key is IN the id, so a tab left open past midnight is already on a fresh
+      // id the moment `today` changes.
+      if (state.healthDate === action.today) return state
+      return {
+        ...state,
+        prevHealthScore: action.healthScore,
+        stage: action.healthStage,
+        healthDate: action.today,
+      }
     }
     case 'BOSS_VICTORY': {
       // Weekly boss win (computed by the boss engine, dispatched from
@@ -270,13 +273,34 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // sanitizer would reject at next load must not render now — what is on
       // screen has to be what reloads.
       //
-      // NO XP HERE (§12.1). The daily runSimulation grant travels through
-      // COMPLETE_QUEST('sim') exactly as it did before this record existed, so
-      // recording a decision pays nothing extra and a run pays once.
+      // THE RECORD IS DATA; ONLY THE GRANT IS CAPPED (§12.1). The daily
+      // runSimulation grant used to travel through COMPLETE_QUEST('sim'); the
+      // quest is gone (see XpStrip) and it is paid here now, on the
+      // deterministic per-day id `sim:<day>` — same mechanism as the lesson
+      // above and as BOSS_VICTORY. A SECOND RUN THE SAME DAY STILL RECORDS ITS
+      // DECISION and pays nothing: the record exists to hold what the user did,
+      // and refusing to file the second run would be the engagement track
+      // deciding what the money record is allowed to remember.
       const decision = sanitizeDecision(action.decision)
       if (decision === null) return state
       if (state.decisions.some((d) => d.id === decision.id)) return state
-      return { ...state, decisions: canonicalDecisions([decision, ...state.decisions]) }
+      const decisions = canonicalDecisions([decision, ...state.decisions])
+      const grantId = `sim:${decision.date}`
+      if (state.xpLog.some((g) => g.id === grantId)) return { ...state, decisions }
+      return {
+        ...state,
+        decisions,
+        xp: grantXp(state.xp, 'runSimulation').next,
+        xpLog: [
+          ...state.xpLog,
+          {
+            id: grantId,
+            action: 'runSimulation',
+            amount: XP_REWARDS.runSimulation,
+            date: decision.date,
+          },
+        ],
+      }
     }
     case 'CLOSE_DECISION': {
       // What happened, recorded once. Only an OPEN decision closes: a second

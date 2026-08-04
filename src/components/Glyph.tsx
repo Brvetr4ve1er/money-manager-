@@ -1,5 +1,5 @@
 import { useId, type CSSProperties } from 'react'
-import { bandPath, boxPath, dotPath, segPath, starPath } from './shape.ts'
+import { bandPath, boxPath, starPath } from './shape.ts'
 
 /**
  * The glyph set (§8): flat vector marks on squircle geometry, replacing the
@@ -25,17 +25,17 @@ import { bandPath, boxPath, dotPath, segPath, starPath } from './shape.ts'
  * get dropped:
  *   flame          → the stage name beside it (HeroCard / HeroShell)
  *   star           → role="img" + "N of 4 stars" on the rating row
- *   check          → the quest's own label ("… — done") on the row button
  *   pets           → role="img" + "Companions: …" on the strip
  *   monster        → "The Impulse Monster" in the sentence it prefixes
  *   shield         → the word "Resisted" beside it (ArchiveCard)
  *   sound / muted  → the mute button's own aria-label + aria-pressed
  * A glyph added without one of those is a regression, not a style choice.
  *
- * TWO MARKS LEFT THE SET WITH THE SURFACE THAT RENDERED THEM. `medal` sat on
+ * THREE MARKS LEFT THE SET WITH THE SURFACE THAT RENDERED THEM. `medal` sat on
  * the badge shelf's earned tiles and `locked` on the codex's unreached ones;
- * the collection sheet is deleted (see App's card stack), and nothing else ever
- * drew either. A glyph nothing renders is not a spare — it is a text
+ * the collection sheet is deleted. `check` was the quest row's completion box
+ * and the quest card is deleted too (see XpStrip). Nothing else ever drew any
+ * of the three. A glyph nothing renders is not a spare — it is a text
  * alternative nobody can supply, described by a table entry naming a tile that
  * no build produces. `glyphRoster.test.ts` is the standing form of that rule:
  * every name in GLYPHS must be reachable from a call site, so the next surface
@@ -45,7 +45,6 @@ import { bandPath, boxPath, dotPath, segPath, starPath } from './shape.ts'
 export type GlyphName =
   | 'flame'
   | 'star'
-  | 'check'
   | 'monster'
   | 'shield'
   | 'sound'
@@ -89,17 +88,6 @@ const GLYPHS: Record<GlyphName, GlyphShape> = {
   // inner notches alike (§1 trait 04).
   star: {
     ink: [starPath(16, 16.5, 14.5, 6.4, 5, 2.4)],
-  },
-  // The completion mark, likewise: was '✓'. Two bars with dot caps, so the
-  // terminals are soft-serve rather than mitred.
-  check: {
-    ink: [
-      segPath(7, 16.5, 13.5, 23, 5),
-      segPath(13.5, 23, 25, 8.5, 5),
-      dotPath(7, 16.5, 2.5),
-      dotPath(13.5, 23, 2.5),
-      dotPath(25, 8.5, 2.5),
-    ],
   },
   // The Impulse Monster. Horns and a squared grin: beatable, never a threat —
   // Trust Rule 6 lives in the drawing as well as the copy.

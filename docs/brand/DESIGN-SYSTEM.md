@@ -93,9 +93,9 @@ each landing section, the OG image.
 An application document is not one composition. It is a sequence of them, and the
 whole-document average is a number nobody ever looks at. Measured — `app.375x812.light.seeded`
 in `docs/brand/census.json`, the committed artifact, which is what the rule below means by
-"comes from that file": the page averages **56.93% field / 33.88% Bone** over the whole
-document, while its **eight** viewport windows run 52.95, 44.03, 68.08, 47.75, 47.49, 72.11,
-56.53 and 74.07 percent field. Those eight are all inside the band below; the average they
+"comes from that file": the page averages **56.73% field / 34.07% Bone** over the whole
+document, while its **seven** viewport windows run 59.41, 49.05, 68.84, 53.43, 48.70, 44.92
+and 73.98 percent field. Those seven are all inside the band below; the average they
 produce is still a number that appears on no screen, which is the point.
 
 It was not always inside the band, and the state that produced this rule is worth stamping.
@@ -138,6 +138,27 @@ Espresso in light, Bone in dark) and `.reading-plate` (the reading ground — Bo
 Espresso in dark) in `tokens.css`. A plate is a ground, so a run of plate is also a run: the
 decision record and the ledger's day groups stripe rather than plating whole, and plating them
 whole was measured to invert the defect rather than fix it.
+
+**The two themes of one page must measure alike, and that is §2.2 restated as a number.** Dark
+is a ground swap, not a different design — so a window that is field-heavy in one theme and
+Bone-heavy in the other, in the same place, is not two problems but one defect seen twice.
+Measured, tree `12bbf5e`, `app.375x812.*.seeded` window `@0`: 74.65% field / 16.91% Bone in
+dark against 53.00 / 36.24 in light — one 14.65pp over the 60 target and the other 7.00 under,
+on the same DOM, on the first screen anyone sees. A plate is the ground's OPPOSITE, so one
+plate moves both the right way at once: `.hero-foot` took that window to 66.01 / 25.28 and
+59.41 / 30.30, and with `.month-block` doing the same at the tail the two themes' whole
+mean-of-windows vectors land at 57.82 / 33.01 (dark) and 56.90 / 33.96 (light) — the same page
+to within a point, from a pair that were 21.65pp apart on the first screen. The check is cheap
+and it is the one this document asks for: **compare a row against its own theme twin before
+comparing it against the law.**
+
+**A plate may be scoped by width, and its undo is `unset`.** A plate is a give-back, so it
+belongs only where the window it lands in is short of the ground it carries; both of the
+plates above are switched off past a breakpoint that was measured, not chosen (see app.css).
+The undo re-declares every token the plate declares as `unset` — custom properties are
+inherited, so that is `inherit` — rather than spelling the fallback out. A spelled-out
+fallback is a second copy of `:root`'s or `.spec-sheet`'s arithmetic, and a drifted copy is a
+contrast bug on one branch, in one theme, at one width.
 
 The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
 test fails when it stops describing the tree. Any figure quoted about this product's pixels

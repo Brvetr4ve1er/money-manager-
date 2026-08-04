@@ -1,7 +1,8 @@
 import { useMemo, type ReactNode } from 'react'
 import { Monogram } from './Monogram.tsx'
 import { Wordmark } from './Wordmark.tsx'
-import { ArchiveCard } from './ArchiveCard.tsx'
+import { ArchiveCard, resistedChipLabel } from './ArchiveCard.tsx'
+import { resistedThisMonthDA } from '../engine/ledger.ts'
 import {
   todayISO,
   NOTE_MAX_LEN,
@@ -68,6 +69,9 @@ import { sampleLedgerRows } from '../content/sampleLedger.ts'
  *     every index label)
  *   · the hand-off above the fold prints its row's index INTO that same grid,
  *     and quotes LogCard's RESIST_LABEL for the button it tells you to press
+ *   · the hand-off's one figure is resistedChipLabel(resistedThisMonthDA(…))
+ *     over the shot's own rows — the record's line, printed by the record's
+ *     code, so the fold and the screenshot under it cannot disagree
  *   · the product shot is rendered BY <ArchiveCard> itself
  * Change a denomination, either cap, an answer, a horizon, the roster, that
  * button or that card and this page changes with them.
@@ -292,6 +296,18 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
   // where every date in a render comes from useHealthDay's single `today`.
   const today = useMemo(() => todayISO(), [])
   const shotRows = useMemo(() => sampleLedgerRows(today), [today])
+  // THE FOLD'S ONE FIGURE, COMPUTED BY THE CARD THAT PRINTS IT, over the very
+  // rows the shot renders further down. The hand-off claims a resist "sums for
+  // the month"; this is the line that sum lands in, in the app's own words
+  // (resistedChipLabel) off the app's own derivation (resistedThisMonthDA). A
+  // typed "3,500 DA resisted this month" beside a live screenshot would be the
+  // one hand-written number on a page whose whole discipline is that numbers
+  // are read from the code — and it would go stale the day the sample changes,
+  // silently, while the card beside it printed something else.
+  const shotResistedLine = useMemo(
+    () => resistedChipLabel(resistedThisMonthDA(shotRows, today)),
+    [shotRows, today],
+  )
   return (
     <div className="landing">
       <main className="landing-main">
@@ -325,30 +341,20 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                 Built flat. Logged in DA.
               </h2>
               <p className="lp-lede">Runs on your phone. Not on your bank.</p>
-              {/* THE POSITION, PLAINLY, AND AS A STRENGTH. Manual-first and
-                  DA-denominated is what this product IS, not a limitation it
-                  works around, so it is stated in the second paragraph of the
-                  page instead of being left for someone to discover in the
-                  amount field.
-
-                  The argument is a fact about the market, not a consolation:
-                  in a cash economy an aggregator's feed is a PARTIAL record by
-                  construction, so the "automatic" competitor is the one with
-                  the gaps. Every claim here is an absence in src — DA is the
-                  only unit the app formats (every amount renders `N DA`, there
-                  is no converter and no second unit), and there is no import
-                  path, no aggregator, no merchant lookup and no bank call
-                  anywhere, which is also why no row is auto-categorised.
-                  localFirst.test asserts the absence over the source tree. */}
-              <p className="lp-sub">
-                Built for Algeria. Every amount in DA, entered by hand. A bank
-                feed knows what a bank saw. Not the cash. Not the taxi. Not
-                what a friend paid back. Nothing here is imported, so nothing
-                is guessed. Every row is one you put there.
-              </p>
               {/* THE HAND-OFF — the reason to send this to someone, above the
                   fold, on the accent bar. See HAND_OFF_TITLE above for why the
                   row is an index into MECHANICS and not a sentence.
+
+                  IT IS THE SECOND THING ON THE PAGE NOW, and the order is the
+                  claim. The market argument (.lp-sub below) stood between the
+                  lede and this block: sixty words about a cash economy, ahead
+                  of the one paragraph anyone would forward. A reader who leaves
+                  after two paragraphs must leave holding the mechanic, so the
+                  mechanic goes second and the argument for it goes third —
+                  where it does its actual job, which is answering the question
+                  this block raises ("why am I typing this in?") rather than
+                  pre-empting it. Root.test asserts the order for the same
+                  reason it asserts the order inside this block.
 
                   IT NAMES A MECHANIC, NOT A MOOD, and that is the correction.
                   This block used to be four refusals ("no account, no bank
@@ -402,17 +408,63 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                   {HAND_OFF_TITLE}
                 </p>
                 <p className="lp-share-lead">{HAND_OFF_LEAD}</p>
+                {/* THE PAYOFF IS NAMED, and that is this round's sharpening.
+                    The block told a stranger what to PRESS and what the app
+                    would not do with it, and stopped one clause short of the
+                    thing that makes anyone care: where the money you did not
+                    spend ends up. It ends up in one line at the head of the
+                    record, and the line is quoted here rather than described —
+                    printed by resistedChipLabel over the same sample rows the
+                    shot below renders through the real card, so the fold and
+                    the screenshot cannot state two different figures.
+                    "on the sample rows below" is not a hedge, it is Trust Rule
+                    5 at the only place on this page where a figure appears
+                    before the caption that disclaims it: nobody is being read
+                    here, and a number in a pitch has to say whose it is. */}
                 <p className="lp-share-body">
                   Type the amount. Press &ldquo;{RESIST_LABEL}&rdquo; instead of
                   Log. The row keeps what it would have cost. Nothing added to
-                  the day. Summed for the month. A feed cannot see money that
-                  never moved. This row exists nowhere else. Buy it anyway and
-                  it logs the same. Full XP either way.
+                  the day. Summed for the month. One line at the head of the
+                  record — on the sample rows below,{' '}
+                  <span className="lp-quote">{shotResistedLine}</span>. A feed
+                  cannot see money that never moved. This row exists nowhere
+                  else. Buy it anyway and it logs the same. Full XP either way.
                 </p>
                 <p className="lp-share-call">
                   Send it to a friend who overspends.
                 </p>
               </div>
+              {/* THE POSITION, PLAINLY, AND AS A STRENGTH. Manual-first and
+                  DA-denominated is what this product IS, not a limitation it
+                  works around, so it is stated above the fold instead of being
+                  left for someone to discover in the amount field.
+
+                  IT SITS UNDER THE MECHANIC, NOT OVER IT (see the note on the
+                  hand-off), and that repositioning is what lets it open with
+                  the strongest sentence available to it: hand entry is the
+                  REASON the row above can exist. A feed imports events. Not
+                  buying is not an event, so no amount of automation reaches it
+                  — the manual product is the only one that can hold that row.
+                  That argument was nowhere on the page while the paragraph ran
+                  first, because it needs the mechanic in front of it.
+
+                  The rest is a fact about the market, not a consolation: in a
+                  cash economy an aggregator's feed is a PARTIAL record by
+                  construction, so the "automatic" competitor is the one with
+                  the gaps. Every claim here is an absence in src — DA is the
+                  only unit the app formats (every amount renders `N DA`, there
+                  is no converter and no second unit), and there is no import
+                  path, no aggregator, no merchant lookup and no bank call
+                  anywhere, which is also why no row is auto-categorised.
+                  localFirst.test asserts the absence over the source tree. */}
+              <p className="lp-sub">
+                Built for Algeria. Every amount in DA, entered by hand. Hand
+                entry is what makes the row above possible. A feed imports
+                events. Not buying is not an event. A bank feed knows what a
+                bank saw. Not the cash. Not the taxi. Not what a friend paid
+                back. Nothing here is imported, so nothing is guessed. Every row
+                is one you put there.
+              </p>
               {/* The refusals, demoted to terms — which is what they are. Each
                   one is a real absence: no auth, no server and no network call
                   in src; nothing reads a bank, which is why logging is manual;
@@ -460,7 +512,10 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
             the sequential-focus navigation starting point; Safari/VoiceOver do
             not. The section already has an accessible name from aria-labelledby,
             so tabIndex alone makes the arrival announce "The spec sheet,
-            region". Same construction as LogCard/QuestCard/SimCard. */}
+            region". Same construction as LogCard and SimCard — the app's two
+            remaining jump targets. This line named a third until that card was
+            deleted, and a comment pointing at a component no build renders is
+            exactly the drift README.test now scans this file for. */}
         <section id="spec" className="lp-spec" tabIndex={-1} aria-labelledby="lp-spec-h">
           <div className="lp-measure">
             <h2 id="lp-spec-h" className="lp-section-h">

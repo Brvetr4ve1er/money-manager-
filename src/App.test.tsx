@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { StrictMode } from 'react'
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react'
 import App from './App.tsx'
 import * as sfx from './audio/chiptune.ts'
@@ -8,13 +9,13 @@ import {
   finalizeHealthThrough,
   ASSUMED_REVOLVING_APR,
   DEMO_PROFILE,
+  CALIBRATION_DAYS,
 } from './engine/profile.ts'
 import { LESSONS, lessonForDay } from './content/lessons.ts'
 import {
   NOTE_MAX_LEN,
   todayISO,
   addDaysISO,
-  DEFAULT_QUESTS,
   CHECK_BACK_DAYS,
   CHECK_BACK_ANSWERS,
   type Transaction,
@@ -25,7 +26,6 @@ import { XP_REWARDS } from './engine/xp.ts'
 vi.mock('./audio/chiptune.ts', () => ({
   setMuted: vi.fn(),
   blip: vi.fn(),
-  arpeggio: vi.fn(),
   fanfare: vi.fn(),
   sparkle: vi.fn(),
   deny: vi.fn(),
@@ -50,107 +50,189 @@ afterEach(() => {
 const xpNow = () =>
   Number(screen.getByRole('progressbar').getAttribute('aria-valuenow'))
 
-describe('quest completion', () => {
-  it('never double-grants XP on a rapid double click', () => {
-    render(<App />)
-    const quest = screen.getByRole('button', { name: /Mark done: Log every purchase today/ })
-    fireEvent.click(quest)
-    fireEvent.click(quest)
-    expect(xpNow()).toBe(5)
-  })
+/**
+ * THE XP STRIP — what QST—03 became.
+ *
+ * The quest card is deleted: its one control ("Log every purchase today") paid
+ * 5 XP for a claim the app cannot observe, and the other two rows were inert
+ * status lines mirroring state the owning card already showed. What survives is
+ * the level line and the bar (see XpStrip). These cases pin the three things
+ * the deletion must not have broken: the cold start, the two-track wall, and
+ * the fact that the strip is not a card.
+ */
+describe('the XP strip', () => {
+  const strip = () => document.querySelector('main .xp-strip') as HTMLElement
 
-  it('completes a self-report quest from a tap on the quest text (whole row is the button)', () => {
+  it('starts honest: level 1, zero XP, an empty bar and nothing else (Trust Rule 5)', () => {
     render(<App />)
-    // `log` is the ONLY self-report quest left. The `review` quest was deleted:
-    // it paid 10 XP for a tap the app could not observe, and its own rationale
-    // comment conceded that in writing. `log` at least names rows the app can
-    // see arrive in the ledger.
-    const text = screen.getByText('Log every purchase today')
-    expect(text.closest('button')).not.toBeNull()
-    fireEvent.click(text)
-    expect(xpNow()).toBe(5)
-  })
-
-  it('ships no quest the app cannot observe — the deleted one stays deleted', () => {
-    // A daily grant with no observable referent is the engagement track paying
-    // for nothing, which is exactly what Trust Rule 1 keeps away from the
-    // score — and keeping it off the score is not a licence to mint it on the
-    // engagement side. Three quests, two of them verified by the app itself.
-    render(<App />)
-    expect(screen.queryByText('Look back over your recent purchases')).toBeNull()
-    expect(DEFAULT_QUESTS.map((q) => q.id)).toEqual(['log', 'lesson', 'sim'])
-    expect(document.querySelectorAll('#quests li')).toHaveLength(3)
-  })
-
-  it('renders the verified sim quest without a tappable row — no XP from a tap', () => {
-    render(<App />)
-    const text = screen.getByText('Run one decision simulation')
-    expect(text.closest('button')).toBeNull()
-    fireEvent.click(text)
+    expect(strip()).not.toBeNull()
+    expect(strip().textContent).toBe('Level 1 · Spark0 / 100 XP')
+    // No "0 / 3 quests" to fill, no streak, no "you missed today" (Trust Rule
+    // 6). Day one states what it has and stops.
+    expect(strip().textContent).not.toMatch(/quest|streak|day|missed/i)
+    // The fill is not rendered at 0 — its 1.4.11 leading edge would read as a
+    // phantom sliver of progress on an empty bar.
+    expect(strip().querySelector('.xp-fill')).toBeNull()
     expect(xpNow()).toBe(0)
   })
 
-  it('renders a completed quest inert via aria-disabled — focus is never dropped', () => {
+  it('is not a card: no corner mark, no heading, no jump target', () => {
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: /Mark done: Log every purchase today/ }))
-    const done = screen.getByRole('button', { name: /Log every purchase today — done/ })
-    // aria-disabled, NOT the disabled attribute: disabling the button the
-    // user just activated silently drops keyboard focus to <body>.
-    expect((done as HTMLButtonElement).disabled).toBe(false)
-    expect(done.getAttribute('aria-disabled')).toBe('true')
-    expect(done.getAttribute('aria-pressed')).toBeNull()
-    // Activation on the done quest is a guarded no-op — no double grant.
-    fireEvent.click(done)
-    expect(xpNow()).toBe(5)
+    // §11's corner mark is a CARD's printed position and App.test derives the
+    // 01..n run from the cards; a mark here would put an index on something
+    // outside that sequence.
+    expect(strip().classList.contains('card')).toBe(false)
+    expect(strip().querySelector('.spec-label')).toBeNull()
+    expect(within(strip()).queryAllByRole('heading')).toEqual([])
+    // The anchor went with the card. An <a> to a removed id lands focus on
+    // <body>, which is the failure the remaining targets carry tabindex -1 to
+    // avoid — so the link is deleted, not re-pointed at a surface with no
+    // controls on it.
+    expect(document.getElementById('quests')).toBeNull()
   })
 
-  it('completes the sim quest when a simulation actually runs (verified, not self-reported)', () => {
+  it('ships no self-report XP lever at all — the log quest is gone with the card', () => {
     render(<App />)
-    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
-    fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
-    expect(xpNow()).toBe(15)
-    // Done state renders on the static (never tappable) verified row.
-    const row = screen.getByText('Run one decision simulation').closest('li')!
-    expect(row.className).toContain('done')
+    // "Log every purchase today" paid for a claim the app cannot verify: it
+    // sees rows arrive, it cannot see whether EVERY purchase was logged. That
+    // is the same shape as the deleted `review` quest, and the roster's own
+    // comment stood one entry above it.
+    expect(screen.queryByText('Log every purchase today')).toBeNull()
+    expect(screen.queryByText("Read today's lesson")).toBeNull()
+    expect(screen.queryByText('Run one decision simulation')).toBeNull()
+    expect(screen.queryByText('Look back over your recent purchases')).toBeNull()
+    expect(screen.queryAllByRole('button', { name: /^Mark done:/ })).toEqual([])
+    // …and nothing replaced it: every remaining XP lever is an action the app
+    // observes. Rendering the page pays nothing.
+    expect(xpNow()).toBe(0)
   })
 
-  it('shows a visible all-complete state, not just the arpeggio', () => {
-    // Fake timers so the toast queue can be drained a turn at a time: every
-    // completion that does NOT finish the set now takes its own turn in the
-    // live region first (a11y sweep finding 6).
-    vi.useFakeTimers()
+  it('keeps exactly one progressbar on the page, and it carries its own name', () => {
     render(<App />)
-    for (const btn of screen.getAllByRole('button', { name: /^Mark done:/ })) {
-      fireEvent.click(btn)
-    }
-    // The lesson quest is verified (no tap target on the quest row), so
-    // complete it by actually reading today's lesson…
+    // The quest list carried the page's only role="progressbar" with a
+    // computed aria-label. The strip keeps exactly one — a second would make
+    // "the XP bar" ambiguous to a screen reader that lists them.
+    const bars = screen.getAllByRole('progressbar')
+    expect(bars).toHaveLength(1)
+    expect(strip().contains(bars[0])).toBe(true)
+    expect(bars[0].getAttribute('aria-label')).toBe('Level 1 progress: 0 of 100 XP')
+    expect(bars[0].getAttribute('aria-valuemax')).toBe('100')
+  })
+
+  it('pays an honest log exactly what it paid before the deletion (Trust Rule 3)', () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '1200' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    // logExpense, per row, untouched by the quest deletion — the quest paid a
+    // SEPARATE 5 XP for the claim, and only that one is gone.
+    expect(xpNow()).toBe(XP_REWARDS.logExpense)
+    expect(screen.getByRole('progressbar').getAttribute('aria-label')).toBe(
+      'Level 1 progress: 5 of 100 XP',
+    )
+  })
+
+  it('sits at position 3, between the primary action and the boss', () => {
+    render(<App />)
+    // The stack is keyed so a card that MOVES is moved by the reconciler rather
+    // than remounted (see App). The strip inherits QST—03's slot: between the
+    // app's primary action and its deepest engine, which is also the slot a due
+    // check-back would want if a later round decides that being found is what
+    // that mechanic is missing.
+    const stack = [...document.querySelector('main.main-stack')!.children].map((el) =>
+      el.querySelector('.spec-label')?.textContent ?? el.className.split(' ')[0],
+    )
+    expect(stack).toEqual([
+      'persist-fault',
+      'HLT—01',
+      'LOG—02',
+      'xp-strip',
+      'BOS—03',
+      'LSN—04',
+      'SIM—05',
+      'NUM—06',
+      'ARC—07',
+    ])
+  })
+
+  it('pays one lesson grant for a rapid double tap, and one after a StrictMode remount', () => {
+    // The quest's atomic done-flag used to be the double-grant guard. It is the
+    // grant id now, which is strictly stronger: it survives a remount and a
+    // reload, which a per-render flag never did. StrictMode double-invokes
+    // effects and reducers in dev, so the app is rendered inside it here.
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    )
+    const gotIt = screen.getByRole('button', { name: /^Got it:/ })
+    fireEvent.click(gotIt)
+    fireEvent.click(gotIt)
+    expect(xpNow()).toBe(XP_REWARDS.readLesson)
+    expect(
+      JSON.parse(localStorage.getItem('ember-state-v1')!).xpLog.map((g: { id: string }) => g.id),
+    ).toEqual([`lesson:${todayISO()}`])
+  })
+
+  it('boots from a state written by the quest schema, losing nothing (the migration)', () => {
+    // The one real migration this deletion has, at the surface a user meets it:
+    // a device that last wrote the old shape opens the new build. There is no
+    // server and no way back, so a throw here is permanent for that device.
+    const day = todayISO()
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        quests: [
+          { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense', done: true },
+          { id: 'lesson', text: "Read today's lesson", xpAction: 'readLesson', verified: true, done: true },
+        ],
+        questsDate: day,
+        transactions: [
+          { id: 't1', amountDA: 2_400, category: 'Food', note: 'bread and milk', date: day },
+        ],
+        xp: { level: 1, xpIntoLevel: 25, totalXp: 25 },
+        xpLog: [
+          { id: 'tx:t1', action: 'logExpense', amount: 5, date: day },
+          { id: `quest:log:${day}`, action: 'logExpense', amount: 5, date: day },
+          { id: `quest:lesson:${day}`, action: 'readLesson', amount: 15, date: day },
+        ],
+      }),
+    )
+    render(<App />)
+    // Nothing was un-paid: the two quest grants still fold at full value.
+    expect(xpNow()).toBe(25)
+    expect(strip().textContent).toBe('Level 1 · Spark25 / 100 XP')
+    // …and the money data came through untouched.
+    expect(screen.getByText('bread and milk')).toBeTruthy()
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.transactions).toHaveLength(1)
+    expect(saved.xpLog.map((g: { id: string }) => g.id)).toEqual([
+      'tx:t1',
+      `quest:log:${day}`,
+      `quest:lesson:${day}`,
+    ])
+    // The dead fields are not written back.
+    expect('quests' in saved).toBe(false)
+    expect('questsDate' in saved).toBe(false)
+    // A `quest:lesson:<today>` grant is NOT a `lesson:<today>` grant, so the
+    // old schema's completion does not silently pre-consume today's cap — the
+    // lesson is still readable and still pays once.
     fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
-    // …and the sim quest likewise via a real run.
-    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
-    fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
-    expect(screen.getByText(/All complete/)).toBeTruthy()
-    const toast = () => screen.getByRole('status', { name: 'Announcements' })
-    // A completion used to reach a screen reader only as "+10 XP" plus the
-    // focused button's accessible name changing under the user — which NVDA
-    // announces, VoiceOver frequently does not, and JAWS handles
-    // inconsistently. Each one now names its quest, in completion order.
-    for (const done of [
-      'Quest done. Log every purchase today',
-      "Quest done. Read today's lesson",
-    ]) {
-      expect(toast().textContent).toBe(done)
-      act(() => {
-        vi.advanceTimersByTime(2600)
-      })
+    expect(xpNow()).toBe(25 + XP_REWARDS.readLesson)
+  })
+
+  it('keeps the engagement track off every money surface (Trust Rule 1)', () => {
+    render(<App />)
+    // The wall the deleted card was held to, extended to the strip's new
+    // placement: it lives in the stack between the log form and the boss, and
+    // it may not migrate onto the score card, the hero plate or the archive.
+    for (const sel of ['.hero-card', '.archive-card', '.topbar']) {
+      const surface = document.querySelector(sel)!
+      expect(`${sel}: ${surface.querySelector('.xp-strip') !== null}`).toBe(`${sel}: false`)
+      expect(`${sel}: ${surface.querySelector('[role="progressbar"]') !== null}`).toBe(
+        `${sel}: false`,
+      )
+      expect(surface.textContent).not.toMatch(/\bxp\b|level \d|streak/i)
     }
-    // §7.4 bans exclamation marks outright, and this string is announced
-    // through a live region — the toast rewrite is deliberate, and the
-    // assertion stays exact-equality so the ban cannot regress unnoticed.
-    // It is also the ONLY toast for the completion that finishes the set:
-    // two writes to one polite region in a single tick is how a live region
-    // interrupts itself.
-    expect(toast().textContent).toBe('All quests complete.')
   })
 })
 
@@ -398,10 +480,17 @@ describe('health explainability drawer', () => {
 })
 
 describe('daily lesson + codex', () => {
-  it('pays readLesson XP exactly once per day through the verified lesson quest', () => {
+  it('pays readLesson XP exactly once per day, on the grant id not a counter', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
     expect(xpNow()).toBe(15)
+    // ASSERTED ON THE GRANT, not just on the number: the daily cap used to be
+    // the quest's per-(quest, day) done flag and is now the deterministic
+    // `lesson:<day>` id in the xpLog (see the reducer). A counter can be right
+    // for the wrong reason; the id is the mechanism.
+    const grants = () =>
+      JSON.parse(localStorage.getItem('ember-state-v1')!).xpLog.map((g: { id: string }) => g.id)
+    expect(grants()).toEqual([`lesson:${todayISO()}`])
     // The button goes inert (aria-disabled, never the disabled attribute) and
     // a second activation is a guarded no-op.
     const collected = screen.getByRole('button', { name: /— collected$/ })
@@ -409,17 +498,53 @@ describe('daily lesson + codex', () => {
     expect(collected.getAttribute('aria-disabled')).toBe('true')
     fireEvent.click(collected)
     expect(xpNow()).toBe(15)
+    expect(grants()).toEqual([`lesson:${todayISO()}`])
   })
 
-  it('renders the lesson quest as verified — a tap on the quest row grants nothing', () => {
+  it('survives a reload and a peer-tab merge without paying the day twice', () => {
+    // The three ways one day's grant could be paid twice once the quest's
+    // done-flag stopped guarding it: a re-fired mount effect, a reload, and a
+    // peer tab that read the lesson independently. All three land on the same
+    // `lesson:<day>` id, and the grant log unions by id (see mergeStates).
     render(<App />)
-    const text = screen.getByText("Read today's lesson")
-    expect(text.closest('button')).toBeNull()
-    fireEvent.click(text)
-    expect(xpNow()).toBe(0)
-    // Got it marks the verified row done, like SimCard does for the sim quest.
     fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
-    expect(text.closest('li')!.className).toContain('done')
+    expect(xpNow()).toBe(15)
+    const written = localStorage.getItem('ember-state-v1')!
+    cleanup()
+    render(<App />)
+    expect(xpNow()).toBe(15)
+    // The peer's write: the same day's grant, minted in the other tab.
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'ember-state-v1',
+          newValue: written,
+          storageArea: localStorage,
+        }),
+      )
+    })
+    expect(xpNow()).toBe(15)
+    expect(
+      JSON.parse(localStorage.getItem('ember-state-v1')!).xpLog.map((g: { id: string }) => g.id),
+    ).toEqual([`lesson:${todayISO()}`])
+  })
+
+  it('pays a simulation once a day but RECORDS every run', () => {
+    // Same shape as the lesson, and the asymmetry is the point: the record is
+    // data and only the grant is capped. The second run of the day files its
+    // decision and pays nothing.
+    render(<App />)
+    const run = (amount: string) => {
+      fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: amount } })
+      fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
+    }
+    run('5000')
+    expect(xpNow()).toBe(XP_REWARDS.runSimulation)
+    run('9000')
+    expect(xpNow()).toBe(XP_REWARDS.runSimulation)
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.decisions).toHaveLength(2)
+    expect(saved.xpLog.map((g: { id: string }) => g.id)).toEqual([`sim:${todayISO()}`])
   })
 
   it('stands every read-only surface on §5B’s spec sheet, and nothing else', () => {
@@ -449,20 +574,22 @@ describe('daily lesson + codex', () => {
     const mark = (el: Element) => el.querySelector('.spec-label')?.textContent ?? '?'
     const sheets = [...document.querySelectorAll('main .spec-sheet')].map(mark)
     // In render order, not sorted. The archive (ARC/COL) stays contiguous below
-    // .archive-card's macro-break; BOS—04 sits above it, and that is the point
+    // .archive-card's macro-break; BOS—03 sits above it, and that is the point
     // — the macro-break is a SEQUENCE fact (what you do today vs what you read
     // back), the ground is a SURFACE fact (whether anything on the card is
     // operated). They are different axes and only the first one has to be
     // contiguous.
     //
-    // TWO sheets where there were six. The month card and the ledger merged
-    // into ARC—08, the XP bar left the sheet for QuestCard's Bone ground (see
-    // QuestCard / .xp-fill), and COL—09 — the codex grid and the badge shelf,
-    // the two cards §5B's sentence was literally about — was DELETED: 41 tiles,
-    // no controls, 62.5% of the card stack's rendered elements on install day
-    // (jsdom render probe at a2d4e6d; see README.md). The list is asserted as an
-    // equality, so a card silently joining or leaving the sheet fails here.
-    expect(sheets).toEqual(['BOS—04', 'ARC—08'])
+    // TWO sheets out of SEVEN cards, where there were six out of nine. The
+    // month card and the ledger merged into the archive; the codex grid and the
+    // badge shelf were deleted in round 5 (41 tiles, no controls, 62.5% of the
+    // card stack's rendered elements on install day — jsdom render probe at
+    // a2d4e6d; see README.md); and the XP bar left the sheet twice — first onto
+    // QuestCard's Bone ground, and now off the card stack entirely onto
+    // .xp-strip's counter plate (see XpStrip / .xp-fill). The list is asserted
+    // as an equality, so a card silently joining or leaving the sheet fails
+    // here.
+    expect(sheets).toEqual(['BOS—03', 'ARC—07'])
     // Still cards: the sheet is a surface role, not a replacement container.
     for (const el of document.querySelectorAll('main .spec-sheet')) {
       expect(el.className).toContain('card')
@@ -487,7 +614,7 @@ describe('daily lesson + codex', () => {
     // merged rather than either one leaving the sheet.
     const mark = (el: Element) => el.querySelector('.spec-label')?.textContent ?? '?'
     const grounded = [...document.querySelectorAll('.archive-card')]
-    expect(grounded.map(mark)).toEqual(['ARC—08'])
+    expect(grounded.map(mark)).toEqual(['ARC—07'])
     // It must still BE a spec sheet — the doubled selector is (0,2,0) over
     // .spec-sheet, so a card that dropped the sheet class would silently fall
     // back to the ordinary Espresso card fill instead of taking Sand.
@@ -544,25 +671,24 @@ describe('daily lesson + codex', () => {
       expect(card!.classList.contains('spec-sheet')).toBe(false)
       expect(card!.querySelector(PERSISTENT_ACCENT)).not.toBeNull()
     }
-    // …and the one card the cap would ALLOW to move, held back on purpose.
-    // QuestCard's accents are the transient all-complete chip and the bare
-    // .xp-fill bar it absorbed from XpCard, so it is eligible — it stays Bone
-    // because §2's 30% has to be spent on something, and the reading ground is
-    // where the hands go: this is the app's most tapped list, eleven 48px rows
-    // of it. .xp-fill's Marigold also has a measured pair on the Sand recess
-    // that the Espresso sheet does not share (see .xp-fill in app.css). The
-    // third reason this comment used to give — "the page is at 59.7 field
-    // already" — was a round-3 figure and is retired rather than restated: the
-    // phone's field number is in docs/brand/census.json and it moved when the
-    // collection sheet was deleted.
-    const quests = document.querySelector('main #quests')!
-    expect(quests.classList.contains('spec-sheet')).toBe(false)
-    expect(quests.querySelector(PERSISTENT_ACCENT)).toBeNull()
+    // …AND THE SURFACE THAT USED TO BE THE EXCEPTION HERE IS NOT A CARD ANY
+    // MORE. QuestCard was eligible for the sheet (its only accents were a
+    // transient chip and the bare .xp-fill bar) and was held on the Bone
+    // reading ground on the argument that it was the app's most tapped list —
+    // eleven 48px rows of it — and the reading ground is where the hands go.
+    // The list is deleted and the argument is spent: what is left has no
+    // control at all, so it takes the counter ground as a plate rather than
+    // Bone as a card (see XpStrip). It is still held to the same accent rule,
+    // which is what makes that legal.
+    const strip = document.querySelector('main .xp-strip')!
+    expect(strip.classList.contains('card')).toBe(false)
+    expect(strip.classList.contains('counter-plate')).toBe(true)
+    expect(strip.querySelector(PERSISTENT_ACCENT)).toBeNull()
   })
 
-  /** A state with everything the plate set covers: a profile (so NUM—07 shows
-      its read view), decisions (SIM—06's record) and rows across three days
-      (ARC—08's day groups). Every one of those regions is a plate, and a plate
+  /** A state with everything the plate set covers: a profile (so NUM—06 shows
+      its read view), decisions (SIM—05's record) and rows across three days
+      (ARC—07's day groups). Every one of those regions is a plate, and a plate
       that is not rendered cannot be asserted. */
   const seedPlated = () => {
     const day = (n: number) => addDaysISO(todayISO(), -n)
@@ -622,8 +748,12 @@ describe('daily lesson + codex', () => {
     // Identified by their card's §11 corner mark, like the sheet test above:
     // the index is the card's own printed name and does not drift when a
     // styling class is renamed.
+    // Named by the owning card's §11 corner mark — the index is the card's own
+    // printed name and does not drift when a styling class is renamed. The XP
+    // strip is the one plate that is not inside a card (it is not a card at
+    // all — see XpStrip), so it names itself by its class.
     const card = (el: Element) =>
-      el.closest('.card')?.querySelector('.spec-label')?.textContent ?? '?'
+      el.closest('.card')?.querySelector('.spec-label')?.textContent ?? el.classList[0]
     const plated = (sel: string) =>
       [...document.querySelectorAll(`main ${sel}`)].map((el) => `${card(el)} ${el.tagName.toLowerCase()}`)
     // An equality, so a plate silently joining or leaving fails here. Every one
@@ -632,20 +762,24 @@ describe('daily lesson + codex', () => {
     expect(plated('.counter-plate')).toEqual([
       'HLT—01 h2',
       'HLT—01 div', // the score readout; .stage-col beside it holds the accent
+      'HLT—01 div', // the card's foot: the calibration disclosure + its control
       'LOG—02 h2',
       'LOG—02 fieldset', // the note keypad — the form's one accent-free panel
-      'QST—03 div',
-      'QST—03 ul',
-      'LSN—05 p',
-      'SIM—06 h2',
-      'SIM—06 p',
+      // Not a region of a card: the whole strip IS the plate (see XpStrip).
+      'xp-strip div',
+      'LSN—04 p',
+      'SIM—05 h2',
+      'SIM—05 p',
       // …and the record rows, which ALTERNATE (asserted below).
-      'SIM—06 li',
-      'SIM—06 li',
-      'NUM—07 h2',
-      'NUM—07 ul',
+      'SIM—05 li',
+      'SIM—05 li',
+      'NUM—06 h2',
+      'NUM—06 ul',
     ])
-    expect(plated('.reading-plate')).toEqual(['ARC—08 li', 'ARC—08 li'])
+    // The archive's HEAD (the month block) plus its day groups, which alternate.
+    // Three plates in one card and it is still not the card: BossCard's Flare
+    // fill and the foot keep the sheet itself off the counter ground.
+    expect(plated('.reading-plate')).toEqual(['ARC—07 div', 'ARC—07 li', 'ARC—07 li'])
     // THE SAME ARITHMETIC THAT KEEPS CARDS OFF THE SHEET, one level down. §2.1
     // rule 2 pins the ink on any accent fill to Graphite and never flips it, so
     // on a counter plate's Espresso half an accent CONTROL spends a third hue
@@ -679,6 +813,74 @@ describe('daily lesson + codex', () => {
     }
     expect(striped('.decision', 'counter-plate')).toEqual(['0:true', '1:false', '2:true', '3:false'])
     expect(striped('.ledger-day', 'reading-plate')).toEqual(['0:true', '1:false', '2:true'])
+  })
+
+  it('plates the archive’s head without swallowing the day list into it', () => {
+    seedPlated()
+    render(<App />)
+    // CONSTRAINT §2.1b — the archive's HEAD is a plate of its own, because the
+    // day list left the first ~227px of the card as one unbroken ground.
+    // docs/brand/census.json at tree 12bbf5e read app.375x812.dark.seeded
+    // window @4060 at 45.42% field / 46.88% Bone (the row's worst) against its
+    // light twin's 72.11 / 21.30 — one window, two themes, exact mirrors.
+    const head = document.querySelector('.archive-card > .month-block')!
+    expect(head.classList.contains('reading-plate')).toBe(true)
+    // The month half, whole: the figures AND the strip AND the cold-start note.
+    // Splitting them would put the plate boundary inside one thought.
+    for (const part of ['.month-head', '.month-facts', '.month-strip', '.month-note']) {
+      expect(`${part}: ${head.querySelector(part) !== null}`).toBe(`${part}: true`)
+    }
+    // …and NOT the days. A plate is a ground and a run of plate is a run: the
+    // head plus a plated day list would be one ground for the whole card, which
+    // is the defect, restated. The list stays a sibling and keeps its own
+    // alternation (asserted above).
+    expect(head.querySelector('.ledger-days')).toBeNull()
+    expect(document.querySelector('.archive-card > #ledger-days')).toBeTruthy()
+  })
+
+  it('keeps the hero’s foot plate standing when the disclosure inside it is not', () => {
+    // A PLATE IS A GROUND, so it has to be there in every state — a ground that
+    // appears on day 3 and vanishes on day 91 is not a ground, it is a mood.
+    // .calibrating is conditional (Trust Rule 5: it says so only while the
+    // score is still calibrating or the numbers are placeholders), so the plate
+    // is the box AROUND it and the control, not the sentence itself.
+    // Fresh install: the disclosure is showing, and the plate holds both.
+    const { unmount } = render(<App />)
+    const withNote = document.querySelector('.hero-card > .hero-foot')!
+    expect(withNote.classList.contains('counter-plate')).toBe(true)
+    expect(withNote.querySelector('.calibrating')).toBeTruthy()
+    expect(withNote.querySelector('.hero-why')).toBeTruthy()
+    unmount()
+
+    // A user with setup done and more than CALIBRATION_DAYS of log behind them:
+    // no disclosure, same plate.
+    const old = addDaysISO(todayISO(), -(CALIBRATION_DAYS + 5))
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        profile: {
+          monthlyIncome: 60_000,
+          monthlyEssentials: 30_000,
+          monthlyDiscretionary: 10_000,
+          budgeted: 40_000,
+          efBalance: 20_000,
+          debtStart: 0,
+          debtNow: 0,
+          liquidBalance: 20_000,
+          debtMinimum: 0,
+          extraDebtPayment: 0,
+          revolvingApr: 0,
+          goal: null,
+          savedDate: old,
+        },
+        transactions: [{ id: 't-old', amountDA: 1_000, category: 'Food', date: old }],
+      }),
+    )
+    render(<App />)
+    const without = document.querySelector('.hero-card > .hero-foot')!
+    expect(without.querySelector('.calibrating')).toBeNull()
+    expect(without.classList.contains('counter-plate')).toBe(true)
+    expect(without.querySelector('.hero-why')).toBeTruthy()
   })
 
   it('collects the lesson into the codex and persists it', () => {
@@ -886,12 +1088,13 @@ describe('xp gain visibility', () => {
 
   it('announces non-level-up gains through a live region — never sound alone', () => {
     // The +XP chip is visual-only and the blip is sound-only: without this
-    // region a screen-reader user who marks a quest done hears nothing.
+    // region a screen-reader user who logs a purchase hears nothing.
     vi.useFakeTimers()
     render(<App />)
     const region = screen.getByRole('status', { name: 'XP gains' })
     expect(region.textContent).toBe('')
-    fireEvent.click(screen.getByRole('button', { name: /Mark done: Log every purchase today/ }))
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '1200' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     expect(region.textContent).toBe('+5 XP')
     act(() => {
       vi.advanceTimersByTime(1800)
@@ -1030,53 +1233,53 @@ describe('level-up toast lifecycle', () => {
     expect(toast().textContent).toBe('')
   })
 
-  it('queues the level-up when the final quest completes and levels up in one commit', () => {
+  it('queues every announcement a single commit produces, level-up included', () => {
+    // THE INVARIANT, WHICH OUTLIVED THE THING THAT FIRST BROKE IT. One commit
+    // can produce several announcements, and a bare setToast lets the later
+    // effect stomp the earlier one before the live region ever carries it —
+    // leaving the fanfare to announce the level alone, which sound must never
+    // do. It used to be reached through the final quest completing; the quest
+    // list is deleted (see XpStrip), and the shape is not quest-specific: here
+    // one tap on "Got it" collects the fifth lesson (codex milestone) AND its
+    // +15 crosses the level-2 boundary, in the same change.
     vi.useFakeTimers()
-    render(<App />)
-    // Sim quest (verified): +15.
-    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
-    fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
-    // Lesson quest (verified): +15 → 30.
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
-    // Prime the bar just below the level-2 boundary: 13 × +5 → 95 total.
-    for (let i = 0; i < 13; i++) {
-      fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '100' } })
-      fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
-    }
-    const toast = () => screen.getByRole('status', { name: 'Announcements' })
-    // The FINAL quest (+5 → 100) crosses the boundary, so the level-up and
-    // all-quests-complete toasts land in the same commit. The quest toast
-    // used to stomp the level-up before the live region ever carried it —
-    // leaving the fanfare to announce the level alone. (`log` is the last one
-    // standing because it is now the roster's only self-report quest — the
-    // fourth, `review`, was deleted.)
-    fireEvent.click(
-      screen.getByRole('button', { name: /Mark done: Log every purchase today/ }),
+    const day = (n: number) => addDaysISO(todayISO(), -n)
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        // Four lessons already collected, all read BEFORE today so today's pick
+        // is a fifth (lessonForDay excludes ids seen strictly before today).
+        lessonsSeen: LESSONS.slice(0, 4).map((l, i) => ({ id: l.id, date: day(i + 1) })),
+        // 85 XP with no grant log: the sanitizer banks it as one legacy
+        // baseline grant, so +15 lands exactly on the level-2 boundary.
+        xp: { level: 1, xpIntoLevel: 85, totalXp: 85 },
+      }),
     )
-    // Everything queued above, in the order it was queued: two per-quest
-    // completions (a11y sweep finding 6), the three badges earned along the
-    // way (first sim, first purchase, ten purchases), then the level-up, then
-    // the all-complete — which SUBSUMES the third quest's own toast, because
-    // that completion is the one that finishes the set. The level-up is the
-    // assertion this test exists for: it must still be in the queue, not
-    // stomped by the quest effect that ran in the same commit.
-    const queued = [
-      'Quest done. Run one decision simulation',
-      /^First Run earned/,
-      "Quest done. Read today's lesson",
-      /^First Spark earned/,
-      /^Ten in the Record earned/,
+    render(<App />)
+    const toast = () => screen.getByRole('status', { name: 'Announcements' })
+    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    // Queued in the order the effects ran, and the level-up is the assertion
+    // this test exists for: it must still be in the queue, not stomped by the
+    // codex effect that ran in the same commit.
+    // THREE of them, from one tap: the level-up, the codex milestone, and the
+    // badge that fifth lesson earns.
+    for (const want of [
       /^Level 2/,
-      'All quests complete.',
-    ]
-    for (const want of queued) {
-      if (typeof want === 'string') expect(toast().textContent).toBe(want)
-      else expect(toast().textContent).toMatch(want)
+      /^Codex: 5 \/ 30 lessons collected\.$/,
+      /^Codex Collector earned\./,
+    ]) {
+      expect(toast().textContent).toMatch(want)
       act(() => {
         vi.advanceTimersByTime(2600)
       })
     }
     expect(toast().textContent).toBe('')
+    // …and the day's grant is still exactly one, whatever else it set off.
+    expect(
+      JSON.parse(localStorage.getItem('ember-state-v1')!).xpLog.filter(
+        (g: { action: string }) => g.action === 'readLesson',
+      ),
+    ).toHaveLength(1)
   })
 })
 
@@ -2124,7 +2327,8 @@ describe('storage that refuses the write', () => {
     render(<App />)
     expect(fault().textContent).not.toBe('')
     spy.mockRestore()
-    fireEvent.click(screen.getByText('Log every purchase today'))
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '1200' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     expect(fault().textContent).toBe('')
     expect(JSON.parse(localStorage.getItem('ember-state-v1')!).xp.totalXp).toBe(5)
   })
@@ -2643,18 +2847,19 @@ describe('accessibility depth — the sweep as regression tests', () => {
     render(<App />)
     const nav = screen.getByRole('navigation', { name: 'Sections' })
     const hrefs = [...nav.querySelectorAll('a')].map((a) => a.getAttribute('href'))
-    // THREE, not five. #codex and #badges pointed at the collection sheet,
-    // which had no control on it at all — two of five nav entries spent on a
-    // surface nobody could operate. Deleting the card deleted its anchors, and
-    // an anchor to a removed id lands focus on <body>, which is the failure
-    // every remaining target below carries tabindex -1 to avoid.
-    expect(hrefs).toEqual(['#log', '#quests', '#simulator'])
+    // TWO, and it was five. #codex and #badges pointed at the collection sheet;
+    // #quests pointed at a card whose one control paid XP for a claim the app
+    // cannot observe. Both cards are deleted, and DELETING A CARD DELETES ITS
+    // ANCHOR IN THE SAME CHANGE — an anchor to a removed id lands focus on
+    // <body>, which is the failure every remaining target below carries
+    // tabindex -1 to avoid. The XP strip that replaced #quests is deliberately
+    // not a target: it has nothing to act on.
+    expect(hrefs).toEqual(['#log', '#simulator'])
     expect(screen.getByRole('link', { name: /Start logging/ }).getAttribute('href')).toBe(
       '#log',
     )
     for (const [id, title] of [
       ['log', 'Log it'],
-      ['quests', "Today's quests"],
       ['simulator', 'Decision simulator'],
     ]) {
       const section = document.getElementById(id)!
@@ -2668,20 +2873,29 @@ describe('accessibility depth — the sweep as regression tests', () => {
       expect(section.getAttribute('aria-labelledby')).toBe(`${id}-title`)
       expect(document.getElementById(`${id}-title`)!.textContent).toBe(title)
     }
-    // Every jump target still resolves — no link points at a dead fragment.
-    for (const href of hrefs) expect(document.getElementById(href!.slice(1))).not.toBeNull()
+    // EVERY jump target resolves AND is focusable, derived from the nav rather
+    // than from the list above — the list can go stale, the DOM cannot. This is
+    // the assertion a deleted card has to survive.
+    for (const href of hrefs) {
+      const target = document.getElementById(href!.slice(1))
+      expect(`${href}: ${target !== null}`).toBe(`${href}: true`)
+      expect(`${href}: ${target!.getAttribute('tabindex')}`).toBe(`${href}: -1`)
+    }
   })
 
-  // ── Finding 6: one quest completing announced only as a bare XP number ───
-  it('names the quest that just completed, not just the XP it paid', () => {
+  // ── Finding 6: a grant announced only as a bare XP number ────────────────
+  it('names what just happened, not just the XP it paid', () => {
+    // The finding was about quest completions; the quest list is deleted, and
+    // the finding outlives it because the failure was never quest-specific.
+    // The whole signal used to be the focused button's accessible name changing
+    // — announced by NVDA, frequently not by VoiceOver. Every remaining grant
+    // has a named, persistent counterpart: the badge toast here, the collected
+    // chip on the lesson card, the record row in the simulator.
     render(<App />)
-    fireEvent.click(
-      screen.getByRole('button', { name: /Mark done: Log every purchase today/ }),
-    )
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '1200' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     const toast = screen.getByRole('status', { name: 'Announcements' })
-    // The whole signal used to be the focused button's accessible name
-    // changing — announced by NVDA, frequently not by VoiceOver.
-    expect(toast.textContent).toBe('Quest done. Log every purchase today')
+    expect(toast.textContent).toMatch(/^First Spark earned/)
     // §7.4: no exclamation marks in anything a live region carries.
     expect(toast.textContent).not.toMatch(/!/)
   })
@@ -2746,7 +2960,11 @@ describe('§11 — the printed corner index is the card’s real position', () =
     const printed = marks()
     // Every card carries one (§11), so the run has to be as long as the stack.
     expect(printed.length).toBe(document.querySelectorAll('main .card').length)
-    expect(printed.length).toBe(8)
+    // SEVEN, and it was eight: QST—03 stopped being a card (see XpStrip) and
+    // BOS—04…ARC—08 each stepped down one. Renumbering is not cosmetic here —
+    // §1 trait 10 calls these marks decorative TRUTH-TELLING, so a stale index
+    // is the mark lying about the thing it exists to state.
+    expect(printed.length).toBe(7)
     // The prefix is the card's own three-letter code; only the index is
     // derived, so this asserts position without freezing the vocabulary.
     expect(printed.map((m) => m.split('—')[1])).toEqual(
@@ -3134,13 +3352,16 @@ describe('the decision record', () => {
     expect(panels[0].closest('.decision')!.textContent).toContain('2,000 DA')
   })
 
-  it('keeps the record inside the simulator — no thirteenth card', () => {
+  it('keeps the record inside the simulator — no extra card', () => {
     render(<App />)
     runSim('5000')
     // Depth, not breadth: the run and its record are one object, so the card
-    // count and the §11 corner-index run are unchanged by this feature.
+    // count and the §11 corner-index run are unchanged by this feature. (Seven
+    // now, and it was eight: QST—03 stopped being a card — see XpStrip. The
+    // number moved for a DELETION, which is the only direction this assertion
+    // is meant to allow.)
     const cards = screen.getByRole('main').querySelectorAll('section.card')
-    expect(cards).toHaveLength(8)
+    expect(cards).toHaveLength(7)
     expect(simCard().querySelectorAll('.spec-label')).toHaveLength(1)
     expect(within(simCard()).getAllByRole('heading', { level: 2 })).toHaveLength(1)
     expect(simCard().querySelector('.decision-record')).not.toBeNull()
@@ -3422,5 +3643,133 @@ describe('the check-back', () => {
     )
     // Trust Rule 7 — the answer is in the payload the export hands back.
     expect(savedState().decisions[0].checkBack).toBe('using')
+  })
+})
+
+/**
+ * THE DAILY READ, ANNOUNCED — the last silent primary action.
+ *
+ * The keyboard sweep for this round walked every control in the app and diffed
+ * the live regions after each press. Focus was never stranded; one action came
+ * back with no region changed at all. Pressing "Got it" swapped the button's
+ * label to "Collected", showed the chip, ticked the `n / total` index and
+ * played a blip — four changes, none of them narrated. The XP region says
+ * "+5 XP", which reports that a grant landed and not what it was for, and §10
+ * forbids the blip carrying the moment on its own. Every other action in the
+ * app already names itself: logging says "Logged 1,500 DA. Undo available.",
+ * the record says "Waited. 9,000 DA. Recorded.", the archive says "Showing 3 of
+ * 20 days.", the export names the file.
+ */
+describe('the lesson read announces itself', () => {
+  const lessonStatus = () => screen.getByRole('status', { name: 'Lesson status' })
+  const gotIt = () => screen.getByRole('button', { name: /^Got it:/ })
+
+  it('mounts the region empty, like every other status region in the app', () => {
+    render(<App />)
+    // A region that arrives already holding its message is silent — screen
+    // readers announce text CHANGES inside an existing region.
+    expect(lessonStatus().textContent).toBe('')
+  })
+
+  it('names the act and the lesson when the read lands', () => {
+    render(<App />)
+    const title = lessonForDay(todayISO(), []).title
+    fireEvent.click(gotIt())
+    expect(lessonStatus().textContent).toBe(`Collected. ${title}.`)
+    // …and the grant is still the ordinary daily one. The announcement is not
+    // a second reward and pays nothing (Trust Rule 1).
+    expect(xpNow()).toBe(XP_REWARDS.readLesson)
+  })
+
+  it('answers the inert re-press instead of going dead under the finger', () => {
+    // The button goes aria-disabled rather than `disabled` (which would drop
+    // focus to <body>), so it stays focusable and stays pressable — and an
+    // inert control that does nothing and says nothing is a dead key to anyone
+    // who could not see it go inert. Same finding, same answer, as LogCard's
+    // "Nothing to clear."
+    render(<App />)
+    const title = lessonForDay(todayISO(), []).title
+    fireEvent.click(gotIt())
+    const collected = screen.getByRole('button', { name: `${title} — collected` })
+    expect(collected.getAttribute('aria-disabled')).toBe('true')
+    act(() => {
+      collected.focus()
+    })
+    fireEvent.click(collected)
+    expect(lessonStatus().textContent).toBe(`Already collected today. ${title}.`)
+    // Nothing failed, so there is no denial cue and no error state…
+    expect(sfx.deny).not.toHaveBeenCalled()
+    // …no XP moved, and focus stayed exactly where the user put it.
+    expect(xpNow()).toBe(XP_REWARDS.readLesson)
+    expect(document.activeElement).toBe(collected)
+  })
+
+  it('stays audible on a repeated identical press (a region announces CHANGES)', () => {
+    render(<App />)
+    const title = lessonForDay(todayISO(), []).title
+    fireEvent.click(gotIt())
+    const collected = screen.getByRole('button', { name: `${title} — collected` })
+    fireEvent.click(collected)
+    const first = lessonStatus().textContent
+    fireEvent.click(collected)
+    // useAnnouncer's invisible pad: the same string twice reconciles to the
+    // same text node and fires no mutation, so the second press would be
+    // silent. Trailing whitespace is not spoken, so what the user hears is
+    // unchanged.
+    expect(lessonStatus().textContent).not.toBe(first)
+    expect(lessonStatus().textContent!.trim()).toBe(`Already collected today. ${title}.`)
+  })
+
+  it('survives a reload holding nothing — the region is re-armed, not restored', () => {
+    render(<App />)
+    fireEvent.click(gotIt())
+    cleanup()
+    render(<App />)
+    // A region that mounts holding a reloaded message announces nothing and
+    // would re-announce a stale act on every boot. The persistent state is the
+    // "Collected" chip and the count, which are visible at rest.
+    expect(lessonStatus().textContent).toBe('')
+    expect(screen.getByRole('button', { name: /— collected$/ })).toBeTruthy()
+  })
+})
+
+/**
+ * THE LIVE-REGION CENSUS.
+ *
+ * design.test.ts holds the three stylesheet rules that keep an announcement
+ * surface in the accessibility tree, and its prose counts the surfaces those
+ * rules serve. A count in prose is the thing this repo does not allow anywhere
+ * else, so it is counted here instead: a card that grows a region without one
+ * of the three rules, or loses one, moves this number.
+ */
+describe('every announcement surface is mounted, empty, and hidden by geometry', () => {
+  it('mounts eleven regions at boot and none of them arrives holding text', () => {
+    const { container } = render(<App />)
+    const regions = [...container.querySelectorAll('[role="status"]')]
+    // Nine sr-only (XP gains, Amount entered, Log status, Lesson status,
+    // Simulation result, Decision record, Profile status, Ledger range,
+    // Export) plus the two in-flow ones (.toast, .persist-fault) that hide
+    // themselves while empty.
+    expect(regions.map((r) => r.getAttribute('aria-label')).sort()).toEqual([
+      'Amount entered',
+      'Announcements',
+      'Decision record',
+      'Export',
+      'Ledger range',
+      'Lesson status',
+      'Log status',
+      'Profile status',
+      'Simulation result',
+      'Storage',
+      'XP gains',
+    ])
+    expect(regions.filter((r) => r.classList.contains('sr-only'))).toHaveLength(9)
+    // A region that mounts already holding its message is silent — screen
+    // readers announce text CHANGES inside an EXISTING region.
+    for (const r of regions) {
+      expect(`${r.getAttribute('aria-label')}: ${r.textContent}`).toBe(
+        `${r.getAttribute('aria-label')}: `,
+      )
+    }
   })
 })

@@ -15,13 +15,20 @@ import type { AppState } from '../state/store.ts'
 /**
  * True when this tab plausibly hosts the user action behind a state change.
  * The effects below diff state without knowing its origin, so a peer tab's
- * write (a HYDRATE merge) moves XP/level/quests here too — but a celebration
+ * write (a HYDRATE merge) moves XP and levels here too — but a celebration
  * sound must never play in a background tab the user never touched. A hidden
  * tab is certainly not where the tap landed, and a tab with no user
  * activation cannot even resume its AudioContext. Defaults open (?? true) on
  * browsers without navigator.userActivation. The toast/chip still render:
  * sound never carries information alone, so suppressing it loses nothing.
  */
+/** Grants of one action in the append-only log, counted without allocating. */
+function countGrants(log: AppState['xpLog'], action: string): number {
+  let n = 0
+  for (const g of log) if (g.action === action) n += 1
+  return n
+}
+
 function likelyLocalAction(): boolean {
   return (
     document.visibilityState === 'visible' &&
@@ -42,12 +49,13 @@ function likelyLocalAction(): boolean {
  * register the Health Score speaks in.
  */
 export function useRewards(state: AppState): { toast: string | null; xpGain: number | null } {
-  // Toasts QUEUE instead of overwrite: completing the final quest can cross a
-  // level boundary in the same commit, and both effects below then announce
-  // in one batch — a bare setToast would let the later (quest) effect stomp
-  // the level-up before the live region ever carried it, leaving the fanfare
-  // to announce the level alone, which sound must never do. The head of the
-  // queue is the visible toast; the dismiss timer shifts to the next.
+  // Toasts QUEUE instead of overwrite: one commit can produce several
+  // announcements — a badge unlock and the level-up its XP crossed, a boss win
+  // and the level it pushed through — and a bare setToast would let the later
+  // effect stomp the earlier one before the live region ever carried it,
+  // leaving the fanfare to announce the level alone, which sound must never do.
+  // The head of the queue is the visible toast; the dismiss timer shifts to the
+  // next.
   const [toastQueue, setToastQueue] = useState<string[]>([])
   const toast = toastQueue.length > 0 ? toastQueue[0] : null
   function pushToast(message: string) {
@@ -120,9 +128,22 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
   // on every mount. The fanfare (its doc comment reserves "boss defeated")
   // never carries the win alone: the toast announces it through the live
   // region and BossCard shows the persistent beaten chip.
-  const prevBossWins = useRef(state.xpLog.filter((g) => g.action === 'weeklyBoss').length)
+  // Counting loop, not filter().length — the idiom App.tsx uses for
+  // resistXpCapped and achievements.ts for `ten-logs`, and for the same reason:
+  // the filter allocated an intermediate array over the whole grant log to
+  // produce one integer. The log grows one entry per grant and is never pruned,
+  // so it is the structure here that scales with a long-lived install.
+  //
+  // AND THE SEED IS LAZY, which is the bigger half. `useRef(expr)` evaluates
+  // `expr` on EVERY render and throws the result away after the first — so the
+  // mount-only baseline below was re-scanning the whole grant log on each of
+  // the two extra renders every grant schedules (the +XP chip clear at 1800ms
+  // and the toast shift at 2600ms), plus every render anything else causes. A
+  // useState initialiser runs exactly once.
+  const [seedBossWins] = useState(() => countGrants(state.xpLog, 'weeklyBoss'))
+  const prevBossWins = useRef(seedBossWins)
   useEffect(() => {
-    const n = state.xpLog.filter((g) => g.action === 'weeklyBoss').length
+    const n = countGrants(state.xpLog, 'weeklyBoss')
     const prev = prevBossWins.current
     prevBossWins.current = n
     if (n > prev) {
@@ -144,8 +165,8 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
   // for logging a purchase) would run that effect's cleanup, cancel the
   // dismiss timer, and strand the toast — and the role="status" live region
   // content — on screen until the next level-up. Shifting (not clearing)
-  // lets a queued second message ("All quests complete.") take its own turn
-  // in the live region after the current one dismisses.
+  // lets a queued second message (a badge earned in the same commit) take its
+  // own turn in the live region after the current one dismisses.
   useEffect(() => {
     if (toastQueue.length === 0) return
     const t = setTimeout(() => setToastQueue((q) => q.slice(1)), 2600)
@@ -189,7 +210,11 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
   // while the ref initializer keeps long-held badges from re-celebrating on
   // every mount. One sparkle per batch — a merge landing several badges at
   // once must not stack the shimmer into doubled gain.
-  const prevAchievements = useRef(new Set(state.achievements.map((a) => a.id)))
+  // Lazy seed, for the reason spelled out above prevBossWins: `useRef(expr)`
+  // re-evaluates on every render, so this minted a throwaway array and a
+  // throwaway Set on each one.
+  const [seedAchievements] = useState(() => new Set(state.achievements.map((a) => a.id)))
+  const prevAchievements = useRef(seedAchievements)
   useEffect(() => {
     const prev = prevAchievements.current
     const added = state.achievements.filter((a) => !prev.has(a.id))
@@ -203,44 +228,6 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     }
     if (likelyLocalAction()) sfx.sparkle()
   }, [state.achievements])
-
-  // Quest completions, likewise driven by state changes only.
-  //
-  // Diffed by ID, not by count: the count form missed a rollover commit that
-  // resets the day's quests and completes one in the same change, and it could
-  // not name which quest landed. Naming it is the point — the sweep measured
-  // a single completion announcing as "+10 XP" and nothing else, with the
-  // whole signal carried by the focused button's accessible name changing
-  // under the user (NVDA announces that, VoiceOver frequently does not, JAWS
-  // is inconsistent). The toast QUEUE is the right home for it: it is the one
-  // mechanism here that serialises two announcements landing in one commit.
-  const prevQuestsDone = useRef(new Set(state.quests.filter((q) => q.done).map((q) => q.id)))
-  useEffect(() => {
-    const prev = prevQuestsDone.current
-    const landed = state.quests.filter((q) => q.done && !prev.has(q.id))
-    prevQuestsDone.current = new Set(state.quests.filter((q) => q.done).map((q) => q.id))
-    if (landed.length > 0) {
-      const local = likelyLocalAction()
-      if (local) sfx.blip()
-      const allDone = state.quests.every((q) => q.done)
-      // The all-complete toast SUBSUMES the per-quest one for the completion
-      // that finishes the set: two writes to one polite region inside a single
-      // tick is exactly the shape that makes a live region interrupt itself,
-      // and "All quests complete." already says the last quest is done.
-      if (!allDone) {
-        for (const q of landed) pushToast(`Quest done. ${q.text}`)
-      }
-      if (allDone) {
-        // The arpeggio never carries the moment alone: the toast announces it
-        // through the live region and QuestCard shows a persistent badge.
-        pushToast('All quests complete.')
-        if (local) {
-          const t = setTimeout(sfx.arpeggio, 180)
-          return () => clearTimeout(t)
-        }
-      }
-    }
-  }, [state.quests])
 
   return { toast, xpGain: xpGain?.amount ?? null }
 }

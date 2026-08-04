@@ -181,7 +181,7 @@ export function ProfileCard({
   return (
     <section className="card">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
-      <span className="spec-label" aria-hidden="true">NUM—07</span>
+      <span className="spec-label" aria-hidden="true">NUM—06</span>
       {/* CONSTRAINT §2.1b — see .counter-plate in tokens.css. */}
       <h2 className="counter-plate">My numbers</h2>
       {/* Permanently mounted status region (same announce-on-change rule as

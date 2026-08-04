@@ -32,7 +32,7 @@ export function BossCard({
     // not as a warning, and none of the beatable framing changes.
     <section className="card spec-sheet">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
-      <span className="spec-label" aria-hidden="true">BOS—04</span>
+      <span className="spec-label" aria-hidden="true">BOS—03</span>
       <div className="boss-head">
         <h2>Weekly boss</h2>
         {/* Persistent marker for a claimed win — the fanfare/toast's visible

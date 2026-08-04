@@ -184,43 +184,63 @@ describe('UNDO_TX', () => {
   })
 })
 
-describe('COMPLETE_QUEST', () => {
-  it('marks the quest done and grants its XP atomically', () => {
-    const s = defaultState()
-    const next = appReducer(s, { type: 'COMPLETE_QUEST', id: 'log' })
-    expect(next.quests.find((q) => q.id === 'log')!.done).toBe(true)
-    expect(next.xp.totalXp).toBe(5)
-    // The grant id is deterministic per (quest, day), so two tabs completing
-    // the same quest on the same day merge to a single grant.
-    expect(next.xpLog).toEqual([
-      { id: `quest:log:${s.questsDate}`, action: 'logExpense', amount: 5, date: s.questsDate },
-    ])
-  })
-  it('is a no-op on an already-done quest — rapid double dispatch cannot double-grant', () => {
-    const s = defaultState()
-    const once = appReducer(s, { type: 'COMPLETE_QUEST', id: 'log' })
-    const twice = appReducer(once, { type: 'COMPLETE_QUEST', id: 'log' })
-    expect(twice).toBe(once)
-    expect(twice.xp.totalXp).toBe(5)
-  })
-  it('ignores an unknown quest id', () => {
-    const s = defaultState()
-    expect(appReducer(s, { type: 'COMPLETE_QUEST', id: 'nope' })).toBe(s)
-  })
-})
-
 describe('READ_LESSON', () => {
-  it('collects the lesson into the codex WITHOUT granting XP (the quest pays)', () => {
+  it('collects the lesson AND pays the day’s grant in one transition', () => {
     const next = appReducer(defaultState(), {
       type: 'READ_LESSON',
       id: 'budget-sketch',
       date: '2026-08-01',
     })
     expect(next.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
-    // No direct grant: the daily readLesson XP travels through
-    // COMPLETE_QUEST('lesson') so one tap can never pay twice.
-    expect(next.xp.totalXp).toBe(0)
-    expect(next.xpLog).toEqual([])
+    // The grant used to travel through COMPLETE_QUEST('lesson'); the quest list
+    // is deleted (see XpStrip) and the daily XP is paid here, on a
+    // deterministic per-day id — the pattern BOSS_VICTORY already used.
+    expect(next.xp.totalXp).toBe(15)
+    expect(next.xpLog).toEqual([
+      { id: 'lesson:2026-08-01', action: 'readLesson', amount: 15, date: '2026-08-01' },
+    ])
+  })
+
+  it('pays readLesson at most once per local day, on the grant id not a counter', () => {
+    const s = appReducer(defaultState(), {
+      type: 'READ_LESSON',
+      id: 'budget-sketch',
+      date: '2026-08-01',
+    })
+    // Same lesson, same day: the whole transition is a no-op (double tap,
+    // StrictMode double-invoke, a re-fired mount effect after reload).
+    expect(appReducer(s, { type: 'READ_LESSON', id: 'budget-sketch', date: '2026-08-01' })).toBe(s)
+    // A DIFFERENT lesson on the same day still pays nothing: the cap is on the
+    // DAY, exactly as the quest's per-(quest, day) grant id was.
+    const second = appReducer(s, { type: 'READ_LESSON', id: 'track-first', date: '2026-08-01' })
+    expect(second.lessonsSeen).toHaveLength(2)
+    expect(second.xp.totalXp).toBe(15)
+    expect(second.xpLog.map((g) => g.id)).toEqual(['lesson:2026-08-01'])
+    // Tomorrow is a fresh id, so tomorrow pays.
+    const tomorrow = appReducer(second, {
+      type: 'READ_LESSON',
+      id: 'invisible-category',
+      date: '2026-08-02',
+    })
+    expect(tomorrow.xp.totalXp).toBe(30)
+    expect(tomorrow.xpLog.map((g) => g.id)).toEqual(['lesson:2026-08-01', 'lesson:2026-08-02'])
+  })
+
+  it('still pays the day’s grant for a lesson already in the codex (the roster wraps)', () => {
+    // lessonForDay serves an already-collected lesson once all 30 are seen; the
+    // read is still a read, and the day's grant is still unpaid. Collection and
+    // payment are two guards, not one.
+    const s = appReducer(defaultState(), {
+      type: 'READ_LESSON',
+      id: 'budget-sketch',
+      date: '2026-08-01',
+    })
+    const later = appReducer(s, { type: 'READ_LESSON', id: 'budget-sketch', date: '2026-09-01' })
+    expect(later.xp.totalXp).toBe(30)
+    expect(later.xpLog.map((g) => g.id)).toEqual(['lesson:2026-08-01', 'lesson:2026-09-01'])
+    // …and the codex keeps the FIRST read date, which is what lessonForDay's
+    // no-repeat rotation keys off.
+    expect(later.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
   })
 
   it('keeps the original first-read date on a repeat read (rotation keys off it)', () => {
@@ -230,7 +250,6 @@ describe('READ_LESSON', () => {
       date: '2026-08-01',
     })
     const again = appReducer(s, { type: 'READ_LESSON', id: 'budget-sketch', date: '2026-08-02' })
-    expect(again).toBe(s)
     expect(again.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
   })
 
@@ -245,33 +264,17 @@ describe('READ_LESSON', () => {
     s = appReducer(s, { type: 'READ_LESSON', id: 'budget-sketch', date: '2026-08-02' })
     expect(s.lessonsSeen.map((e) => e.id)).toEqual(['budget-sketch', 'track-first'])
   })
-
-  it('pays readLesson XP once per day via the verified lesson quest', () => {
-    const s = defaultState()
-    const once = appReducer(s, { type: 'COMPLETE_QUEST', id: 'lesson' })
-    expect(once.xp.totalXp).toBe(15)
-    expect(once.xpLog).toEqual([
-      { id: `quest:lesson:${s.questsDate}`, action: 'readLesson', amount: 15, date: s.questsDate },
-    ])
-    // Second dispatch the same day is the standard quest no-op.
-    expect(appReducer(once, { type: 'COMPLETE_QUEST', id: 'lesson' })).toBe(once)
-  })
 })
 
 describe('ROLL_DAY', () => {
-  it('returns the same state when both dates already match (render-free no-op)', () => {
-    const s = { ...defaultState(), healthDate: '2026-08-01', questsDate: '2026-08-01' }
+  it('returns the same state when the snapshot day already matches (render-free no-op)', () => {
+    const s = { ...defaultState(), healthDate: '2026-08-01' }
     expect(
       appReducer(s, { type: 'ROLL_DAY', today: '2026-08-01', healthScore: 61, healthStage: 'hearth' }),
     ).toBe(s)
   })
-  it('snapshots health once per day and rolls quests on a new day', () => {
-    const s = {
-      ...defaultState(),
-      healthDate: '2026-07-31',
-      questsDate: '2026-07-31',
-      quests: defaultState().quests.map((q) => ({ ...q, done: true })),
-    }
+  it('snapshots health once on a new day', () => {
+    const s = { ...defaultState(), healthDate: '2026-07-31' }
     const next = appReducer(s, {
       type: 'ROLL_DAY',
       today: '2026-08-01',
@@ -281,19 +284,24 @@ describe('ROLL_DAY', () => {
     expect(next.healthDate).toBe('2026-08-01')
     expect(next.prevHealthScore).toBe(58.5)
     expect(next.stage).toBe('hearth')
-    expect(next.questsDate).toBe('2026-08-01')
-    expect(next.quests.every((q) => !q.done)).toBe(true)
   })
-  it('rolls quests without re-snapshotting when only the quest day is stale', () => {
-    const s = { ...defaultState(), healthDate: '2026-08-01', questsDate: '2026-07-31', prevHealthScore: 40 }
+  it('rolls no engagement state — the day key is in the grant ids, not in a list', () => {
+    // ROLL_DAY used to reset the daily quest list as well, which is why it fired
+    // on two dates. The grants that outlived the quests (`lesson:<day>`,
+    // `sim:<day>`) carry the day IN the id, so midnight needs no sweep: the
+    // rollover cannot re-open or re-pay anything, and a stale snapshot day is
+    // the only thing left for this action to fix.
+    const s = { ...defaultState(), healthDate: '2026-08-01', prevHealthScore: 40 }
+    s.xpLog = [{ id: 'lesson:2026-08-01', action: 'readLesson', amount: 15, date: '2026-08-01' }]
     const next = appReducer(s, {
       type: 'ROLL_DAY',
       today: '2026-08-01',
       healthScore: 99,
       healthStage: 'beacon',
     })
+    expect(next).toBe(s)
     expect(next.prevHealthScore).toBe(40) // snapshot untouched within the day
-    expect(next.questsDate).toBe('2026-08-01')
+    expect(next.xpLog).toHaveLength(1)
   })
 })
 
@@ -455,16 +463,41 @@ describe('the decision record', () => {
     expect(next.decisions).toEqual([decision()])
   })
 
-  it('pays no XP for a run: the sim quest is still the only vehicle', () => {
+  it('pays runSimulation once per local day, on the grant id', () => {
     const next = appReducer(defaultState(), { type: 'RUN_SIM', decision: decision() })
-    expect(next.xp.totalXp).toBe(0)
-    expect(next.xpLog).toEqual([])
-    // …and the quest still pays exactly once, through its own guarded path.
-    const paid = appReducer(next, { type: 'COMPLETE_QUEST', id: 'sim' })
-    expect(paid.xp.totalXp).toBe(XP_REWARDS.runSimulation)
-    expect(appReducer(paid, { type: 'COMPLETE_QUEST', id: 'sim' }).xp.totalXp).toBe(
-      XP_REWARDS.runSimulation,
-    )
+    // The grant used to travel through COMPLETE_QUEST('sim'); the quest is
+    // deleted (see XpStrip) and the run pays for itself, on the deterministic
+    // per-day id a peer tab's merge dedupes against.
+    expect(next.xp.totalXp).toBe(XP_REWARDS.runSimulation)
+    expect(next.xpLog).toEqual([
+      {
+        id: 'sim:2026-08-04',
+        action: 'runSimulation',
+        amount: XP_REWARDS.runSimulation,
+        date: '2026-08-04',
+      },
+    ])
+  })
+
+  it('RECORDS the second run of a day and pays nothing for it', () => {
+    // The record is data; only the grant is capped. Refusing to file the second
+    // run would be the engagement track deciding what the money record is
+    // allowed to remember.
+    const once = appReducer(defaultState(), { type: 'RUN_SIM', decision: decision() })
+    const twice = appReducer(once, {
+      type: 'RUN_SIM',
+      decision: decision({ id: 'd2', amountDA: 9_000 }),
+    })
+    expect(twice.decisions.map((d) => d.id)).toEqual(['d2', 'd1'])
+    expect(twice.xp.totalXp).toBe(XP_REWARDS.runSimulation)
+    expect(twice.xpLog.map((g) => g.id)).toEqual(['sim:2026-08-04'])
+    // Tomorrow is a fresh id, so tomorrow pays.
+    const tomorrow = appReducer(twice, {
+      type: 'RUN_SIM',
+      decision: decision({ id: 'd3', date: '2026-08-05' }),
+    })
+    expect(tomorrow.xp.totalXp).toBe(XP_REWARDS.runSimulation * 2)
+    expect(tomorrow.xpLog.map((g) => g.id)).toEqual(['sim:2026-08-04', 'sim:2026-08-05'])
   })
 
   it('re-validates the decision on the way in, like PROFILE_SET does', () => {
@@ -475,6 +508,9 @@ describe('the decision record', () => {
       decision: decision({ amountDA: Number.POSITIVE_INFINITY }),
     })
     expect(bad.decisions).toEqual([])
+    // …and a rejected run pays nothing: the grant rides on a decision that
+    // survived the sanitizer, never on the dispatch.
+    expect(bad.xpLog).toEqual([])
   })
 
   it('ignores a repeat of an id it already holds', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dayLabel, groupTransactionsByDay, monthToDate } from './ledger.ts'
+import { dayLabel, groupTransactionsByDay, ledgerWindow, monthToDate } from './ledger.ts'
 import type { Transaction } from '../state/store.ts'
 
 const tx = (over: Partial<Transaction> & { id: string; date: string }): Transaction => ({
@@ -362,5 +362,106 @@ describe('monthToDate', () => {
     const snapshot = JSON.stringify(input)
     monthToDate(input, '2026-08-04')
     expect(JSON.stringify(input)).toBe(snapshot)
+  })
+})
+
+/**
+ * THE WINDOW, AND THE WORK IT DOES NOT DO.
+ *
+ * ArchiveCard renders WINDOW_DAYS (3) day groups at rest, and the derivation
+ * behind them runs on every logged purchase. Materialising the whole record to
+ * show three days of it made that per-log work proportional to the user's
+ * history — see ledgerWindow's own note for the measurement. These cases pin
+ * both halves: the window must be the SAME days the unbounded form produces,
+ * and it must not build the ones it does not return.
+ */
+describe('ledgerWindow', () => {
+  const spread = (days: number, perDay = 3): Transaction[] =>
+    Array.from({ length: days * perDay }, (_, i) =>
+      tx({
+        id: `t${i}`,
+        date: `2026-0${1 + Math.floor(Math.floor(i / perDay) / 28)}-${String(
+          (Math.floor(i / perDay) % 28) + 1,
+        ).padStart(2, '0')}`,
+        amountDA: 100 + i,
+      }),
+    )
+
+  it('returns exactly the head of the unbounded grouping, day for day', () => {
+    const rows = spread(40)
+    const whole = groupTransactionsByDay(rows, '2026-02-20')
+    for (const limit of [0, 1, 3, 7, 39, 40, 41, Number.POSITIVE_INFINITY]) {
+      const w = ledgerWindow(rows, '2026-02-20', limit)
+      expect(`${limit}: ${JSON.stringify(w.days)}`).toBe(
+        `${limit}: ${JSON.stringify(whole.slice(0, limit))}`,
+      )
+    }
+  })
+
+  it('counts every day the record holds, whatever the window shows', () => {
+    const rows = spread(40)
+    // The number the archive discloses ("Showing 3 of 40 days.") and the number
+    // its expand label promises. It may never be read off days.length — that is
+    // the one the window deliberately caps.
+    for (const limit of [0, 1, 3, 40, Number.POSITIVE_INFINITY]) {
+      expect(ledgerWindow(rows, '2026-02-20', limit).totalDays).toBe(40)
+    }
+  })
+
+  it('defaults to the whole record, so groupTransactionsByDay is unchanged', () => {
+    const rows = spread(12)
+    expect(ledgerWindow(rows, '2026-02-20').days).toEqual(
+      groupTransactionsByDay(rows, '2026-02-20'),
+    )
+  })
+
+  it('does no per-day work for a day it does not return', () => {
+    // The point of the whole change, asserted mechanically rather than timed: a
+    // day that is outside the window must never have its rows summed. A getter
+    // on `amountDA` records every read, and the only reader is the spentDA fold
+    // (the grouping pass touches `date` alone).
+    const read = new Set<string>()
+    const rows: Transaction[] = ['2026-02-01', '2026-02-02', '2026-02-03', '2026-02-04'].map(
+      (date, i) => {
+        const row = tx({ id: `t${i}`, date }) as Transaction & { amountDA: number }
+        let amount = 100 + i
+        Object.defineProperty(row, 'amountDA', {
+          get: () => {
+            read.add(date)
+            return amount
+          },
+          set: (v: number) => {
+            amount = v
+          },
+          enumerable: true,
+          configurable: true,
+        })
+        return row
+      },
+    )
+    const w = ledgerWindow(rows, '2026-02-04', 2)
+    expect(w.days.map((d) => d.date)).toEqual(['2026-02-04', '2026-02-03'])
+    expect([...read].sort()).toEqual(['2026-02-03', '2026-02-04'])
+  })
+
+  it('orders a skewed future day after every real one, windowed or not', () => {
+    // Same both-ends bound the unbounded form applies — a device with a fast
+    // clock must not be able to pin a row into the first window forever.
+    const rows = [
+      tx({ id: 'ahead', date: '2026-12-25' }),
+      tx({ id: 'now', date: '2026-08-04' }),
+      tx({ id: 'old', date: '2026-08-01' }),
+    ]
+    const w = ledgerWindow(rows, '2026-08-04', 2)
+    expect(w.days.map((d) => d.date)).toEqual(['2026-08-04', '2026-08-01'])
+    expect(w.totalDays).toBe(3)
+  })
+
+  it('leaves the caller’s array untouched at every window size', () => {
+    const rows = spread(6)
+    const snapshot = JSON.stringify(rows)
+    ledgerWindow(rows, '2026-01-06', 2)
+    ledgerWindow(rows, '2026-01-06')
+    expect(JSON.stringify(rows)).toBe(snapshot)
   })
 })

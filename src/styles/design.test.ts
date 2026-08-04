@@ -68,6 +68,46 @@ function offGridLengths(css: string): string[] {
   return found
 }
 
+describe('the sheets parse as the sheets they look like', () => {
+  // THIS FILE READS CSS AS TEXT, AND A CSS PARSER DOES NOT. Every assertion
+  // below this one runs on stripComments() output, so a stray comment
+  // delimiter is invisible to all of them — while the browser reads everything
+  // after it as a selector and swallows real rules until the next `{`. That is
+  // not hypothetical: an editing pass on app.css left one extra comment-close
+  // in a prose block, the suite stayed green, and the ONLY thing that noticed
+  // was a census re-run in which app.375x812.dark.seeded's document lost 179px
+  // and its field went 58.07% -> 62.38 with no rule intentionally changed. The
+  // census is a 40-second browser run; this is instant, and it is the cheaper
+  // place to catch it.
+  // (Line comments, not a block: the assertion below is ABOUT comment
+  // delimiters, and a block comment here could not name one.)
+  for (const [name, css] of [
+    ['tokens.css', 'tokens.css'],
+    ['app.css', 'app.css'],
+    ['landing.css', 'landing.css'],
+  ] as Array<[string, string]>) {
+    it(`leaves no unopened comment or unclosed rule in ${name}`, () => {
+      const raw = readFileSync(new URL(`./${css}`, import.meta.url), 'utf8')
+      // Same regex read() uses, so what is asserted here is exactly what every
+      // other test in this file believes it is reading.
+      const stripped = raw.replace(/\/\*[\s\S]*?\*\//g, '')
+      expect(`${name} stray comment close: ${stripped.includes('*/')}`).toBe(
+        `${name} stray comment close: false`,
+      )
+      expect(`${name} unclosed comment: ${stripped.includes('/*')}`).toBe(
+        `${name} unclosed comment: false`,
+      )
+      let depth = 0
+      for (const ch of stripped) {
+        if (ch === '{') depth++
+        else if (ch === '}') depth--
+        expect(depth).toBeGreaterThanOrEqual(0)
+      }
+      expect(`${name} brace balance: ${depth}`).toBe(`${name} brace balance: 0`)
+    })
+  }
+})
+
 describe('§5 — everything snaps to the 8px baseline', () => {
   it('places and sizes every box on the grid in app.css', () => {
     // The audit found `gap: 20px` and `inset: -10px 0` on the quest list: two
@@ -191,11 +231,27 @@ describe('§1 trait 09 / §8 — one diagonal per composition', () => {
     // The 38° shear used to live inside the ≥1024 block, so every phone and
     // tablet capture — the app's stated primary device — contained no
     // diagonal at all.
+    //
+    // ASSERTED BY NESTING DEPTH, NOT BY FILE ORDER. This read "the shear
+    // appears before the first `@media (min-width: 1024px)` in the file", which
+    // is a proxy: it says nothing about the shear and everything about which
+    // rule happens to be typed first. It went red the moment a width-scoped
+    // plate undo was added ABOVE it (the two blocks at the top of app.css) even
+    // though the shear had not moved and was still unconditional. APP is
+    // comment-stripped by read(), so counting braces to the shear is exact: a
+    // declaration in a top-level rule sits at depth 1, and one inside any
+    // at-rule sits at 2 or deeper.
     const shear = APP.indexOf('rotate(-38deg)')
-    const desktop = APP.indexOf('@media (min-width: 1024px)')
     expect(shear).toBeGreaterThan(-1)
-    expect(desktop).toBeGreaterThan(-1)
-    expect(shear).toBeLessThan(desktop)
+    let depth = 0
+    for (const ch of APP.slice(0, shear)) {
+      if (ch === '{') depth++
+      else if (ch === '}') depth--
+    }
+    expect(depth).toBe(1)
+    // …and the ≥1024 block still exists, so this is not passing because the
+    // breakpoint was deleted out from under it.
+    expect(APP).toContain('@media (min-width: 1024px)')
   })
 
   it('cuts the app composition exactly once', () => {
@@ -379,10 +435,13 @@ describe('§2 — the ratio law and the palette budget', () => {
     // .boss-track sits on .spec-sheet, which re-declares --sunken as its own
     // ground, and .decision-checkback is a recess inside a card that is Bone in
     // light and Espresso in dark — so the live dark-Void set is the health
-    // track, the XP track, the inputs, the keypad and one hover state.
-    // (Two more left this list entirely: .codex-locked and .ach-locked were 39
-    // of the tiles this budget was written about, and the card they were on is
-    // deleted.)
+    // track, the inputs and the keypad.
+    // (Three more left this list entirely. .codex-locked and .ach-locked were
+    // 39 of the tiles this budget was written about and their card is deleted;
+    // the quest box's hover state went with the quest card. .xp-track is STILL
+    // HERE and no longer resolves to Void in dark at all — it sits on
+    // .counter-plate now, which re-declares --sunken as Sand in dark and
+    // Espresso in light, the same way .spec-sheet does for .boss-track.)
     const withoutComments = APP.replace(/\/\*[\s\S]*?\*\//g, '')
     const recessed: string[] = []
     for (const m of withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
@@ -396,7 +455,6 @@ describe('§2 — the ratio law and the palette budget', () => {
       '.health-track',
       '.note-key',
       '.xp-track',
-      "button.quest-row:not([aria-disabled='true']):hover .quest-box",
     ])
   })
 
@@ -505,6 +563,19 @@ describe('§2 — the ratio law and the palette budget', () => {
       // 1024 was measured to drive that width from 63.6% field to 47.5% — the
       // same defect pointed the other way. See the block above the rule.
       expect(conditionFor('archive-card')).toBe('(prefers-color-scheme: dark), (min-width: 1400px)')
+      // AND THE SELECTOR IS NOT SCOPED TO THE APP STACK, which is the one
+      // correction this rule invites and the one that was measured to be wrong.
+      // The landing mounts a real <ArchiveCard> as its product shot, so the
+      // same rule paints it — and the width arm's premise (the .main-stack
+      // gutter) does not exist on the landing, which makes `.main-stack
+      // .spec-sheet.archive-card` look like the obvious tidy-up. Measured on
+      // this tree with the width arm scoped that way,
+      // landing.1440x900.light.fresh window @900 reads 85.94% field / 10.78%
+      // Bone — over §2.1b's 85 HARD CAP, against 82.42 / 14.15 as shipped: the
+      // 560px shot is the only Bone-family ground in that window. See the block
+      // above the rule for both arms stated separately.
+      expect(counterSel()).not.toContain('.main-stack .spec-sheet.archive-card')
+      expect(counterSel()).not.toContain('.lp-shot-frame .spec-sheet.archive-card')
     })
   })
 
@@ -584,6 +655,39 @@ describe('§2 — the ratio law and the palette budget', () => {
       expect(plateCondition).toBe('(prefers-color-scheme: dark), (min-width: 1400px)')
     })
 
+    it('gives the XP strip its container from the plate, not from a card', () => {
+      // CONSTRAINT §2.1b. The strip is not a .card (see XpStrip): it has no
+      // heading, no §11 corner mark and no keyline or fill of its own. Its
+      // whole container is .counter-plate — which is what makes it a GROUND
+      // INTERRUPTION rather than one more Bone box in the longest Bone run on
+      // the light phone. So this rule may declare box properties only; the
+      // moment it declares a background or a border it has stopped being a
+      // plate and started being a second, unmeasured surface.
+      const strip = /\n\.xp-strip \{([\s\S]*?)\n\}/.exec(APP)?.[1] ?? ''
+      expect(strip).not.toBe('')
+      expect(strip).not.toMatch(/(?:^|[;{\s])(?:background|border|color)\s*:/)
+      expect(strip).not.toMatch(/(?:^|[;{\s])--[a-z-]+\s*:/)
+      expect(APP).toMatch(/\n\.xp-strip \{[\s\S]*?display: flex/)
+    })
+
+    it('keeps the XP bar’s 1.4.11 edge legal on BOTH halves of the plate it moved to', () => {
+      // The bar used to stand on the Bone reading ground, where --sunken is
+      // Sand in light and Void in dark. On .counter-plate --sunken is the
+      // PLATE's own ground: Espresso in light, Sand in dark. One of those two
+      // is a pair the fill cannot carry alone, which is why .xp-fill keeps its
+      // --keyline stroke — the boundary is delimited by the stroke there.
+      expect(round(contrast(RAW.marigold, RAW.espresso))).toBe(7.43) // light: fill clears alone
+      expect(round(contrast(RAW.marigold, RAW.sand))).toBe(1.49) // dark: it does not
+      // …so the stroke carries it, and the stroke is --keyline = --ink =
+      // Graphite on the plate's dark half. Both sides over WCAG 1.4.11's 3:1.
+      expect(round(contrast(RAW.graphite, RAW.marigold))).toBe(6.38)
+      expect(round(contrast(RAW.graphite, RAW.sand))).toBe(9.52)
+      // The stroke is declared, and it is load-bearing on exactly one half —
+      // deleting it is a silent contrast regression in one theme only.
+      const fill = /\n\.xp-fill \{([\s\S]*?)\n\}/.exec(APP)?.[1] ?? ''
+      expect(fill).toMatch(/border-right: var\(--keyline-w\) solid var\(--keyline\)/)
+    })
+
     it('draws the counter plate with no keyline and the reading plate with one', () => {
       // Measured, not stylistic. A counter plate's fill IS its boundary —
       // 13.4:1 Espresso on Bone in light, 11.4:1 Bone on Espresso in dark — and
@@ -596,6 +700,72 @@ describe('§2 — the ratio law and the palette budget', () => {
       expect(plate('reading-plate', null)).toMatch(
         /border: var\(--keyline-w\) solid var\(--keyline\)/,
       )
+    })
+
+    /** A width-scoped plate's undo block, from app.css. Searched across EVERY
+        media block of that width rather than the first one: app.css carries
+        several at 768 and 1024, and "the first" is a fact about typing order,
+        not about the rule — the same proxy that made the shear test above go
+        red for an unrelated edit. */
+    const undo = (width: number, cls: string) => {
+      const blocks = [
+        ...APP.matchAll(new RegExp(`@media \\(min-width: ${width}px\\) \\{([\\s\\S]*?)\\n\\}`, 'g')),
+      ]
+      for (const block of blocks) {
+        const body = new RegExp(`\\.${cls} \\{([\\s\\S]*?)\\n  \\}`).exec(block[1])?.[1]
+        if (body !== undefined) return body
+      }
+      return ''
+    }
+    /** Every custom property a block declares, in declaration order. */
+    const tokensOf = (block: string) => [...block.matchAll(/(--[a-z-]+):/g)].map((m) => m[1])
+
+    it('undoes a width-scoped plate token for token, so none can be left behind', () => {
+      // TWO PLATES ARE SCOPED BY WIDTH — the hero's foot (below 1024, where the
+      // topbar is still a band rather than the 100vh hero) and the archive's
+      // head (below 768, above which the stack is a two-track grid and the
+      // archive is the only card spanning both, so the plate stops being a
+      // region inside a column). Both undos are in app.css, and the measured
+      // figures behind both widths are in the block above them.
+      //
+      // A HALF-UNDONE PLATE IS A CONTRAST BUG, not a layout one: leave --ink
+      // declared while the background reverts and the type is Bone on Sand at
+      // 1.20:1 on exactly one theme at exactly one width, which is the class of
+      // defect nobody finds by looking. So the undo is asserted to name EVERY
+      // token its plate declares — add a ninth token to a plate and this goes
+      // red rather than the app going quietly illegible on the desktop.
+      for (const [width, cls, plateName] of [
+        [1024, 'hero-foot\\.counter-plate', 'counter-plate'],
+        [768, 'month-block\\.reading-plate', 'reading-plate'],
+      ] as Array<[number, string, string]>) {
+        const body = undo(width, cls)
+        expect(`${plateName} undo found: ${body !== ''}`).toBe(`${plateName} undo found: true`)
+        expect(tokensOf(body).sort()).toEqual(tokensOf(plate(plateName, null)).sort())
+      }
+    })
+
+    it('reverts a scoped plate with `unset`, never with a copy of the ground', () => {
+      // Custom properties are INHERITED properties, so `unset` on one computes
+      // to `inherit` — the element falls back to whatever the card around it
+      // declares. Spelling the fallback out instead would put a second copy of
+      // :root's or .spec-sheet's arithmetic in app.css, and a drifted copy is a
+      // contrast bug on one branch, in one theme, at one width. This file
+      // already carries the history: the collection sheet's duplicated media
+      // query needed a test asserting the two bodies were character-identical,
+      // and the copy going away is what actually fixed it.
+      for (const [width, cls] of [
+        [1024, 'hero-foot\\.counter-plate'],
+        [768, 'month-block\\.reading-plate'],
+      ] as Array<[number, string]>) {
+        const body = undo(width, cls)
+        expect(tokensOf(body).length).toBeGreaterThan(0)
+        for (const token of tokensOf(body)) {
+          const value = new RegExp(`${token}:\\s*([^;]+);`).exec(body)?.[1]
+          expect(`${token}: ${value}`).toBe(`${token}: unset`)
+        }
+        expect(body).not.toMatch(/color-mix/)
+        expect(body).not.toMatch(/var\(--(?:espresso|bone|sand|graphite|void|flare)\)/)
+      }
     })
   })
 
@@ -626,8 +796,18 @@ describe('§2 — the ratio law and the palette budget', () => {
     // while there is no fault to report.
     expect(APP).toMatch(/\.persist-fault:empty \{[^}]*position: absolute/)
     // …and it spans both tracks at ≥768px, so a fault cannot re-pair the grid.
+    // ASSERTED PER SELECTOR, not as one typed run: the XP strip joined the
+    // spanning set (a ~90px item packed into one track leaves a card-sized
+    // hole of bare stage beside it — see the measurement beside the rule), and
+    // a single literal made adding a THIRD spanning element read as a
+    // regression when it is the same fix.
     const tablet = /@media \(min-width: 768px\) \{([\s\S]*?)\n\}/.exec(APP)?.[1] ?? ''
-    expect(tablet).toMatch(/\.persist-fault,\n\s*\.archive-card/)
+    const spanning = /\n((?:  \.[a-z-]+,\n)*  \.[a-z-]+) \{ grid-column: 1 \/ -1; \}/.exec(tablet)
+    expect(spanning?.[1].split(',\n').map((l) => l.trim()).sort()).toEqual([
+      '.archive-card',
+      '.persist-fault',
+      '.xp-strip',
+    ])
   })
 })
 
@@ -971,15 +1151,15 @@ describe('Trust Rule 8 — the focus ring is a mechanism, not a default', () => 
    * The other half of Trust Rule 8's "live regions stay mounted", and until
    * now it lived only in prose.
    *
-   * App, LogCard, SimCard, ProfileCard and ArchiveCard between them mount TEN
-   * permanently-present announcement surfaces, every one of them empty at
-   * boot. Mounting is not enough: a region hidden with `display: none` or
+   * App, LogCard, LessonCard, SimCard, ProfileCard and ArchiveCard between
+   * them mount eleven permanently-present announcement surfaces, every one of
+   * them empty at boot. Mounting is not enough: a region hidden with `display: none` or
    * `visibility: hidden` is removed from the accessibility tree, so its
    * reappearance with text reads as a brand-new region and VoiceOver (and
    * sometimes NVDA) skip the announcement entirely. That is the exact failure
    * the mounted-empty pattern exists to prevent, re-introduced from the
    * stylesheet. Three rules carry the whole mechanism — .sr-only, which nine
-   * of the ten use, plus the two in-flow regions that hide themselves while
+   * of the eleven use, plus the two in-flow regions that hide themselves while
    * empty — and each one is a single line away from silencing the app.
    *
    * The rationale is written at all three rules in app.css. This is the test
@@ -1485,7 +1665,7 @@ describe('§11 / §12.6 — the decision record answers are peers', () => {
     expect(round(contrast(RAW.bone, RAW.espresso))).toBe(13.32)
   })
 
-  it('lifts the SIM—06 corner mark above the window bar it rides in', () => {
+  it('lifts the SIM—05 corner mark above the window bar it rides in', () => {
     /* IT WAS NEVER ON SCREEN. .spec-label is position:absolute at z-index auto
        (tokens.css); .window-bar is a positioned SIBLING at z-index 1, added to
        clear .card::before; .sim-card creates no stacking context — so the bar
@@ -1527,5 +1707,128 @@ describe('§11 / §12.6 — the decision record answers are peers', () => {
     for (const [ink, ground] of grounds) {
       expect(`${ink} on ${ground}: ${contrast(ink, ground) >= 4.5}`).toBe(`${ink} on ${ground}: true`)
     }
+  })
+})
+
+/**
+ * Trust Rule 8 × §2.1b — THE RING HAS TO SURVIVE THE PLATES.
+ *
+ * The focus ring is one rule, `outline: 3px solid var(--ink)` at
+ * `outline-offset: 2px`, and both halves of it are inherited: the colour comes
+ * from whatever ground the control stands on, and the 2px gap shows that same
+ * ground back through. §2.1b's two plates re-ground REGIONS INSIDE cards, so a
+ * control inside one takes the plate's `--ink` and draws its ring on the plate's
+ * `--field` — a pairing that did not exist before the plates did, and that no
+ * rule anywhere states.
+ *
+ * Two ways it can go silently wrong, and both are one edit away:
+ *   · a future ground redeclares `--ink` without redeclaring `--field`, and the
+ *     ring is drawn in an inherited colour against a surface nobody checked it
+ *     on. The failure is invisible in the sheet and invisible on the screen;
+ *   · a plate's padding drops below the ring's reach, and a control at the
+ *     plate's inner edge throws its ring onto the CARD outside — which is the
+ *     plate's opposite ground by construction, i.e. Bone on Bone or Espresso on
+ *     Espresso. A plate is chosen to be the opposite of what surrounds it, so
+ *     this failure mode is guaranteed rather than unlucky.
+ *
+ * Neither is caught by the existing ring test, which checks that the rule
+ * exists and that nothing cancels it. These check that it still reads.
+ */
+describe('Trust Rule 8 — the focus ring reads on every ground, plates included', () => {
+  /** How far the ring reaches outside the control's border box, in px. */
+  const ringReach = (): number => {
+    const rule = /:focus-visible\s*\{([^}]*)\}/.exec(TOKENS)?.[1] ?? ''
+    const width = Number(/outline:\s*(\d+)px solid/.exec(rule)?.[1])
+    const offset = Number(/outline-offset:\s*(\d+)px/.exec(rule)?.[1])
+    expect(`width ${width}, offset ${offset}`).toBe('width 3, offset 2')
+    return width + offset
+  }
+
+  /** One level of var() indirection against the raw palette. */
+  const resolve = (value: string): string | undefined => {
+    const m = /^var\(--([a-z-]+)\)$/.exec(value.trim())
+    return m ? RAW[m[1]] : undefined
+  }
+
+  /** Every flat block in a sheet that re-grounds by declaring --ink. */
+  function grounds(css: string): Array<{ selector: string; ink: string; field: string }> {
+    const out: Array<{ selector: string; ink: string; field: string }> = []
+    for (const m of css.matchAll(/([^{}]*)\{([^{}]*?--ink\s*:[^{}]*?)\}/g)) {
+      const selector = m[1].trim().split('\n').pop()!.trim()
+      const ink = /--ink\s*:\s*([^;]+);/.exec(m[2])![1].trim()
+      // `unset` is a width-scoped plate's UNDO (see §2.1b) — it hands the token
+      // back to the ground outside, which is a block this list already holds.
+      if (ink === 'unset') continue
+      const field = /--field\s*:\s*([^;]+);/.exec(m[2])?.[1].trim()
+      // A ground that moves the ink and leaves the field behind draws the ring
+      // in a colour nobody measured against the surface under it.
+      expect(field, `${selector} redeclares --ink without --field`).toBeDefined()
+      out.push({ selector, ink, field: field as string })
+    }
+    return out
+  }
+
+  it('pairs every re-grounded ink with a field it was measured against', () => {
+    const blocks = grounds(TOKENS)
+    // If the parse returns nothing, every case below passes on air. Eight
+    // grounds at this tree: :root and .spec-sheet in both themes, the archive's
+    // dark/wide sheet, and §2.1b's two plates in both of theirs.
+    expect(blocks.map((b) => b.selector)).toEqual([
+      ':root',
+      ':root',
+      '.spec-sheet',
+      '.spec-sheet.archive-card',
+      '.counter-plate',
+      '.counter-plate',
+      '.reading-plate',
+      '.reading-plate',
+    ])
+    for (const { selector, ink, field } of blocks) {
+      const fg = resolve(ink)
+      const bg = resolve(field)
+      expect(fg, `${selector}: --ink ${ink} is not a raw palette token`).toBeDefined()
+      expect(bg, `${selector}: --field ${field} is not a raw palette token`).toBeDefined()
+      // The ring's floor is WCAG 1.4.11's 3:1 for a non-text indicator; these
+      // are text grounds too, so §2.1's 4.5:1 body floor is the one that binds.
+      // Every one of them clears it by a wide margin today (9.5:1 is the
+      // narrowest — Graphite on Sand), and the assertion is that a new ground
+      // cannot arrive without doing the same.
+      expect(contrast(fg as string, bg as string), `${selector} ink on its own field`)
+        .toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('never lets a plate throw a control’s ring onto the card outside it', () => {
+    const reach = ringReach()
+    const space = Object.fromEntries(
+      [...TOKENS.matchAll(/--(s\d):\s*(\d+)px;/g)].map((m) => [m[1], Number(m[2])]),
+    )
+    expect(space.s2).toBe(16)
+    // Every rule that sets padding on either plate, in either sheet. The plates
+    // declare `padding: var(--s2)` in tokens.css and app.css re-states it for
+    // the three components whose own reset would win the cascade — a fourth
+    // that lands here with a smaller box is the failure this catches.
+    const found: string[] = []
+    for (const [name, css] of [
+      ['tokens.css', TOKENS],
+      ['app.css', APP],
+    ] as const) {
+      for (const m of css.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+        const selector = m[1].trim()
+        if (!/counter-plate|reading-plate/.test(selector)) continue
+        const padding = /(?:^|[;{\s])padding\s*:\s*([^;}]+)/.exec(m[2])?.[1]
+        if (padding === undefined) continue
+        found.push(`${name} ${selector.split('\n').pop()!.trim()}`)
+        for (const token of padding.matchAll(/var\(--(s\d)\)/g)) {
+          expect(space[token[1]], `${name}: ${selector} padding`).toBeGreaterThanOrEqual(reach)
+        }
+        for (const px of padding.matchAll(/(\d+)px/g)) {
+          expect(Number(px[1]), `${name}: ${selector} padding`).toBeGreaterThanOrEqual(reach)
+        }
+      }
+    }
+    // The plates' own rules plus app.css's cascade re-statement. Renaming a
+    // plate must fail here rather than pass by matching nothing.
+    expect(found.length).toBeGreaterThanOrEqual(3)
   })
 })

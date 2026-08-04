@@ -28,7 +28,7 @@ import { HeroShell } from './components/HeroShell.tsx'
 import { HeroCard } from './components/HeroCard.tsx'
 import { LessonCard } from './components/LessonCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
-import { QuestCard } from './components/QuestCard.tsx'
+import { XpStrip } from './components/XpStrip.tsx'
 import { BossCard } from './components/BossCard.tsx'
 import { SimCard } from './components/SimCard.tsx'
 import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
@@ -118,7 +118,19 @@ export default function App({
     () => lessonForDay(today, state.lessonsSeen),
     [today, state.lessonsSeen],
   )
-  const lessonReadToday = state.quests.some((q) => q.id === 'lesson' && q.done)
+  // READ FROM THE GRANT LOG, NOT FROM A FLAG. The verified lesson quest used
+  // to carry this ("is today's quest done"); the quest is gone and the daily
+  // readLesson grant is now keyed `lesson:<day>` (see the reducer), so the
+  // evidence IS the answer. It is also the only form that stays right once the
+  // 30-lesson roster wraps and lessonForDay serves a lesson already in the
+  // codex: "collected at some point" would render the card as read on a day
+  // nobody read it. Same discipline as resistXpCapped below — the label and
+  // the reducer read one source, so the button can never promise or refuse XP
+  // the reducer disagrees about.
+  const lessonReadToday = useMemo(
+    () => state.xpLog.some((g) => g.id === `lesson:${today}`),
+    [state.xpLog, today],
+  )
   // Memoised like `pets`, and computed off the hook's `today` rather than a
   // fresh todayISO() for the same reason every other date in this render is.
   // Trust Rule 5's calibration count, read by the health readout — the ledger
@@ -168,14 +180,14 @@ export default function App({
   }, [state.transactions])
 
   function readLesson() {
-    // Two dispatches, one tap: READ_LESSON collects the lesson into the codex
-    // (no XP — see the reducer), and the verified lesson quest carries the
-    // daily readLesson grant through COMPLETE_QUEST's atomic double-grant
-    // guard, exactly like SimCard's onRun does for the sim quest. The quest
-    // blip and +XP chip come from useRewards; the codex milestone sparkle
-    // fires there too when the collection crosses a multiple of five.
+    // ONE dispatch, one tap. It was two — READ_LESSON to collect the lesson and
+    // COMPLETE_QUEST('lesson') to pay the day's XP — and the second is gone
+    // with the quest list. READ_LESSON now collects AND pays, each under its
+    // own guard (once ever / once per local day), so a double tap, a StrictMode
+    // double-invoke and a peer tab's merge all land the same single grant. The
+    // +XP chip comes from useRewards; the codex milestone sparkle fires there
+    // too when the collection crosses a multiple of five.
     dispatch({ type: 'READ_LESSON', id: todayLesson.id, date: today })
-    dispatch({ type: 'COMPLETE_QUEST', id: 'lesson' })
   }
 
   // A decision closed as "Bought it" hands its amount to the log form and waits
@@ -264,11 +276,10 @@ export default function App({
   }
 
   /**
-   * A simulation ran. Two dispatches, one press — the same shape READ_LESSON
-   * uses: RUN_SIM persists the decision (no XP: see the reducer), and the
-   * verified sim quest carries the daily runSimulation grant through
-   * COMPLETE_QUEST's atomic double-grant guard. Recording the decision changed
-   * nothing about what a run pays.
+   * A simulation ran. ONE dispatch, one press — the same shape readLesson has:
+   * RUN_SIM persists the decision AND pays the day's runSimulation grant, each
+   * under its own guard. The record is data and the grant is capped, so the
+   * second run of a day still files its decision and pays nothing.
    */
   function runSim(run: { amountDA: number; line: string }) {
     dispatch({
@@ -295,7 +306,6 @@ export default function App({
         outcome: 'open',
       },
     })
-    dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })
   }
 
   /**
@@ -412,7 +422,7 @@ export default function App({
    * on the exact commit that moves it.
    *
    * ORDER IS ALSO THE §11 CORNER INDEX. Each card prints its own position
-   * (HLT—01 … ARC—08) as decorative truth-telling (§1 trait 10), and App.test
+   * (HLT—01 … ARC—07) as decorative truth-telling (§1 trait 10), and App.test
    * asserts the printed run is 01..n in this order. That coupling is why the
    * order here is not conditional on state — see the note in App.test.
    */
@@ -441,20 +451,21 @@ export default function App({
       // focus hand-off for the button that just unmounted in the simulator.
       prefill={logPrefill}
     />,
-    // Level, XP and quests are one engagement surface — see QuestCard for why
-    // XpCard is no longer a card of its own.
-    <QuestCard
-      key="quests"
-      quests={state.quests}
-      onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })}
-      xp={state.xp}
-      gain={xpGain}
-    />,
+    // THE ENGAGEMENT TRACK, AND IT IS NOT A CARD (see XpStrip). QST—03 was:
+    // 404px, 7.7% of the phone document, one control, and that control paid for
+    // a claim the app cannot observe. What is left is the level line and the
+    // bar — about 90px — which is what the surface always was.
+    //
+    // IT IS STILL IN THE KEYED STACK, at the same position, because position 3
+    // is between the app's primary action and its deepest engine and the stack
+    // is where a card would go if one ever earned this slot back.
+    <XpStrip key="xp" xp={state.xp} gain={xpGain} />,
     <BossCard key="boss" battle={battle} wonLastWeek={wonLastWeek} />,
-    // "Got it" genuinely completes the verified lesson quest — the tap lands on
+    // "Got it" pays the day's readLesson grant directly now — the tap lands on
     // today's actual lesson content, so the app observes the action instead of
-    // taking it on self-report. The codex count beside it is all that remains
-    // of the deleted collection sheet (see collectedLessons above).
+    // taking it on self-report, which is what made the deleted quest row
+    // `verified` in the first place. The codex count beside it is all that
+    // remains of the deleted collection sheet (see collectedLessons above).
     <LessonCard
       key="lesson"
       lesson={todayLesson}
@@ -463,10 +474,6 @@ export default function App({
       collected={collectedLessons}
       total={LESSONS.length}
     />,
-    // Running a simulation genuinely completes the sim quest — a daily quest
-    // the app verifies instead of taking on self-report, so QuestCard renders
-    // it without a tap-to-complete button.
-    //
     // THE DECISION RECORD AND ITS CHECK-BACK ride inside this card rather than
     // becoming further surfaces: the simulator is the deepest engine in the
     // app, and the fix for a shallow surface over a deep engine is depth, not
@@ -524,7 +531,7 @@ export default function App({
 
       {/* Visually-hidden counterpart to the +XP chip: the chip is sighted-only
           and the blip is sound-only, so without this region a non-level-up
-          grant (quest done, purchase logged) is never announced — sound would
+          grant (lesson read, purchase logged) is never announced — sound would
           carry the confirmation alone for screen-reader users. Permanently
           mounted for the same announce-on-change reason as the toast. */}
       <div className="sr-only" role="status" aria-label="XP gains">

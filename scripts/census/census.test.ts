@@ -517,14 +517,25 @@ describe('the fixtures do not rot', () => {
   it('dates the fixtures against the frozen epoch', () => {
     // A fixture stamped with a day the frozen clock never reaches would make
     // every relative day label ("Today", "3 days ago") wrong in the shot, and
-    // rollQuests would reset the quest card on every run.
+    // every once-per-day grant id would name a day the app is not on — so the
+    // lesson card would shoot as unread on a fixture that has read it.
     for (const name of ['seeded', 'cold']) {
       const raw = JSON.parse(
         readFileSync(new URL(`scripts/census/fixtures/${name}.json`, REPO_ROOT), 'utf8'),
-      ) as { questsDate: string; healthDate: string; transactions: Array<{ date: string }> }
-      expect(`${name}: ${raw.questsDate}`).toBe(`${name}: ${censusLocalDay()}`)
+      ) as {
+        healthDate: string
+        transactions: Array<{ date: string }>
+        xpLog: Array<{ id: string; date: string }>
+      }
       expect(`${name}: ${raw.healthDate}`).toBe(`${name}: ${censusLocalDay()}`)
       for (const tx of raw.transactions) expect(tx.date <= censusLocalDay()).toBe(true)
+      // The per-day grant ids carry their own day, so a drifted date shows up
+      // as an id that no longer matches the day it is stamped with.
+      for (const g of raw.xpLog) {
+        const dayInId = /^(?:lesson|sim):(.+)$/.exec(g.id)
+        if (dayInId) expect(`${name} ${g.id}`).toBe(`${name} ${g.id.split(':')[0]}:${g.date}`)
+        expect(`${name} ${g.id}`).toBe(g.date <= censusLocalDay() ? `${name} ${g.id}` : 'future')
+      }
     }
   })
 })
@@ -534,10 +545,10 @@ describe('the fixtures do not rot', () => {
  *
  * The finding that produced it, and the reason this exists at all: the
  * document average is the arithmetic mean of regimes that never appear
- * together. app.375x812.light.seeded in docs/brand/census.json reads 56.93
- * field / 33.88 Bone over the whole document, while its eight viewport windows
- * run 52.95, 44.03, 68.08, 47.75, 47.49, 72.11, 56.53 and 74.07 percent field.
- * Nobody sees 56.93/33.88. So the windows are measured too, and where the two
+ * together. app.375x812.light.seeded in docs/brand/census.json reads 56.73
+ * field / 34.07 Bone over the whole document, while its seven viewport windows
+ * run 59.41, 49.05, 68.84, 53.43, 48.70, 44.92 and 73.98 percent field.
+ * Nobody sees 56.73/34.07. So the windows are measured too, and where the two
  * disagree the windows are the truth.
  *
  * WHAT THAT ROW LOOKED LIKE WHEN THIS TOOL FOUND IT, stamped: on the clean tree

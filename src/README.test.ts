@@ -5,8 +5,11 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { MECHANICS, HAND_OFF_LEAD } from './components/Landing.tsx'
 import { RESIST_LABEL } from './components/LogCard.tsx'
-import { WINDOW_DAYS, EXPAND_STEP_DAYS } from './components/ArchiveCard.tsx'
+import { WINDOW_DAYS, EXPAND_STEP_DAYS, resistedChipLabel } from './components/ArchiveCard.tsx'
+import { resistedThisMonthDA } from './engine/ledger.ts'
+import { sampleLedgerRows } from './content/sampleLedger.ts'
 import {
+  todayISO,
   NOTE_MAX_LEN,
   DECISION_ANSWERS,
   DECISION_MAX,
@@ -16,7 +19,6 @@ import {
 import { NOTE_DENOMINATIONS_DA } from './engine/keypad.ts'
 import { LESSONS } from './content/lessons.ts'
 import { ACHIEVEMENTS } from './engine/achievements.ts'
-import { DEFAULT_QUESTS } from './state/store.ts'
 
 /**
  * THE README AS A CLAIM SURFACE.
@@ -113,18 +115,20 @@ describe('every number in the README is the number in the code', () => {
     expect(FLAT).toContain('Nothing is hidden by it')
   })
 
-  it('counts the lessons, badges and quests that exist', () => {
+  it('counts the lessons and badges that exist, and sells no quest at all', () => {
     expect(FLAT).toContain(`${LESSONS.length}-lesson codex`)
     expect(FLAT).toContain(`${ACHIEVEMENTS.length} earn-only badges`)
-    expect(FLAT).toContain(
-      `${DEFAULT_QUESTS.length} daily quests (${DEFAULT_QUESTS.filter((q) => q.verified).length} of them verified`,
-    )
-    // The quest roster SHRANK, and a count is exactly the claim that rots when
-    // a feature is removed rather than added — the README described four
-    // quests and a collectible grid for a build with three and neither. The
-    // deleted quest may not be described as shipping anywhere in the file.
-    expect(FLAT).not.toContain('4 daily quests')
+    // A COUNT IS EXACTLY THE CLAIM THAT ROTS WHEN A FEATURE IS REMOVED rather
+    // than added — this file described four quests and a collectible grid for
+    // a build with three and neither. The quest roster is now zero, so the
+    // check is that no count of them survives anywhere in the file: a deleted
+    // surface that the README still sells is a half-done deletion.
+    expect(FLAT).not.toMatch(/\d+ daily quests/)
+    expect(FLAT).not.toContain('daily quests (')
     expect(FLAT).not.toContain(`${LESSONS.length} collectible one-screen lessons`)
+    // …and the deletion is DESCRIBED, not silently dropped: the file has to say
+    // that nothing the user earned got smaller with it.
+    expect(FLAT).toContain('The daily quests are deleted')
   })
 
   it('states the check-back horizon and answers the app actually ships', () => {
@@ -176,6 +180,44 @@ describe('every number in the README is the number in the code', () => {
     // impulseControlScore, so "never counted against you" would be false).
     expect(FLAT).toContain('full XP')
     expect(FLAT).not.toMatch(/never counted against you|no penalty for buying/i)
+  })
+
+  it('prints the resisted line the record prints, over the rows the page shows', () => {
+    /**
+     * THE ONE FIGURE IN THE PITCH.
+     *
+     * "It sums into one line at the head of the record card: 3,500 DA resisted
+     * this month" is the sentence that makes the mechanic land, and until this
+     * round the number in it was typed — in the file whose entire thesis is
+     * that a typed copy of a value is the copy that rots. It happened to be
+     * right; nothing was holding it there. Change a sample row's amount and the
+     * landing page's card would print one figure while this paragraph printed
+     * another, with no test between them.
+     *
+     * It is now the card's own label over the page's own rows, which is the
+     * same binding the landing uses for the same sentence (Root.test asserts
+     * the other end, including that the shot beside it prints the identical
+     * string).
+     */
+    const line = resistedChipLabel(resistedThisMonthDA(sampleLedgerRows(todayISO()), todayISO()))
+    expect(FLAT).toContain(line)
+    // The trust boundary beside it, in both documents: this total is the user's
+    // own resist story and NOT a health input (Trust Rule 1 — the score reads
+    // money that moved).
+    expect(FLAT).toContain('The total is not a score input')
+  })
+
+  it('argues manual entry from the mechanic, not from the missing integration', () => {
+    // MANUAL-FIRST AS THE POSITION. The landing page makes this argument above
+    // the fold (Root.test) and this file is its second copy, so it gets the same
+    // treatment as the pitch sentence above: the claim is that a feed imports
+    // EVENTS and not buying is not one, which is why the resist row is a
+    // property of the manual product rather than a consolation for it.
+    expect(FLAT).toContain('A feed imports events')
+    expect(FLAT).toContain('Not buying is not an event')
+    // …and it is never framed as a shortfall waiting on a roadmap. Same ban the
+    // landing carries, on the file that describes the same position.
+    expect(FLAT).not.toMatch(/for now|coming soon|until we|we plan|coming later/i)
   })
 
   it('names the three decision answers the simulator renders', () => {
@@ -248,8 +290,10 @@ const CARD_NAMING_FILES: ReadonlyArray<readonly [string, string]> = [
   ],
 ]
 
-/** Components no build renders. CollectionCard is the newest entry and the
-    first DELETION rather than a merge: the codex grid and the badge shelf were
+/** Components no build renders. QuestCard is the newest entry and the second
+    DELETION rather than a merge: its one control paid XP for a claim the app
+    cannot observe, and with that row gone the card had none at all (see
+    XpStrip, which is what is left of it). CollectionCard was the first: the codex grid and the badge shelf were
     62.5% of the card stack's rendered elements on install day (a jsdom render
     probe at a2d4e6d, the last tree that rendered them — the same figure and the
     same stamp README.md carries) with no control on either, and a README that
@@ -260,6 +304,7 @@ const GONE = [
   'CodexCard',
   'AchievementsCard',
   'CollectionCard',
+  'QuestCard',
   'Ledger.tsx',
 ] as const
 

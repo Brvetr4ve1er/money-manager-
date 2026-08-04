@@ -370,6 +370,28 @@ export function censusScrollingForm(
   const worst = windows.reduce((a, b) => (b.deviation > a.deviation ? b : a))
   const bonePixels = documentBuckets.bone.pixels
   const inkPixels = documentBuckets.graphite.pixels
+  /* `inkOnPaper` IS A PROXY FOR §2.1b's INK CLAUSE AND IT IS NOT THE CLAUSE.
+     §2.1b says "Ink >= 6%, measured over Bone-family-grounded area ONLY". This
+     is graphite-bucket over (graphite + Bone-family) across the whole document,
+     which is a different quantity in two named ways, both of them worse in
+     dark:
+
+       NUMERATOR  Void-filled CONTROLS are graphite-bucket wherever they stand.
+                  In dark `--sunken` is Void, so .field, .note-key, .xp-track
+                  and .decision-checkback count as ink while sitting on a FIELD
+                  ground. Form, not ink.
+       DENOMINATOR Bone-hex GLYPHS on an Espresso card are bone-bucket. In dark
+                  `--ink: var(--bone)`, so type counts as paper.
+
+     Measured against a DOM-derived ground raster on the clean tree of commit
+     `71b5608` (a scratch probe, not this tool): the dark phone's real ink over
+     real paper was 10.4% where this field read 33.43, and light's was 11.9%
+     where this read 15.55. THE VERDICT DID NOT MOVE — both readings clear the
+     6% floor on every row, in both themes, which is why this is a comment and
+     not a schema change. Measuring the clause properly needs paint-order
+     knowledge the classifier does not have (it reads a flat PNG), so the honest
+     thing is to say what the number is rather than to invent one that looks
+     like the law. DO NOT QUOTE THIS FIELD AS "§2.1b's ink law". */
   const paper = inkPixels + bonePixels
 
   return {

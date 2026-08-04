@@ -65,7 +65,7 @@ export function useHealthDay(
     [state.transactions, profile, meta, state.prevHealthScore, state.stage, today],
   )
 
-  // Day rollover (quests + once-per-day health snapshot) is a reducer action;
+  // Day rollover (the once-per-day health snapshot) is a reducer action;
   // the reducer returns the same state on no-op days, so this dispatch is
   // render-free until the day actually changes. The snapshot persisted is the
   // FINAL score of the day before `today`, chained one smooth() step per
@@ -77,10 +77,10 @@ export function useHealthDay(
   // memo above), moving ~75%/28% of the delta per day instead of the
   // documented 50%/15% and promoting stages the persisted state never reached.
   useEffect(() => {
-    if (state.healthDate === today && state.questsDate === today) return
+    if (state.healthDate === today) return
     const finalized =
-      state.healthDate === '' || state.healthDate === today
-        ? health // first run (or quests-only roll): nothing to finalize
+      state.healthDate === ''
+        ? health // first run: nothing to finalize
         : finalizeHealthThrough(
             state.transactions,
             profile,
@@ -91,7 +91,7 @@ export function useHealthDay(
             meta,
           )
     dispatch({ type: 'ROLL_DAY', today, healthScore: finalized.score, healthStage: finalized.stage })
-  }, [state.healthDate, state.questsDate, state.transactions, profile, meta, state.prevHealthScore, state.stage, health, today, dispatch])
+  }, [state.healthDate, state.transactions, profile, meta, state.prevHealthScore, state.stage, health, today, dispatch])
 
   return { today, health, profile, isDemo }
 }

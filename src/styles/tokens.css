@@ -84,7 +84,7 @@
   --keyline: var(--ink);
 
   /* Accent roles. Trust Rule 1 (two tracks, never crossed) is drawn in
-     colour: --reward is the engagement track (XP, quests, the lesson count),
+     colour: --reward is the engagement track (XP, levels, the lesson count),
      --data is the financial-reality track (health score, simulator, kept).
      They are never the same hue, so a reward can never be misread as a
      score. Both take --on-accent text (6.2:1 and 9.7:1, §2.1). */
@@ -462,7 +462,7 @@ h3 {
   /* §11: every card carries a mono spec label in its top-right corner. The
      extra top padding is the reserved strip it hangs in — absolute-positioning
      it over the content would collide with the right-aligned status chips
-     (.quest-alldone, .kept-chip, .lesson-count) that already live on that
+     (.kept-chip, .lesson-collected, .lesson-count) that already live on that
      line. 40px = --s4, still on the 8px grid. */
   padding: var(--s4) var(--s3) var(--s3);
 }
@@ -727,9 +727,9 @@ h3 {
    9.5:1 on Sand, Graphite ink on Acid 11.2:1 — the same argument that rule
    already makes in the other direction, where the ring is invisible and the
    fill carries it).
-   (The Marigold .xp-fill used to be a third candidate and is no longer on the
-   sheet at all: it merged into QuestCard, which stands on the Bone reading
-   ground — see QuestCard and .xp-fill in app.css.)
+   (The Marigold .xp-fill used to be a third candidate and is no longer on any
+   card at all: it is the whole of .xp-strip, which is not a card but a
+   .counter-plate — see XpStrip and .xp-fill in app.css.)
 
    THE HONEST COST, stated because it is the reason this stops where it does.
    Bone-family pixels are bright pixels: there is no way to pay §2's 30% Bone
@@ -863,7 +863,34 @@ h3 {
    ─────────────────────────────────────────────────────────────────────── */
 
 /* THE ARCHIVE: the counter sheet in dark at any width, and in EITHER theme
-   from 1400px up. The comma is an OR. */
+   from 1400px up. The comma is an OR, AND THE TWO ARMS ARE TWO DIFFERENT
+   ARGUMENTS — which is worth saying out loud, because a disjunction that fuses
+   two rules is one nobody can bound afterwards.
+
+     DARK ARM   a counter-ROLE fix (§1 trait 06 / §2.2): in dark, ground, sheet
+                and card were all Espresso — 1.00:1, ΔRGB 0 — so the theme had
+                a role with no surface. Nothing about it is width-dependent.
+     WIDTH ARM  a ratio-law GIVE-BACK, and its premise is the stage gutter:
+                .main-stack caps at 1128px, so 1400 is 1128 plus 136px of bare
+                Flare per side. Nothing about it is theme-dependent.
+
+   THE SELECTOR ALSO MATCHES A SECOND SURFACE, AND THAT IS DELIBERATE RATHER
+   THAN OVERSIGHT. The landing mounts a real <ArchiveCard> as its product shot
+   (Landing.tsx, .lp-shot-frame), which is what keeps the shot faithful: at each
+   width and theme the poster shows the card exactly as the app draws it. On the
+   landing there is no .main-stack and no gutter, so the width arm's stated
+   premise does not hold there — the obvious correction is to scope the width
+   arm to .main-stack and let the shot run on the theme arm alone.
+
+   THAT CORRECTION WAS MEASURED AND IT IS WRONG. On this tree, scoped that way,
+   landing.1440x900.light.fresh window @900 reads 85.94% field / 10.78% Bone —
+   over §2.1b's 85 HARD CAP, where the shipped rule reads 82.42 / 14.15. The
+   shot is 560px wide inside a 1440px poster and it is the only Bone-family
+   ground in that window; the arm that keeps it Sand is doing §2.1b's work on
+   the landing for a reason the gutter argument never mentions. So the rule
+   stays unscoped and the landing keeps the same outcome for its OWN reason,
+   which is now written down instead of inherited by accident. design.test.ts
+   pins the condition so a future round cannot scope it out quietly. */
 @media (prefers-color-scheme: dark), (min-width: 1400px) {
   .spec-sheet.archive-card {
     --ground: var(--sand);
@@ -949,7 +976,7 @@ h3 {
    spends a third hue on its fill and a fourth on its mandatory ink, and
    Graphite on Espresso is 1.16:1 so that ink cannot be re-roled away. Bare
    accent fills are fine (.xp-fill, .sim-result's keyline bar — nothing is
-   drawn ON them) and §1 trait 06's event chips are fine (.quest-alldone,
+   drawn ON them) and §1 trait 06's event chips are fine (.xp-gain,
    .kept-chip). A persistent accent-INKED control is not, and App.test.tsx
    asserts that over the rendered tree with the same selector list the sheet
    uses.
@@ -1052,9 +1079,9 @@ h3 {
    the panel is a keyline bar now with no radius to reshape, so the entry was a
    no-op naming a box that no longer exists. */
 :where(
-  .btn, .field, .quest-box, .undo-strip, .decision-checkback,
-  .window-bar, .quest-alldone, .boss-won, .lesson-collected, .kept-chip,
-  .xp-gain, .quest-auto, .tx-impulse
+  .btn, .field, .undo-strip, .decision-checkback,
+  .window-bar, .boss-won, .lesson-collected, .kept-chip,
+  .xp-gain, .tx-impulse
 ) {
   corner-shape: squircle;
   corner-shape: superellipse(2.07);
@@ -1138,8 +1165,7 @@ h3 {
    1.42:1. §2.1 rule 3 has no inactive-component carve-out, so the dim is
    replaced by a measured pair — --spec-sunken on --sunken is 5.35:1 light /
    10.31:1 dark, and 7.04:1 on the dark counter sheet — and the dashed keyline
-   says "pending, not pressable" in the
-   same language .quest-auto already speaks. Never put
+   says "pending, not pressable" rather than dimming it. Never put
    `opacity` on a control whose foreground and field are both tokenised.
    --spec-sunken, not --spec: --spec is mixed toward the GROUND and falls to
    3.98:1 on the Sand recess, under the body floor. */

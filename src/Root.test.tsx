@@ -11,7 +11,8 @@ import {
   DECISION_MAX,
 } from './state/store.ts'
 import { sampleLedgerRows } from './content/sampleLedger.ts'
-import { groupTransactionsByDay, monthToDate } from './engine/ledger.ts'
+import { resistedChipLabel } from './components/ArchiveCard.tsx'
+import { groupTransactionsByDay, monthToDate, resistedThisMonthDA } from './engine/ledger.ts'
 import { NOTE_DENOMINATIONS_DA } from './engine/keypad.ts'
 import { CALIBRATION_DAYS } from './engine/profile.ts'
 
@@ -176,7 +177,7 @@ describe('landing honesty (Trust Rule 5)', () => {
     expect(body).toContain(`${NOTE_MAX_LEN} characters`)
     // The two trust claims beside it, both enforced elsewhere in the suite:
     // logExpense pays +5 with or without a note (App.test, reducer.test), and
-    // Ledger renders nothing at all for an empty one (App.test's cold start).
+    // ArchiveCard renders nothing at all for an empty one (App.test's cold start).
     expect(body.toLowerCase()).toContain('optional')
     expect(body.toLowerCase()).toContain('unpaid')
   })
@@ -246,13 +247,14 @@ describe('landing honesty (Trust Rule 5)', () => {
 })
 
 describe('the landing keyboard path', () => {
-  it('makes the page’s one jump target focusable — #spec, like the app’s five', () => {
+  it('makes the page’s one jump target focusable — #spec, like the app’s two', () => {
     // The hero's "Spec sheet" button is a fragment link, and a fragment link
     // whose target is not focusable leaves focus on <body>: activating it
     // strands the keyboard user at the top of the document. The app fixed this
-    // on every one of its jump targets (LogCard, QuestCard, SimCard — it was
-    // five before the codex and badge sheets were deleted) and the landing's
-    // only one was left behind. Chrome
+    // on every one of its jump targets — LogCard and SimCard, the two that are
+    // left: it was five, and the codex sheet, the badge sheet and the quest
+    // card took their nav links out with them as they were deleted (see
+    // HeroShell). The landing's only one was left behind. Chrome
     // papers over it with the sequential-focus navigation starting point;
     // Safari/VoiceOver do not.
     const { container } = render(<Landing onEnter={() => {}} />)
@@ -273,10 +275,14 @@ describe('the landing keyboard path', () => {
 /**
  * THE PRODUCT SHOT.
  *
- * The page renders the app's own <Ledger> instead of an image of it, so these
- * cases are the guarantee that "the real card, not a mockup" stays literally
- * true — and that a live component dropped onto a marketing page does not cost
- * the page its accessibility.
+ * The page renders the app's own <ArchiveCard> instead of an image of it, so
+ * these cases are the guarantee that "the real card, not a mockup" stays
+ * literally true — and that a live component dropped onto a marketing page does
+ * not cost the page its accessibility.
+ *
+ * It said <Ledger> until this round. That component merged into ArchiveCard two
+ * rounds earlier and the name survived here, in the file whose whole subject is
+ * a page that must not describe surfaces the build does not render.
  */
 describe('the landing product shot', () => {
   const shot = (c: HTMLElement) => c.querySelector('.lp-shot-frame') as HTMLElement
@@ -285,12 +291,12 @@ describe('the landing product shot', () => {
     const { container } = render(<Landing onEnter={() => {}} />)
     const frame = shot(container)
     expect(frame).not.toBeNull()
-    // ARC—08 is printed by ArchiveCard itself (§11's corner mark), and the
+    // ARC—07 is printed by ArchiveCard itself (§11's corner mark), and the
     // index is its real position in App's stack — see the render-order case in
     // App.test, which derives the whole run. Its presence is proof the
     // component rendered, not a facsimile of it.
     expect(frame.querySelector('.archive-card')).not.toBeNull()
-    expect(frame.textContent).toContain('ARC—08')
+    expect(frame.textContent).toContain('ARC—07')
     expect(frame.textContent).toContain('The record')
   })
 
@@ -338,10 +344,10 @@ describe('the landing product shot', () => {
   })
 
   it('shows real notes on real rows, and rows without one', () => {
-    // The note is SHOWN rather than described: these nodes are Ledger's own
+    // The note is SHOWN rather than described: these nodes are ArchiveCard's own
     // .tx-note, rendered from the sample rows' `note` field through the shipped
     // component. Both halves matter — a shot where every row had a note would
-    // advertise a required field, and Ledger draws nothing at all for a row
+    // advertise a required field, and ArchiveCard draws nothing at all for a row
     // without one (no placeholder, no prompt).
     const { container } = render(<Landing onEnter={() => {}} />)
     const frame = shot(container)
@@ -423,7 +429,7 @@ describe('the landing product shot', () => {
     const frame = shot(container)
     expect(frame.getAttribute('aria-hidden')).toBe('true')
     // aria-hidden over a focusable node is a keyboard trap with no accessible
-    // name. Ledger grows an expand BUTTON on the fourth day, so this is the
+    // name. ArchiveCard grows an expand BUTTON on the fourth day, so this is the
     // assertion standing between the sample and a real defect.
     expect(
       frame.querySelectorAll('a[href], button, input, select, textarea, [tabindex]'),
@@ -437,8 +443,8 @@ describe('the landing product shot', () => {
     expect(screen.queryByRole('heading', { name: 'Recent' })).toBeNull()
     expect(screen.queryByRole('heading', { name: /^Today/ })).toBeNull()
     // Invariant 2 in Landing.tsx: the app owns the live-region contract.
-    // Ledger mounts a role="status" of its own, and hiding the subtree is what
-    // keeps it from becoming a third region on a surface that has none.
+    // ArchiveCard mounts a role="status" of its own, and hiding the subtree is
+    // what keeps it from becoming a third region on a surface that has none.
     expect(screen.queryAllByRole('status')).toHaveLength(0)
     expect(container.querySelectorAll('[role="status"]').length).toBeGreaterThan(0)
   })
@@ -557,6 +563,81 @@ describe('the landing states why anyone would pass it on', () => {
     }
     // …and they are out of the paragraph that now carries the reason.
     expect(share).not.toContain('no account')
+  })
+
+  it('puts the mechanic ahead of the market argument, not behind it', () => {
+    /**
+     * ORDER IS THE CLAIM, at the level of the whole plate this time.
+     *
+     * The wall's plate ran thesis → lede → the market argument → the hand-off,
+     * which put sixty words about a cash economy in front of the one paragraph
+     * anyone would forward. A reader who leaves after two paragraphs has to
+     * leave holding the MECHANIC; the argument for manual entry is what answers
+     * the question the mechanic raises, so it reads after it.
+     *
+     * Asserted as the element run rather than as string positions: a later edit
+     * that reinstates the argument as the opener fails here, and the failure
+     * names the order rather than a byte offset into the page's text.
+     */
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const plate = container.querySelector('.lp-wall .lp-plate')
+    expect(plate).not.toBeNull()
+    expect([...plate!.children].map((n) => n.className)).toEqual([
+      'lp-thesis',
+      'lp-lede',
+      'lp-share',
+      'lp-sub',
+      'lp-terms',
+      'lp-actions',
+    ])
+  })
+
+  it('names hand entry as what makes the resist row possible', () => {
+    // MANUAL-FIRST AS A STRENGTH, argued from the mechanic above it rather than
+    // from the market alone. A feed imports events; not buying is not an event,
+    // so no amount of automation reaches that row — which is why the ONE thing
+    // on this page a bank-linked tracker cannot do is a property of the manual
+    // product rather than a consolation for it. The claim is an absence in src
+    // (no import path anywhere — localFirst.test asserts it over the tree), and
+    // it could only be made once the hand-off moved above this paragraph.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const sub = container.querySelector('.lp-sub')?.textContent?.toLowerCase() ?? ''
+    expect(sub).toContain('hand entry is what makes the row above possible')
+    expect(sub).toContain('a feed imports events')
+    expect(sub).toContain('not buying is not an event')
+  })
+
+  it('states the resist total in the record’s own words, over the shot’s own rows', () => {
+    /**
+     * THE FOLD'S ONE FIGURE.
+     *
+     * The hand-off said a resist is "summed for the month" and stopped one
+     * clause short of where the sum lands. It lands in the record's resisted
+     * chip, and the pitch now quotes that line — which makes it the one number
+     * above the fold and therefore the one most able to rot.
+     *
+     * So both ends are asserted here. The string is resistedChipLabel's, over
+     * resistedThisMonthDA of the SAME sample rows the shot renders below, which
+     * is the binding: reword the chip or change the sample and the pitch moves
+     * with it. And the shot's own card prints the identical string, which is
+     * the property that matters to a reader — the claim in the fold and the
+     * screenshot under it can never state two different figures.
+     */
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const today = todayISO()
+    const line = resistedChipLabel(resistedThisMonthDA(sampleLedgerRows(today), today))
+    const body = container.querySelector('.lp-share-body')?.textContent ?? ''
+    expect(body).toContain(line)
+    // Quoted in the app's own register (§11: numerals in the mono stack), and
+    // scoped to the quotation — the sentence around it is body copy.
+    expect(container.querySelector('.lp-share-body .lp-quote')?.textContent).toBe(line)
+    // The shot prints the same line, from the same rows, through the real card.
+    expect(container.querySelector('.lp-shot-frame')?.textContent).toContain(line)
+    // TRUST RULE 5: a figure above the fold has to say whose it is. Nobody is
+    // being read here, and the sentence carrying the number says so before the
+    // number arrives — the shot's "sample rows · nobody's data" caption is two
+    // screens further down.
+    expect(body.toLowerCase()).toContain('on the sample rows below')
   })
 
   it('indexes the hand-off into the grid below, so the fold cannot outlive it', () => {

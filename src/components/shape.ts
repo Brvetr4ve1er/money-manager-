@@ -118,40 +118,6 @@ export function bandPath(
 }
 
 /**
- * A round dot. boxPath clamps its radius to half the box, so a square asked
- * for a radius of half its side comes back as the squircle's circle — which
- * keeps the terminal caps below on the same curve family as every other form
- * in the set rather than introducing a true circle primitive.
- */
-export function dotPath(cx: number, cy: number, r: number): string {
-  return boxPath(cx - r, cy - r, r * 2, r * 2, r)
-}
-
-/**
- * A bar between two points, as a band. bandPath is parameterised by centre,
- * length and angle because the shear is defined by its angle; a stroke is
- * defined by its endpoints, so this is the same primitive addressed the other
- * way. Terminals are square — cap them with dotPath where the glyph needs the
- * soft-serve terminal §1 trait 04 asks for.
- */
-export function segPath(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  w: number,
-): string {
-  const [dx, dy] = [x2 - x1, y2 - y1]
-  return bandPath(
-    (x1 + x2) / 2,
-    (y1 + y2) / 2,
-    Math.hypot(dx, dy),
-    w,
-    (Math.atan2(dy, dx) * 180) / Math.PI,
-  )
-}
-
-/**
  * An n-pointed star with every vertex radiused — the outer points AND the
  * inner notches, because §1 trait 04 admits no sharp miter anywhere, not just
  * on the silhouette. Vertices alternate rOuter/rInner starting straight up.

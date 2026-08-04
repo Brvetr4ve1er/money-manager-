@@ -55,8 +55,8 @@
   margin-inline: auto;
   padding-inline: var(--s3);
 }
-/* THE MACRO-BREAK. Everything above is something to do today (log, quests,
-   boss, lesson, simulator, setup); the archive card below is the archive —
+/* THE MACRO-BREAK. Everything above is something to do today (log, boss,
+   lesson, simulator, setup); the archive card below is the archive —
    you read it, you do not act on it. (It used to be two cards: the collection
    sheet sat here too, and it was the one thing in the read half that was not
    a record. It is deleted.) --s4 gap +
@@ -87,11 +87,84 @@
    rule was written to zero (list resets, fieldset defaults).
    CONSTRAINT: §2.1b's per-window band — see .counter-plate in tokens.css. */
 .note-pad.counter-plate,
-.quest-list.counter-plate,
 .profile-rows.counter-plate,
 .decision.counter-plate {
   padding: var(--s2);
 }
+
+/* THE HERO'S FOOT PLATE (see HeroCard) — the head of the stack, which is where
+   the two themes were still exact mirrors of each other after the first plate
+   pass. Box only; the ground is .counter-plate's.
+   --s1 above rather than --s2: .calibrating and .hero-why each carried --s1 of
+   their own margin before this box existed, and the plate's own --s2 padding
+   now stands in for the inner one. The archive's head plate below bleeds --s2
+   into its card's inset and this one does not — nothing inside it re-wraps at
+   a narrower measure, which is the only reason that one bleeds. */
+.hero-foot.counter-plate { margin-top: var(--s1); }
+.hero-foot.counter-plate .calibrating { margin-top: 0; }
+
+/* THE ARCHIVE'S HEAD PLATE (see ArchiveCard). Box only; the ground is
+   .reading-plate's.
+   IT BLEEDS --s2 INTO THE CARD'S INSET, AND THAT IS THE ACCENT CAP, not taste.
+   .card's inline padding is --s3, so a negative --s2 margin with the plate's
+   own --s2 padding leaves the fill 8px inside the keyline left and right and
+   returns .month-facts to the 275px measure it had. The TOP keeps 24px, and
+   that is not the same 8: .card's padding-block-start is --s4, which is the
+   room the §11 corner mark needs, so the same -16px lands the plate clear of
+   .spec-label rather than under it. At the plate's own measure (243px)
+   .kept-chip wraps one line taller, and that Acid is worth 0.11pp of the
+   document: measured on this tree, app.375x812.dark.seeded went from 1.98% to
+   2.11% accent against §2.1b's 2% document cap. The cap had 0.02pp of headroom
+   and a re-wrapped chip is more than the whole of it. */
+.month-block.reading-plate {
+  margin: calc(var(--s2) * -1) calc(var(--s2) * -1) var(--s2);
+}
+/* The plate's own --s2 bottom padding is the strip's gap now; keeping both put
+   40px between the strip and the note. */
+.month-block.reading-plate .month-strip { margin-bottom: 0; }
+
+/* WHERE THE TWO NEW PLATES STOP, AND BOTH WIDTHS ARE MEASURED RATHER THAN
+   ROUNDED. A plate is a give-back: it only belongs where the window it lands in
+   is short of the ground the plate carries, and above the phone column neither
+   of these is.
+
+   THE HERO FOOT STOPS AT 1024 because that is where the hero stops being this
+   card's problem: the ≥1024 block at the end of this file turns the topbar into
+   the full-viewport hero, hides .stage-col and moves the badge, name and rating
+   onto the hero plate — the head of the desktop document is 900px of Flare, not
+   a card. Measured with the plate live there, on this tree:
+   app.1280x900.light.seeded's mean field went 67.99 -> 68.39, i.e. it GAINED a
+   mean-tolerance breach (60±8) that it does not have.
+
+   THE ARCHIVE HEAD STOPS AT 768 because that is where the stack becomes a
+   two-track grid and the archive becomes the ONLY card spanning both
+   (grid-column: 1 / -1, in the ≥768 block below). Below it the plate is a
+   307px band in a 375px column; above it the same plate is a 1,060px band
+   across a window whose right track is empty from the profile card down to the
+   archive — the plate stops being a region inside a column and becomes a
+   horizontal rule across the page. Measured with it live at those widths, on
+   this tree: app.1280x900.dark.seeded window @2700 went 70.70% field -> 80.91,
+   over the 80 band, on a row that had no window breach at all. It cleared the
+   LIGHT @2700 breaches at 1024 and 1280 in the same run — and that is exactly
+   why it is scoped out, because those two are the same window in the other
+   theme and their cause is a HOLE IN THE GRID (nothing is in the right track
+   between the profile card and the archive), not a ground that needs
+   interrupting. A plate is a give-back and there is nothing to give back to a
+   window that is mostly bare stage.
+
+   THE UNDO IS `unset`, NOT A COPY OF THE GROUND'S BLOCK. Custom properties are
+   inherited properties, so `unset` on one computes to `inherit` — every token
+   here falls back to whatever the card around it declares, with no second copy
+   of .spec-sheet's or :root's arithmetic to drift out of step. That drift is a
+   real bug class in this file: the collection sheet's duplicated media query
+   needed a test asserting the two bodies were character-identical, and deleting
+   the copy is what fixed it. --spec and --spec-sunken inherit as ALREADY-MIXED
+   hexes, which is exactly right — they were mixed against the ground the
+   element is falling back onto.
+
+   BOTH UNDOS LIVE WITH THEIR BREAKPOINTS, at the end of this file, beside the
+   other rules those two widths already change. */
+
 
 /* One header, two lives (see HeroShell.tsx): these base rules are the phone
    and tablet band, the ≥1024px block at the end of this file turns the SAME
@@ -609,7 +682,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* 32px = 4 baseline steps (§5), and the same box .quest-box uses. */
+  /* 32px = 4 baseline steps (§5). */
   width: 32px;
   height: 32px;
   flex-shrink: 0;
@@ -715,6 +788,19 @@
   color: var(--spec);
 }
 
+/* THE ENGAGEMENT STRIP — see XpStrip.tsx. It is NOT a .card: no heading, no
+   §11 corner mark, no keyline of its own. The container it needs is the PLATE
+   it stands on — .counter-plate carries its own fill, radius and squircle, and
+   the fill offset IS the boundary (13.4:1 in light, 11.4:1 in dark), which is
+   why that class deliberately draws no keyline.
+   BOX ONLY here, like .hero-foot: the ground and the padding are the plate's.
+   This rule exists to hold the two rows apart and to stop the level line's h3
+   step from inheriting a card's bottom margin it is not inside. */
+.xp-strip { display: flex; flex-direction: column; gap: var(--s1); }
+/* Inside the strip the head IS the strip's first row, so it does not also carry
+   the head margin it needs when it sits under a card title. */
+.xp-strip .xp-head { margin-bottom: 0; }
+
 .xp-head {
   display: flex;
   justify-content: space-between;
@@ -723,9 +809,9 @@
   flex-wrap: wrap;
   margin-bottom: var(--s1);
 }
-/* The level line. Not a heading any more (see QuestCard) — the h2 tier belongs
-   to the card's own title — so it takes the h3 step and carries the weight
-   itself instead of inheriting it. */
+/* The level line. Not a heading (see XpStrip): the strip is not a card and has
+   no title for an h2 to belong to, and a stat is not a section. It takes the h3
+   step and carries the weight itself instead of inheriting it. */
 .xp-level {
   margin: 0;
   font-size: var(--fs-h3);
@@ -733,7 +819,7 @@
   font-weight: 700;
 }
 .xp-numbers { display: inline-flex; align-items: baseline; gap: var(--s1); }
-/* Transient +XP chip (see QuestCard): a non-audio, non-motion confirmation of a
+/* Transient +XP chip (see XpStrip): a non-audio, non-motion confirmation of a
    gain — visible to muted and reduced-motion users, and in --reward like the
    bar it feeds. It appears/disappears by state swap, never by animation
    alone. */
@@ -743,9 +829,9 @@
   border: var(--keyline-w) solid var(--keyline);
   border-radius: var(--r-sm);
   /* §5: everything snaps to the 8px baseline. The chip family (this,
-     .quest-alldone, .boss-won, .lesson-collected, .kept-chip, .tx-impulse,
-     .quest-auto) all ran ad-hoc rem padding between 0.02 and
-     0.15rem; they share one half-step-of-the-scale value now. */
+     .boss-won, .lesson-collected, .kept-chip, .tx-impulse) all ran ad-hoc rem
+     padding between 0.02 and 0.15rem; they share one half-step-of-the-scale
+     value now. */
   padding: calc(var(--s1) / 2) var(--s1);
   font-size: var(--fs-spec);
   font-weight: 700;
@@ -763,18 +849,21 @@
 .xp-fill {
   height: 100%;
   background: var(--reward);
-  /* CONSTRAINT: WCAG 1.4.11, and the edge is LOAD-BEARING again.
-     The XP bar merged into QuestCard, which stands on the Bone reading ground,
-     so the track is --sunken: Sand in light, Void in dark. Marigold on Void is
-     8.4:1 and clears on its own; MARIGOLD ON SAND IS 1.49:1 and does not —
-     the fill/empty boundary is carried entirely by this 2px --keyline stroke,
-     which measures 6.38:1 against the Marigold fill and 9.52:1 against the Sand
-     track. Both sides of the boundary clear the 3:1 non-text floor against the
-     stroke, which is what 1.4.11 asks for. Do not remove it, and do not change
-     the track to a fill Marigold cannot be delimited against.
-     (This is also the pair that disqualified the old XpCard from the dark
-     counter sheet, where the same 1.49:1 would have applied — see tokens.css.)
-     QuestCard skips rendering the fill at 0 XP so the border can never show as
+  /* CONSTRAINT: WCAG 1.4.11, and the edge is LOAD-BEARING in exactly one of
+     the four grounds this bar now stands on.
+     The bar lives on .xp-strip, which is a .counter-plate (see XpStrip), so
+     --sunken is the plate's own ground: ESPRESSO in light, SAND in dark. The
+     light half needs no help — Marigold on Espresso is 7.43:1 and the
+     fill/empty boundary clears 3:1 on its own. THE DARK HALF IS MARIGOLD ON
+     SAND AT 1.49:1 and does not: there the boundary is carried entirely by
+     this 2px --keyline stroke, which measures 6.38:1 against the Marigold fill
+     and 9.52:1 against the Sand track, so both sides clear the 3:1 non-text
+     floor against the stroke, which is what 1.4.11 asks for. Do not remove it,
+     and do not change the track to a fill Marigold cannot be delimited
+     against. (Sand-under-Marigold is the same pair that disqualified the old
+     XpCard from the dark counter sheet — see tokens.css. It is legal here
+     because the stroke is legal, not because the pair got better.)
+     XpStrip skips rendering the fill at 0 XP so the border can never show as
      a phantom sliver on an empty bar. */
   border-right: var(--keyline-w) solid var(--keyline);
   /* steps(6, end), not a slow ease: §9 move 4 — a numeral never smooth-tweens,
@@ -1053,134 +1142,6 @@
   border: 0;
 }
 
-.quest-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--s1);
-  flex-wrap: wrap;
-  margin-bottom: var(--s1);
-}
-.quest-head h2 { margin-bottom: 0; }
-/* Persistent all-complete marker — the arpeggio's visual counterpart. */
-.quest-alldone {
-  background: var(--reward);
-  color: var(--on-accent);
-  border: var(--keyline-w) solid var(--keyline);
-  border-radius: var(--r-sm);
-  padding: calc(var(--s1) / 2) var(--s1);
-  font-size: var(--fs-spec);
-  font-weight: 700;
-  letter-spacing: var(--tr-cap);
-  text-transform: uppercase;
-}
-
-/* --s2, and the row itself is 48px tall (see .quest-row): the old pairing was
-   a 28px row, a 20px gap and a ±10px invisible hit-area extension — three
-   values, two of them off the 8px baseline entirely, tuned so the extended
-   targets met without overlapping. Making the row the target instead puts the
-   pitch at 64px on the grid, keeps every tap ≥48px, and closes the gap between
-   the target a user aims at and the one they hit. */
-.quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
-.quest { display: flex; align-items: center; }
-/* The whole row is the button: quest text is the natural tap target, so it
-   must carry the affordance (cursor, hover) the 32px box alone had before.
-   Cursor/hover/active are gated on the aria-disabled state: a done quest is
-   inert (irreversible, XP already granted), and a pointer cursor plus a press
-   animation on a control that does nothing would break the "pressed =
-   something happened" contract. */
-.quest-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  width: 100%;
-  /* §11: touch targets stay ≥48px regardless of visual density. The row IS the
-     target — no invisible ::after extension, so what the user aims at and what
-     they hit are the same box. */
-  min-height: 48px;
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-}
-/* button-scoped: a verified quest renders as a static div .quest-row (it
-   completes only when the app observes the action) — an unscoped selector
-   would give the inert row a pointer cursor and press feedback, breaking the
-   "pressed = something happened" contract. Done quests carry aria-disabled
-   (never the disabled attribute, which would drop keyboard focus to <body>
-   on the button the user just activated), so the inert styling keys off it. */
-button.quest-row:not([aria-disabled='true']) { cursor: pointer; }
-.quest-box {
-  width: 32px;
-  height: 32px;
-  border: var(--keyline-w) solid var(--keyline);
-  border-radius: var(--r-xs);
-  background: var(--field);
-  font-weight: 900;
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: transform var(--t-quick) var(--ease-pop),
-    background var(--t-instant) var(--ease-primary);
-}
-/* Pressable vs inert, without the offset shadow that used to carry it (§11
-   bans box-shadow). The distinction now rests on two things that survive
-   both themes and reduced motion: the SOLID keyline here versus the dashed
-   one below, and THE PRESS, which only a button row ever performs. A tap on
-   the inert row still gives zero feedback — that is the point, it grants
-   nothing. */
-div.quest-row .quest-box { border-style: dashed; }
-.quest.done div.quest-row .quest-box { border-style: solid; }
-button.quest-row:not([aria-disabled='true']):hover .quest-box { background: var(--sunken); }
-/* …AND THE SAME STATE ON A COUNTER PLATE, WHICH HAS NO RECESS TO SHOW.
-   CONSTRAINT §2.1b put the quest list on .counter-plate (see QuestCard), and a
-   plate declares --sunken as its OWN ground for the reason .spec-sheet does —
-   so the hover fill above resolves to Espresso on Espresso in light, 1:1, and
-   the app's most-tapped list loses its hover state on the one theme. The
-   distinction moves to §1 trait 05's second contour, which is what .btn:hover
-   already draws and what the plate does have: --keyline is Bone here, 13.4:1
-   on the plate's field. Offset by 2px like every other hover ring in this
-   file, and outside the box, so nothing reflows under the pointer. */
-.counter-plate button.quest-row:not([aria-disabled='true']):hover .quest-box {
-  outline: var(--keyline-w) solid var(--keyline);
-  outline-offset: 2px;
-}
-/* §9 move 5, scaled to a 32px box: --press is `none` under reduced motion, so
-   the background swap above carries the feedback there. */
-button.quest-row:not([aria-disabled='true']):active .quest-box {
-  transform: var(--press);
-  transition-duration: var(--t-instant);
-}
-/* Done reads as a filled ink plate with a bone counter (11.4:1 light, 13.4:1
-   dark) rather than a green accent: Graphite on Moss is ~1.1:1, so the old
-   --good fill has no legal successor in this palette. */
-.quest.done .quest-box { background: var(--ink); color: var(--counter); }
-/* --spec, not opacity: which quests were finished is still content, and the
-   measured 4.6:1 value keeps it readable where ink at 0.5 fell to ~3.4:1.
-   The line-through plus the filled box carry the de-emphasis. */
-.quest.done .quest-text { text-decoration: line-through; color: var(--spec); }
-.quest-text { font-size: var(--fs-cap); font-weight: 600; }
-/* "Auto" tag on the verified quest: names WHY the row has no press
-   affordance — the app completes it itself when a simulation actually runs.
-   Dashed like the pending box so the whole row reads as one status family. */
-.quest-auto {
-  margin-left: auto;
-  border: var(--keyline-w) dashed var(--keyline);
-  border-radius: var(--r-sm);
-  padding: calc(var(--s1) / 2) var(--s1);
-  font-size: var(--fs-spec);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--tr-cap);
-  color: var(--spec);
-  flex-shrink: 0;
-}
-
 /* Weekly boss — the Impulse Monster. The HP bar reuses the xp-track pattern
    in the monster's Flare field; it is decorative (aria-hidden in BossCard)
    because the mono numbers beside the name carry the value. */
@@ -1192,8 +1153,8 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   flex-wrap: wrap;
 }
 .boss-head h2 { margin-bottom: var(--s1); }
-/* Persistent claimed-win marker — same family as .quest-alldone: the visible
-   state that outlives the victory toast and fanfare. */
+/* Persistent claimed-win marker — the chip family (.lesson-collected,
+   .kept-chip): the visible state that outlives the victory toast and fanfare. */
 .boss-won {
   background: var(--reward);
   color: var(--on-accent);
@@ -1244,8 +1205,8 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
   flex-wrap: wrap;
 }
 .lesson-head h2 { margin-bottom: var(--s1); }
-/* Persistent collected marker — same family as .quest-alldone: the visual
-   state that outlives the quest blip and +XP chip. */
+/* Persistent collected marker — the chip family (.boss-won, .kept-chip): the
+   visual state that outlives the blip and the +XP chip. */
 .lesson-collected {
   background: var(--reward);
   color: var(--on-accent);
@@ -1301,7 +1262,7 @@ button.quest-row:not([aria-disabled='true']):active .quest-box {
    non-positioned in-flow boxes — so on this card the trait 05 ring was drawn
    ON TOP of the bar, in --keyline, which resolves to --ink, which is the bar's
    own fill. Its whole top edge and the upper ~30px of both flanks vanished,
-   and SIM—06 read as a three-sided contour starting at the bar's bottom edge:
+   and SIM—05 read as a three-sided contour starting at the bar's bottom edge:
    trait 05's first half again and none of its second, on the one card the fix
    was supposed to be universal across.
    z-index lifts the bar over the ring, and the bar then draws the missing run
@@ -1938,7 +1899,42 @@ form > .profile-note { margin-top: var(--s1); }
      itself at the exact moment something has gone wrong. Spanning both tracks
      keeps the card packing identical in both states. */
   .persist-fault,
+  .xp-strip,
   .archive-card { grid-column: 1 / -1; }
+  /* WHY THE STRIP SPANS, AND IT IS MEASURED. It is ~90px tall — the shortest
+     thing in the stack by a factor of three — so packed into one track it is a
+     stub with a card-sized hole of bare stage beside it, and the two tracks
+     then run out of step for every card below. That is the same defect this
+     file already names for the archive head plate: "a HOLE IN THE GRID …
+     A plate is a give-back and there is nothing to give back to a window that
+     is mostly bare stage."
+     Measured on THIS tree (EMBER_CENSUS_NO_SANDBOX=1 npm run census --diff,
+     against the committed artifact at tree 12bbf5e), packed versus spanning:
+     app.1280x900.light.seeded mean-dev 15.82 -> 13.13 and its window breaches
+     2 -> 0; app.1440x900.dark.seeded 24.11 -> 18.08 and 3 breaches -> 1;
+     app.1024x900.light.seeded 9.02 -> 7.68 and 2 -> 1. Nothing regressed. The
+     phone is unaffected — it is one column, so this rule does not apply there,
+     and that is the point: the strip is a region in a column below 768 and a
+     rule across the page above it. */
+  /* The archive head plate stops here — see "WHERE THE TWO NEW PLATES STOP"
+     at the top of this file for the measurement, and for why the undo is
+     `unset` rather than a copy of the ground it falls back to. */
+  .month-block.reading-plate {
+    --ground: unset;
+    --field: unset;
+    --sunken: unset;
+    --ink: unset;
+    --counter: unset;
+    --keyline: unset;
+    --spec: unset;
+    --spec-sunken: unset;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .month-block.reading-plate .month-strip { margin-bottom: var(--s2); }
 }
 
 @media (min-width: 1024px) {
@@ -2264,4 +2260,24 @@ form > .profile-note { margin-top: var(--s1); }
   .hero-card .stage-name,
   .hero-card .stars { display: none; }
   .hero-card .hero-main { gap: 0; }
+  /* …and the card's FOOT sheds its plate at the same width, for the same
+     reason the badge leaves: at ≥1024 the head of the document is 900px of
+     Flare hero, not this card. See "WHERE THE TWO NEW PLATES STOP" at the top
+     of this file. */
+  .hero-foot.counter-plate {
+    --ground: unset;
+    --field: unset;
+    --sunken: unset;
+    --ink: unset;
+    --counter: unset;
+    --keyline: unset;
+    --spec: unset;
+    --spec-sunken: unset;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin-top: 0;
+  }
+  .hero-foot.counter-plate .calibrating { margin-top: var(--s1); }
 }

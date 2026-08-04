@@ -40,9 +40,21 @@ cannot do at all: **Ember logs the thing you did not buy.**
 
 You type the amount and press **"I resisted an impulse"** instead of Log. The
 row records what the purchase would have cost. It adds nothing to that day's
-total — money that did not move is not spend — and it sums into one figure at
-the head of the record card: `3,500 DA resisted this month`. A bank feed can
-only ever see money that moved, so this row does not exist anywhere else.
+total — money that did not move is not spend — and it sums into one line at the
+head of the record card: `3,500 DA resisted this month`. A bank feed can only
+ever see money that moved, so this row does not exist anywhere else.
+
+That figure is not written here. It is the line the landing page's sample rows
+print, computed for this file by the card's own `resistedChipLabel` over the
+same `sampleLedger` rows the page renders through the real component — the one
+number in this section, read from the code like every other number in it.
+
+**Hand entry is what makes the row possible**, which is the part that reframes
+manual logging from a cost into the position. A feed imports events. Not buying
+is not an event, so no amount of automation reaches that row: the only product
+that can hold it is one where a person puts it there. Manual-first is not the
+price of having no bank integration — it is the thing the integration could not
+have bought.
 
 The other half is what happens when you lose. Buy it anyway, tick "I bought it
 anyway", and the row reads the same as any other: full XP, a quiet marker,
@@ -117,22 +129,34 @@ stand. Once you have entered your numbers, anything you leave blank — no
 emergency fund, no debt — is dropped and its weight redistributed across the
 components you did fill in, with the card naming each one it left out.
 
-Around them: XP and levels for showing up, 3 daily quests (2 of them verified
-by the app, not by a tap), a 30-lesson codex counted on the lesson card, 9
-earn-only badges whose reward is a cosmetic companion beside the score, and
-chiptune cues that never carry information alone.
+Around them: XP and levels for showing up — one strip, a level line and a bar —
+a 30-lesson codex counted on the lesson card, 9 earn-only badges whose reward is
+a cosmetic companion beside the score, and chiptune cues that never carry
+information alone.
 
-There used to be a fourth quest — "look back over your recent purchases" — and
-a ninth card holding a 30-tile codex grid and a 9-tile badge shelf. Both are
-deleted. The quest paid XP for a tap the app could not observe, which is the
-engagement track paying for nothing. The card was 62.5% of the card stack's
-rendered elements on install day — 59.9% at day 40, counted by a jsdom render
-probe at `a2d4e6d`, the last tree that rendered it, and a DOM share rather than
-a pixel share, which is why it is not in `docs/brand/census.json` — and it
-carried no control at all: 1,644px of 375px column, last in the stack, to reach
-nothing you can act on. Badges still unlock, still announce and still bring
-their companion; the codex still rotates and still counts. Only the trophy case
-is gone.
+**The daily quests are deleted, and so is the card they were on.** There were
+three, and before that four. The fourth — "look back over your recent
+purchases" — went first: it paid XP for a tap the app could not observe. The
+last self-report one, "log every purchase today", had the same defect and
+outlived it by a round; the app can see rows arrive, it cannot see whether
+*every* purchase was logged. The other two were marked verified and rendered as
+inert status rows repeating what the lesson card and the simulator already
+showed. Take the self-report row out and the card has no control on it at all,
+which is the same verdict that retired the XP card before it. What is left is
+the level line and the bar. **Nothing you earn is worth less for it:** a logged
+purchase, a resisted impulse, today's lesson and a simulation all pay exactly
+what they paid before, and every XP grant the deleted quests ever made still
+counts toward your level — the grant log is evidence, and evidence is not
+edited.
+
+A ninth card holding a 30-tile codex grid and a 9-tile badge shelf went the same
+way a round earlier. It was 62.5% of the card stack's rendered elements on
+install day — 59.9% at day 40, counted by a jsdom render probe at `a2d4e6d`, the
+last tree that rendered it, and a DOM share rather than a pixel share, which is
+why it is not in `docs/brand/census.json` — and it carried no control at all:
+1,644px of 375px column, last in the stack, to reach nothing you can act on.
+Badges still unlock, still announce and still bring their companion; the codex
+still rotates and still counts. Only the trophy case is gone.
 
 **The record card** is one card that answers both halves of "where am I". It
 was two — a month card stacked on a ledger, two headings and two near-identical
@@ -335,9 +359,9 @@ It reads each page **twice**. The document reading is the whole-page average and
 is comparable with every figure the project published before the tool existed.
 The second reading, `scrollingForm`, cuts the document into viewport-height
 windows and measures each one, because a document average is not something
-anybody looks at: `app.375x812.light.seeded` averages 56.93% field over the
-document while its eight windows run 52.95, 44.03, 68.08, 47.75, 47.49, 72.11,
-56.53 and 74.07 — a vector that appears on no screen. (Those are the committed rows at this
+anybody looks at: `app.375x812.light.seeded` averages 56.73% field over the
+document while its seven windows run 59.41, 49.05, 68.84, 53.43, 48.70, 44.92
+and 73.98 — a vector that appears on no screen. (Those are the committed rows at this
 tree, quoted the way §2.1b requires. An earlier draft of this paragraph said
 "averaged 56% while its windows ran 15% at the head and 91% at the tail" with no
 tree on it, which was a figure from a tree that still had a ninth card — on the
@@ -427,8 +451,8 @@ image, or a row that will not hold still, reports rather than blocks.
 - `src/components/ArchiveCard.tsx` — the record: day index, month-to-date
   total, days left, the per-day strip, and the day-grouped ledger under them.
   One card, one heading, one scope line — it was a month card and a ledger
-- `src/components/QuestCard.tsx` — the daily quests with the XP bar and level
-  above them, which was a card of its own
+- `src/components/XpStrip.tsx` — the engagement track, and the whole of it: a
+  level line and a bar. Not a card, and the third surface in a row to shed one
 - `src/components/SimCard.tsx` — the decision simulator, the decision record
   it writes and the check-back that answers it: every run is persisted with the
   projection it showed, answered with Bought it / Waited / Resisted it, and — if

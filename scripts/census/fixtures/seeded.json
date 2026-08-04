@@ -289,55 +289,55 @@
       "date": "2025-02-27"
     },
     {
-      "id": "g-sim-1",
+      "id": "sim:2025-03-12",
       "action": "runSimulation",
       "amount": 15,
       "date": "2025-03-12"
     },
     {
-      "id": "g-sim-2",
+      "id": "sim:2025-03-08",
       "action": "runSimulation",
       "amount": 15,
       "date": "2025-03-08"
     },
     {
-      "id": "g-sim-3",
+      "id": "sim:2025-03-03",
       "action": "runSimulation",
       "amount": 15,
       "date": "2025-03-03"
     },
     {
-      "id": "g-lesson-budget-sketch",
+      "id": "lesson:2025-03-12",
       "action": "readLesson",
       "amount": 15,
       "date": "2025-03-12"
     },
     {
-      "id": "g-lesson-track-first",
+      "id": "lesson:2025-03-10",
       "action": "readLesson",
       "amount": 15,
       "date": "2025-03-10"
     },
     {
-      "id": "g-lesson-zero-based",
+      "id": "lesson:2025-03-08",
       "action": "readLesson",
       "amount": 15,
       "date": "2025-03-08"
     },
     {
-      "id": "g-lesson-pay-yourself-first",
+      "id": "lesson:2025-03-06",
       "action": "readLesson",
       "amount": 15,
       "date": "2025-03-06"
     },
     {
-      "id": "g-lesson-savings-bill",
+      "id": "lesson:2025-03-04",
       "action": "readLesson",
       "amount": 15,
       "date": "2025-03-04"
     },
     {
-      "id": "g-lesson-start-small",
+      "id": "lesson:2025-03-02",
       "action": "readLesson",
       "amount": 15,
       "date": "2025-03-02"
@@ -364,29 +364,6 @@
   "prevHealthScore": 61,
   "stage": "hearth",
   "healthDate": "2025-03-12",
-  "quests": [
-    {
-      "id": "log",
-      "text": "Log every purchase today",
-      "xpAction": "logExpense",
-      "done": true
-    },
-    {
-      "id": "lesson",
-      "text": "Read today's lesson",
-      "xpAction": "readLesson",
-      "verified": true,
-      "done": true
-    },
-    {
-      "id": "sim",
-      "text": "Run one decision simulation",
-      "xpAction": "runSimulation",
-      "verified": true,
-      "done": true
-    }
-  ],
-  "questsDate": "2025-03-12",
   "lessonsSeen": [
     {
       "id": "budget-sketch",

@@ -44,9 +44,11 @@ function tone(
 /** Logging an action — quick coin-pickup blip. */
 export const blip = (): void => tone(880, 0, 0.09, 'square', 0.09)
 
-/** Quest complete — three ascending notes. */
-export const arpeggio = (): void =>
-  [523.25, 659.25, 783.99].forEach((f, i) => tone(f, i * 0.07, 0.14, 'square', 0.08))
+/* THE ARPEGGIO IS DELETED WITH THE THING IT ANNOUNCED. It was the daily
+   quest set's all-complete cue, and the quest set is gone (see XpStrip). §10
+   is the reason it did not simply get re-pointed at some other moment: a cue
+   only ever fires alongside a VISIBLE change, so a sound looking for an
+   occasion is a sound with nothing to be about. */
 
 /** Level up / boss defeated — the big win. */
 export const fanfare = (): void =>

@@ -11,7 +11,7 @@
  *
  * The real nondeterminism in this app, found by reading it:
  *
- *   todayISO() -> new Date()   quests roll, the weekly boss picks a
+ *   todayISO() -> new Date()   the weekly boss picks a
  *                              day-of-week (engine/boss.ts), the lesson of the
  *                              day is an FNV hash of the day key
  *                              (content/lessons.ts), sampleLedger's rows are
@@ -25,7 +25,7 @@
  *
  * THE EPOCH: 2025-03-12T09:00:00+01:00. A Wednesday, mid-month, mid-morning,
  * in the target market's zone. One constant pins the boss's day-of-week
- * branch, the lesson hash, the quest-reset comparison, sampleLedger's day
+ * branch, the lesson hash, the per-day grant ids, sampleLedger's day
  * offsets and every relative day label at once. Changing it moves all of them
  * under every future number, which is why census.test.ts pins the local day it
  * resolves to.
@@ -34,8 +34,8 @@
 export const CENSUS_EPOCH_ISO = '2025-03-12T09:00:00+01:00'
 export const CENSUS_EPOCH_MS = Date.parse(CENSUS_EPOCH_ISO)
 /** UTC+1 year-round: the target market, and the zone todayISO's comment is
-    written for ("the target market is UTC+1, so UTC keys would roll quests at
-    01:00 local time"). */
+    written for ("the target market is UTC+1, so UTC keys would roll the health
+    snapshot at 01:00 local time"). */
 export const CENSUS_TIMEZONE = 'Africa/Algiers'
 export const CENSUS_LOCALE = 'en-GB'
 /** The store's key (src/state/store.ts). Duplicated deliberately: the census

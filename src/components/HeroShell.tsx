@@ -64,15 +64,16 @@ export function HeroShell({
               plate. Decorative — the h1 below carries the name. */}
           <Monogram variant="knockout" className="hero-nav-mark" />
           <a href="#log">Log</a>
-          <a href="#quests">Quests</a>
           <a href="#simulator">Simulator</a>
-          {/* THREE LINKS, NOT FIVE. Codex and Badges pointed at the collection
-              sheet, which had no controls at all — two of five nav entries
-              spent on a surface nobody could operate. The sheet is deleted and
-              its jump targets went with it: an anchor to a removed id lands
-              focus on <body>, which is the failure every remaining target here
-              carries tabIndex -1 and aria-labelledby to avoid. Three links, all
-              of them pointing at something the user can act on. */}
+          {/* TWO LINKS, AND IT WAS FIVE. Codex and Badges pointed at the
+              collection sheet, which had no controls at all; Quests pointed at
+              a card whose one control paid XP for a claim the app cannot
+              observe, and both are deleted. AN ANCHOR TO A REMOVED ID LANDS
+              FOCUS ON <body> — that is the failure every remaining target here
+              carries tabIndex -1 and aria-labelledby to avoid, and it is why a
+              deleted card takes its jump link out with it in the same change.
+              The XP strip that replaced Quests is deliberately NOT a target: it
+              has nothing to act on, and this plate is for surfaces that do. */}
         </nav>
 
         {/* Corner spec labels. Both sit on an ink plate rather than directly

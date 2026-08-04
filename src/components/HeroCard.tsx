@@ -190,35 +190,56 @@ export function HeroCard({
           badge, name and rating on the hero plate, and a disclosure that
           moved with them would blink out at a breakpoint. Live text, never
           aria-hidden: it is the disclosure. */}
-      {(isDemo || historyDays < CALIBRATION_DAYS) && (
-        <p className="calibrating">
-          {isDemo && 'Placeholder numbers until setup. '}
-          {historyDays < CALIBRATION_DAYS && (
-            <>
-              {/* Grotesk for the sentence, mono only for the index — the same
-                  split .sim-note makes, and §11's "all numerals render in the
-                  mono stack" applied to exactly the numerals. */}
-              Score still calibrating.{' '}
-              <span className="mono">
-                Day {historyDays} / {CALIBRATION_DAYS}
-              </span>
-            </>
-          )}
-        </p>
-      )}
-      <button
-        type="button"
-        className="btn hero-why"
-        aria-expanded={open}
-        // aria-controls names the drawer this button owns. Held unconditional
-        // rather than gated on `open`: with aria-expanded="false" beside it,
-        // the relationship is the point even while the target is unmounted —
-        // it is what lets AT jump from the trigger to what it opens.
-        aria-controls="health-breakdown"
-        onClick={() => setOpen((o) => !o)}
-      >
-        {open ? 'Hide the breakdown' : 'Why this stage?'}
-      </button>
+      {/* CONSTRAINT §2.1b — THE CARD'S FOOT TAKES THE COUNTER PLATE, and this is
+          the head of the stack, which is the half of the phone the plates had
+          not reached. docs/brand/census.json at tree 12bbf5e read
+          app.375x812.dark.seeded window @0 at 74.65% field / 16.91% Bone: 276px
+          of Flare topbar and a 463px Espresso card, with only the title and the
+          readout carrying a plate between them. Its light twin read 53.00 /
+          36.24 on the same DOM — the two themes as exact mirrors, one 14.65pp
+          over the 60 target and the other 7.00 under. A plate is the ground's
+          OPPOSITE, so one block moves both the right way at once, and it did:
+          66.03 / 25.30 in dark, 59.44 / 30.28 in light.
+          THE DISCLOSURE AND THE CONTROL ARE ONE BLOCK because they are one
+          thought — what this number is still missing, and the button that
+          opens what it is made of. The drawer stays OUTSIDE: it is conditional
+          and it is the answer, not the question.
+          The plate holds no accent (§2.1 rule 2 — see .counter-plate in
+          tokens.css); .stage-col above it holds the only one on this card.
+          A plate is a ground and a ground has to be there in every state, so
+          this box is unconditional even when the disclosure inside it is not —
+          a user past calibration gets the plate around the control alone. */}
+      <div className="hero-foot counter-plate">
+        {(isDemo || historyDays < CALIBRATION_DAYS) && (
+          <p className="calibrating">
+            {isDemo && 'Placeholder numbers until setup. '}
+            {historyDays < CALIBRATION_DAYS && (
+              <>
+                {/* Grotesk for the sentence, mono only for the index — the same
+                    split .sim-note makes, and §11's "all numerals render in the
+                    mono stack" applied to exactly the numerals. */}
+                Score still calibrating.{' '}
+                <span className="mono">
+                  Day {historyDays} / {CALIBRATION_DAYS}
+                </span>
+              </>
+            )}
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn hero-why"
+          aria-expanded={open}
+          // aria-controls names the drawer this button owns. Held unconditional
+          // rather than gated on `open`: with aria-expanded="false" beside it,
+          // the relationship is the point even while the target is unmounted —
+          // it is what lets AT jump from the trigger to what it opens.
+          aria-controls="health-breakdown"
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? 'Hide the breakdown' : 'Why this stage?'}
+        </button>
+      </div>
       {open && (
         <div className="health-breakdown" id="health-breakdown">
           <ul className="health-bars">

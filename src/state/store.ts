@@ -8,7 +8,6 @@ import {
   XP_REWARDS,
   xpFromLog,
   xpStateFromTotal,
-  type XpAction,
   type XpGrant,
   type XpState,
 } from '../engine/xp.ts'
@@ -61,18 +60,6 @@ export interface ProfileData {
   goal: ProfileGoal | null
   /** Local day (YYYY-MM-DD) this profile was saved — newer wins in mergeStates. */
   savedDate: string
-}
-
-export interface Quest {
-  id: string
-  text: string
-  xpAction: XpAction
-  /** True when the app itself verifies completion (e.g. SimCard dispatches on
-   *  an actual simulation run). Verified quests render as non-interactive
-   *  status rows — a tap must never self-report a quest the code promises is
-   *  verified. */
-  verified?: boolean
-  done: boolean
 }
 
 /**
@@ -279,8 +266,6 @@ export interface AppState {
   stage: Stage | null
   /** Local day (YYYY-MM-DD) the health snapshot was last persisted; '' = never. */
   healthDate: string
-  quests: Quest[]
-  questsDate: string
   /** Codex collection — every lesson ever read, unioned by id across tabs. */
   lessonsSeen: LessonSeen[]
   muted: boolean
@@ -294,46 +279,13 @@ export interface AppState {
 
 const KEY = 'ember-state-v1'
 
-export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
-  { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense' },
-  // Every quest must be an action the app actually supports today — a quest
-  // promising nonexistent content pays XP for a claim the user cannot
-  // perform. The lesson quest exists BECAUSE lessons.ts now ships real
-  // content; it is verified (pressing "Got it" on today's actual lesson
-  // dispatches completion — see App), and it is the sole XP vehicle for
-  // reading: LessonCard's tap itself grants nothing extra, so one read pays
-  // readLesson exactly once per day.
-  { id: 'lesson', text: "Read today's lesson", xpAction: 'readLesson', verified: true },
-  // The sim quest self-verifies the same way: running a simulation completes
-  // it (see SimCard's onRun in App) — and because it is verified, QuestCard
-  // renders it without a tap-to-complete button.
-  { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', verified: true },
-  // THERE WAS A FOURTH, AND IT IS GONE. `review` — "Look back over your recent
-  // purchases" — paid 10 XP for a tap, and the tap was the entire evidence. The
-  // comment that used to stand here conceded exactly that in its own words: the
-  // only thing the app can OBSERVE on the archive card is an expand control
-  // that does not exist until a fourth logged day. Every other quest in this
-  // roster is either verified by the app or a self-report about an action the
-  // app can at least see happen (`log` names the rows in the ledger). This one
-  // was neither. A daily grant with no observable referent is the engagement
-  // track paying for nothing, which is the failure Trust Rule 1 exists to keep
-  // away from the score — and keeping it away from the score is not a licence
-  // to mint it on the other side of the wall.
-  //
-  // `reviewRecent` STAYS IN XP_REWARDS on purpose. Removing it would drop it
-  // out of XP_GRANT_ACTIONS, the sanitizer would reject every historical
-  // `quest:review:<day>` grant, and xpFromLog would fold a SMALLER total than
-  // the counter the user was already shown — silently taking back XP that was
-  // genuinely earned under the old roster. See the xpLog note in NOTE_MAX_LEN:
-  // the grant log is evidence, and evidence is not retroactively edited.
-]
-
 /**
  * THE CALENDAR RULE, IN ONE PLACE.
  *
  * Deliberately NOT toISOString(): the target market is UTC+1, so UTC keys would
- * roll quests at 01:00 local time and stamp late-night purchases with the
- * previous day/month. Every day key in this product is a LOCAL calendar day.
+ * roll the health snapshot at 01:00 local time and stamp late-night purchases
+ * with the previous day/month. Every day key in this product is a LOCAL
+ * calendar day.
  *
  * This function had four identical copies (here, engine/profile.ts,
  * engine/boss.ts, content/sampleLedger.ts), each re-deriving the same rule with
@@ -380,21 +332,6 @@ export function newId(): string {
   return `${Date.now().toString(36)}-${rand[0].toString(36)}-${rand[1].toString(36)}`
 }
 
-export function freshQuests(): Quest[] {
-  return DEFAULT_QUESTS.map((q) => ({ ...q, done: false }))
-}
-
-/**
- * Roll the daily quest list when the stored quest day is not `today`.
- * Used by loadState at mount AND by the day-change effect in App, so a tab
- * left open past midnight rolls quests the same way a reload does. Returns
- * the same object when nothing needs to change.
- */
-export function rollQuests(state: AppState, today: string): AppState {
-  if (state.questsDate === today) return state
-  return { ...state, quests: freshQuests(), questsDate: today }
-}
-
 export function defaultState(): AppState {
   return {
     transactions: [],
@@ -403,8 +340,6 @@ export function defaultState(): AppState {
     prevHealthScore: null,
     stage: null,
     healthDate: '',
-    quests: freshQuests(),
-    questsDate: todayISO(),
     lessonsSeen: [],
     muted: false,
     profile: null,
@@ -567,7 +502,7 @@ function isTransaction(v: unknown): v is Transaction {
  *
  * xpLog IS DELIBERATELY UNCAPPED, unlike decisions (see DECISION_MAX). Two
  * reasons, and the second is the binding one. A grant is ~101 chars and there
- * is at most one per logged row plus a handful of daily quest/boss grants, so
+ * is at most one per logged row plus a handful of daily lesson/sim/boss grants, so
  * it is a bounded fraction of a cost already counted above. And the log is
  * EVIDENCE: xpFromLog folds it into the visible XP total, so trimming the
  * oldest grants would silently take XP off a counter the user was already
@@ -926,28 +861,21 @@ export function sanitizeState(parsed: unknown): AppState {
   // hand-edited 'never', an old schema's ISO timestamp) would feed the
   // rollover garbage. Mismatches fall back to the default ('' = never).
   // isValidDayKey rather than the bare shape, for consistency with every other
-  // date this sanitizer touches. finalizeHealthThrough is iteration-bounded and
-  // rollQuests renormalises at load, so neither of these two was exploitable —
-  // but "impossible keys are rejected" is easier to keep true as a rule with no
-  // exceptions than as a rule with two documented ones.
+  // date this sanitizer touches. finalizeHealthThrough is iteration-bounded, so
+  // this was not exploitable — but "impossible keys are rejected" is easier to
+  // keep true as a rule with no exceptions than as a rule with a documented one.
   if (typeof parsed.healthDate === 'string' && isValidDayKey(parsed.healthDate)) {
     out.healthDate = parsed.healthDate
   }
-  if (Array.isArray(parsed.quests)) {
-    // Rebuild from the canonical roster: only same-day completion state is
-    // user data — text, xpAction, and `verified` are product invariants the
-    // roster owns. Trusting the persisted list wholesale would let unknown or
-    // duplicate ids (old schemas, hand-edited payloads) render as tappable
-    // self-report rows, each an unearned same-day XP grant.
-    const doneById = new Map<string, boolean>()
-    for (const q of parsed.quests) {
-      if (isRecord(q) && typeof q.id === 'string') doneById.set(q.id, q.done === true)
-    }
-    out.quests = DEFAULT_QUESTS.map((d) => ({ ...d, done: doneById.get(d.id) === true }))
-  }
-  if (typeof parsed.questsDate === 'string' && isValidDayKey(parsed.questsDate)) {
-    out.questsDate = parsed.questsDate
-  }
+  // `quests` AND `questsDate` ARE READ BY NOTHING, AND THAT IS THE MIGRATION.
+  // The daily quest list is deleted (see XpStrip / the XP roster in engine/xp).
+  // This sanitizer builds `out` from defaultState() and copies only keys it
+  // recognises, so a payload written by the old schema still loads: the two
+  // dead fields are dropped on the way in and every transaction, decision,
+  // lesson and xpLog grant beside them comes through untouched. The GRANTS
+  // those quests minted (`quest:<id>:<day>`) keep folding at full value —
+  // XP_GRANT_ACTIONS still carries every action they used, so nothing the user
+  // earned is retroactively un-paid (see reviewRecent in engine/xp.ts).
   if (Array.isArray(parsed.lessonsSeen)) {
     // Ids must exist in the canonical roster (a hand-added 'lesson31' would
     // inflate the codex count past its own denominator forever) and dates must
@@ -1033,8 +961,7 @@ export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return defaultState()
-    const state = sanitizeState(JSON.parse(raw) as unknown)
-    return rollQuests(state, todayISO())
+    return sanitizeState(JSON.parse(raw) as unknown)
   } catch {
     return defaultState()
   }
@@ -1070,8 +997,7 @@ export function saveState(state: AppState): boolean {
  * Merge a peer tab's freshly-written state into this tab's in-memory state.
  * Two open tabs (common on mobile browsers that keep background tabs alive)
  * each saveState() on every change; without a merge, whichever tab writes
- * last — even on an automatic midnight quest roll — silently erases the
- * other tab's transactions, the worst possible failure for a local-first app.
+ * last silently erases the other tab's transactions, the worst possible failure for a local-first app.
  * The merge must be deterministic, idempotent AND commutative — merge(A, B)
  * deep-equals merge(B, A) — so that when writes truly cross (both tabs save
  * before receiving each other's storage event), both converge on one
@@ -1100,9 +1026,9 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     a.date !== b.date ? (a.date > b.date ? -1 : 1) : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
   )
   // XP: union the grant logs by id and fold. Diverged tabs each hold grants
-  // the other missed (A logged a purchase while B finished a quest), and a
+  // the other missed (A logged a purchase while B read the lesson), and a
   // bare max(totalXp) would silently drop the smaller tab's grant even though
-  // the transaction/quest union preserves its evidence. Duplicated ids keep
+  // the transaction union preserves its evidence. Duplicated ids keep
   // the larger amount (deterministic in any merge order); the fold re-applies
   // the resist daily cap across the union so two tabs can't jointly overpay
   // it. max() with both counters floors the result for pre-log legacy totals.
@@ -1159,21 +1085,13 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
           ? local
           : incoming
   }
-  // Quests: same-day lists union their done flags — a quest completed in
-  // either tab granted its XP once already, and reviving it as incomplete
-  // would offer a second grant. Across days, the newer roster wins.
-  let quests = incoming.quests
-  let questsDate = incoming.questsDate
-  if (local.questsDate === incoming.questsDate) {
-    quests = local.quests.map((q) => ({
-      ...q,
-      done: q.done || incoming.quests.some((i) => i.id === q.id && i.done),
-    }))
-    questsDate = local.questsDate
-  } else if (local.questsDate > incoming.questsDate) {
-    quests = local.quests
-    questsDate = local.questsDate
-  }
+  // NO QUEST BRANCH ANY MORE, and nothing replaces it. The quest list was the
+  // one piece of per-day engagement state two tabs had to reconcile by hand;
+  // the daily grants that survived it (readLesson, runSimulation) are carried
+  // by the xpLog union above on deterministic per-day ids, which is the same
+  // mechanism BOSS_VICTORY has always used. Two tabs reading the lesson on the
+  // same day now dedupe to one `lesson:<day>` grant instead of to one done
+  // flag — strictly less state, identical result.
   // Profile: any profile beats null (setup completing in one tab must survive
   // the other's write), and the newer savedDate wins across days. Same-day
   // edits from two tabs carry no recency signal at all — the greater JSON
@@ -1199,8 +1117,6 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     prevHealthScore: snapshot.prevHealthScore,
     stage: snapshot.stage,
     healthDate: snapshot.healthDate,
-    quests,
-    questsDate,
     // Codex union: a lesson collected in either tab stays collected — same
     // survival rule as transactions. Earliest date wins on duplicates (see
     // dedupeEarliestById) so both tabs converge on the identical list.
@@ -1233,13 +1149,13 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
  * Re-sync when ANOTHER tab writes the store key ('storage' fires only in
  * non-writing tabs, and only when the value actually changed — so writing the
  * merged result back cannot echo forever). The payload is untrusted persisted
- * JSON like any load: sanitize + roll quests before handing it to the reducer.
+ * JSON like any load: sanitize before handing it to the reducer.
  */
 export function subscribeToPeerWrites(onWrite: (incoming: AppState) => void): () => void {
   const listener = (e: StorageEvent) => {
     if (e.key !== KEY || e.newValue === null) return
     try {
-      onWrite(rollQuests(sanitizeState(JSON.parse(e.newValue) as unknown), todayISO()))
+      onWrite(sanitizeState(JSON.parse(e.newValue) as unknown))
     } catch {
       // Corrupt peer payload — this tab's in-memory state stays authoritative.
     }
