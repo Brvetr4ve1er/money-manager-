@@ -3,3 +3,6 @@ dist
 *.local
 .DS_Store
 *.tsbuildinfo
+
+# Vitest JSON report, written in CI for the DOM-suite guard.
+vitest-report.json

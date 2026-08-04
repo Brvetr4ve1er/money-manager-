@@ -27,18 +27,21 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # Must stay >= 22, and must match .nvmrc and the `engines` field in
-          # package.json (>=22.6 there — `npm run brand` needs
-          # --experimental-strip-types, which landed in 22.6.0). jsdom 30 pulls
-          # undici 8, whose CacheStorage calls webidl.util.markAsUncloneable —
-          # that only exists on Node >= 21. On Node 20 the require throws, the
-          # jsdom environment never initialises, and the DOM test files do not
-          # run at all: the suite still reports green, minus one unhandled
-          # error, having silently skipped every component test.
-          # The invariant, not a count that rots: App.test.tsx and Root.test.tsx
-          # must actually execute. If either reports zero tests, the jsdom
-          # environment failed to initialise and the run means nothing.
-          node-version: '22.6'
+          # Resolve the LATEST 22.x — do not pin an exact minor here. jsdom is
+          # the reason, and it has now broken this pipeline twice from two
+          # different directions:
+          #   * Node 20 — undici 8 (via jsdom 30) calls
+          #     webidl.util.markAsUncloneable, added in Node 21.
+          #   * Node 22.6 — html-encoding-sniffer (via jsdom) `require()`s
+          #     @exodus/bytes, which is ESM. require(esm) is only unflagged
+          #     from Node 22.12; on 22.6 it throws ERR_REQUIRE_ESM.
+          # Both failures look the same and are the dangerous kind: the jsdom
+          # environment never initialises, so the DOM test files do not run at
+          # all and the suite reports a healthy-looking green count for the
+          # files that did. The floor that satisfies both is 22.12, and
+          # `engines` in package.json states it. Pinning an exact minor here is
+          # what caused the second outage — '22' tracks the newest patched 22.x.
+          node-version: '22'
           # Vite 5 and Vitest resolve from the lockfile; caching it keeps the
           # install step off the critical path.
           cache: npm
@@ -48,7 +51,15 @@ jobs:
       # itself a defect worth catching here.
       - run: npm ci
 
-      - run: npm test
+      # Write a machine-readable report alongside the human one so the guard
+      # below can check WHICH files ran, not just that the exit code was zero.
+      - run: npm test -- --reporter=default --reporter=json --outputFile=vitest-report.json
+
+      # A passing exit code is not proof the suite ran. Twice now a jsdom
+      # incompatibility has skipped every DOM test file while the remaining
+      # files reported green — see scripts/assert-dom-tests-ran.mjs. This step
+      # turns that invariant into an enforced check instead of a comment.
+      - run: node scripts/assert-dom-tests-ran.mjs vitest-report.json
 
       # `tsc -b && vite build` — this is what catches strict-mode type errors
       # that the test run alone will not surface.
