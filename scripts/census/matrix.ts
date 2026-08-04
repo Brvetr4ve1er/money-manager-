@@ -146,9 +146,21 @@ export const MATRIX: MatrixRow[] = [
   // measured: 1024 is where the app stops being a phone column and where the
   // .main-stack measure first fills the viewport, and 1280 is the widest width
   // at which NO give-back applies, i.e. the worst light desktop the app ships.
-  // 1024 dark is here for a second reason: it is the worst app row in the
-  // matrix on the window reading (mean-dev 20.9 against 1440 dark's 3.3), and
-  // nothing but a censused row would have said so.
+  // 1024 dark is here for its own reason: it is the width at which the app
+  // stops being a phone column, and a theme swap at a layout boundary is
+  // exactly where a ground can invert without anybody looking.
+  //
+  // THIS COMMENT USED TO CALL 1024 DARK "the worst app row in the matrix on the
+  // window reading (mean-dev 20.9 against 1440 dark's 3.3)". Both rows were
+  // swapped and neither figure exists in any committed artifact. The census
+  // committed at 96b728b (tree 71b5608 — the artifact in force when the line
+  // was written) reads app.1024x900.dark.seeded meanDeviation 4.35 against
+  // app.1440x900.dark.seeded's 20.32, i.e. 1024 dark is the BEST app row on the
+  // window reading and 1440 dark the worst. It still is: 7.01 against 18.08 in
+  // the artifact committed at dc529fb. Read docs/brand/census.json, not this
+  // paragraph — §2.1b's rule is "quote the row id, or stamp the tree", and
+  // quoting the row id while contradicting the file is the worse of the two
+  // failures because it looks checked.
   row('app', 1024, 900, 'light', 'seeded'),
   row('app', 1024, 900, 'dark', 'seeded'),
   row('app', 1280, 900, 'light', 'seeded'),

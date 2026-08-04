@@ -205,12 +205,21 @@ export function ArchiveCard({
       {/* CONSTRAINT §2.1b — THE MONTH HALF TAKES THE READING PLATE, i.e. the
           opposite ground to the sheet it stands on, exactly as the day groups
           below it do. The day list alone left the archive's HEAD unbroken:
-          docs/brand/census.json at tree 12bbf5e read app.375x812.dark.seeded
+          the census committed at 12bbf5e read app.375x812.dark.seeded
           window @4060 at 45.42% field / 46.88% Bone (the row's worst, deviation
-          33.76) and its light twin at 72.11 / 21.30 — the same window, the two
+          33.76) and its light twin at 72.11 / 21.33 — the same window, the two
           themes as mirrors, because the first ~227px of this card is one ground
-          in whichever theme you are in. Plated, they read 61.04 / 32.50 (dark)
-          and 56.83 / 34.91 (light).
+          in whichever theme you are in.
+          WHAT IT ACTUALLY BOUGHT, READ OFF THE ARTIFACT COMMITTED AT dc529fb
+          RATHER THAN OFF A CONSOLE LINE: that window now reads 67.96 / 25.29 in
+          dark and 44.92 / 46.40 in light. The dark half is the result — 45.42
+          -> 67.96, the mirror closed from the side that was short of field. The
+          light half is not: at 44.92 / 46.40 it is that row's WORST window, at
+          deviation 32.80, and it is inside the 35-80 band rather than fixed.
+          This comment used to claim 61.04 / 32.50 and 56.83 / 34.91, which are
+          in no committed artifact and would have told the next round the defect
+          was closed. It is half closed, and the light tail is where the rest of
+          it is.
           IT IS NOT PART OF THE DAY ALTERNATION and does not shift its phase:
           this is the card's head, the days are its body. Flipping the days to
           keep a strict head/day/day/day alternation was measured and is worse —

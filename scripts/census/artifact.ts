@@ -768,7 +768,9 @@ export const LAW_NOTE =
  * which is the exact failure this tool was built to end, and because artifact.ts
  * is deliberately outside CENSUS_INPUTS the staleness hash can never turn red
  * over it: the numbers would have been re-emitted verbatim forever. So the
- * tense is fixed and the tree is named. THE ACCEPTANCE CHECK IS A HISTORICAL
+ * tense is fixed and the tree is named — the acceptance check ran on the clean
+ * tree of commit a2d4e6d, and 41.63/47.86/6.41/4.10 was that generation's rows
+ * block, not any later one. THE ACCEPTANCE CHECK IS A HISTORICAL
  * EVENT — it happened once, against a tree that no longer exists — and the
  * comparison it made is not re-run on every census. What the rows say is in
  * the rows.

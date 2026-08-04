@@ -7,8 +7,9 @@
  * XP roster — the canonical reward table (the product spec defers to this).
  * readLesson was reserved until real lesson content existed (paying XP for a
  * claim the user cannot perform is a hollow grant); with src/content/lessons.ts
- * shipped, the lesson quest in DEFAULT_QUESTS pays it — verified, since the
- * app itself observes the "Got it" tap on today's actual lesson.
+ * shipped, the READ_LESSON reducer path pays it on the per-day grant id
+ * `lesson:<day>` — verified, since the app itself observes the "Got it" tap on
+ * today's actual lesson.
  */
 export const XP_REWARDS = {
   logExpense: 5,
@@ -16,14 +17,15 @@ export const XP_REWARDS = {
   runSimulation: 15,
   readLesson: 15,
   // RETIRED AS A QUEST, RETAINED AS A GRANT ACTION. The `review` quest was
-  // deleted (see DEFAULT_QUESTS in state/store.ts — it paid for a tap the app
-  // could not observe), but this entry stays: XP_GRANT_ACTIONS is derived from
-  // the keys of this table, so removing it would make every persisted
+  // deleted — it paid for a tap the app could not observe — and the whole quest
+  // list went with it in round 6 (see XpStrip; nothing in the tree declares a
+  // quest any more). This entry stays: XP_GRANT_ACTIONS is derived from the
+  // keys of this table, so removing it would make every persisted
   // `quest:review:<day>` grant fail isXpGrant, and xpFromLog would then fold a
   // smaller total than the counter the user was already shown. The engagement
   // track may stop paying an action; it may not un-pay one it already did.
   // Nothing dispatches it any more, so no new grant of this action can be
-  // minted — DEFAULT_QUESTS is the only vehicle that ever produced one.
+  // minted — the deleted quest list was the only vehicle that ever produced one.
   reviewRecent: 10,
   // Weekly boss victory (see engine/boss.ts): paid at most once per week via
   // the deterministic `boss:{weekStart}` grant id the BOSS_VICTORY reducer
@@ -95,7 +97,7 @@ export function grantXp(state: XpState, action: XpAction): { next: XpState; leve
  * frozen background tab missed a storage event, then the user acted in it)
  * each hold grants the other never saw; a bare max(totalXp) merge would
  * silently drop the smaller tab's grant even though the merged transactions
- * and quest flags keep its evidence. Grant logs union by id instead — see
+ * keep its evidence. Grant logs union by id instead — see
  * mergeStates in the store. `action: 'legacy'` marks a pre-log total migrated
  * by sanitizeState.
  */

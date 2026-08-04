@@ -203,7 +203,10 @@ the day if you did not.
 It has an honest cold start and the app says so rather than dressing it up: it
 needs one closed purchase plus fourteen days of real time, so on day one there
 is nothing, and a user who never simulates never sees it. The only thing the
-app promises in the meantime is the day it will ask.
+app promises in the meantime is the day it will ask — and it asks on that day
+for as long as the run is still in the record, which the `DECISION_MAX` cap
+below bounds: run more than 60 simulations inside those fourteen days and the
+oldest pending questions are trimmed away with their rows.
 
 **The decision record** sits inside the simulator, not beside it. The last 60
 runs are kept, each with the exact line it printed — frozen, never recomputed,
@@ -245,7 +248,9 @@ Product invariants. They outrank the design system and they outrank a feature.
 - **Honest cold start.** Before setup the score says it is running on
   placeholder numbers — it is scoring a demo profile, not you, and every
   surface that reads it says so. Under 90 days it says it is still calibrating
-  rather than projecting confidence it has not earned.
+  rather than projecting confidence it has not earned — the horizon is
+  `CALIBRATION_DAYS` in `src/engine/profile.ts`, and the landing page reads it
+  rather than typing it.
 - **Your data leaves when you do.** Full JSON export, always, one tap, no
   account.
 

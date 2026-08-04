@@ -518,6 +518,37 @@
   font-size: var(--fs-h3);
   font-weight: 700;
 }
+/* CONSTRAINT §2.1b — THE SECTION'S HEAD GETS THE PLATE ITS FOOT ALREADY HAS,
+   and it is the window band that asks for it.
+   THE DEFECT: .lp-spec is 2131px of unbroken Espresso at 1440 — over two
+   viewports of one ground, which is the length §2.1b derives its whole window
+   band from. The only interruption inside it is .lp-note-strip, 1303px in. So
+   the window that lands on the section's head has the shot's mat and nothing
+   else: in the artifact committed at dc529fb, landing.1440x900.*.fresh window
+   @900 read 81.04% field / 15.57% Bone, over the 80 band.
+   THE FIX IS THE SECTION'S OWN CONSTRUCTION, NOT A NEW ONE. .lp-note-strip is
+   already "a Bone plate ... because it is a claim about the product and not a
+   caption on the shot", and the lede is the same kind of sentence — the claim
+   the section opens with. It takes the same ground, keeps its own h3 register,
+   and the Espresso run is broken where the window needs it.
+   SCOPED TO ≥1024 BECAUSE A PLATE IS A GIVE-BACK. On the phone this section is
+   three viewports of a different rhythm and both 375 landing rows are inside
+   the band with no breach; giving Bone to a window that is not short of it is
+   how the plate mechanism inverts (see .counter-plate in tokens.css). Below
+   1024 nothing here applies.
+   NO NEW PAIR: --lp-form on --lp-counter is the note strip's pair and the
+   poster's pinned ink on its pinned paper, 11.4:1, already measured. */
+@media (min-width: 1024px) {
+  .lp-spec .lp-spec-lede {
+    background: var(--lp-counter);
+    color: var(--lp-form);
+    border: var(--keyline-w) solid var(--lp-form);
+    border-radius: var(--r-lg);
+    corner-shape: squircle;
+    corner-shape: superellipse(2.07);
+    padding: var(--s2);
+  }
+}
 /* ── THE PRODUCT SHOT ─────────────────────────────────────────────────────
    A live <Ledger>, not an image (see Landing.tsx). It therefore arrives fully
    dressed by tokens.css/app.css and this block adds nothing to its inside —
@@ -573,10 +604,19 @@
      shape — and it settles a second thing the block above only half-solved: an
      Espresso card on an Espresso field is a 1.00:1 fill offset holding on a
      single 2px keyline. On paper it is delimited by the field it stands on.
-     MEASURED against that commit, in the artifact this tree ships: it lands
-     the same Bone in BOTH themes across the windows the shot spans — @1624 came
-     back at 72.03 / 20.79 dark and 40.28 / 51.32 light, both inside the band,
-     which is what a shared ground is for.
+     WHAT IT MEASURED, AND THE HALF IT DID NOT FIX. In the artifact committed
+     at dc529fb, @1624 reads 72.03 / 20.79 dark and 40.28 / 51.32 light. The
+     dark half is the result: 14.50 -> 20.79 Bone, back over §2.1b's 15% floor,
+     and both themes are now inside the band at that window. The TWIN half is
+     not: the light/dark Bone spread there was 30.97pp before the mat and is
+     30.53pp after, so the mat lifted both themes by about the same 6pp and
+     moved the divergence by 0.44. @2436 says the same thing (39.45 dark against
+     28.38 light, from 33.37 against 21.79). This block used to claim the mat
+     "lands the same Bone in BOTH themes"; it lands the same ADDED Bone, which
+     is a different sentence and the one the numbers support. The twin defect at
+     @1624 is still open — closing it means giving the shot a ground the card
+     cannot re-role under it (pinning .reading-plate inside .lp-shot-frame is
+     the obvious candidate and has not been measured).
      Radius one step out from the card's own --r-lg so the mount reads as
      outside the plate rather than as a second edge on it. */
   background: var(--lp-counter);
@@ -1113,8 +1153,19 @@
   margin-top: calc(-1 * var(--s6));
   flex-shrink: 0;
 }
+/* CONSTRAINT §2.1b — THE CLOSING PLATE TAKES THE POSTER'S OWN MEASURE, and
+   the last window is why. In the artifact committed at dc529fb,
+   landing.1440x900.*.fresh window @3873 read 77.48% field / 10.64% Bone —
+   under the 15% Bone floor, and the row's worst window at deviation 46.69. The
+   window is the object section's Flare with the Espresso footer beneath it and
+   ONE Bone plate in the whole 900px: this one, at 640px in a 1440px frame.
+   1080px is not a new number — it is `.lp-measure`, the measure every other
+   section on this poster is set to, and the one thing on the page that was
+   narrower than it for no stated reason. Below ~724px the plate is already
+   narrower than its container, so no phone pixel moves; the 375 rows are in
+   band and stay untouched. */
 .lp-object-plate {
-  max-width: 640px;
+  max-width: 1080px;
   text-align: center;
 }
 .lp-object-plate .lp-actions { justify-content: center; }

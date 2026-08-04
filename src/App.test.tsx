@@ -213,11 +213,30 @@ describe('the XP strip', () => {
     // The dead fields are not written back.
     expect('quests' in saved).toBe(false)
     expect('questsDate' in saved).toBe(false)
-    // A `quest:lesson:<today>` grant is NOT a `lesson:<today>` grant, so the
-    // old schema's completion does not silently pre-consume today's cap — the
-    // lesson is still readable and still pays once.
+    // …AND THE UPGRADE DAY PAYS ONCE, WHICH REVERSES THIS TEST'S EARLIER
+    // ASSERTION AND IS WORTH SAYING OUT LOUD. It used to expect
+    // 25 + XP_REWARDS.readLesson here, on the reasoning that a
+    // `quest:lesson:<today>` grant is not a `lesson:<today>` grant so the old
+    // schema "does not silently pre-consume today's cap". It is not
+    // pre-consumption: the deleted lesson quest was VERIFIED — it paid only
+    // when the app observed the Got-it tap on today's actual lesson — so that
+    // grant IS today's payment for exactly this act, made on the old build and
+    // already shown to the user. Reading the same lesson again after upgrading
+    // and being paid a second time is one act paid twice, which is the whole
+    // thing the deterministic per-day grant id exists to prevent, and which
+    // reducer.ts claims in writing that it does. READ_LESSON honours the
+    // legacy id for one release (see the note there).
     fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
-    expect(xpNow()).toBe(25 + XP_REWARDS.readLesson)
+    expect(xpNow()).toBe(25)
+    // The COLLECTION is a separate guard and it still fires: the lesson lands
+    // in the codex, only the grant is withheld.
+    const afterRead = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(afterRead.lessonsSeen).toHaveLength(1)
+    expect(afterRead.xpLog.map((g: { id: string }) => g.id)).toEqual([
+      'tx:t1',
+      `quest:log:${day}`,
+      `quest:lesson:${day}`,
+    ])
   })
 
   it('keeps the engagement track off every money surface (Trust Rule 1)', () => {
@@ -560,9 +579,11 @@ describe('daily lesson + codex', () => {
     // near 19% — the column IS the viewport, so there are no gutters, and the
     // hero is deliberately held off 100vh so the log card stays above the fold
     // — so every remaining field pixel has to come out of a card body.
-    // Historical, and dated: cards shot at 375x812 populated, light, on the
-    // ROUND-3 tree read 53.5 field / 40.0 Bone before XpCard, BossCard and the
-    // foot moved across and 59.7 / 33.7 after. Round 5 deleted the collection
+    // PROVENANCE: HISTORICAL. Cards shot at 375x812 populated, light, on the
+    // round-3 tree (commit 8b65e79) read 53.5 field / 40.0 Bone before XpCard,
+    // BossCard and the foot moved across and 59.7 / 33.7 after — and by the
+    // pre-tool ad-hoc method, not by the census, so the two are not directly
+    // comparable even where the trees are. Round 5 deleted the collection
     // sheet, so neither number describes this tree — docs/brand/census.json
     // does, and a staleness test keeps it describing the tree it ships with.
     // What this test asserts is not a ratio but WHICH CARDS carry the class:
@@ -735,12 +756,16 @@ describe('daily lesson + codex', () => {
     // this product broken. docs/brand/census.json at tree 71b5608 read
     // app.375x812.light.seeded with 5 of its 7 viewport windows outside the
     // 35-80 field band and app.375x812.dark.seeded with 7 of 7, while both
-    // document averages looked ordinary — 45.75/43.91 and 63.35/24.71. A reader
-    // never sees a document average.
+    // MEAN-OF-WINDOWS vectors looked ordinary — 45.75/43.91 and 63.40/24.70.
+    // Those are NOT the document averages, which is the correction: the
+    // document readings at that tree were 41.70/47.32 and 67.87/19.89, and
+    // §2.1b's whole argument is that the two statistics differ, so quoting one
+    // under the other's name spends the argument on itself.
     //
-    // WHY A PLATE AND NOT A CARD. Windows are 812px; the stack's cards are
-    // 314-1249px, so a window can sit entirely INSIDE one card (SimCard does
-    // this on a phone) and no reordering or re-grounding of whole cards reaches
+    // WHY A PLATE AND NOT A CARD. Windows are 812px; measured in Chromium at
+    // 375x812 on the seeded fixture at this tree the stack's cards run
+    // 314-1165px, so a window can sit entirely INSIDE one card (SimCard, the
+    // 1165px one) and no reordering or re-grounding of whole cards reaches
     // it. The unit that alternates has to be smaller than a card. .counter-plate
     // is the counter ground (Espresso in light, Bone in dark) and .reading-plate
     // is the reading ground (Bone in light, Espresso in dark); see tokens.css.
@@ -820,9 +845,9 @@ describe('daily lesson + codex', () => {
     render(<App />)
     // CONSTRAINT §2.1b — the archive's HEAD is a plate of its own, because the
     // day list left the first ~227px of the card as one unbroken ground.
-    // docs/brand/census.json at tree 12bbf5e read app.375x812.dark.seeded
+    // The census committed at 12bbf5e read app.375x812.dark.seeded
     // window @4060 at 45.42% field / 46.88% Bone (the row's worst) against its
-    // light twin's 72.11 / 21.30 — one window, two themes, exact mirrors.
+    // light twin's 72.11 / 21.33 — one window, two themes, exact mirrors.
     const head = document.querySelector('.archive-card > .month-block')!
     expect(head.classList.contains('reading-plate')).toBe(true)
     // The month half, whole: the figures AND the strip AND the cold-start note.

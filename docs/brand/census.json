@@ -1,21 +1,37 @@
 {
   "schemaVersion": 1,
   "tool": "scripts/census/run.ts",
-  "capturedAt": "2026-08-04T21:43:54.573Z",
+  "capturedAt": "2026-08-04T23:07:06.517Z",
   "tree": {
-    "sha": "80f643d2f0ea9b30c42e7bc1d5a6e5daf49823d0",
+    "sha": "dc529fbe91d830ba7672a73e6ff6da3093d4653c",
     "branch": "claude/money-app-market-analysis-oi2pht",
     "dirty": true,
     "dirtyPaths": [
       "README.md",
+      "docs/brand/DESIGN-SYSTEM.md",
       "docs/brand/census.json",
+      "scripts/census/artifact.ts",
+      "scripts/census/census.test.ts",
+      "scripts/census/matrix.ts",
+      "scripts/census/run.ts",
+      "src/App.test.tsx",
       "src/README.test.ts",
+      "src/components/ArchiveCard.tsx",
+      "src/components/HeroCard.tsx",
       "src/components/Landing.tsx",
+      "src/components/SimCard.tsx",
+      "src/engine/achievements.ts",
+      "src/engine/xp.ts",
+      "src/state/reducer.test.ts",
+      "src/state/reducer.ts",
+      "src/state/store.ts",
+      "src/styles/app.css",
       "src/styles/design.test.ts",
-      "src/styles/landing.css"
+      "src/styles/landing.css",
+      "src/styles/tokens.css"
     ]
   },
-  "inputsHash": "sha256:c1ac9bb2b93a2a5e3e8e393d96b6d1b359551856a03d3139f529ff6b5750fee1",
+  "inputsHash": "sha256:7c1af253df7823e5a640ec75406cc80dd7e5afb3124ab9f5e7db0dfe5c23f45d",
   "env": {
     "node": "v22.22.2",
     "chrome": "Chrome/141.0.7390.37",
@@ -37,7 +53,7 @@
   },
   "palette": {
     "source": "src/styles/tokens.css",
-    "sha256": "sha256:14009bb1070547d3510515cbbb1b4c434f780f821e377be0a468b6055326057a",
+    "sha256": "sha256:bbe3c72b303b8e57b67ab20ff3a3dc444fefa8527dbff9fb4789d5c47a50b7d4",
     "tokens": {
       "flare": "#f93e06",
       "graphite": "#2a2d2c",
@@ -144,20 +160,20 @@
       },
       "buckets": {
         "field": {
-          "pixels": 2621382,
+          "pixels": 2621254,
           "pct": 59.66
         },
         "bone": {
-          "pixels": 1476976,
-          "pct": 33.61
+          "pixels": 1477085,
+          "pct": 33.62
         },
         "graphite": {
-          "pixels": 246192,
+          "pixels": 246215,
           "pct": 5.60
         },
         "accent": {
-          "pixels": 49434,
-          "pct": 1.13
+          "pixels": 49430,
+          "pct": 1.12
         }
       },
       "deviation": 7.23,
@@ -253,7 +269,7 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 60.65,
+          "field": 60.64,
           "bone": 32.86,
           "graphite": 5.42,
           "accent": 1.07
@@ -292,8 +308,8 @@
             "top": 1800,
             "pct": {
               "field": 54.49,
-              "bone": 38.41,
-              "graphite": 6.15,
+              "bone": 38.42,
+              "graphite": 6.16,
               "accent": 0.94
             },
             "deviation": 16.83
@@ -301,12 +317,12 @@
           {
             "top": 2700,
             "pct": {
-              "field": 67.06,
-              "bone": 29.24,
+              "field": 67.05,
+              "bone": 29.25,
               "graphite": 3.05,
               "accent": 0.65
             },
-            "deviation": 14.12
+            "deviation": 14.10
           },
           {
             "top": 3391,
@@ -344,23 +360,23 @@
           "pct": 63.47
         },
         "bone": {
-          "pixels": 1330730,
-          "pct": 30.29
+          "pixels": 1330602,
+          "pct": 30.28
         },
         "graphite": {
-          "pixels": 224382,
+          "pixels": 224514,
           "pct": 5.11
         },
         "accent": {
-          "pixels": 50122,
+          "pixels": 50118,
           "pct": 1.14
         }
       },
-      "deviation": 7.51,
+      "deviation": 7.50,
       "tokens": {
         "flare": 34.00,
-        "graphite": 3.46,
-        "bone": 29.12,
+        "graphite": 3.47,
+        "bone": 29.11,
         "espresso": 29.47,
         "sand": 1.17,
         "fog": 0.00,
@@ -450,12 +466,12 @@
         "count": 5,
         "mean": {
           "field": 61.38,
-          "bone": 32.46,
-          "graphite": 5.07,
+          "bone": 32.45,
+          "graphite": 5.08,
           "accent": 1.09
         },
-        "meanDeviation": 7.68,
-        "inkOnPaper": 14.43,
+        "meanDeviation": 7.67,
+        "inkOnPaper": 14.44,
         "worst": {
           "top": 3391,
           "deviation": 14.41
@@ -498,11 +514,11 @@
             "top": 2700,
             "pct": {
               "field": 62.43,
-              "bone": 33.73,
-              "graphite": 3.19,
+              "bone": 33.72,
+              "graphite": 3.20,
               "accent": 0.65
             },
-            "deviation": 12.32
+            "deviation": 12.30
           },
           {
             "top": 3391,
@@ -536,28 +552,28 @@
       },
       "buckets": {
         "field": {
-          "pixels": 3516050,
+          "pixels": 3515918,
           "pct": 65.12
         },
         "bone": {
-          "pixels": 1576180,
-          "pct": 29.19
+          "pixels": 1576293,
+          "pct": 29.20
         },
         "graphite": {
-          "pixels": 257218,
+          "pixels": 257241,
           "pct": 4.76
         },
         "accent": {
-          "pixels": 49592,
+          "pixels": 49588,
           "pct": 0.92
         }
       },
-      "deviation": 10.25,
+      "deviation": 10.24,
       "tokens": {
         "flare": 42.26,
         "graphite": 2.32,
-        "bone": 17.09,
-        "espresso": 22.87,
+        "bone": 17.10,
+        "espresso": 22.86,
         "sand": 12.10,
         "fog": 0.00,
         "void": 1.17,
@@ -681,8 +697,8 @@
           {
             "top": 1800,
             "pct": {
-              "field": 62.46,
-              "bone": 31.67,
+              "field": 62.45,
+              "bone": 31.68,
               "graphite": 5.26,
               "accent": 0.61
             },
@@ -734,15 +750,15 @@
           "pct": 68.02
         },
         "bone": {
-          "pixels": 1444981,
+          "pixels": 1444849,
           "pct": 26.76
         },
         "graphite": {
-          "pixels": 231274,
-          "pct": 4.28
+          "pixels": 231410,
+          "pct": 4.29
         },
         "accent": {
-          "pixels": 50286,
+          "pixels": 50282,
           "pct": 0.93
         }
       },
@@ -845,7 +861,7 @@
           "accent": 0.87
         },
         "meanDeviation": 13.13,
-        "inkOnPaper": 13.80,
+        "inkOnPaper": 13.81,
         "worst": {
           "top": 2700,
           "deviation": 19.31
@@ -876,8 +892,8 @@
             "top": 1800,
             "pct": {
               "field": 67.60,
-              "bone": 26.11,
-              "graphite": 5.68,
+              "bone": 26.10,
+              "graphite": 5.69,
               "accent": 0.61
             },
             "deviation": 15.20
@@ -917,53 +933,53 @@
       "state": "seeded",
       "dimensions": {
         "width": 1440,
-        "height": 4218
+        "height": 4106
       },
       "pixels": {
-        "total": 6073920
+        "total": 5912640
       },
       "buckets": {
         "field": {
-          "pixels": 4190377,
-          "pct": 68.99
+          "pixels": 3949049,
+          "pct": 66.79
         },
         "bone": {
-          "pixels": 1576192,
-          "pct": 25.95
+          "pixels": 1648240,
+          "pct": 27.88
         },
         "graphite": {
-          "pixels": 257735,
-          "pct": 4.24
+          "pixels": 265382,
+          "pct": 4.49
         },
         "accent": {
-          "pixels": 49616,
-          "pct": 0.82
+          "pixels": 49969,
+          "pct": 0.85
         }
       },
-      "deviation": 17.98,
+      "deviation": 13.58,
       "tokens": {
-        "flare": 48.66,
-        "graphite": 2.07,
-        "bone": 15.20,
-        "espresso": 20.33,
-        "sand": 10.75,
+        "flare": 44.84,
+        "graphite": 2.16,
+        "bone": 15.99,
+        "espresso": 21.95,
+        "sand": 11.89,
         "fog": 0.00,
-        "void": 1.04,
+        "void": 1.16,
         "acid": 0.22,
-        "marigold": 0.50,
+        "marigold": 0.52,
         "cobalt": 0.00,
         "signal": 0.07,
         "moss": 0.03,
         "spec:676562": 0.31,
         "spec-sunken:535250": 0.10,
-        "spec:b8aaa4": 0.34,
-        "spec-sunken:ccbeb8": 0.21,
-        "spec:4e4f49": 0.05,
-        "spec-sunken:40413d": 0.12
+        "spec:b8aaa4": 0.35,
+        "spec-sunken:ccbeb8": 0.22,
+        "spec:4e4f49": 0.06,
+        "spec-sunken:40413d": 0.13
       },
       "strays": {
         "pctOverDeltaE12": 0.30,
-        "meanDeltaE": 0.25,
+        "meanDeltaE": 0.26,
         "top": [
           {
             "hex": "#8e8885",
@@ -990,40 +1006,40 @@
             "deltaE": 13.06
           },
           {
-            "hex": "#8c7f79",
+            "hex": "#5d3022",
             "pct": 0.00,
-            "nearest": "spec:676562",
-            "deltaE": 12.28
+            "nearest": "espresso",
+            "deltaE": 22.39
           }
         ],
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 7.02,
+            "pct": 7.21,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 3.76,
+            "pct": 3.86,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 2.65,
+            "pct": 2.72,
             "nearest": "flare",
             "deltaE": 1.21
           },
           {
             "hex": "#f53e06",
-            "pct": 0.46,
+            "pct": 0.48,
             "nearest": "flare",
             "deltaE": 1.61
           },
           {
             "hex": "#f73d06",
-            "pct": 0.31,
+            "pct": 0.32,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -1033,20 +1049,18 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 69.04,
-          "bone": 26.09,
-          "graphite": 4.10,
-          "accent": 0.76
+          "field": 65.67,
+          "bone": 29.23,
+          "graphite": 4.33,
+          "accent": 0.77
         },
-        "meanDeviation": 18.08,
-        "inkOnPaper": 14.05,
+        "meanDeviation": 11.35,
+        "inkOnPaper": 13.87,
         "worst": {
-          "top": 900,
-          "deviation": 25.36
+          "top": 0,
+          "deviation": 24.66
         },
-        "breaches": [
-          "mean field 69.04 outside 60±8"
-        ],
+        "breaches": [],
         "windows": [
           {
             "top": 0,
@@ -1061,42 +1075,42 @@
           {
             "top": 900,
             "pct": {
-              "field": 72.68,
-              "bone": 19.87,
-              "graphite": 5.64,
-              "accent": 1.81
+              "field": 69.39,
+              "bone": 22.16,
+              "graphite": 6.62,
+              "accent": 1.84
             },
-            "deviation": 25.36
+            "deviation": 18.77
           },
           {
             "top": 1800,
             "pct": {
-              "field": 66.63,
-              "bone": 28.15,
-              "graphite": 4.68,
+              "field": 63.72,
+              "bone": 31.42,
+              "graphite": 4.33,
               "accent": 0.54
             },
-            "deviation": 13.26
+            "deviation": 10.26
           },
           {
             "top": 2700,
             "pct": {
-              "field": 68.55,
-              "bone": 28.59,
-              "graphite": 2.43,
+              "field": 60.36,
+              "bone": 36.33,
+              "graphite": 2.88,
               "accent": 0.43
             },
-            "deviation": 17.09
+            "deviation": 13.38
           },
           {
-            "top": 3318,
+            "top": 3206,
             "pct": {
-              "field": 65.01,
-              "bone": 32.83,
-              "graphite": 2.15,
+              "field": 62.57,
+              "bone": 35.21,
+              "graphite": 2.21,
               "accent": 0.00
             },
-            "deviation": 15.69
+            "deviation": 15.57
           }
         ]
       },
@@ -1113,53 +1127,53 @@
       "state": "seeded",
       "dimensions": {
         "width": 1440,
-        "height": 4218
+        "height": 4106
       },
       "pixels": {
-        "total": 6073920
+        "total": 5912640
       },
       "buckets": {
         "field": {
-          "pixels": 4137528,
-          "pct": 68.12
+          "pixels": 3902468,
+          "pct": 66.00
         },
         "bone": {
-          "pixels": 1642219,
-          "pct": 27.04
+          "pixels": 1711607,
+          "pct": 28.95
         },
         "graphite": {
-          "pixels": 243849,
-          "pct": 4.01
+          "pixels": 247888,
+          "pct": 4.19
         },
         "accent": {
-          "pixels": 50324,
-          "pct": 0.83
+          "pixels": 50677,
+          "pct": 0.86
         }
       },
-      "deviation": 16.24,
+      "deviation": 12.00,
       "tokens": {
-        "flare": 48.66,
-        "graphite": 2.83,
-        "bone": 16.16,
-        "espresso": 19.46,
-        "sand": 10.87,
+        "flare": 44.84,
+        "graphite": 2.97,
+        "bone": 16.93,
+        "espresso": 21.17,
+        "sand": 12.02,
         "fog": 0.00,
-        "void": 0.08,
+        "void": 0.09,
         "acid": 0.22,
-        "marigold": 0.50,
+        "marigold": 0.52,
         "cobalt": 0.00,
         "signal": 0.08,
         "moss": 0.03,
-        "spec:676562": 0.31,
-        "spec-sunken:535250": 0.09,
-        "spec:b8aaa4": 0.33,
-        "spec-sunken:ccbeb8": 0.18,
+        "spec:676562": 0.32,
+        "spec-sunken:535250": 0.10,
+        "spec:b8aaa4": 0.34,
+        "spec-sunken:ccbeb8": 0.19,
         "spec:4e4f49": 0.06,
         "spec-sunken:40413d": 0.13
       },
       "strays": {
-        "pctOverDeltaE12": 0.30,
-        "meanDeltaE": 0.25,
+        "pctOverDeltaE12": 0.31,
+        "meanDeltaE": 0.26,
         "top": [
           {
             "hex": "#8e8885",
@@ -1169,7 +1183,7 @@
           },
           {
             "hex": "#90827c",
-            "pct": 0.00,
+            "pct": 0.01,
             "nearest": "spec:676562",
             "deltaE": 13.58
           },
@@ -1195,31 +1209,31 @@
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 7.02,
+            "pct": 7.21,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 3.76,
+            "pct": 3.87,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 2.65,
+            "pct": 2.72,
             "nearest": "flare",
             "deltaE": 1.21
           },
           {
             "hex": "#f53e06",
-            "pct": 0.47,
+            "pct": 0.48,
             "nearest": "flare",
             "deltaE": 1.61
           },
           {
             "hex": "#f73d06",
-            "pct": 0.31,
+            "pct": 0.32,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -1229,20 +1243,18 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 68.22,
-          "bone": 27.11,
-          "graphite": 3.89,
+          "field": 64.95,
+          "bone": 30.20,
+          "graphite": 4.06,
           "accent": 0.78
         },
-        "meanDeviation": 16.45,
-        "inkOnPaper": 12.93,
+        "meanDeviation": 10.32,
+        "inkOnPaper": 12.65,
         "worst": {
           "top": 0,
           "deviation": 24.86
         },
-        "breaches": [
-          "mean field 68.22 outside 60±8"
-        ],
+        "breaches": [],
         "windows": [
           {
             "top": 0,
@@ -1257,42 +1269,42 @@
           {
             "top": 900,
             "pct": {
-              "field": 65.65,
-              "bone": 28.71,
-              "graphite": 3.83,
-              "accent": 1.81
+              "field": 63.09,
+              "bone": 30.51,
+              "graphite": 4.55,
+              "accent": 1.84
             },
-            "deviation": 11.31
+            "deviation": 7.21
           },
           {
             "top": 1800,
             "pct": {
-              "field": 71.20,
-              "bone": 23.21,
-              "graphite": 5.05,
+              "field": 71.15,
+              "bone": 23.61,
+              "graphite": 4.70,
               "accent": 0.54
             },
-            "deviation": 22.40
+            "deviation": 22.29
           },
           {
             "top": 2700,
             "pct": {
-              "field": 66.83,
-              "bone": 29.89,
-              "graphite": 2.84,
+              "field": 55.53,
+              "bone": 40.77,
+              "graphite": 3.26,
               "accent": 0.44
             },
-            "deviation": 13.65
+            "deviation": 21.54
           },
           {
-            "top": 3318,
+            "top": 3206,
             "pct": {
-              "field": 65.01,
-              "bone": 32.83,
-              "graphite": 2.15,
+              "field": 62.57,
+              "bone": 35.21,
+              "graphite": 2.21,
               "accent": 0.00
             },
-            "deviation": 15.69
+            "deviation": 15.57
           }
         ]
       },
@@ -1316,28 +1328,28 @@
       },
       "buckets": {
         "field": {
-          "pixels": 1222600,
-          "pct": 58.17
+          "pixels": 1222368,
+          "pct": 58.16
         },
         "bone": {
-          "pixels": 686172,
-          "pct": 32.65
+          "pixels": 686385,
+          "pct": 32.66
         },
         "graphite": {
-          "pixels": 151553,
+          "pixels": 151576,
           "pct": 7.21
         },
         "accent": {
-          "pixels": 41550,
+          "pixels": 41546,
           "pct": 1.98
         }
       },
-      "deviation": 5.29,
+      "deviation": 5.31,
       "tokens": {
         "flare": 23.00,
         "graphite": 2.46,
-        "bone": 23.14,
-        "espresso": 35.17,
+        "bone": 23.15,
+        "espresso": 35.16,
         "sand": 9.50,
         "fog": 0.00,
         "void": 1.86,
@@ -1425,12 +1437,12 @@
         "viewportHeight": 812,
         "count": 7,
         "mean": {
-          "field": 57.82,
-          "bone": 33.01,
+          "field": 57.81,
+          "bone": 33.02,
           "graphite": 7.22,
           "accent": 1.95
         },
-        "meanDeviation": 6.01,
+        "meanDeviation": 6.03,
         "inkOnPaper": 18.09,
         "worst": {
           "top": 2436,
@@ -1483,12 +1495,12 @@
           {
             "top": 3248,
             "pct": {
-              "field": 59.44,
-              "bone": 35.36,
-              "graphite": 5.09,
+              "field": 59.36,
+              "bone": 35.43,
+              "graphite": 5.10,
               "accent": 0.11
             },
-            "deviation": 10.72
+            "deviation": 10.86
           },
           {
             "top": 4060,
@@ -1536,23 +1548,23 @@
           "pct": 56.73
         },
         "bone": {
-          "pixels": 716010,
-          "pct": 34.07
+          "pixels": 715778,
+          "pct": 34.05
         },
         "graphite": {
-          "pixels": 151400,
-          "pct": 7.20
+          "pixels": 151636,
+          "pct": 7.21
         },
         "accent": {
-          "pixels": 42025,
+          "pixels": 42021,
           "pct": 2.00
         }
       },
-      "deviation": 8.13,
+      "deviation": 8.11,
       "tokens": {
         "flare": 22.99,
-        "graphite": 4.34,
-        "bone": 32.19,
+        "graphite": 4.35,
+        "bone": 32.18,
         "espresso": 33.74,
         "sand": 1.87,
         "fog": 0.00,
@@ -1642,12 +1654,12 @@
         "count": 7,
         "mean": {
           "field": 56.90,
-          "bone": 33.96,
-          "graphite": 7.17,
+          "bone": 33.95,
+          "graphite": 7.18,
           "accent": 1.97
         },
-        "meanDeviation": 7.92,
-        "inkOnPaper": 17.45,
+        "meanDeviation": 7.90,
+        "inkOnPaper": 17.48,
         "worst": {
           "top": 4060,
           "deviation": 32.80
@@ -1700,11 +1712,11 @@
             "top": 3248,
             "pct": {
               "field": 48.70,
-              "bone": 44.00,
-              "graphite": 7.18,
+              "bone": 43.93,
+              "graphite": 7.26,
               "accent": 0.11
             },
-            "deviation": 28.01
+            "deviation": 27.86
           },
           {
             "top": 4060,
@@ -1741,53 +1753,53 @@
       "state": "fresh",
       "dimensions": {
         "width": 1440,
-        "height": 4773
+        "height": 4809
       },
       "pixels": {
-        "total": 6873120
+        "total": 6924960
       },
       "buckets": {
         "field": {
-          "pixels": 4491192,
-          "pct": 65.34
+          "pixels": 4369762,
+          "pct": 63.10
         },
         "bone": {
-          "pixels": 1985548,
-          "pct": 28.89
+          "pixels": 2149699,
+          "pct": 31.04
         },
         "graphite": {
-          "pixels": 285847,
-          "pct": 4.16
+          "pixels": 294961,
+          "pct": 4.26
         },
         "accent": {
-          "pixels": 110533,
-          "pct": 1.61
+          "pixels": 110538,
+          "pct": 1.60
         }
       },
-      "deviation": 10.69,
+      "deviation": 8.29,
       "tokens": {
-        "flare": 27.57,
-        "graphite": 2.59,
-        "bone": 16.75,
-        "espresso": 37.78,
-        "sand": 12.14,
+        "flare": 25.86,
+        "graphite": 2.70,
+        "bone": 18.99,
+        "espresso": 37.25,
+        "sand": 12.05,
         "fog": 0.00,
         "void": 0.00,
         "acid": 0.08,
-        "marigold": 1.45,
+        "marigold": 1.44,
         "cobalt": 0.00,
         "signal": 0.06,
         "moss": 0.02,
         "spec:676562": 0.40,
         "spec-sunken:535250": 0.16,
-        "spec:b8aaa4": 0.44,
-        "spec-sunken:ccbeb8": 0.32,
-        "spec:4e4f49": 0.06,
-        "spec-sunken:40413d": 0.21
+        "spec:b8aaa4": 0.43,
+        "spec-sunken:ccbeb8": 0.31,
+        "spec:4e4f49": 0.05,
+        "spec-sunken:40413d": 0.20
       },
       "strays": {
         "pctOverDeltaE12": 0.25,
-        "meanDeltaE": 0.26,
+        "meanDeltaE": 0.25,
         "top": [
           {
             "hex": "#8e8885",
@@ -1802,16 +1814,16 @@
             "deltaE": 13.58
           },
           {
-            "hex": "#f69c80",
-            "pct": 0.01,
-            "nearest": "spec:b8aaa4",
-            "deltaE": 35.78
-          },
-          {
             "hex": "#c5390f",
             "pct": 0.01,
             "nearest": "signal",
             "deltaE": 17.30
+          },
+          {
+            "hex": "#f69c80",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 35.78
           },
           {
             "hex": "#918b87",
@@ -1823,19 +1835,19 @@
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 6.82,
+            "pct": 6.77,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 3.65,
+            "pct": 3.62,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 2.57,
+            "pct": 2.55,
             "nearest": "flare",
             "deltaE": 1.21
           },
@@ -1857,21 +1869,18 @@
         "viewportHeight": 900,
         "count": 6,
         "mean": {
-          "field": 67.16,
-          "bone": 27.19,
-          "graphite": 4.21,
+          "field": 63.59,
+          "bone": 30.62,
+          "graphite": 4.35,
           "accent": 1.44
         },
-        "meanDeviation": 14.32,
-        "inkOnPaper": 12.58,
+        "meanDeviation": 8.42,
+        "inkOnPaper": 12.07,
         "worst": {
-          "top": 3873,
-          "deviation": 46.69
+          "top": 2700,
+          "deviation": 44.27
         },
-        "breaches": [
-          "window @900: field 81.04 over the 80 band",
-          "window @3873: bone 10.64 under the 15 band"
-        ],
+        "breaches": [],
         "windows": [
           {
             "top": 0,
@@ -1886,52 +1895,52 @@
           {
             "top": 900,
             "pct": {
-              "field": 81.04,
-              "bone": 15.57,
-              "graphite": 2.93,
+              "field": 76.00,
+              "bone": 20.09,
+              "graphite": 3.45,
               "accent": 0.47
             },
-            "deviation": 42.08
+            "deviation": 31.99
           },
           {
             "top": 1800,
             "pct": {
-              "field": 68.91,
-              "bone": 27.20,
-              "graphite": 3.88,
+              "field": 71.55,
+              "bone": 25.01,
+              "graphite": 3.44,
               "accent": 0.00
             },
-            "deviation": 17.83
+            "deviation": 23.09
           },
           {
             "top": 2700,
             "pct": {
-              "field": 44.57,
-              "bone": 50.82,
-              "graphite": 4.56,
+              "field": 42.78,
+              "bone": 52.13,
+              "graphite": 5.03,
               "accent": 0.05
             },
-            "deviation": 41.64
+            "deviation": 44.27
           },
           {
             "top": 3600,
             "pct": {
-              "field": 68.38,
-              "bone": 27.44,
-              "graphite": 4.05,
+              "field": 59.21,
+              "bone": 36.45,
+              "graphite": 4.21,
               "accent": 0.13
             },
-            "deviation": 16.75
+            "deviation": 12.91
           },
           {
-            "top": 3873,
+            "top": 3909,
             "pct": {
-              "field": 77.48,
-              "bone": 10.64,
-              "graphite": 4.01,
+              "field": 69.43,
+              "bone": 18.55,
+              "graphite": 4.15,
               "accent": 7.87
             },
-            "deviation": 46.69
+            "deviation": 30.59
           }
         ]
       },
@@ -1948,53 +1957,53 @@
       "state": "fresh",
       "dimensions": {
         "width": 1440,
-        "height": 4773
+        "height": 4809
       },
       "pixels": {
-        "total": 6873120
+        "total": 6924960
       },
       "buckets": {
         "field": {
-          "pixels": 4491192,
-          "pct": 65.34
+          "pixels": 4369762,
+          "pct": 63.10
         },
         "bone": {
-          "pixels": 1985548,
-          "pct": 28.89
+          "pixels": 2149699,
+          "pct": 31.04
         },
         "graphite": {
-          "pixels": 285847,
-          "pct": 4.16
+          "pixels": 294961,
+          "pct": 4.26
         },
         "accent": {
-          "pixels": 110533,
-          "pct": 1.61
+          "pixels": 110538,
+          "pct": 1.60
         }
       },
-      "deviation": 10.69,
+      "deviation": 8.29,
       "tokens": {
-        "flare": 27.57,
-        "graphite": 2.59,
-        "bone": 16.75,
-        "espresso": 37.78,
-        "sand": 12.14,
+        "flare": 25.86,
+        "graphite": 2.70,
+        "bone": 18.99,
+        "espresso": 37.25,
+        "sand": 12.05,
         "fog": 0.00,
         "void": 0.00,
         "acid": 0.08,
-        "marigold": 1.45,
+        "marigold": 1.44,
         "cobalt": 0.00,
         "signal": 0.06,
         "moss": 0.02,
         "spec:676562": 0.40,
         "spec-sunken:535250": 0.16,
-        "spec:b8aaa4": 0.44,
-        "spec-sunken:ccbeb8": 0.32,
-        "spec:4e4f49": 0.06,
-        "spec-sunken:40413d": 0.21
+        "spec:b8aaa4": 0.43,
+        "spec-sunken:ccbeb8": 0.31,
+        "spec:4e4f49": 0.05,
+        "spec-sunken:40413d": 0.20
       },
       "strays": {
         "pctOverDeltaE12": 0.25,
-        "meanDeltaE": 0.26,
+        "meanDeltaE": 0.25,
         "top": [
           {
             "hex": "#8e8885",
@@ -2009,16 +2018,16 @@
             "deltaE": 13.58
           },
           {
-            "hex": "#f69c80",
-            "pct": 0.01,
-            "nearest": "spec:b8aaa4",
-            "deltaE": 35.78
-          },
-          {
             "hex": "#c5390f",
             "pct": 0.01,
             "nearest": "signal",
             "deltaE": 17.30
+          },
+          {
+            "hex": "#f69c80",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 35.78
           },
           {
             "hex": "#918b87",
@@ -2030,19 +2039,19 @@
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 6.82,
+            "pct": 6.77,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 3.65,
+            "pct": 3.62,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 2.57,
+            "pct": 2.55,
             "nearest": "flare",
             "deltaE": 1.21
           },
@@ -2064,21 +2073,18 @@
         "viewportHeight": 900,
         "count": 6,
         "mean": {
-          "field": 67.16,
-          "bone": 27.19,
-          "graphite": 4.21,
+          "field": 63.59,
+          "bone": 30.62,
+          "graphite": 4.35,
           "accent": 1.44
         },
-        "meanDeviation": 14.32,
-        "inkOnPaper": 12.58,
+        "meanDeviation": 8.42,
+        "inkOnPaper": 12.07,
         "worst": {
-          "top": 3873,
-          "deviation": 46.69
+          "top": 2700,
+          "deviation": 44.27
         },
-        "breaches": [
-          "window @900: field 81.04 over the 80 band",
-          "window @3873: bone 10.64 under the 15 band"
-        ],
+        "breaches": [],
         "windows": [
           {
             "top": 0,
@@ -2093,52 +2099,52 @@
           {
             "top": 900,
             "pct": {
-              "field": 81.04,
-              "bone": 15.57,
-              "graphite": 2.93,
+              "field": 76.00,
+              "bone": 20.09,
+              "graphite": 3.45,
               "accent": 0.47
             },
-            "deviation": 42.08
+            "deviation": 31.99
           },
           {
             "top": 1800,
             "pct": {
-              "field": 68.91,
-              "bone": 27.20,
-              "graphite": 3.88,
+              "field": 71.55,
+              "bone": 25.01,
+              "graphite": 3.44,
               "accent": 0.00
             },
-            "deviation": 17.83
+            "deviation": 23.09
           },
           {
             "top": 2700,
             "pct": {
-              "field": 44.57,
-              "bone": 50.82,
-              "graphite": 4.56,
+              "field": 42.78,
+              "bone": 52.13,
+              "graphite": 5.03,
               "accent": 0.05
             },
-            "deviation": 41.64
+            "deviation": 44.27
           },
           {
             "top": 3600,
             "pct": {
-              "field": 68.38,
-              "bone": 27.44,
-              "graphite": 4.05,
+              "field": 59.21,
+              "bone": 36.45,
+              "graphite": 4.21,
               "accent": 0.13
             },
-            "deviation": 16.75
+            "deviation": 12.91
           },
           {
-            "top": 3873,
+            "top": 3909,
             "pct": {
-              "field": 77.48,
-              "bone": 10.64,
-              "graphite": 4.01,
+              "field": 69.43,
+              "bone": 18.55,
+              "graphite": 4.15,
               "accent": 7.87
             },
-            "deviation": 46.69
+            "deviation": 30.59
           }
         ]
       },
@@ -2166,11 +2172,11 @@
           "pct": 58.05
         },
         "bone": {
-          "pixels": 848347,
+          "pixels": 848351,
           "pct": 32.84
         },
         "graphite": {
-          "pixels": 198599,
+          "pixels": 198595,
           "pct": 7.69
         },
         "accent": {
@@ -2192,7 +2198,7 @@
         "cobalt": 0.00,
         "signal": 0.07,
         "moss": 0.05,
-        "spec:676562": 1.06,
+        "spec:676562": 1.05,
         "spec-sunken:535250": 0.31,
         "spec:b8aaa4": 1.16,
         "spec-sunken:ccbeb8": 0.86,
@@ -2400,11 +2406,11 @@
           "pct": 55.70
         },
         "bone": {
-          "pixels": 907635,
+          "pixels": 907639,
           "pct": 35.13
         },
         "graphite": {
-          "pixels": 199862,
+          "pixels": 199858,
           "pct": 7.74
         },
         "accent": {
@@ -2429,7 +2435,7 @@
         "spec:676562": 1.07,
         "spec-sunken:535250": 0.31,
         "spec:b8aaa4": 1.14,
-        "spec-sunken:ccbeb8": 0.89,
+        "spec-sunken:ccbeb8": 0.88,
         "spec:4e4f49": 0.13,
         "spec-sunken:40413d": 0.53
       },

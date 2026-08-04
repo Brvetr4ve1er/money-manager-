@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { appReducer } from './reducer.ts'
-import { XP_REWARDS } from '../engine/xp.ts'
+import { XP_REWARDS, xpFromLog } from '../engine/xp.ts'
 import {
   defaultState,
   NOTE_MAX_LEN,
@@ -170,6 +170,49 @@ describe('UNDO_TX', () => {
     expect(s.transactions).toHaveLength(4)
   })
 
+  it('takes off what the FOLD paid, not the grant’s face value, after a merge', () => {
+    // THE ONLY WAY AN OVER-CAP GRANT REACHES THE LOG IS A MERGE. Inside one
+    // tab LOG_TX refuses to write the third resist grant at all, so the log
+    // never holds more than the cap. Two tabs that never saw each other each
+    // write two, and the union holds four while xpFromLog — the authority —
+    // pays for two.
+    // Subtracting grant.amount there took 50 XP off a counter that had never
+    // been paid it: the visible total dropped below the evidence, saveState
+    // persisted the smaller number, and sanitizeState put it back at the next
+    // load. A counter that falls and silently jumps back is the one thing the
+    // two-track rule's engagement side must never do (store.ts, the xpLog cap
+    // note).
+    const resist = (id: string) => tx({ id, amountDA: 0, resistedImpulse: true, date: '2026-08-04' })
+    let a = defaultState()
+    let b = defaultState()
+    for (const id of ['r0', 'r1']) a = appReducer(a, { type: 'LOG_TX', tx: resist(id) })
+    for (const id of ['r2', 'r3']) b = appReducer(b, { type: 'LOG_TX', tx: resist(id) })
+    const merged = appReducer(a, { type: 'HYDRATE', incoming: b })
+    expect(merged.xpLog.filter((g) => g.action === 'resistImpulse')).toHaveLength(4)
+    expect(merged.xp.totalXp).toBe(100)
+
+    // Undo any one of the four. Three grants remain, the cap still pays two,
+    // so the counter does not move.
+    for (const id of ['r0', 'r1', 'r2', 'r3']) {
+      const undone = appReducer(merged, { type: 'UNDO_TX', id })
+      expect(undone.transactions).toHaveLength(3)
+      expect(undone.xpLog.filter((g) => g.action === 'resistImpulse')).toHaveLength(3)
+      expect(undone.xp.totalXp).toBe(100)
+      // The counter and the evidence agree, so a reload changes nothing —
+      // which is the property that was actually broken.
+      expect(xpFromLog(undone.xpLog).totalXp).toBe(100)
+      expect(sanitizeState(JSON.parse(JSON.stringify(undone))).xp.totalXp).toBe(100)
+    }
+
+    // …and once the log is back under the cap the subtraction is ordinary
+    // again: two grants left, undo one, 50 XP leaves.
+    let down = appReducer(merged, { type: 'UNDO_TX', id: 'r0' })
+    down = appReducer(down, { type: 'UNDO_TX', id: 'r1' })
+    expect(down.xp.totalXp).toBe(100)
+    down = appReducer(down, { type: 'UNDO_TX', id: 'r2' })
+    expect(down.xp.totalXp).toBe(50)
+  })
+
   it('scopes the grant cap to the day, not to the whole log', () => {
     // The guard against "count the evidence" quietly becoming "count all the
     // evidence": yesterday's grants must not spend today's slots.
@@ -241,6 +284,44 @@ describe('READ_LESSON', () => {
     // …and the codex keeps the FIRST read date, which is what lessonForDay's
     // no-repeat rotation keys off.
     expect(later.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
+  })
+
+  it('honours the PREVIOUS build’s grant id, so the upgrade day pays once', () => {
+    // The quest deletion renamed the daily grant ids without a migration:
+    // a payload written by the old build carries `quest:lesson:<day>`, and
+    // sanitizeState preserves those grants on purpose. A guard that only knew
+    // `lesson:<day>` did not see yesterday's payment, so the upgrade day paid
+    // twice — 30 XP for one read, with both grants sitting in the log.
+    const loaded = sanitizeState({
+      ...defaultState(),
+      xp: { level: 1, xpIntoLevel: 30, totalXp: 30 },
+      xpLog: [
+        { id: 'quest:lesson:2026-08-04', action: 'readLesson', amount: 15, date: '2026-08-04' },
+        { id: 'quest:sim:2026-08-04', action: 'runSimulation', amount: 15, date: '2026-08-04' },
+      ],
+    })
+    expect(loaded.xp.totalXp).toBe(30)
+    const read = appReducer(loaded, {
+      type: 'READ_LESSON',
+      id: 'budget-sketch',
+      date: '2026-08-04',
+    })
+    expect(read.xp.totalXp).toBe(30)
+    expect(read.xpLog.map((g) => g.id)).toEqual([
+      'quest:lesson:2026-08-04',
+      'quest:sim:2026-08-04',
+    ])
+    // …and the lesson still lands in the codex: collection and payment are two
+    // guards, and only the payment one is migrated.
+    expect(read.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-04' }])
+    // The next day is a fresh id under the NEW scheme and pays normally.
+    const tomorrow = appReducer(read, {
+      type: 'READ_LESSON',
+      id: 'track-first',
+      date: '2026-08-05',
+    })
+    expect(tomorrow.xp.totalXp).toBe(45)
+    expect(tomorrow.xpLog.some((g) => g.id === 'lesson:2026-08-05')).toBe(true)
   })
 
   it('keeps the original first-read date on a repeat read (rotation keys off it)', () => {
@@ -498,6 +579,24 @@ describe('the decision record', () => {
     })
     expect(tomorrow.xp.totalXp).toBe(XP_REWARDS.runSimulation * 2)
     expect(tomorrow.xpLog.map((g) => g.id)).toEqual(['sim:2026-08-04', 'sim:2026-08-05'])
+  })
+
+  it('honours the PREVIOUS build’s sim grant id too', () => {
+    // Same migration as READ_LESSON's: `quest:sim:<day>` was the id the deleted
+    // quest minted, sanitizeState keeps those grants, so the upgrade day would
+    // otherwise pay the simulator twice. The RECORD still files — only the
+    // grant is capped.
+    const loaded = sanitizeState({
+      ...defaultState(),
+      xp: { level: 1, xpIntoLevel: 15, totalXp: 15 },
+      xpLog: [
+        { id: 'quest:sim:2026-08-04', action: 'runSimulation', amount: 15, date: '2026-08-04' },
+      ],
+    })
+    const next = appReducer(loaded, { type: 'RUN_SIM', decision: decision() })
+    expect(next.decisions.map((d) => d.id)).toEqual(['d1'])
+    expect(next.xp.totalXp).toBe(15)
+    expect(next.xpLog.map((g) => g.id)).toEqual(['quest:sim:2026-08-04'])
   })
 
   it('re-validates the decision on the way in, like PROFILE_SET does', () => {

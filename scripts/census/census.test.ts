@@ -546,9 +546,9 @@ describe('the fixtures do not rot', () => {
  * The finding that produced it, and the reason this exists at all: the
  * document average is the arithmetic mean of regimes that never appear
  * together. app.375x812.light.seeded in docs/brand/census.json reads 56.73
- * field / 34.07 Bone over the whole document, while its seven viewport windows
+ * field / 34.05 Bone over the whole document, while its seven viewport windows
  * run 59.41, 49.05, 68.84, 53.43, 48.70, 44.92 and 73.98 percent field.
- * Nobody sees 56.73/34.07. So the windows are measured too, and where the two
+ * Nobody sees 56.73/34.05. So the windows are measured too, and where the two
  * disagree the windows are the truth.
  *
  * WHAT THAT ROW LOOKED LIKE WHEN THIS TOOL FOUND IT, stamped: on the clean tree

@@ -6,7 +6,13 @@
  * them in dev, and sounds/toasts fire from effects that watch the results.
  */
 
-import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS, xpStateFromTotal } from '../engine/xp.ts'
+import {
+  grantXp,
+  RESIST_XP_DAILY_CAP,
+  XP_REWARDS,
+  xpFromLog,
+  xpStateFromTotal,
+} from '../engine/xp.ts'
 import { bossGrantId } from '../engine/boss.ts'
 import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 import type { Stage } from '../engine/healthScore.ts'
@@ -128,11 +134,28 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // the grant evidence (sanitizeState reconciles the two at every load).
       // A resist past the daily cap granted nothing, so only the row leaves.
       // Multi-tab: a peer still holding the tx re-adds it via the union merge;
-      // a second undo works the same way. Quest flags and badges earned off
-      // the logged state stay — neither is money data, and badges pay no XP.
+      // a second undo works the same way. Badges earned off the logged state
+      // stay — they are not money data, and they pay no XP.
+      //
+      // WHAT LEAVES THE COUNTER IS WHAT THE FOLD ACTUALLY PAID, NOT THE
+      // GRANT'S NOMINAL AMOUNT, and the difference is only visible after a
+      // merge. xpFromLog re-applies RESIST_XP_DAILY_CAP over the WHOLE log, so
+      // a union of two tabs that each logged two resists on one day holds four
+      // `tx:*` resist grants and pays for two of them. Subtracting
+      // `grant.amount` there took 50 XP off a counter that had never been paid
+      // it: state.xp.totalXp fell to 50 while xpFromLog(state.xpLog) still
+      // folded to 100, saveState persisted 50, and sanitizeState restored 100
+      // at the next load — the counter visibly dropping and silently jumping
+      // back. store.ts (see the xpLog cap note) names that as the one thing
+      // the two-track rule's engagement side must never do.
+      // Differencing the authoritative fold is exact by construction: for an
+      // uncapped grant it equals grant.amount, and for a grant the cap swallowed
+      // it is 0, so the counter holds.
       if (!state.transactions.some((t) => t.id === action.id)) return state
       const grantId = `tx:${action.id}`
       const grant = state.xpLog.find((g) => g.id === grantId)
+      const nextLog = grant ? state.xpLog.filter((g) => g.id !== grantId) : state.xpLog
+      const paid = grant ? xpFromLog(state.xpLog).totalXp - xpFromLog(nextLog).totalXp : 0
       return {
         ...state,
         // The row is gone, so the decision's pointer to it is gone with it —
@@ -148,8 +171,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             })
           : state.decisions,
         transactions: state.transactions.filter((t) => t.id !== action.id),
-        xp: grant ? xpStateFromTotal(Math.max(0, state.xp.totalXp - grant.amount)) : state.xp,
-        xpLog: grant ? state.xpLog.filter((g) => g.id !== grantId) : state.xpLog,
+        xp: grant ? xpStateFromTotal(Math.max(0, state.xp.totalXp - paid)) : state.xp,
+        xpLog: nextLog,
       }
     }
     case 'READ_LESSON': {
@@ -169,9 +192,21 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // IS the persistence, so a StrictMode double-dispatch, a double tap, a
       // reload and a peer tab claiming the same day (grant logs union by id in
       // mergeStates) all pay exactly once, with no extra state field.
+      //
+      // THE OLD ID IS STILL HONOURED AS PAYMENT, FOR ONE RELEASE. A payload
+      // written by the previous build carries `quest:lesson:<day>`, and
+      // sanitizeState deliberately preserves those grants (see store.ts —
+      // "the GRANTS those quests minted keep folding at full value"). A guard
+      // that only knew the new id would not see yesterday's payment, so the
+      // day a user upgrades would pay the lesson twice: 30 XP minted for one
+      // read, engagement track, once. `legacyGrantId` below is the same day key
+      // under the old prefix, so the deterministic-id promise above ("a reload
+      // and a peer tab claiming the same day all pay exactly once") holds
+      // across the schema change too.
       if (!LESSON_IDS.has(action.id)) return state
       const grantId = `lesson:${action.date}`
-      const paid = state.xpLog.some((g) => g.id === grantId)
+      const legacyGrantId = `quest:lesson:${action.date}`
+      const paid = state.xpLog.some((g) => g.id === grantId || g.id === legacyGrantId)
       const collected = state.lessonsSeen.some((e) => e.id === action.id)
       if (paid && collected) return state
       const lessonsSeen = collected
@@ -285,8 +320,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       if (decision === null) return state
       if (state.decisions.some((d) => d.id === decision.id)) return state
       const decisions = canonicalDecisions([decision, ...state.decisions])
+      // The legacy `quest:sim:<day>` id counts as payment for the same reason
+      // READ_LESSON honours `quest:lesson:<day>` — see the note there.
       const grantId = `sim:${decision.date}`
-      if (state.xpLog.some((g) => g.id === grantId)) return { ...state, decisions }
+      const legacyGrantId = `quest:sim:${decision.date}`
+      if (state.xpLog.some((g) => g.id === grantId || g.id === legacyGrantId)) {
+        return { ...state, decisions }
+      }
       return {
         ...state,
         decisions,
@@ -306,7 +346,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // What happened, recorded once. Only an OPEN decision closes: a second
       // dispatch before re-render (double tap, StrictMode) sees a closed row
       // and is a no-op, and a peer tab's answer is never overwritten by a
-      // stale one — the same atomic guard COMPLETE_QUEST uses.
+      // stale one — the same read-the-state-first guard BOSS_VICTORY and
+      // ANSWER_CHECK_BACK use.
       //
       // NO XP, NO HEALTH INPUT (§12.1). Nothing here touches xp, xpLog,
       // prevHealthScore or transactions. The resist branch's money event is an
@@ -330,10 +371,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // answered accepts one: a second dispatch before re-render (double tap,
       // StrictMode) sees a filled `checkBack` and is a no-op, and a peer tab's
       // answer is never overwritten by a stale one — the same atomic guard
-      // CLOSE_DECISION and COMPLETE_QUEST use.
+      // CLOSE_DECISION and BOSS_VICTORY use.
       //
       // NO XP, NO HEALTH INPUT, NO TALLY (§12.1). Nothing here touches xp,
-      // xpLog, transactions, prevHealthScore, stage or quests, and there is no
+      // xpLog, transactions, prevHealthScore or stage, and there is no
       // counter anywhere that this increments. Answering is the whole event:
       // the record files what the user said and stops (§7.1).
       //

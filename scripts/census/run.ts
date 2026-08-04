@@ -582,6 +582,33 @@ async function main(): Promise<void> {
   for (const line of formatDiff(committed, census)) console.log(line)
   writeFileSync(new URL(options.out, REPO_ROOT), serialiseCensus(census))
   console.log(`\ncensus: wrote ${options.out}`)
+
+  // THE CLEAN RE-STAMP, PROMPTED RATHER THAN REMEMBERED.
+  //
+  // Every artifact this repo has shipped except one was written from a dirty
+  // tree, so tree.sha named the PARENT commit and tree.dirtyPaths listed files
+  // that were committed moments later. inputsHash keeps the numbers honest —
+  // it is content-based, so nothing goes stale — but the one field a reader
+  // would use to verify them points at the wrong commit. Commit 96b728b fixed
+  // it once, by hand, and it drifted back three times in the round after.
+  //
+  // A rule that needs somebody to remember it is the failure mode this whole
+  // tool exists to end, so the tool says it. The write is the right moment:
+  // the run has just finished and the next action is the commit.
+  if (census.tree.dirty) {
+    const onlyArtifact =
+      census.tree.dirtyPaths.length === 1 && census.tree.dirtyPaths[0] === options.out
+    console.log(
+      onlyArtifact
+        ? `census: tree.sha is ${census.tree.sha.slice(0, 7)} with dirty:true, and ${options.out} ` +
+            'is the only dirty path — so this stamp already describes the committed tree in ' +
+            'everything but the flag. Commit it and you are done.'
+        : `census: tree.sha is ${census.tree.sha.slice(0, 7)} with dirty:true, so this artifact ` +
+            'names a tree that was never committed. AFTER the round\'s last commit, re-run ' +
+            '`npm run census` on the clean tree and commit the re-stamped file — the numbers will ' +
+            'not move, only the provenance. See docs/brand/DESIGN-SYSTEM.md §2.1b.',
+    )
+  }
 }
 
 function readCommitted(path: string): Census | null {

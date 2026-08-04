@@ -114,8 +114,11 @@ export function HeroCard({
           )}
         </div>
         {/* CONSTRAINT §2.1b — the readout column takes the counter plate too.
-            The h2 alone left window @0 at 80.40% field / 11.67% Bone in dark
-            (measured, tree with the title plates only): 300px of Flare topbar
+            The h2 alone left window @0 at 80.40% field / 11.67% Bone in dark —
+            a counterfactual, measured during round 6 on the tree committed as
+            12bbf5e with only the two title plates live, so it is in no
+            committed artifact and can only be re-derived by re-running the
+            census with this plate removed. 300px of Flare topbar
             and an Espresso card is one ground for a whole viewport. This is the
             hero's only accent-free block — .stage-col beside it holds the stage
             badge, a persistent accent fill. See .counter-plate in tokens.css. */}
@@ -192,14 +195,18 @@ export function HeroCard({
           aria-hidden: it is the disclosure. */}
       {/* CONSTRAINT §2.1b — THE CARD'S FOOT TAKES THE COUNTER PLATE, and this is
           the head of the stack, which is the half of the phone the plates had
-          not reached. docs/brand/census.json at tree 12bbf5e read
+          not reached. The census COMMITTED AT 12bbf5e — the carrier commit, not
+          the sha in its tree field, which names its dirty parent — read
           app.375x812.dark.seeded window @0 at 74.65% field / 16.91% Bone: 276px
           of Flare topbar and a 463px Espresso card, with only the title and the
-          readout carrying a plate between them. Its light twin read 53.00 /
-          36.24 on the same DOM — the two themes as exact mirrors, one 14.65pp
-          over the 60 target and the other 7.00 under. A plate is the ground's
+          readout carrying a plate between them. Its light twin read 52.95 /
+          36.19 on the same DOM — the two themes as exact mirrors, one 14.65pp
+          over the 60 target and the other 7.05 under. A plate is the ground's
           OPPOSITE, so one block moves both the right way at once, and it did:
-          66.03 / 25.30 in dark, 59.44 / 30.28 in light.
+          66.01 / 25.28 in dark, 59.41 / 30.30 in light (the artifact committed
+          at 80f643d, and unchanged at dc529fb). The figures are copied out of
+          the artifact rather than off a --diff console line — the earlier
+          53.00 / 36.24 and 66.03 / 25.30 were in no file anybody could check.
           THE DISCLOSURE AND THE CONTROL ARE ONE BLOCK because they are one
           thought — what this number is still missing, and the button that
           opens what it is made of. The drawer stays OUTSIDE: it is conditional

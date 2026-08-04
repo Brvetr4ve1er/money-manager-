@@ -66,9 +66,9 @@ export function longestLogStreak(transactions: Transaction[]): number {
 /**
  * The canonical roster. Predicates read only persisted evidence, so every
  * unlock survives reload and merges identically in any tab:
- * - simulation / boss-win badges key off the xpLog (the verified sim quest is
- *   the sole runSimulation grant vehicle, BOSS_VICTORY the sole weeklyBoss
- *   one — the append-only evidence log doubles as the achievement record);
+ * - simulation / boss-win badges key off the xpLog (RUN_SIM is the sole
+ *   runSimulation grant vehicle, BOSS_VICTORY the sole weeklyBoss one — the
+ *   append-only evidence log doubles as the achievement record);
  * - level badges read the xp counter, itself rebuilt from that log;
  * - the rest count transactions / codex entries directly.
  */

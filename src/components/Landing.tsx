@@ -12,6 +12,7 @@ import {
   CHECK_BACK_DAYS,
 } from '../state/store.ts'
 import { NOTE_DENOMINATIONS_DA } from '../engine/keypad.ts'
+import { CALIBRATION_DAYS } from '../engine/profile.ts'
 import { RESIST_LABEL } from './LogCard.tsx'
 import { sampleLedgerRows } from '../content/sampleLedger.ts'
 
@@ -269,13 +270,28 @@ export const HAND_OFF_LEAD = 'Ember logs the thing you did not buy.'
 
 /** The Trust Rules (§12) as the manifesto they are, in the Fabricator register.
     Each one is enforced somewhere in src/engine — this list is a mirror of the
-    code, not a promise about it. */
-const RULES = [
-  'XP measures showing up. The score measures money. One never feeds the other.',
-  'Nothing is for sale. Every badge and companion is earned.',
-  '"I bought it anyway" logs at full XP. Honesty is never punished.',
-  'Under 90 days the score says it is still calibrating.',
-  'Full export, always. No account. Your data leaves when you do.',
+    code, not a promise about it.
+
+    THE HORIZON IS READ, NOT TYPED, for the reason the header states: every
+    claim that CAN be bound is bound, because typed ones rot first. Trust Rule
+    5's number is CALIBRATION_DAYS in engine/profile.ts, and HeroCard already
+    renders it as "Day N / 90"; this page said "Under 90 days" as a literal, so
+    the day the constant moved the poster would have gone on promising the old
+    horizon. ReactNode rather than string, the same shape MECHANICS already
+    takes, and the key is an id rather than the text so an interpolated line
+    still has a stable one. */
+const RULES: ReadonlyArray<{ id: string; body: ReactNode }> = [
+  {
+    id: 'two-tracks',
+    body: 'XP measures showing up. The score measures money. One never feeds the other.',
+  },
+  { id: 'no-pay-to-win', body: 'Nothing is for sale. Every badge and companion is earned.' },
+  { id: 'honesty', body: '"I bought it anyway" logs at full XP. Honesty is never punished.' },
+  {
+    id: 'cold-start',
+    body: <>Under {CALIBRATION_DAYS} days the score says it is still calibrating.</>,
+  },
+  { id: 'export', body: 'Full export, always. No account. Your data leaves when you do.' },
 ]
 
 /**
@@ -665,8 +681,8 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
           <div className="lp-measure lp-rules-body">
             <ul className="lp-rules">
               {RULES.map((r) => (
-                <li className="lp-rule" key={r}>
-                  {r}
+                <li className="lp-rule" key={r.id}>
+                  {r.body}
                 </li>
               ))}
             </ul>

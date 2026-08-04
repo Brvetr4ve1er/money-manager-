@@ -876,6 +876,12 @@ export function sanitizeState(parsed: unknown): AppState {
   // those quests minted (`quest:<id>:<day>`) keep folding at full value —
   // XP_GRANT_ACTIONS still carries every action they used, so nothing the user
   // earned is retroactively un-paid (see reviewRecent in engine/xp.ts).
+  // THE TWO DEAD FIELDS ARE NOT THE WHOLE MIGRATION, and this sentence used to
+  // imply they were. Keeping those grants is only half of it: the reducer paths
+  // that replaced the quests changed the grant IDS too (`quest:lesson:<day>` ->
+  // `lesson:<day>`, `quest:sim:<day>` -> `sim:<day>`), so READ_LESSON and
+  // RUN_SIM accept the old id as payment as well as the new one. Without that
+  // the upgrade day would pay both — see the note at READ_LESSON in reducer.ts.
   if (Array.isArray(parsed.lessonsSeen)) {
     // Ids must exist in the canonical roster (a hand-added 'lesson31' would
     // inflate the codex count past its own denominator forever) and dates must

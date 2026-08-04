@@ -320,16 +320,23 @@
                              with margin", undated, and the committed artifact
                              disagreed by roughly 2x. Read the `void` figure of
                              app.375x812.dark.seeded and app.1440x900.dark.seeded
-                             in docs/brand/census.json — 4.79% and 1.76% at this
-                             tree, i.e. the phone sits 0.21pp under §2's 5% Void
-                             cap with NO margin at all. That is inside the cap,
-                             which is what this block needs; it is not a
-                             surplus, which is what the old sentence implied.
-                             This is the block that tells the next round it need
-                             not re-measure, so it must not be the one that is
-                             wrong. If a new surface takes --sunken by the
-                             screenful, re-run `npm run census` and read the
-                             row — do not trust this paragraph.
+                             in docs/brand/census.json — 1.86% and 1.04% in the
+                             artifact committed at dc529fb, i.e. the phone sits
+                             3.14pp under §2's 5% Void cap.
+                             AND THE MARGIN IS THE PART THAT MOVED. This block
+                             read "4.79% and 1.76% at this tree ... 0.21pp under
+                             the cap with NO margin at all" for two commits after
+                             those numbers stopped being true: they were the
+                             artifact at tree 71b5608 and they died when round 6
+                             deleted the quest tiles. The conclusion rested on
+                             them, so it goes with them — there IS margin now,
+                             and the reason to keep watching is not that the cap
+                             is nearly spent but that this is the block telling
+                             the next round it need not re-measure, which makes
+                             it the one that must not be wrong. If a new surface
+                             takes --sunken by the screenful, re-run
+                             `npm run census` and read the row — do not trust
+                             this paragraph.
 
                              It also returns Graphite to being THE FORM, which
                              is the only role §1 trait 06 gives it: in dark
@@ -821,12 +828,21 @@ h3 {
    surplus that big. Gated at 1024 this rule is not a fix, it is the same defect
    pointed the other way — it would take the one light desktop width that is
    already at law and drive it 12 points under. THE SURPLUS IS THE GUTTER, and
-   that is what 1400 names: .main-stack is capped at 1128px (app.css, >=1024),
-   so above that width every additional pixel of viewport becomes bare Flare
-   stage, and 1400 is 1128 plus 136px of it per side. Below 1400 the stage has
-   not yet grown enough to have anything to give back. Both sides of the gate
-   are censused rows (scripts/census/matrix.ts) so that sentence stays a
-   measured claim rather than an argued one.
+   that is what 1400 names: .main-stack is capped at 1080px of measure below
+   this width (app.css, >=1024), so above it every additional pixel of viewport
+   becomes bare Flare stage. Below 1400 the stage has not yet grown enough to
+   have anything to give back. Both sides of the gate are censused rows
+   (scripts/census/matrix.ts) so that sentence stays a measured claim rather
+   than an argued one.
+
+   THE SAME SURPLUS NOW PAYS FOR TWO THINGS, AND THE ARITHMETIC MOVED WITH IT.
+   app.css spends part of it at the same breakpoint by widening the measure to
+   1160 (see "the measure ladder gains its last rung"), so at 1440 the stage
+   keeps 116px per side rather than 156. The premise survives — there is still
+   bare stage either side, which is what this arm gives back to — but the
+   sentence that used to read "1400 is 1128 plus 136px of it per side" was
+   arithmetic about a stack width that has changed, and arithmetic is exactly
+   the kind of claim that rots silently.
 
    WHAT THAT LEAVES OPEN, STATED PLAINLY: 1280 light is now the worst light app
    width in the matrix (68.5 field, 8 over) and nothing here fixes it. The lever
@@ -871,8 +887,10 @@ h3 {
                 and card were all Espresso — 1.00:1, ΔRGB 0 — so the theme had
                 a role with no surface. Nothing about it is width-dependent.
      WIDTH ARM  a ratio-law GIVE-BACK, and its premise is the stage gutter:
-                .main-stack caps at 1128px, so 1400 is 1128 plus 136px of bare
-                Flare per side. Nothing about it is theme-dependent.
+                past 1400 the viewport grows and .main-stack does not, so every
+                extra pixel is bare Flare per side (at 1440, 116px each after
+                app.css's own ≥1400 measure rung). Nothing about it is
+                theme-dependent.
 
    THE SELECTOR ALSO MATCHES A SECOND SURFACE, AND THAT IS DELIBERATE RATHER
    THAN OVERSIGHT. The landing mounts a real <ArchiveCard> as its product shot
@@ -882,10 +900,16 @@ h3 {
    premise does not hold there — the obvious correction is to scope the width
    arm to .main-stack and let the shot run on the theme arm alone.
 
-   THAT CORRECTION WAS MEASURED AND IT IS WRONG. On this tree, scoped that way,
-   landing.1440x900.light.fresh window @900 reads 85.94% field / 10.78% Bone —
-   over §2.1b's 85 HARD CAP, where the shipped rule reads 82.42 / 14.15. The
-   shot is 560px wide inside a 1440px poster and it is the only Bone-family
+   THAT CORRECTION WAS MEASURED AND IT IS WRONG. Both halves of the comparison
+   below were measured on the tree committed as 12bbf5e, and they are stamped
+   rather than restated as current because a delta between two trees is not a
+   delta: scoped that way, landing.1440x900.light.fresh window @900 read 85.94%
+   field / 10.78% Bone — over §2.1b's 85 HARD CAP — against the 82.42 / 14.15
+   the unscoped rule read on the same tree. (The shipped figure has moved since:
+   the artifact committed at dc529fb reads 81.04 / 15.57 for that window. The
+   counterfactual has not been re-run against it, which is why the pair is
+   quoted as one stamped comparison and not as a claim about today.)
+   The shot is 560px wide inside a 1440px poster and it is the only Bone-family
    ground in that window; the arm that keeps it Sand is doing §2.1b's work on
    the landing for a reason the gutter argument never mentions. So the rule
    stays unscoped and the landing keeps the same outcome for its OWN reason,
@@ -921,12 +945,16 @@ h3 {
    at card granularity. At tree 71b5608 (docs/brand/census.json, the artifact
    this repo commits) app.375x812.light.seeded ran 5 of its 7 viewport windows
    outside the 35-80 field band and app.375x812.dark.seeded ran 7 of 7 — while
-   the DOCUMENT averages, 45.75/43.91 and 63.35/24.71, looked ordinary. Nobody
-   sees a document average.
+   the MEAN-OF-WINDOWS vectors, 45.75/43.91 and 63.40/24.70, looked ordinary.
+   THEY ARE NOT THE DOCUMENT AVERAGES and this block used to call them that:
+   the document readings at 71b5608 were 41.70/47.32 and 67.87/19.89. The two
+   statistics differing is the entire point of §2.1b, so the label matters more
+   here than anywhere else in the file. Nobody sees either one on a screen.
 
-   WHY THE CARD IS THE WRONG GRANULARITY. A window is 812px. The stack's cards
-   are 314-1058px, so a window holds one or two of them and a window sitting
-   inside SimCard (1058px, one card) holds exactly one ground no matter how the
+   WHY THE CARD IS THE WRONG GRANULARITY. A window is 812px. Measured in
+   Chromium at 375x812 on the seeded fixture at this tree, the stack's cards run
+   314-1165px, so a window holds one or two of them and a window sitting
+   inside SimCard (1165px, one card) holds exactly one ground no matter how the
    stack is ordered or re-grounded. Reordering was modelled and moves the
    breach rather than clearing it; the mid-document is short of field ground by
    roughly 450px in light and short of Bone ground by about the same in dark,
@@ -988,12 +1016,28 @@ h3 {
    stroke there would be Bone-on-Bone (light) or Graphite-on-Espresso (dark),
    i.e. 1:1 and 1.16:1: an invisible border is not a border.
 
-   .reading-plate DOES take one, because one of its three placements has no
-   fill offset to spend: inside the archive it is Bone on Espresso (13.4:1) in
-   light at <1400px and Espresso on Sand (9.4:1) in dark, but at >=1400px in
-   light the archive itself is Sand and Bone on Sand is 1.20:1. The 2px
-   --keyline is Graphite there — 9.5:1 on the Sand outside, 11.4:1 on the Bone
-   inside — so the boundary clears 3:1 in every one of the three cases.
+   .reading-plate DOES take one, and the reason is CONTOUR (§1 trait 05), not
+   rescue — which is a correction, because this paragraph used to claim the
+   keyline was the load-bearing edge in the >=1400px-light case and measurement
+   says it is not. What the two blocks actually produce, read off the rendered
+   DOM at each state:
+
+     light, <1400px   Bone plate on an Espresso sheet. Fill offset 13.4:1.
+                      --keyline is Graphite: 11.4:1 on the Bone inside,
+                      9.5:1 on the Espresso-ish sheet outside.
+     dark, any width  Espresso plate on a Sand sheet (the archive is Sand in
+     light, >=1400px  dark at any width and in either theme from 1400px up —
+                      see the counter-sheet block above). Fill offset 11.09:1,
+                      and THAT is the boundary. --keyline re-roles to --ink with
+                      the plate, so it is BONE here: 13.32:1 against the plate's
+                      own interior and 1.20:1 against the Sand outside.
+
+   So the fill offset carries all three cases on its own, over WCAG 1.4.11's
+   3:1 every time, and the keyline is the plate's interior contour rather than
+   the edge that separates it from the sheet. Do not drop the fill offset on the
+   grounds that "the keyline covers it" — in two of the three states it does
+   not, and Bone on Sand at 1.20:1 is the same invisible border this comment
+   refuses for .counter-plate one paragraph above.
 
    Both blocks re-declare every derived token for the reason .spec-sheet does:
    a custom property's var() references are substituted where it is DECLARED,
@@ -1055,8 +1099,14 @@ h3 {
    theme alone this rule left one combination — light at >=1400px — with a Bone
    plate on a Sand sheet, which is not an interruption at all: both are the
    Bone family, so the buckets do not alternate even though the hexes differ.
-   Measured at that state: app.1440x900.light.seeded window @3600 read 25.00%
-   field / 70.27% Bone, i.e. WORSE than the row it was meant to fix. */
+   Measured at that state, on the tree committed as 12bbf5e:
+   app.1440x900.light.seeded window @3600 read 25.00% field / 70.27% Bone, i.e.
+   WORSE than the row it was meant to fix. THE STAMP MATTERS HERE FOR A REASON
+   BEYOND HABIT: that row's windows were 0/900/1800/2700/3600/3701 then and are
+   0/900/1800/2700/3318 now — the document got shorter — so there is no @3600
+   window to check this against in the current artifact. Re-deriving it means
+   re-running the census with the plate keyed on theme alone, not reading a
+   row. */
 @media (prefers-color-scheme: dark), (min-width: 1400px) {
   .reading-plate {
     --ground: var(--espresso);

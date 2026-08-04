@@ -17,6 +17,7 @@ import {
   CHECK_BACK_DAYS,
 } from './state/store.ts'
 import { NOTE_DENOMINATIONS_DA } from './engine/keypad.ts'
+import { CALIBRATION_DAYS } from './engine/profile.ts'
 import { LESSONS } from './content/lessons.ts'
 import { ACHIEVEMENTS } from './engine/achievements.ts'
 
@@ -145,6 +146,16 @@ describe('every number in the README is the number in the code', () => {
     // describing a different feature.
     expect(FLAT).toContain('It never asks whether it was worth it')
     expect(FLAT).toContain('It never counts the answers')
+  })
+
+  it('states the calibration horizon the engine actually uses', () => {
+    // Trust Rule 5's number. It was typed as a literal 90 in README.md and in
+    // the landing's rules band while CALIBRATION_DAYS lived in engine/profile
+    // and HeroCard rendered it — three copies, one of them bound. Same rule as
+    // the note cap and the check-back horizon: a number is a value, so it is
+    // read from the code. The landing interpolates the constant now; this is
+    // the README's copy of it.
+    expect(FLAT).toContain(`Under ${CALIBRATION_DAYS} days it says it is still calibrating`)
   })
 
   it('states the record depth the store actually keeps', () => {
@@ -395,6 +406,95 @@ describe('every file and component the claim surfaces point at exists', () => {
         expect(`${name} -> ${p}: ${exists}`).toBe(`${name} -> ${p}: true`)
       }
     }
+  })
+})
+
+/**
+ * THE ENGINE AND STATE HEADERS ARE A CLAIM SURFACE TOO, and the round-6 quest
+ * deletion proved it: `DEFAULT_QUESTS` survived its own deletion in four
+ * comment sites across engine/xp.ts and engine/achievements.ts — the two files
+ * whose headers ARE the spec for the grant rules — because the claim-surface
+ * check above walks only README.md, index.html and Landing.tsx. A pointer at a
+ * constant that no longer exists is the same defect as a pointer at a deleted
+ * component, one level down, and "a human has to remember" is the failure mode
+ * this whole file was written to end.
+ *
+ * The subject is the SCREAMING_SNAKE register only. That is the codebase's own
+ * spelling for a module constant or a reducer action type, so it is a pointer
+ * by construction, where a lower-case word in prose may just be English.
+ */
+describe('every constant the engine and state headers point at exists', () => {
+  const walk = (dir: URL, out: URL[] = []): URL[] => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) walk(new URL(`${entry.name}/`, dir), out)
+      else if (/\.tsx?$/.test(entry.name)) out.push(new URL(entry.name, dir))
+    }
+    return out
+  }
+  const SRC = walk(new URL('.', import.meta.url))
+
+  /** Everything a SCREAMING_SNAKE name in a comment could legitimately mean:
+      a declaration anywhere under src/ (exported or not — a header may explain
+      its own file's private constant) and every single-quoted string literal,
+      which is how reducer action types like LOG_TX are spelled.
+
+      TESTS ARE NOT A SOURCE OF TRUTH HERE, and leaving them in made the roster
+      self-satisfying: this file names DEFAULT_QUESTS in its own control below,
+      which would have re-declared the very symbol the control asserts is gone. */
+  const DECLARED = (() => {
+    const names = new Set<string>()
+    for (const file of SRC.filter((u) => !/\.test\.tsx?$/.test(u.pathname))) {
+      const text = readFileSync(file, 'utf8')
+      for (const m of text.matchAll(
+        /(?:const|let|var|function|class|type|interface|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/g,
+      )) {
+        names.add(m[1])
+      }
+      for (const m of text.matchAll(/'([^'\\\n]*)'/g)) names.add(m[1])
+    }
+    return names
+  })()
+
+  /** Comment blocks and runs of line comments, in the spec files themselves. */
+  const HEADERED = SRC.filter((u) => /\/(engine|state)\/[^/]+\.ts$/.test(u.pathname) && !u.pathname.includes('.test.'))
+
+  it('resolves every SCREAMING_SNAKE pointer, or says the thing is gone', () => {
+    // A comment MAY name a deleted symbol — "the grant used to travel through
+    // COMPLETE_QUEST" is exactly the kind of record this codebase writes
+    // comments for, and a check that could not tell a record from a pointer
+    // would delete the record (see the claim-surface header above). So the
+    // exemption is earned in the same block: say it is gone, and the name is
+    // history rather than a direction.
+    const GONE_MARKER = /\b(deleted|gone|retired|no longer|used to|was removed|dropped)\b/i
+    const dangling: string[] = []
+    let scanned = 0
+    for (const file of HEADERED) {
+      const text = readFileSync(file, 'utf8')
+      const name = file.pathname.split('/').slice(-2).join('/')
+      for (const block of text.matchAll(/\/\*[\s\S]*?\*\/|(?:^[ \t]*\/\/[^\n]*\n?)+/gm)) {
+        for (const m of block[0].matchAll(/\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b/g)) {
+          scanned++
+          if (DECLARED.has(m[1])) continue
+          if (GONE_MARKER.test(block[0])) continue
+          dangling.push(`${name} points at ${m[1]}, which nothing declares`)
+        }
+      }
+    }
+    // Non-empty, or the regex rotted rather than the headers improving.
+    expect(`pointers scanned: ${scanned > 20}`).toBe('pointers scanned: true')
+    expect([...new Set(dangling)]).toEqual([])
+  })
+
+  it('would still catch a deleted constant (the check has teeth)', () => {
+    // The positive control the round-6 miss deserves: DEFAULT_QUESTS is gone
+    // from the tree, so it must not resolve — if it ever did, the roster above
+    // has stopped meaning "declared here".
+    expect(DECLARED.has('DEFAULT_QUESTS')).toBe(false)
+    expect(DECLARED.has('XP_REWARDS')).toBe(true)
+    expect(DECLARED.has('RESIST_XP_DAILY_CAP')).toBe(true)
+    // …and the action types, which are string literals rather than symbols.
+    expect(DECLARED.has('READ_LESSON')).toBe(true)
+    expect(DECLARED.has('COMPLETE_QUEST')).toBe(false)
   })
 })
 

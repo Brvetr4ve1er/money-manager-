@@ -92,18 +92,29 @@ each landing section, the OG image.
 
 An application document is not one composition. It is a sequence of them, and the
 whole-document average is a number nobody ever looks at. Measured — `app.375x812.light.seeded`
-in `docs/brand/census.json`, the committed artifact, which is what the rule below means by
-"comes from that file": the page averages **56.73% field / 34.07% Bone** over the whole
+in `docs/brand/census.json`, the artifact committed at `dc529fb`, which is what the rule below
+means by "comes from that file": the page averages **56.73% field / 34.05% Bone** over the whole
 document, while its **seven** viewport windows run 59.41, 49.05, 68.84, 53.43, 48.70, 44.92
 and 73.98 percent field. Those seven are all inside the band below; the average they
 produce is still a number that appears on no screen, which is the point.
 
 It was not always inside the band, and the state that produced this rule is worth stamping.
-On the CLEAN TREE OF COMMIT `71b5608` the same row averaged 41.70% field / 47.32% Bone over
-seven windows running 40.92, 15.79, 45.60, 15.46, 21.30, 89.12 and 92.09 — a Bone form stack
-at the head, a dark index sheet at the tail. **Five of those seven windows breached; the dark
-row of the same page breached all seven, and its document average, 63.35 / 24.71, was the most
-respectable in the matrix.** That is the whole case for measuring windows.
+On the CLEAN TREE OF COMMIT `71b5608` the same row's **document** average was 41.70% field /
+47.32% Bone, and its **mean of windows** — a different statistic, which is the whole subject of
+this section — was 45.75 / 43.91, over seven windows running 40.92, 15.79, 45.60, 15.46, 21.30,
+89.12 and 92.09 percent field: a Bone form stack at the head, a dark index sheet at the tail.
+**Five of those seven windows breached; the dark row of the same page breached all seven, and
+its document average, 67.87 / 19.89, was ordinary rather than alarming — deviation 20.21, ninth
+of the matrix's twelve rows, where the best was `app.1024x900.light.seeded` at 6.64.** That is
+the whole case for measuring windows: a row can breach every window it has and still read as
+unremarkable at the document level.
+
+**A worked example is exactly where a mislabel does the most damage, and this one carried one.**
+The sentence above used to call 63.35 / 24.71 the dark phone's *document average* and "the most
+respectable in the matrix". Both halves were wrong out of the same file: 63.40 / 24.70 is that
+row's **mean of windows** at `71b5608`, its document reading was 67.87 / 19.89, and it ranked
+ninth of twelve rather than first. The paragraph whose entire argument is that the two readings
+differ was quoting the wrong one of the two as its evidence. Read the row.
 
 So for a **scrolling application document**, measure each viewport-height window:
 
@@ -131,7 +142,9 @@ Every breaching window in the artifact at tree `71b5608` sat inside such a run, 
 being 4,070px of unbroken Espresso down the dark phone's head and 1,487px of it down the
 landing's badge grid.
 
-The consequence is that **the card is the wrong unit**. Cards on that phone run 314–1,249px,
+The consequence is that **the card is the wrong unit**. Cards on that phone run 314–1,165px —
+measured in Chromium at 375×812 on the seeded fixture, at the tree this document ships with,
+with SimCard the 1,165px one —
 so a window can sit entirely inside one — no reordering and no re-grounding of whole cards
 reaches it. The unit that alternates is a REGION: `.counter-plate` (the counter ground —
 Espresso in light, Bone in dark) and `.reading-plate` (the reading ground — Bone in light,
@@ -142,13 +155,15 @@ whole was measured to invert the defect rather than fix it.
 **The two themes of one page must measure alike, and that is §2.2 restated as a number.** Dark
 is a ground swap, not a different design — so a window that is field-heavy in one theme and
 Bone-heavy in the other, in the same place, is not two problems but one defect seen twice.
-Measured, tree `12bbf5e`, `app.375x812.*.seeded` window `@0`: 74.65% field / 16.91% Bone in
-dark against 53.00 / 36.24 in light — one 14.65pp over the 60 target and the other 7.00 under,
+Measured in the census **committed at** `12bbf5e` — which stamps tree `96b728b`, dirty, because
+the round's changes were not committed when it ran; naming the carrier is the only unambiguous
+way to point at it — `app.375x812.*.seeded` window `@0`: 74.65% field / 16.91% Bone in
+dark against 52.95 / 36.19 in light — one 14.65pp over the 60 target and the other 7.05 under,
 on the same DOM, on the first screen anyone sees. A plate is the ground's OPPOSITE, so one
 plate moves both the right way at once: `.hero-foot` took that window to 66.01 / 25.28 and
 59.41 / 30.30, and with `.month-block` doing the same at the tail the two themes' whole
 mean-of-windows vectors land at 57.82 / 33.01 (dark) and 56.90 / 33.96 (light) — the same page
-to within a point, from a pair that were 21.65pp apart on the first screen. The check is cheap
+to within a point, from a pair that were 21.70pp apart on the first screen. The check is cheap
 and it is the one this document asks for: **compare a row against its own theme twin before
 comparing it against the law.**
 

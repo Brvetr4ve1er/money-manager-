@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
    raw import would assert nothing at all — silently. node:fs and
    import.meta.url are declared locally in src/vite-env.d.ts; adding
    @types/node would be a dependency change. */
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 
 /**
  * The design system as assertions over the stylesheets themselves.
@@ -76,7 +76,10 @@ describe('the sheets parse as the sheets they look like', () => {
   // not hypothetical: an editing pass on app.css left one extra comment-close
   // in a prose block, the suite stayed green, and the ONLY thing that noticed
   // was a census re-run in which app.375x812.dark.seeded's document lost 179px
-  // and its field went 58.07% -> 62.38 with no rule intentionally changed. The
+  // and its field went 58.07% -> 62.38 with no rule intentionally changed.
+  // PROVENANCE: HISTORICAL — that pair is a broken tree against its own fix,
+  // caught mid-round and never committed, so it is in no artifact and names a
+  // state nobody can re-measure. It is the incident, not a reading. The
   // census is a 40-second browser run; this is instant, and it is the cheaper
   // place to catch it.
   // (Line comments, not a block: the assertion below is ABOUT comment
@@ -182,6 +185,33 @@ describe('§3 — the display tier does real work in the product', () => {
     // .hero-stage-name was an <h2> at --fs-cap: 13px, smaller than the 17px
     // body around it, which inverts the outline it belongs to.
     expect(APP).not.toMatch(/\.hero-stage-name \{[^}]*--fs-(cap|spec)/)
+  })
+
+  it('keeps the stage label inside the plate it is painted on (§2.1)', () => {
+    // CONSTRAINT §2.1 — this is a CONTRAST rule, not a layout preference.
+    // .stage-info carries .counter-plate, which is the ground's OPPOSITE, so a
+    // label wider than the plate does not merely overhang: its tail lands on
+    // the CARD's fill, which is Bone-on-Bone at 1.00:1 in light and
+    // Graphite-on-Espresso at 1.16:1 in dark. Measured in Chromium at 320x812
+    // before this rule: the plate's content box was 68px, "Bonfire" laid out at
+    // 97.47px and ended 13px past the plate's fill, inside the card. Three of
+    // the four STAGE_META labels overflowed; the stage name is also the stage
+    // badge's text alternative, so the badge's meaning went with it.
+    const name = /\n\.stage-name \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    // THE GUARANTEE: whatever the label, whatever the width, it breaks inside.
+    expect(name).toMatch(/max-width: 100%/)
+    expect(name).toMatch(/overflow-wrap: anywhere/)
+    // THE OUTCOME: below 360 the row reflows so the plate gets the card's full
+    // measure and no real label ever reaches the break. Not a padding tweak
+    // (that only moves the boundary) and not a shrunk .stage-col (the badge is
+    // a fixed 96px).
+    const narrow = /@media \(max-width: 359px\) \{([\s\S]*?)\n\}/.exec(APP)?.[1] ?? ''
+    expect(narrow).toMatch(/\.hero-main \{ flex-wrap: wrap; \}/)
+    expect(narrow).toMatch(/\.stage-info \{ flex: 1 0 100%; \}/)
+    expect(APP).toMatch(/\.stage-badge \{[^}]*width: 96px/)
+    // Verified in-browser at 320/360/375/412/768 after the change: every one of
+    // the four STAGE_META labels ends at or inside the plate's content edge, so
+    // no glyph is painted on the 1.00:1 / 1.16:1 pair in any theme.
   })
 })
 
@@ -569,10 +599,14 @@ describe('§2 — the ratio law and the palette budget', () => {
       // same rule paints it — and the width arm's premise (the .main-stack
       // gutter) does not exist on the landing, which makes `.main-stack
       // .spec-sheet.archive-card` look like the obvious tidy-up. Measured on
-      // this tree with the width arm scoped that way,
-      // landing.1440x900.light.fresh window @900 reads 85.94% field / 10.78%
-      // Bone — over §2.1b's 85 HARD CAP, against 82.42 / 14.15 as shipped: the
-      // 560px shot is the only Bone-family ground in that window. See the block
+      // the tree committed as 12bbf5e with the width arm scoped that way,
+      // landing.1440x900.light.fresh window @900 read 85.94% field / 10.78%
+      // Bone — over §2.1b's 85 HARD CAP, against 82.42 / 14.15 as shipped ON
+      // THAT SAME TREE: the 560px shot is the only Bone-family ground in that
+      // window. The shipped figure has moved since (81.04 / 15.57 in the
+      // artifact committed at dc529fb) and the counterfactual has not been
+      // re-run against it, so the pair is stamped rather than restated — a
+      // delta that subtracts two different trees is not a delta. See the block
       // above the rule for both arms stated separately.
       expect(counterSel()).not.toContain('.main-stack .spec-sheet.archive-card')
       expect(counterSel()).not.toContain('.lp-shot-frame .spec-sheet.archive-card')
@@ -766,6 +800,62 @@ describe('§2 — the ratio law and the palette budget', () => {
         expect(body).not.toMatch(/color-mix/)
         expect(body).not.toMatch(/var\(--(?:espresso|bone|sand|graphite|void|flare)\)/)
       }
+    })
+
+    it('gives the measure ladder a rung at 1400, where the stage surplus is', () => {
+      // THE ONE LEVER THAT MOVES BOTH THEMES THE SAME WAY. A plate is the
+      // ground's OPPOSITE, so it helps one theme and hurts the other — and both
+      // 1440 app rows were over §2.1b's field tolerance at once (mean field
+      // 69.04 dark, 68.22 light against 60±8, in the artifact committed at
+      // dc529fb). Flare is theme-invariant, so the only symmetric give-back is
+      // less bare stage. Widening the measure at the width where the surplus
+      // appears took them to 65.71 and 65.02, mean-dev 18.08 -> 11.35 and
+      // 16.45 -> 10.32, and cleared both breaches.
+      const rung = /@media \(min-width: 1400px\) \{([\s\S]*?)\n\}/.exec(APP)?.[1] ?? ''
+      expect(rung).toMatch(/\.main-stack \{ max-width: calc\(1160px \+ var\(--s3\) \* 2\); \}/)
+      // The foot follows the stack at every rung, or the page abandons its own
+      // measure in its last 100px.
+      expect(rung).toMatch(/\.foot \{ max-width: 1160px; \}/)
+      // A LADDER, NOT A SCATTER: one measure per breakpoint, each wider than the
+      // last. A rung that did not grow would be a breakpoint with no reason.
+      const measures = [...APP.matchAll(/\.main-stack \{[^}]*max-width: calc\((\d+)px/g)].map((m) =>
+        Number(m[1]),
+      )
+      expect(measures).toEqual([520, 760, 1080, 1160])
+      // …and nothing below 1400 moves, which is why no phone or tablet row in
+      // the census changed: the rung declares a measure and nothing else.
+      expect(rung).not.toMatch(/background|color|--ground|--field|padding|gap/)
+    })
+
+    it('breaks the landing’s two longest desktop grounds', () => {
+      // §2.1b's window band on the poster. In the artifact committed at
+      // dc529fb, landing.1440x900.*.fresh breached twice: window @900 at 81.04%
+      // field (over the 80 band) and window @3873 at 10.64% Bone (under the
+      // 15). Both windows had exactly one Bone-family ground in 900px.
+      //
+      // THE LEDE PLATE is the section's own construction, not a new one:
+      // .lp-note-strip is already a Bone plate inside .lp-spec "because it is a
+      // claim about the product", and the lede is the sentence the section
+      // opens with. Scoped to ≥1024 because a plate is a give-back and the 375
+      // rows are already in band.
+      const lede =
+        /@media \(min-width: 1024px\) \{\s*\.lp-spec \.lp-spec-lede \{([\s\S]*?)\n  \}/.exec(
+          LANDING,
+        )?.[1] ?? ''
+      expect(lede).toMatch(/background: var\(--lp-counter\)/)
+      expect(lede).toMatch(/color: var\(--lp-form\)/)
+      expect(lede).toMatch(/border: var\(--keyline-w\) solid var\(--lp-form\)/)
+      // The note strip's pair, reused rather than invented — so §2.1 rule 3 has
+      // nothing new to compute.
+      const strip = /\n\.lp-note-strip \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
+      expect(strip).toMatch(/background: var\(--lp-counter\)/)
+      expect(strip).toMatch(/color: var\(--lp-form\)/)
+      // THE CLOSING PLATE takes .lp-measure's 1080, the measure every other
+      // section on the poster is set to.
+      expect(LANDING).toMatch(/\.lp-object-plate \{[^}]*max-width: 1080px/)
+      expect(LANDING).toMatch(/\.lp-measure \{[^}]*max-width: 1080px/)
+      // Both together: zero band breaches on the 1440 landing rows, and the 375
+      // rows untouched (they were already clean).
     })
   })
 
@@ -1407,6 +1497,11 @@ describe('§2.1 rule 3 — every pair on a surface is computed, not asserted', (
     // always over 3:1, which is the test .ach-medal fails and this passes.
     expect(contrast(RAW.acid, RAW.espresso)).toBeGreaterThanOrEqual(3)
     expect(contrast(RAW.acid, RAW.sand)).toBeLessThan(3)
+    // …and the third ground an Acid mark can land on, which had no row here at
+    // all until .sim-result's bare keyline was measured at 1.03:1 on it. A
+    // missing row is how an unchecked pair ships: the block asserted acid on
+    // Espresso and acid on Sand and said nothing about the light card's Bone.
+    expect(round(contrast(RAW.acid, RAW.bone))).toBe(1.03)
     expect(round(contrast(RAW.graphite, RAW.sand))).toBe(9.52)
     expect(round(contrast(RAW.graphite, RAW.acid))).toBe(11.15)
   })
@@ -1453,8 +1548,18 @@ describe('§2.1 rule 3 — every pair on a surface is computed, not asserted', (
       ['landing.css', readFileSync(new URL('./landing.css', import.meta.url), 'utf8')],
       ['app.css', readFileSync(new URL('./app.css', import.meta.url), 'utf8')],
     ] as const
+    // THE WRONG FIGURE, MATCHED AS A FIGURE. This was `css.includes('1.09:1')`,
+    // a substring test, so it also banned the tail of 11.09:1 — Sand on
+    // Espresso, a real measured pair asserted twenty lines above — and the
+    // sheets had been quietly writing "11.1:1" to get round it. A guard that
+    // makes correct prose imprecise is a guard that will be worked around
+    // rather than obeyed. The boundary is the whole change: in "11.09:1" the
+    // character before the match is a digit, so \b does not open there.
+    const WRONG_PAIR = /\b1\.09:1\b/
+    expect(WRONG_PAIR.test('Graphite on Espresso is 1.09:1')).toBe(true)
+    expect(WRONG_PAIR.test('Sand on Espresso is 11.09:1')).toBe(false)
     for (const [name, css] of sheets) {
-      expect(`${name}: ${css.includes('1.09:1') ? 'still says 1.09:1' : 'clean'}`).toBe(
+      expect(`${name}: ${WRONG_PAIR.test(css) ? 'still says 1.09:1' : 'clean'}`).toBe(
         `${name}: clean`,
       )
     }
@@ -1513,44 +1618,161 @@ describe('§2.1 rule 3 — every pair on a surface is computed, not asserted', (
  * same file. An undated number is the defect. So a number without a stated
  * provenance is now a test failure.
  */
-describe('no pixel figure in a stylesheet may be undated', () => {
-  /** A ratio-law vector: `59.7/33.7/4.3/2.3`, spaces optional. */
-  const VECTOR = /\d{1,3}\.\d\s*\/\s*\d{1,3}\.\d\s*\/\s*\d{1,3}\.\d\s*\/\s*\d{1,3}\.\d/g
-  /** Every /* … *\/ block, with its offset, so a hit can be traced to one. */
-  const comments = (css: string) => [...css.matchAll(/\/\*[\s\S]*?\*\//g)]
+describe('no pixel figure anywhere in the tree may be undated', () => {
+  /**
+   * THE GUARD COULD NOT SEE THE ROUND IT WAS WRITTEN FOR, and both halves of
+   * that miss are fixed here.
+   *
+   * SHAPE (PATTERN SPECIMEN — the figures below are forms, not readings).
+   * `VECTOR` matched only the FOUR-part composition vector
+   * (`59.7/33.7/4.3/2.3`). §2.1b's window law is written as TWO-part
+   * field/Bone pairs and as arrow deltas, so `82.42 / 14.15`,
+   * `70.70% field -> 80.91` and `61.04 / 32.50` — every measurement round 6
+   * produced — were invisible to it while the suite stayed green.
+   *
+   * REACH. It scanned three stylesheets. The figures had spread into .tsx
+   * components, test files, the census tool and DESIGN-SYSTEM.md itself, and
+   * §2.1b binds all of them: "any figure quoted about this product's pixels
+   * comes from that file or says which tree it came from."
+   */
+  /** PATTERN SPECIMEN — the composition vector: `59.7/33.7/4.3/2.3`, spaces optional. */
+  const QUAD = String.raw`\d{1,3}\.\d\s*\/\s*\d{1,3}\.\d\s*\/\s*\d{1,3}\.\d\s*\/\s*\d{1,3}\.\d`
+  /** PATTERN SPECIMEN — §2.1b's window reading: `82.42 / 14.15`, `78.13% field / 14.50`. */
+  const PAIR = String.raw`\d{1,3}\.\d{1,2}\s*%?\s*(?:field)?\s*\/\s*\d{1,3}\.\d{1,2}`
+  /** PATTERN SPECIMEN — a before/after delta: `67.99 -> 68.39`, `70.70% field -> 80.91`. */
+  const ARROW = String.raw`\d{1,3}\.\d{1,2}\s*(?:%|pp)?\s*(?:field|Bone)?\s*->\s*\d{1,3}\.\d{1,2}`
+  const VECTOR = new RegExp(`${QUAD}|${PAIR}|${ARROW}`, 'g')
 
-  const RAW_SHEETS: [string, string][] = [
-    ['tokens.css', readFileSync(new URL('./tokens.css', import.meta.url), 'utf8')],
-    ['app.css', readFileSync(new URL('./app.css', import.meta.url), 'utf8')],
-    ['landing.css', readFileSync(new URL('./landing.css', import.meta.url), 'utf8')],
-  ]
+  /**
+   * A measurement, not any two numbers with a slash between them.
+   *
+   * THE GATE IS WHAT KEEPS THE GUARD HONEST. Without it the same patterns
+   * catch contrast ratios (`3.79 / 3.01`) and superellipse exponents
+   * (`4.2 -> 2.8`), and a guard that demands a census stamp on a geometry
+   * constant teaches the next round to work around it. A pixel claim always
+   * names its subject: a census row id, the artifact, a bucket, or a window.
+   */
+  const MEASUREMENT = new RegExp(
+    [
+      String.raw`\b(?:app|landing)\.\d{3,4}x\d{3,4}\.(?:light|dark)\.(?:seeded|fresh|cold)\b`,
+      String.raw`census\.json`,
+      String.raw`%\s*field`,
+      String.raw`mean field`,
+      String.raw`window @`,
+      String.raw`meanDeviation`,
+      String.raw`scrollingForm`,
+      String.raw`mean-of-windows`,
+    ].join('|'),
+  )
 
-  it('makes every quoted ratio vector name where it came from', () => {
-    const undated: string[] = []
-    for (const [name, css] of RAW_SHEETS) {
-      for (const block of comments(css)) {
-        const hits = block[0].match(VECTOR)
-        if (hits === null) continue
-        // The rule, in full: a comment block that quotes a measurement must
-        // carry a PROVENANCE line, and that line must either point at the
-        // committed artifact — which a hash keeps current — or declare itself
-        // HISTORICAL, which is a promise that nobody will steer by it.
-        const provenance = /PROVENANCE:[\s\S]*?(census\.json|HISTORICAL)/.exec(block[0])
-        if (provenance === null) {
-          const line = css.slice(0, block.index).split('\n').length
-          undated.push(`${name}:${line} quotes ${hits[0]} with no PROVENANCE line`)
+  /**
+   * Provenance, in either of the two forms §2.1b names: "quote the row id, or
+   * stamp the tree."
+   *
+   * THE INLINE STAMP IS ACCEPTED DELIBERATELY. landing.css and DESIGN-SYSTEM.md
+   * already write "AT COMMIT 80f643d" and "tree `12bbf5e`" in running prose,
+   * which is the rule obeyed; forcing those blocks into a PROVENANCE: keyword
+   * would be churn that improves nothing.
+   */
+  const PROVENANCE = /PROVENANCE:[\s\S]*?(?:census\.json|HISTORICAL)/
+  const TREE_STAMP = /\b(?:tree|commit(?:ted)?)\b[\s\S]{0,32}?\b[0-9a-f]{7,40}\b/i
+
+  /**
+   * The one exemption, and it exists because this describe block has to PRINT
+   * the shapes it bans. A comment marked PATTERN SPECIMEN is exhibiting the
+   * form of a measurement, not making one — the regexes above and the fixtures
+   * in the control below. It is asserted to live in this file only, so it
+   * cannot become the escape hatch every guard eventually grows.
+   */
+  const SPECIMEN = /PATTERN SPECIMEN/
+
+  /** Comment blocks and runs of line comments; whole paragraphs in Markdown. */
+  const blocksOf = (text: string, markdown: boolean) =>
+    markdown
+      ? [...text.matchAll(/(?:^|\n\n)([\s\S]*?)(?=\n\n|$)/g)].map(
+          (m) => ({ text: m[1], index: m.index ?? 0 }),
+        )
+      : [...text.matchAll(/\/\*[\s\S]*?\*\/|(?:^[ \t]*\/\/[^\n]*\n?)+/gm)].map((m) => ({
+          text: m[0],
+          index: m.index ?? 0,
+        }))
+
+  /** Every file that may carry a pixel claim, walked off the disk rather than
+      typed — a new component with a census figure in its header is covered the
+      day it lands, which a typed roster would not be. */
+  const SCANNED: [string, string, boolean][] = (() => {
+    const out: [string, string, boolean][] = []
+    const walk = (dir: URL, rel: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isDirectory()) walk(new URL(`${entry.name}/`, dir), `${rel}${entry.name}/`)
+        else if (/\.(css|tsx?)$/.test(entry.name)) {
+          out.push([`${rel}${entry.name}`, readFileSync(new URL(entry.name, dir), 'utf8'), false])
         }
+      }
+    }
+    walk(new URL('../', import.meta.url), 'src/')
+    walk(new URL('../../scripts/census/', import.meta.url), 'scripts/census/')
+    for (const doc of ['../../README.md', '../../docs/brand/DESIGN-SYSTEM.md']) {
+      const url = new URL(doc, import.meta.url)
+      out.push([doc.replace('../../', ''), readFileSync(url, 'utf8'), true])
+    }
+    return out
+  })()
+
+  it('makes every quoted pixel figure name where it came from', () => {
+    const undated: string[] = []
+    for (const [name, text, markdown] of SCANNED) {
+      for (const block of blocksOf(text, markdown)) {
+        const hits = block.text.match(VECTOR)
+        if (hits === null) continue
+        if (!MEASUREMENT.test(block.text)) continue
+        // The rule, in full: a block that quotes a measurement must point at
+        // the committed artifact — which a hash keeps current — declare itself
+        // HISTORICAL, which is a promise that nobody will steer by it, or name
+        // the tree the figure was measured on.
+        if (PROVENANCE.test(block.text) || TREE_STAMP.test(block.text)) continue
+        if (SPECIMEN.test(block.text)) continue
+        const line = text.slice(0, block.index).split('\n').length
+        undated.push(`${name}:${line} quotes ${hits[0]} with no provenance`)
       }
     }
     expect(undated).toEqual([])
   })
 
+  it('keeps the specimen exemption to this file', () => {
+    // An exemption nobody bounds is an exemption everybody uses. PATTERN
+    // SPECIMEN means "this block prints the SHAPE of a measurement so the guard
+    // can be read", which is true of exactly one describe block in the tree.
+    const users = SCANNED.filter(([, text]) => SPECIMEN.test(text)).map(([name]) => name)
+    expect(users).toEqual(['src/styles/design.test.ts'])
+  })
+
   it('still finds the figures it is meant to be guarding', () => {
     // A regex that matched nothing would pass the test above forever. This is
-    // the silent-skip guard: the vectors ARE there, and they are in tokens.css.
-    const found = RAW_SHEETS.flatMap(([name, css]) => (css.match(VECTOR) ?? []).map(() => name))
-    expect(found.length).toBeGreaterThanOrEqual(4)
-    expect(new Set(found).has('tokens.css')).toBe(true)
+    // the silent-skip guard, and it now covers the SHAPES as well as the count:
+    // the two-part window reading is the one §2.1b's law is written in, and it
+    // was the one the old pattern could not see.
+    const files = SCANNED.filter(([, text]) => VECTOR.test(text) && MEASUREMENT.test(text)).map(
+      ([name]) => name,
+    )
+    expect(files.length).toBeGreaterThanOrEqual(6)
+    expect(files.some((f) => f.endsWith('tokens.css'))).toBe(true)
+    expect(files.some((f) => f.endsWith('.tsx'))).toBe(true)
+    expect(files.some((f) => f.endsWith('DESIGN-SYSTEM.md'))).toBe(true)
+    // …and the patterns themselves, so a rewrite that narrows one is caught.
+    expect(new RegExp(QUAD).test('59.7/33.7/4.3/2.3')).toBe(true)
+    expect(new RegExp(PAIR).test('82.42 / 14.15')).toBe(true)
+    expect(new RegExp(PAIR).test('78.13% field / 14.50')).toBe(true)
+    expect(new RegExp(ARROW).test('70.70% field -> 80.91')).toBe(true)
+    // …and the gate, which is what stops it eating ratios and geometry.
+    expect(MEASUREMENT.test('Graphite on Flare is 3.79:1')).toBe(false)
+    expect(MEASUREMENT.test('corner-shape n 4.2 -> 2.8')).toBe(false)
+    expect(MEASUREMENT.test('app.375x812.dark.seeded window @0')).toBe(true)
+    // …and both provenance forms, since accepting only one would force churn.
+    expect(TREE_STAMP.test('measured at tree 12bbf5e')).toBe(true)
+    expect(TREE_STAMP.test('the artifact AT COMMIT 80f643d')).toBe(true)
+    expect(PROVENANCE.test('PROVENANCE: HISTORICAL — never steer by this')).toBe(true)
+    expect(TREE_STAMP.test('measured on this tree')).toBe(false)
   })
 })
 
@@ -1690,23 +1912,52 @@ describe('§11 / §12.6 — the decision record answers are peers', () => {
     expect(line).not.toMatch(/background|color:/)
   })
 
-  it('marks that panel with a keyline bar, not with a block of Acid', () => {
-    /* §2.1b caps accent at 2% of the DOCUMENT, and the committed artifact
-       reported the breach in its own breaches array on six of twelve rows. On
-       the phone the declared accents alone spent it: --data (Acid) read 2.01%
-       of app.375x812.light.seeded — the entire budget in one token — and this
-       full-width padded block fill was the dominant Acid area on a 375px
-       column, growing with the record. It takes .lp-share's construction now
-       (landing.css): §6's 6px keyline against the card's own ground. */
+  it('marks that panel with a RINGED keyline bar, not with a block of Acid', () => {
+    /* §2.1b caps accent at 2% of the DOCUMENT, and the artifact committed at
+       96b728b (tree 71b5608 — the one round 6 started from) reported that
+       breach in its own breaches array on six of its twelve rows. On the phone
+       the two declared accents alone spent it: app.375x812.light.seeded read
+       accent 2.27% of the document, --reward (Marigold) 1.11 and --data (Acid)
+       0.94, and this full-width padded block fill was the dominant Acid area on
+       a 375px column, growing with the record. It takes .lp-share's
+       construction now (landing.css): §6's 6px keyline against the card's own
+       ground.
+
+       AND THE KEYLINE IS RINGED, because the swap traded a checked pair for an
+       unchecked one. Acid on the light Bone card is 1.03:1 — under §2.1's 3:1
+       non-text floor — while the same stroke reads 12.98:1 on the dark Espresso
+       card: one mark, one DOM, a theme mirror. The 2px --keyline around it is
+       Graphite in light and Bone in dark, so the mark clears 3:1 against its
+       ground in both. */
     const result = /\n\.sim-result \{([^}]*)\}/.exec(APP)?.[1] ?? ''
-    expect(result).toMatch(/border-left: var\(--keyline-heavy\) solid var\(--data\)/)
+    // No bare stroke any more: the strip is a ringed ::before, so the rule
+    // itself must not re-declare a border on the accent.
+    expect(result).not.toMatch(/border-left/)
+    expect(result).toMatch(/position: relative/)
     expect(result).not.toMatch(/background/)
+    const strip = /\n\.sim-result::before \{([^}]*)\}/.exec(APP)?.[1] ?? ''
+    expect(strip).toMatch(/background: var\(--data\)/)
+    // OUTLINE, NOT BORDER, and the accent cap is the reason: this row sits at
+    // exactly 2.00% document accent, so a ring that ate into the 6px §6 keyline
+    // or grew the strip would have moved a budget with no headroom. An outline
+    // takes no layout, so the painted Acid is identical to the bare border-left
+    // it replaced — measured: accent held at 2.00 while graphite went 7.20 ->
+    // 7.21 (census --diff against the artifact committed at dc529fb).
+    expect(strip).toMatch(/outline: var\(--keyline-w\) solid var\(--keyline\)/)
+    expect(strip).toMatch(/width: var\(--keyline-heavy\)/)
+    expect(strip).not.toMatch(/box-shadow/)
     // No --on-accent, because nothing stands ON the accent any more. The string
     // inherits --ink: 11.4:1 on the light card and 13.4:1 on the dark one,
     // against the 9.7:1 the Acid fill gave it.
     expect(result).not.toMatch(/color:/)
     expect(round(contrast(RAW.graphite, RAW.bone))).toBe(11.44)
     expect(round(contrast(RAW.bone, RAW.espresso))).toBe(13.32)
+    // THE PAIR THE BARE BAR SHIPPED, pinned so it cannot come back unguarded.
+    // Acid on the light card fails the non-text floor; the ring is what makes
+    // the mark legal, and the ring's own pairs are both over it.
+    expect(contrast(RAW.acid, RAW.bone)).toBeLessThan(3)
+    expect(round(contrast(RAW.graphite, RAW.acid))).toBe(11.15)
+    expect(round(contrast(RAW.acid, RAW.espresso))).toBe(12.98)
   })
 
   it('lifts the SIM—05 corner mark above the window bar it rides in', () => {

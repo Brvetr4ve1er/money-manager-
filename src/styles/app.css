@@ -39,7 +39,8 @@
    is 8px-snapped at every step. The step up is CONSTRAINT §2.1b, measured: the
    gap is the only pure-field length in the whole stack (100% Flare, against
    12.80% on a card row), so it is the one lever that raises field and dilutes
-   the accent budget at the same time. At --s3 the phone measured accent 2.01%
+   the accent budget at the same time. Counterfactual, measured on the tree
+   committed as 12bbf5e with the gap held at --s3: the phone read accent 2.01%
    in dark and 2.03% in light against §2.1b's 2% document cap, and the dark
    mean-of-windows Bone at 36.71% against a 30±6 tolerance; the accent AREA did
    not change, the document it is measured against did.
@@ -128,13 +129,25 @@
    is short of the ground the plate carries, and above the phone column neither
    of these is.
 
+   EVERY FIGURE BELOW WAS MEASURED ON THE TREE COMMITTED AS 12bbf5e, and the
+   stamp is the correction: the block used to say "on this tree" over numbers
+   that had already outlived two commits. They are counterfactuals — each one
+   is the row as it read with the plate LIVE past its breakpoint — so they can
+   only ever be re-derived by re-running the census with the scoping removed,
+   not read out of the committed artifact. Read docs/brand/census.json for what
+   the shipped tree measures; read these for why the two breakpoints are where
+   they are.
+
    THE HERO FOOT STOPS AT 1024 because that is where the hero stops being this
    card's problem: the ≥1024 block at the end of this file turns the topbar into
    the full-viewport hero, hides .stage-col and moves the badge, name and rating
    onto the hero plate — the head of the desktop document is 900px of Flare, not
-   a card. Measured with the plate live there, on this tree:
+   a card. Measured with the plate live there, at 12bbf5e:
    app.1280x900.light.seeded's mean field went 67.99 -> 68.39, i.e. it GAINED a
-   mean-tolerance breach (60±8) that it does not have.
+   mean-tolerance breach (60±8) that it did not have. (67.99 is that row's
+   mean-of-windows in the artifact committed at 12bbf5e; the same row reads
+   66.57 in the artifact committed at dc529fb, which is why the delta is stamped
+   and not restated.)
 
    THE ARCHIVE HEAD STOPS AT 768 because that is where the stack becomes a
    two-track grid and the archive becomes the ONLY card spanning both
@@ -142,15 +155,19 @@
    307px band in a 375px column; above it the same plate is a 1,060px band
    across a window whose right track is empty from the profile card down to the
    archive — the plate stops being a region inside a column and becomes a
-   horizontal rule across the page. Measured with it live at those widths, on
-   this tree: app.1280x900.dark.seeded window @2700 went 70.70% field -> 80.91,
+   horizontal rule across the page. Measured with it live at those widths, at
+   12bbf5e: app.1280x900.dark.seeded window @2700 went 70.70% field -> 80.91,
    over the 80 band, on a row that had no window breach at all. It cleared the
-   LIGHT @2700 breaches at 1024 and 1280 in the same run — and that is exactly
-   why it is scoped out, because those two are the same window in the other
-   theme and their cause is a HOLE IN THE GRID (nothing is in the right track
-   between the profile card and the archive), not a ground that needs
-   interrupting. A plate is a give-back and there is nothing to give back to a
-   window that is mostly bare stage.
+   LIGHT @2700 breaches at 1024 and 1280 in the same run — those were real then
+   (the artifact committed at 12bbf5e reads 80.90 and 83.87 at that window) and
+   they are gone now (62.43 and 69.65 in the artifact committed at dc529fb),
+   which is why the sentence is stamped rather than deleted: it is why the
+   breakpoint sits where it does. And it is exactly why the plate is scoped
+   out, because those two are the same window in the other theme and their
+   cause is a HOLE IN THE GRID (nothing is in the right track between the
+   profile card and the archive), not a ground that needs interrupting. A plate
+   is a give-back and there is nothing to give back to a window that is mostly
+   bare stage.
 
    THE UNDO IS `unset`, NOT A COPY OF THE GROUND'S BLOCK. Custom properties are
    inherited properties, so `unset` on one computes to `inherit` — every token
@@ -547,6 +564,18 @@
   align-items: center;
   gap: var(--s3);
 }
+/* Below 360px the badge column and the readout do not both fit: .stage-col is
+   a fixed 96px (the badge is 12 baseline steps and does not scale), so every
+   pixel the viewport loses comes out of the plate beside it, and at 320 the
+   plate's content box is 68px against a 97px label. The row wraps instead —
+   the plate takes the card's whole measure on its own line and every
+   STAGE_META label fits with room. Scoped to the narrow end only: from 360px
+   the single row is right and nothing here applies, which is also why no
+   censused row moves (the matrix starts at 375). */
+@media (max-width: 359px) {
+  .hero-main { flex-wrap: wrap; }
+  .stage-info { flex: 1 0 100%; }
+}
 /* The badge column and the readout stack were butting into each other — at
    768 the rating pill's right edge touched the score line with no gutter. One
    column, one gap, on the scale. */
@@ -562,8 +591,32 @@
    and the card's copy rendered at 13px, a heading smaller than body. The hero
    plate keeps the heading; the card names the thing it actually measures
    ("Health score") and this becomes what it is: the stage's label. */
+/* CONSTRAINT §2.1 — THE INK MUST NOT LEAVE THE PLATE, and this was a contrast
+   failure rather than a tidiness one. .stage-info takes .counter-plate (see
+   HeroCard), and a counter plate is the ground's OPPOSITE: Espresso in light,
+   Bone in dark. So a label wider than the plate does not merely overhang, it
+   lands its tail on the CARD's fill — Bone ink on a Bone card is 1.00:1 in
+   light and Graphite on Espresso is 1.16:1 in dark. Measured in Chromium at
+   320x812: the plate spans L170-R270 with 16px padding, a 68px content box,
+   while "Bonfire" lays out at 97.47px and ends at R283 — 13px past the plate's
+   fill and still inside the card, so the last glyphs were painted on the pair
+   the whole stylesheet exists to avoid. Three of the four STAGE_META labels
+   overflowed (Bonfire +13px, Beacon +10px, Hearth-fire +63px; only Ember fits,
+   at -6px). The stage name is also the stage badge's text alternative, so the
+   badge's meaning degraded with it.
+   TWO RULES, AND THEY DO DIFFERENT JOBS. max-width + overflow-wrap is the
+   GUARANTEE: whatever the label and whatever the width, a word that cannot fit
+   breaks inside the plate instead of escaping it. It is not the outcome we
+   want to look at, which is why the row reflows below 360px (see .hero-main
+   above) so the plate gets the card's full measure and no real label ever
+   reaches the break. Shrinking the plate's padding would only move the
+   boundary, and letting .stage-col shrink is not available — the badge is a
+   fixed 96px. Nothing moves at 360px and up: at those widths the plate is
+   already sized by this line, so `max-width: 100%` computes to its own width. */
 .stage-name {
   margin: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-size: var(--fs-h3);
   line-height: var(--lh-h3);
   letter-spacing: var(--tr-h3);
@@ -944,9 +997,11 @@
    under the 4.5:1 body floor. The deeper mix lands at 5.35:1 / 10.31:1. */
 .field::placeholder { color: var(--spec-sunken); opacity: 1; }
 /* "I bought it anyway" self-report. The whole label is the toggle and its
-   min-height makes it a 48px target; accent-color keeps the native checkbox
-   on the theme instead of UA blue (see the input rule for why it is --ink and
-   not a second accent on this card). */
+   min-height makes it a 48px target. The box itself is DRAWN by the input rule
+   below, not delegated — accent-color was dropped when `appearance: none`
+   landed, because with the native control suppressed it styles nothing (see
+   that rule for the whole construction, and for why the mark is --ink and not
+   a second accent on this card). */
 .impulse-check {
   display: flex;
   align-items: center;
@@ -1024,8 +1079,7 @@
 /* THE PRESS reaches every interactive control, not just the ones that look
    like buttons (§9 move 5). The whole label is the 48px target, so pressing
    anywhere on it compresses the box the user is actually aiming at. No radius
-   half of the move here: a 24px native checkbox has no radius to give, and
-   accent-color is what keeps it on-theme. The transition override is the
+   half of the move here: a 24px checkbox has no radius to give. The transition override is the
    compression itself — 90ms on `primary`, per §9 move 5; the 180ms `pop`
    declared on the resting rule above is the RELEASE. */
 .impulse-check:active input {
@@ -1324,13 +1378,17 @@
    the change and cannot be the record row itself. The record list is NOT a
    live region, so nothing is announced twice — only re-read on browse.
    IT IS A KEYLINE BAR NOW, NOT A FILL, AND THE ACCENT BUDGET IS WHY.
-   §2.1b caps accent at 2% of the DOCUMENT and the committed artifact reported
-   the breach in its own breaches array on six of twelve rows. On the phone the
-   declared accents alone spent it: --data (Acid) read 2.01% of
-   app.375x812.light.seeded — the entire document budget in one token — with
-   --reward (Marigold) adding 1.12 on top. The dominant Acid area was this
-   panel: on a 375px column a full-width padded block fill is most of a screen's
-   accent by itself, and it grows with the record.
+   §2.1b caps accent at 2% of the DOCUMENT and the artifact committed at
+   96b728b — tree 71b5608, the one round 6 started from — reported that breach
+   in its own breaches array on six of its twelve rows. On the phone the two
+   declared accents alone spent it: app.375x812.light.seeded read accent 2.27%
+   of the document, --reward (Marigold) 1.11 and --data (Acid) 0.94. The
+   dominant Acid area was this panel: on a 375px column a full-width padded
+   block fill is most of a screen's accent by itself, and it grows with the
+   record. (An earlier version of this paragraph said Acid alone read 2.01% —
+   "the entire budget in one token". No committed artifact carries that figure;
+   the two-token sum is what the file says, and it is the honest form of the
+   same argument.)
    So it takes the construction the landing already uses for the same job —
    see .lp-share in landing.css: §6's 6px keyline bar standing on the card's own
    ground, the string in --ink rather than --on-accent. The accent is still
@@ -1341,14 +1399,60 @@
    does not live in a shape. The landing block makes the same trade for the
    same reason — a second filled plate inside a plate makes the composition one
    box too deep — and the row is already inside the card and the record list.
-   PROVENANCE: the figures above are docs/brand/census.json at the tree this
-   comment landed on; the delta this change bought is in the artifact's next
-   run, not in this comment. */
+   PROVENANCE: the accent figures above are docs/brand/census.json as committed
+   at 96b728b (tree 71b5608) — the artifact round 6 started from, and the only
+   one that carries that breach. The delta this change bought is in the
+   artifact's later runs, not in this comment.
+
+   THE BAR IS RINGED, AND THAT IS §2.1 RULE 3 BEING PAID RATHER THAN SKIPPED.
+   Swapping a filled Acid panel for a bare keyline retired a CHECKED pair
+   (Graphite on Acid, 11.15:1) and shipped an UNCHECKED one in its place: the
+   6px Acid stroke against whatever the card is. Measured in Chromium at 375,
+   1024 and 1440: the nearest painted ancestor is .card.sim-card, so the stroke
+   stands on Bone #F5E6E0 in light on BOTH of its sides — Acid on Bone is
+   1.03:1, under §2.1's 3:1 non-text floor, while the same mark reads 12.98:1 on
+   the dark card. One mark, one DOM, 12.98:1 in one theme and 1.03:1 in the
+   other, which is precisely the theme-mirror defect §2.1b says to look for.
+   The fix is .kept-chip's construction (tokens.css): delimit the accent with
+   the CARD'S OWN keyline rather than with the accent's edge. --keyline is
+   Graphite in light — 11.44:1 against the Bone card — and Bone in dark —
+   13.32:1 against the Espresso card — so the mark is separated from its ground
+   by over 3:1 in both themes, by the ring rather than by the fill.
+   THE RING'S INNER EDGE IS NOT THE SAME CLAIM, and it is not load-bearing:
+   Graphite on Acid is 11.15:1 in light, Bone on Acid is 1.03:1 in dark. In
+   dark the Acid itself carries the boundary at 12.98:1 against Espresso, so
+   each theme has one edge over the floor and neither needs both. Nothing is
+   drawn ON the accent either way, so §2.1 rule 2 stays vacuous.
+   design.test.ts pins acid/bone under 3 so the bare pair cannot come back
+   unguarded. */
 .sim-result {
+  position: relative;
   margin: var(--s1) 0 0;
-  border-left: var(--keyline-heavy) solid var(--data);
-  padding-left: var(--s2);
+  /* The 6px keyline, its 2px outlined ring either side, then --s2 of gutter —
+     the same total the bare border-left + padding gave, plus the ring. The ring
+     takes no layout (see ::before), so the gutter has to account for it here. */
+  padding-left: calc(var(--s2) + var(--keyline-heavy) + var(--keyline-w) * 2);
   font-size: var(--fs-body);
+}
+.sim-result::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--keyline-heavy);
+  background: var(--data);
+  /* THE RING IS AN OUTLINE, NOT A BORDER, AND THE ACCENT BUDGET IS WHY.
+     A 2px border would eat two thirds of the 6px §6 keyline, or grow the strip
+     and with it the painted Acid — and app.375x812.light.seeded sits at exactly
+     2.00% accent against §2.1b's 2% document cap, so the ring must add Graphite
+     without adding a single Acid pixel. An outline draws outside the box and
+     takes no layout, so the Acid area is identical to the bare border-left this
+     replaced. Not box-shadow: §11 bans it outright. */
+  outline: var(--keyline-w) solid var(--keyline);
+  /* §5's radius token set, smallest step: a 6px strip cannot carry --r-sm
+     without the curve eating the stroke. The outline follows the radius. */
+  border-radius: var(--r-xs);
 }
 
 /* THE DECISION RECORD — what the simulator said, and what the user did.
@@ -2280,4 +2384,29 @@ form > .profile-note { margin-top: var(--s1); }
     margin-top: 0;
   }
   .hero-foot.counter-plate .calibrating { margin-top: var(--s1); }
+}
+
+/* ── Wide desktop (≥1400px): the measure ladder gains its last rung ────────
+   CONSTRAINT §2.1b's mean tolerance, and the cause is named two files away.
+   tokens.css's counter-sheet block already derives the surplus this rule
+   spends: ".main-stack caps at 1128px, so 1400 is 1128 plus 136px of bare
+   Flare per side." That gutter is the one length on a desktop row that is
+   100% field, it runs the WHOLE document rather than one viewport, and it is
+   theme-invariant — which is why no plate could reach it. A plate is the
+   ground's OPPOSITE, so it moves light and dark in opposite directions; both
+   1440 rows were over the field tolerance at once (mean field 69.04 dark and
+   68.22 light against 60±8, in the artifact committed at dc529fb), and the
+   only lever that moves both the same way is having less bare stage.
+
+   THE LADDER IS 520 -> 760 -> 1080 -> 1160, one rung per breakpoint, and this
+   one lands where the surplus appears rather than at a round number. At 1440
+   the stage keeps 116px per side: still a margin the composition reads as
+   field, still the premise the ≥1400 counter-sheet arm rests on, ~40px less of
+   it. Below 1400 nothing here applies and no phone or tablet pixel moves.
+
+   The foot follows the stack, as it does at every other rung — a measure the
+   page abandons in its last 100px is not a measure. */
+@media (min-width: 1400px) {
+  .main-stack { max-width: calc(1160px + var(--s3) * 2); }
+  .foot { max-width: 1160px; }
 }

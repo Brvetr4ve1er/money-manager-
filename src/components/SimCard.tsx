@@ -29,7 +29,16 @@ const CHECK_BACK_LABEL: Record<CheckBackAnswer, string> = Object.fromEntries(
 ) as Record<CheckBackAnswer, string>
 
 /**
- * "Check back in 6 days." — the app naming a future it will actually keep.
+ * "Check back in 6 days." — the app naming the day it will ask, and asking on
+ * it for as long as the row is in the record.
+ *
+ * THE CAVEAT IS PART OF THE PROMISE, because store.ts states it plainly and a
+ * surface that makes the promise should not be the one that omits it: the
+ * DECISION_MAX trim falls on the OLDEST rows, which is exactly where the most
+ * overdue check-backs live, so a user who runs more than that many simulations
+ * inside a CHECK_BACK_DAYS window loses pending questions silently. That trade
+ * is deliberate (a record is a log before it is a queue — see DECISION_MAX);
+ * what is not acceptable is claiming a future the store may not keep.
  *
  * Counted from TODAY rather than printing CHECK_BACK_DAYS, so the line stays
  * true as the row ages instead of promising fourteen days forever. Only ever
@@ -412,10 +421,12 @@ export function SimCard({
                          purchase plus fourteen days of real elapsed time, so a
                          day-1 user sees nothing — which is correct and must not
                          be papered over with a progress bar or an "0 / n".
-                         What the app CAN honestly do is name a future it will
-                         actually keep, from the moment the row closes. It says
-                         when it will ask. It says nothing about what the answer
-                         will tell you, because it does not know. */
+                         What the app CAN honestly do is name the day it will
+                         ask, from the moment the row closes, and ask on it
+                         while the row is still in the record (the DECISION_MAX
+                         trim is the one case that is not — see scheduleLine).
+                         It says nothing about what the answer will tell you,
+                         because it does not know. */
                       <p className="decision-schedule">{scheduleLine(d, today)}</p>
                     )}
                     {phase === 'due' && (
