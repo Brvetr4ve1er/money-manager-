@@ -1,15 +1,25 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
+  addDaysISO,
+  CHECK_BACK_ANSWERS,
+  CHECK_BACK_DAYS,
+  checkBackDueOn,
+  checkBackState,
+  DECISION_LINE_MAX_LEN,
+  DECISION_MAX,
   defaultState,
+  exportJSON,
   mergeStates,
+  newDecisionId,
   newId,
+  NOTE_MAX_LEN,
   sanitizeState,
   todayISO,
-  rollQuests,
   type AppState,
+  type Decision,
   type Transaction,
 } from './store.ts'
-import { MAX_TOTAL_XP, xpStateFromTotal } from '../engine/xp.ts'
+import { MAX_TOTAL_XP, xpFromLog, xpStateFromTotal, type XpGrant } from '../engine/xp.ts'
 
 describe('todayISO', () => {
   it('uses the local calendar day, not UTC', () => {
@@ -42,24 +52,6 @@ describe('newId', () => {
   })
 })
 
-describe('rollQuests', () => {
-  it('returns the same state object when the quest day matches', () => {
-    const s = defaultState()
-    expect(rollQuests(s, s.questsDate)).toBe(s)
-  })
-  it('resets quests when the day changed (tab open past midnight)', () => {
-    const s = defaultState()
-    s.questsDate = '2026-07-31'
-    s.quests = s.quests.map((q) => ({ ...q, done: true }))
-    const rolled = rollQuests(s, '2026-08-01')
-    expect(rolled.questsDate).toBe('2026-08-01')
-    expect(rolled.quests.every((q) => !q.done)).toBe(true)
-    // Everything else is untouched.
-    expect(rolled.xp).toBe(s.xp)
-    expect(rolled.transactions).toBe(s.transactions)
-  })
-})
-
 describe('sanitizeState', () => {
   it('returns defaults for non-object payloads', () => {
     expect(sanitizeState(null)).toEqual(defaultState())
@@ -72,7 +64,7 @@ describe('sanitizeState', () => {
     expect(state.muted).toBe(true)
     expect(state.xp).toEqual(defaultState().xp)
     expect(state.transactions).toEqual([])
-    expect(state.quests.length).toBeGreaterThan(0)
+    expect(state.lessonsSeen).toEqual([])
   })
 
   it('drops malformed transactions but keeps valid ones', () => {
@@ -131,15 +123,149 @@ describe('sanitizeState', () => {
     expect(state.transactions.map((t) => t.id)).toEqual(['e'])
   })
 
-  it('drops a non-string note but keeps a valid one', () => {
+  it('memoises day-key validity without ever letting a bad key inherit a good verdict', () => {
+    // The check is cached (it runs once per row on a pre-first-paint load), so
+    // the verdicts must stay per-key and stable across repeats — a cache keyed
+    // loosely, or one that returned the previous answer on a miss, would let
+    // '2026-02-30' ride in behind the '2026-02-28' validated just before it.
+    const base = { id: 'a', amountDA: 100, category: 'Food' }
+    const rows = [
+      { ...base, id: 'good1', date: '2026-02-28' },
+      { ...base, id: 'bad1', date: '2026-02-30' },
+      { ...base, id: 'good2', date: '2026-02-28' },
+      { ...base, id: 'bad2', date: '2026-02-30' },
+    ]
+    for (let i = 0; i < 3; i++) {
+      const state = sanitizeState({ transactions: rows })
+      expect(state.transactions.map((t) => t.id).sort()).toEqual(['good1', 'good2'])
+    }
+  })
+
+  it('keeps validating correctly past the day-key cache cap', () => {
+    // The cap exists so a hostile payload of all-distinct junk keys cannot
+    // grow the map without bound. Past it the check must simply stop being
+    // cached — never start guessing. 4096 is the cap; go well beyond it.
+    const rows: unknown[] = []
+    const day = new Date(2000, 0, 1)
+    for (let i = 0; i < 5000; i++) {
+      const d = new Date(day.getTime() + i * 86400000)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      rows.push({ id: `ok${i}`, amountDA: 1, category: 'Food', date: key })
+    }
+    rows.push({ id: 'nope', amountDA: 1, category: 'Food', date: '2026-02-30' })
+    const state = sanitizeState({ transactions: rows })
+    expect(state.transactions).toHaveLength(5000)
+    expect(state.transactions.some((t) => t.id === 'nope')).toBe(false)
+  })
+
+  it('drops a bad note WITHOUT dropping the row it rode in on', () => {
+    // Strengthened from "drops the whole row": the note feeds no engine, so a
+    // malformed memo must cost the memo and never the money fact. Losing the
+    // row would delete a purchase the user logged because a string next to it
+    // was the wrong type.
     const base = { id: 'a', amountDA: 100, category: 'Food', date: '2026-08-01' }
     const state = sanitizeState({
       transactions: [
         { ...base, id: 'b', note: 42 },
         { ...base, id: 'c', note: 'lunch' },
+        { ...base, id: 'd', note: { text: 'lunch' } },
+        { ...base, id: 'e', note: '   ' },
       ],
     })
-    expect(state.transactions.map((t) => t.id)).toEqual(['c'])
+    expect(state.transactions.map((t) => t.id)).toEqual(['b', 'c', 'd', 'e'])
+    expect(state.transactions.map((t) => t.note)).toEqual([undefined, 'lunch', undefined, undefined])
+    // The money facts on the repaired rows are untouched.
+    expect(state.transactions[0].amountDA).toBe(100)
+    expect(state.transactions[0].date).toBe('2026-08-01')
+    // …and the amount is still what gates the row: a bad note is survivable,
+    // a bad amount is not.
+    expect(
+      sanitizeState({ transactions: [{ ...base, amountDA: -5, note: 'lunch' }] }).transactions,
+    ).toEqual([])
+  })
+
+  it('caps a note at the sanitizer boundary instead of persisting the whole payload', () => {
+    // The quota failure this cap exists for: one hand-edited multi-MB memo
+    // exhausts the origin budget and every future write fails (saveState
+    // returns false — see the persistFailed path). The cap is the boundary
+    // rule, not the field's maxLength, because a peer tab's payload and a
+    // hand-edited localStorage never pass through the field at all.
+    const state = sanitizeState({
+      transactions: [
+        { id: 'a', amountDA: 100, category: 'Food', date: '2026-08-01', note: 'x'.repeat(50_000) },
+      ],
+    })
+    expect(state.transactions[0].note).toBe('x'.repeat(NOTE_MAX_LEN))
+    expect(state.transactions[0].note!.length).toBe(NOTE_MAX_LEN)
+  })
+
+  it('cuts the cap where it cannot leave a trailing space to re-trim', () => {
+    // Idempotence, at the one input that breaks it: a note whose 80th
+    // character is a space would trim SHORTER on a second pass, and the merge
+    // fixpoint compares whole states as JSON strings — a state that
+    // stringifies differently every time it is sanitized never settles.
+    const awkward = `${'y'.repeat(NOTE_MAX_LEN - 1)} tail`
+    const once = sanitizeState({
+      transactions: [{ id: 'a', amountDA: 1, category: 'Food', date: '2026-08-01', note: awkward }],
+    })
+    expect(once.transactions[0].note).toBe('y'.repeat(NOTE_MAX_LEN - 1))
+    expect(JSON.stringify(sanitizeState(once))).toBe(JSON.stringify(once))
+  })
+
+  it('round-trips a note through serialise → sanitize unchanged, and idempotently', () => {
+    // The real localStorage half of this round trip lives in persist.test.ts
+    // (this file runs on the node environment). What is asserted here is the
+    // sanitizer's own contract.
+    const s = defaultState()
+    s.transactions = [
+      { id: 'a', amountDA: 2_000, category: 'Fun', note: 'cinema with M', date: '2026-08-01' },
+    ]
+    const once = sanitizeState(JSON.parse(JSON.stringify(s)))
+    expect(once.transactions[0].note).toBe('cinema with M')
+    // Idempotent: sanitizing an already-sanitized note must not change it, or
+    // the merge fixpoint (which compares JSON strings) would never settle.
+    expect(JSON.stringify(sanitizeState(once))).toBe(JSON.stringify(once))
+  })
+
+  it('keeps notes through a cross-tab merge, and settles instead of oscillating', () => {
+    // Two tabs, one row each, both with notes. Union by id keeps both notes,
+    // and re-merging the result changes nothing — the same fixpoint rule the
+    // rest of the merge is held to, now with a free-text field in the row.
+    const a = defaultState()
+    a.transactions = [
+      { id: 'a', amountDA: 100, category: 'Food', note: 'bread', date: '2026-08-01' },
+    ]
+    const b = defaultState()
+    b.transactions = [
+      { id: 'b', amountDA: 200, category: 'Fun', note: 'cinema', date: '2026-08-01' },
+    ]
+    const merged = mergeStates(a, b)
+    expect(merged.transactions.map((t) => t.note).sort()).toEqual(['bread', 'cinema'])
+    expect(mergeStates(merged, merged)).toBe(merged)
+    // Commutative, notes included.
+    expect(JSON.stringify(mergeStates(b, a))).toBe(JSON.stringify(merged))
+  })
+
+  it('carries notes into the export — the data that leaves with you includes them', () => {
+    // Trust Rule 7. The note is the most personal string the app holds; an
+    // export that silently omitted it would hand back a partial ledger.
+    const s = defaultState()
+    s.transactions = [
+      { id: 'a', amountDA: 900, category: 'Food', note: 'birthday cake', date: '2026-08-01' },
+    ]
+    const parsed = JSON.parse(exportJSON(s)) as { transactions: Transaction[] }
+    expect(parsed.transactions[0].note).toBe('birthday cake')
+  })
+
+  it('preserves row key order through a note repair, so merges still reach a fixpoint', () => {
+    // mergeStates compares whole states as JSON strings. If sanitizing a note
+    // rebuilt the row in a different key order than the app writes it, an
+    // unchanged state would stringify differently after a load and two tabs
+    // would re-save each other forever.
+    const raw = { id: 'a', amountDA: 100, category: 'Food', note: ' lunch ', date: '2026-08-01' }
+    const [row] = sanitizeState({ transactions: [raw] }).transactions
+    expect(Object.keys(row)).toEqual(['id', 'amountDA', 'category', 'note', 'date'])
+    expect(row.note).toBe('lunch')
   })
 
   it('rejects a malformed xp shape', () => {
@@ -211,9 +337,7 @@ describe('sanitizeState', () => {
   it('rejects day keys that do not hold the YYYY-MM-DD shape', () => {
     // finalizeHealthThrough walks single-day steps from healthDate — a
     // free-form string ('never', an ISO timestamp) must not reach it.
-    const state = sanitizeState({ healthDate: 'never', questsDate: '2026-08-01T00:00:00Z' })
-    expect(state.healthDate).toBe('')
-    expect(state.questsDate).toBe(defaultState().questsDate)
+    expect(sanitizeState({ healthDate: 'never' }).healthDate).toBe('')
   })
 
   it('keeps a valid persisted snapshot', () => {
@@ -243,6 +367,36 @@ describe('sanitizeState', () => {
     expect(state.xp.totalXp).toBe(5) // the log is evidence the counter lost
   })
 
+  it('drops a grant dated on a day that does not exist', () => {
+    // The gap was real and it BOUGHT something. isXpGrant validated the date
+    // with the shape regex alone while every other date in the sanitizer went
+    // through the calendar check — and xpFromLog buckets resist grants BY DATE,
+    // so each impossible key minted its own bucket and its own allowance
+    // against RESIST_XP_DAILY_CAP. Three grants on 2026-02-30 plus one on
+    // 2026-99-99 survived intact and folded to 150 XP.
+    const resist = (id: string, date: string) => ({
+      id: `tx:${id}`,
+      action: 'resistImpulse' as const,
+      amount: 50,
+      date,
+    })
+    const state = sanitizeState({
+      xpLog: [
+        resist('r0', '2026-02-28'),
+        resist('r1', '2026-02-30'),
+        resist('r2', '2026-02-30'),
+        resist('r3', '2026-99-99'),
+      ],
+    })
+    expect(state.xpLog.map((g) => g.id)).toEqual(['tx:r0'])
+    // One real day, one day's cap — not four days' worth bought with three
+    // dates the calendar does not have.
+    expect(state.xp.totalXp).toBe(50)
+    // Same rule for the loose day key, for consistency rather than for a live
+    // exploit: it is rescued downstream, and it should not need to be.
+    expect(sanitizeState({ healthDate: '2026-02-30' }).healthDate).toBe('')
+  })
+
   it('banks a pre-log XP total as a mergeable legacy baseline grant', () => {
     // Older schemas carried only the counter: without a baseline entry, a
     // merge deriving XP from the unioned logs could pay less than the total
@@ -256,38 +410,71 @@ describe('sanitizeState', () => {
     expect(state.xp.totalXp).toBe(110)
   })
 
-  it('replaces a quest list with any malformed entry', () => {
-    const state = sanitizeState({
-      quests: [{ id: 'log', text: 'Log', xpAction: 'hack', done: false }],
-    })
-    expect(state.quests).toEqual(defaultState().quests)
+  it('folds every historical quest grant at its original value (Trust Rule 7)', () => {
+    // THE ENGAGEMENT TRACK MAY STOP PAYING AN ACTION; IT MAY NEVER UN-PAY ONE.
+    // All four quests that ever shipped — log, lesson, sim and the earlier
+    // `review` — minted `quest:<id>:<day>` grants against four XP_REWARDS
+    // actions. The quests are deleted. Every one of those actions stays in the
+    // table, so isXpGrant still accepts the grants and xpFromLog still folds
+    // them; drop any of them and the counter the user was already shown would
+    // silently shrink at their next load, with no server and no way back.
+    const grants = [
+      { id: 'quest:log:2026-08-01', action: 'logExpense', amount: 5, date: '2026-08-01' },
+      { id: 'quest:lesson:2026-08-01', action: 'readLesson', amount: 15, date: '2026-08-01' },
+      { id: 'quest:sim:2026-08-01', action: 'runSimulation', amount: 15, date: '2026-08-01' },
+      { id: 'quest:review:2026-08-01', action: 'reviewRecent', amount: 10, date: '2026-08-01' },
+      { id: 'boss:2026-07-27', action: 'weeklyBoss', amount: 150, date: '2026-08-02' },
+    ]
+    const state = sanitizeState({ xp: { level: 1, xpIntoLevel: 0, totalXp: 0 }, xpLog: grants })
+    expect(state.xpLog).toEqual(grants)
+    expect(state.xp).toEqual(xpFromLog(grants as XpGrant[]))
+    expect(state.xp.totalXp).toBe(195)
+    // No legacy top-up is minted either: the fold already equals the counter,
+    // so there is nothing to reconcile.
+    expect(state.xpLog.some((g) => g.action === 'legacy')).toBe(false)
   })
 
-  it('re-stamps the verified flag from the canonical roster', () => {
-    // The flag is a product invariant, not user data: an older persisted list
-    // (or a hand-edited one) must not resurrect a tappable sim quest.
+  it('loads a state written by the quest schema, losing nothing but the quests', () => {
+    // THE ONE MIGRATION THIS DELETION HAS. `quests` and `questsDate` were real
+    // persisted fields; they are read by nothing now (see XpStrip). This
+    // sanitizer builds from defaultState() and copies only keys it recognises,
+    // so an old payload still loads — the two dead fields drop out and every
+    // transaction, decision, lesson and grant beside them comes through
+    // untouched. Asserted rather than assumed: a throw here bricks the app on
+    // the one device that has the old shape, and there is no server to fix it.
     const state = sanitizeState({
       quests: [
-        { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', done: false },
-        { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense', verified: true, done: false },
+        { id: 'log', text: 'Log every purchase today', xpAction: 'logExpense', done: true },
+        { id: 'bonus', text: 'Free XP', xpAction: 'hack', done: true },
+        'junk',
+      ],
+      questsDate: '2026-99-99',
+      transactions: [{ id: 'a', amountDA: 1200, category: 'Food', date: '2026-08-01' }],
+      lessonsSeen: [{ id: 'budget-sketch', date: '2026-08-01' }],
+      decisions: [
+        {
+          id: 'd1',
+          date: '2026-08-01',
+          amountDA: 5_000,
+          line: 'Buy path ends lower. About 6 points below waiting.',
+          demo: false,
+          outcome: 'open',
+        },
+      ],
+      xpLog: [
+        { id: 'quest:log:2026-08-01', action: 'logExpense', amount: 5, date: '2026-08-01' },
       ],
     })
-    expect(state.quests.find((q) => q.id === 'sim')?.verified).toBe(true)
-    expect(state.quests.find((q) => q.id === 'log')?.verified).toBeUndefined()
-  })
-
-  it('drops quest ids outside the canonical roster — no hand-added XP levers', () => {
-    // Unknown ids (hand-added 'log2'…'log50', ids from abandoned schemas)
-    // would each render as a tappable self-report row granting XP once — an
-    // unbounded same-day XP lever bypassing the roster.
-    const state = sanitizeState({
-      quests: [
-        ...defaultState().quests,
-        { id: 'bonus', text: 'Free XP', xpAction: 'logExpense', done: false },
-        { id: 'log2', text: 'Log again', xpAction: 'logExpense', done: false },
-      ],
-    })
-    expect(state.quests).toEqual(defaultState().quests)
+    expect(state.transactions).toHaveLength(1)
+    expect(state.lessonsSeen).toEqual([{ id: 'budget-sketch', date: '2026-08-01' }])
+    expect(state.decisions.map((d) => d.id)).toEqual(['d1'])
+    expect(state.xpLog.map((g) => g.id)).toEqual(['quest:log:2026-08-01'])
+    expect(state.xp.totalXp).toBe(5)
+    // The dead fields do not survive onto the loaded state at all — a key
+    // nothing reads is a key that drifts.
+    expect('quests' in state).toBe(false)
+    expect('questsDate' in state).toBe(false)
+    expect(Object.keys(state)).toEqual(Object.keys(defaultState()))
   })
 
   it('keeps valid codex entries and drops unknown lesson ids and bad dates', () => {
@@ -389,19 +576,6 @@ describe('sanitizeState', () => {
     }
   })
 
-  it('preserves same-day done flags by id while refreshing text from the roster', () => {
-    const state = sanitizeState({
-      quests: [
-        { id: 'log', text: 'Old copy from a previous release', xpAction: 'logExpense', done: true },
-        { id: 'sim', text: 'Run one decision simulation', xpAction: 'runSimulation', done: false },
-      ],
-    })
-    const log = state.quests.find((q) => q.id === 'log')!
-    expect(log.done).toBe(true)
-    expect(log.text).toBe('Log every purchase today') // roster owns the copy
-    // Quests absent from the payload (here: 'review') come back undone.
-    expect(state.quests.find((q) => q.id === 'review')?.done).toBe(false)
-  })
 })
 
 describe('mergeStates', () => {
@@ -414,7 +588,6 @@ describe('mergeStates', () => {
   })
   const base = (over: Partial<AppState> = {}): AppState => ({
     ...defaultState(),
-    questsDate: '2026-08-01',
     ...over,
   })
 
@@ -446,21 +619,21 @@ describe('mergeStates', () => {
 
   it('keeps BOTH tabs’ XP grants when the tabs diverged — evidence unions, counters race', () => {
     // A frozen background tab missed a storage event, then the user acted in
-    // it: A logged a purchase (+5) while B completed the review quest (+10).
+    // it: A logged a purchase (+5) while B read the lesson (+15).
     // max(totalXp) alone would silently drop the +5 forever, even though the
-    // merged transactions and quest flags keep both pieces of evidence.
+    // merged transactions and grant log keep both pieces of evidence.
     const local = base({
       transactions: [mkTx('a')],
       xp: { level: 1, xpIntoLevel: 5, totalXp: 5 },
       xpLog: [{ id: 'tx:a', action: 'logExpense', amount: 5, date: '2026-08-01' }],
     })
     const incoming = base({
-      quests: defaultState().quests.map((q) => ({ ...q, done: q.id === 'review' })),
-      xp: { level: 1, xpIntoLevel: 10, totalXp: 10 },
-      xpLog: [{ id: 'quest:review:2026-08-01', action: 'reviewRecent', amount: 10, date: '2026-08-01' }],
+      lessonsSeen: [{ id: 'budget-sketch', date: '2026-08-01' }],
+      xp: { level: 1, xpIntoLevel: 15, totalXp: 15 },
+      xpLog: [{ id: 'lesson:2026-08-01', action: 'readLesson', amount: 15, date: '2026-08-01' }],
     })
-    expect(mergeStates(local, incoming).xp.totalXp).toBe(15)
-    expect(mergeStates(incoming, local).xp.totalXp).toBe(15)
+    expect(mergeStates(local, incoming).xp.totalXp).toBe(20)
+    expect(mergeStates(incoming, local).xp.totalXp).toBe(20)
   })
 
   it('re-applies the resist daily cap across the merged grant union', () => {
@@ -497,6 +670,10 @@ describe('mergeStates', () => {
     const b = base({
       transactions: [mkTx('y'), mkTx('shared')],
       xp: { level: 1, xpIntoLevel: 10, totalXp: 10 },
+      // reviewRecent, on purpose: the quest that minted this action is deleted,
+      // and so is every other quest, but the ACTION stays in XP_REWARDS so
+      // historical grants survive the sanitizer (see the note beside it in
+      // engine/xp.ts). This is the regression that would catch its removal.
       xpLog: [{ id: 'quest:review:2026-08-01', action: 'reviewRecent', amount: 10, date: '2026-08-01' }],
       prevHealthScore: 44,
       stage: 'hearth',
@@ -504,6 +681,45 @@ describe('mergeStates', () => {
       muted: false,
     })
     expect(mergeStates(a, b)).toEqual(mergeStates(b, a))
+  })
+
+  it('is commutative when two tabs mint the SAME grant id on different days', () => {
+    /* THE HOLE THE TEST ABOVE CANNOT SEE: both its fixtures use disjoint grant
+       ids, so no id-collision path is ever exercised — and the xpLog fold's
+       tie-break was `g.amount > prev.amount`, strictly greater, which keeps
+       whichever grant the iteration saw FIRST. That is always `local`, so
+       merge(A,B) and merge(B,A) produced different bytes.
+
+       It is reachable, not theoretical. reducer.ts writes the boss grant as
+       { id: bossGrantId(weekStart), date: action.date }: the id names the WEEK
+       and the date names TODAY. Tab A claims week W on Monday; a frozen
+       background tab B that never saw the storage event claims the same week on
+       Tuesday. Same id, same 150 XP, different dates.
+
+       XP totals agree either way, so this was never an XP-integrity defect — it
+       is a convergence defect, which is worse in a quiet way: both tabs believe
+       they have converged, each persists different bytes, and whichever writes
+       last decides what the export says about when the week was won. */
+    const boss = (date: string) => ({
+      id: 'boss:2026-07-27',
+      action: 'weeklyBoss' as const,
+      amount: 150,
+      date,
+    })
+    const monday = base({
+      xp: { level: 2, xpIntoLevel: 0, totalXp: 150 },
+      xpLog: [boss('2026-08-03')],
+    })
+    const tuesday = base({
+      xp: { level: 2, xpIntoLevel: 0, totalXp: 150 },
+      xpLog: [boss('2026-08-04')],
+    })
+    expect(mergeStates(monday, tuesday)).toEqual(mergeStates(tuesday, monday))
+    // …and the surviving date is the EARLIEST, the convention
+    // dedupeEarliestById already sets for {id, date} collections: a claim never
+    // drifts to a later day just because it was merged.
+    expect(mergeStates(tuesday, monday).xpLog[0].date).toBe('2026-08-03')
+    expect(mergeStates(monday, tuesday).xp.totalXp).toBe(150)
   })
 
   it('breaks a same-day snapshot tie symmetrically — higher score, not "keep local"', () => {
@@ -531,13 +747,24 @@ describe('mergeStates', () => {
     expect(mergeStates(base({ muted: false }), base({ muted: true })).muted).toBe(true)
   })
 
-  it('unions same-day quest done flags so neither tab can re-grant quest XP', () => {
-    const localQuests = defaultState().quests.map((q) => ({ ...q, done: q.id === 'log' }))
-    const incomingQuests = defaultState().quests.map((q) => ({ ...q, done: q.id === 'sim' }))
-    const merged = mergeStates(base({ quests: localQuests }), base({ quests: incomingQuests }))
-    expect(merged.quests.find((q) => q.id === 'log')?.done).toBe(true)
-    expect(merged.quests.find((q) => q.id === 'sim')?.done).toBe(true)
-    expect(merged.quests.find((q) => q.id === 'review')?.done).toBe(false)
+  it('pays the day’s lesson and sim grants ONCE across two tabs that each minted them', () => {
+    // THE MECHANISM THAT REPLACED THE QUEST DONE-FLAG UNION. Two tabs each
+    // read today's lesson and ran a simulation before seeing each other's
+    // write; both minted the same deterministic per-day ids. The grant log
+    // unions BY ID, so the merge pays 15 + 15 rather than 30 + 30 — the same
+    // result the done-flag union produced, with none of the state.
+    const grants = [
+      { id: 'lesson:2026-08-01', action: 'readLesson' as const, amount: 15, date: '2026-08-01' },
+      { id: 'sim:2026-08-01', action: 'runSimulation' as const, amount: 15, date: '2026-08-01' },
+    ]
+    const local = base({ xp: { level: 1, xpIntoLevel: 30, totalXp: 30 }, xpLog: grants })
+    const incoming = base({ xp: { level: 1, xpIntoLevel: 30, totalXp: 30 }, xpLog: grants })
+    expect(mergeStates(local, incoming).xpLog.map((g) => g.id)).toEqual([
+      'lesson:2026-08-01',
+      'sim:2026-08-01',
+    ])
+    expect(mergeStates(local, incoming).xp.totalXp).toBe(30)
+    expect(mergeStates(incoming, local).xp.totalXp).toBe(30)
   })
 
   it('unions the codex across tabs — a lesson collected in either tab stays collected', () => {
@@ -592,24 +819,19 @@ describe('mergeStates', () => {
     expect(mergeStates(merged, b)).toEqual(merged) // idempotent fixpoint
   })
 
-  it('takes the newer quest day and health snapshot across a midnight roll', () => {
+  it('takes the newer health snapshot across a midnight roll', () => {
     // Tab B rolled midnight already; tab A is still on yesterday.
     const local = base({
-      questsDate: '2026-07-31',
-      quests: defaultState().quests.map((q) => ({ ...q, done: true })),
       healthDate: '2026-07-31',
       prevHealthScore: 40,
       stage: 'ember',
     })
     const incoming = base({
-      questsDate: '2026-08-01',
       healthDate: '2026-08-01',
       prevHealthScore: 44,
       stage: 'hearth',
     })
     const merged = mergeStates(local, incoming)
-    expect(merged.questsDate).toBe('2026-08-01')
-    expect(merged.quests.every((q) => !q.done)).toBe(true)
     expect(merged.healthDate).toBe('2026-08-01')
     expect(merged.prevHealthScore).toBe(44)
     expect(merged.stage).toBe('hearth')
@@ -696,5 +918,342 @@ describe('achievement persistence', () => {
     ]
     expect(mergeStates(a, b).achievements).toEqual(expected)
     expect(mergeStates(b, a).achievements).toEqual(expected)
+  })
+})
+
+/**
+ * THE DECISION RECORD in the store — the layer that makes the simulator stop
+ * forgetting. Each case below is a failure mode the surface cannot defend
+ * against on its own: a corrupt payload, two tabs answering the same decision,
+ * and the export promise (Trust Rule 7) reaching a field that did not exist
+ * when that promise was written.
+ */
+describe('decisions — sanitize, merge, export', () => {
+  const decision = (over: Partial<Decision> = {}): Decision => ({
+    id: 'd1',
+    date: '2026-08-04',
+    amountDA: 5_000,
+    line: 'Buy path ends lower. About 6 points below waiting.',
+    // Explicit: Decision.demo is required, and the fixture defaults to the
+    // demo basis because that is what an un-set-up app actually runs on.
+    demo: true,
+    outcome: 'open',
+    ...over,
+  })
+
+  it('round-trips a decision through the sanitizer unchanged', () => {
+    const d = decision()
+    expect(sanitizeState({ decisions: [d] }).decisions).toEqual([d])
+    // Idempotent: the merge fixpoint compares whole states as JSON strings, so
+    // a second pass must not produce a different one.
+    const once = sanitizeState({ decisions: [d] })
+    expect(JSON.stringify(sanitizeState(once))).toBe(JSON.stringify(once))
+  })
+
+  it('treats an unmarked decision as placeholder-based, never as personalised', () => {
+    // Trust Rule 5. A row with no `demo` field is a row whose basis cannot be
+    // verified — written by an older build, hand-edited, merged from a peer.
+    // The honest reading of "we cannot tell" is "not the user's numbers", so
+    // only an explicit false retires the disclosure.
+    const { demo: _drop, ...unmarked } = decision()
+    expect(sanitizeState({ decisions: [unmarked] }).decisions[0].demo).toBe(true)
+    expect(sanitizeState({ decisions: [decision({ demo: false })] }).decisions[0].demo).toBe(false)
+    // Non-booleans are not a licence to claim personalisation either.
+    expect(
+      sanitizeState({ decisions: [{ ...decision(), demo: 'no' }] }).decisions[0].demo,
+    ).toBe(true)
+  })
+
+  it('defaults to an empty record, and an empty record is not an error', () => {
+    expect(defaultState().decisions).toEqual([])
+    expect(sanitizeState({}).decisions).toEqual([])
+    expect(sanitizeState({ decisions: 'nope' }).decisions).toEqual([])
+  })
+
+  it('drops a malformed decision while the transactions beside it survive', () => {
+    // "A bad memo costs the memo, never the row", applied one level up: a
+    // decision is an independent record, so one corrupt entry must not take the
+    // rest of the record — or the money rows in the same payload — with it.
+    const good = decision({ id: 'ok' })
+    const tx: Transaction = {
+      id: 't1',
+      amountDA: 1_200,
+      category: 'Food',
+      date: '2026-08-04',
+    }
+    const out = sanitizeState({
+      transactions: [tx],
+      decisions: [
+        { ...decision(), id: 'nan', amountDA: Number.NaN },
+        { ...decision(), id: 'inf', amountDA: Number.POSITIVE_INFINITY },
+        { ...decision(), id: 'neg', amountDA: -1 },
+        // Shape-valid, calendar-impossible — it would sort above every real day
+        // in its year forever (the same rule transaction dates are held to).
+        { ...decision(), id: 'feb30', date: '2026-02-30' },
+        { ...decision(), id: 'verdict', outcome: 'regretted' },
+        { ...decision(), id: 'noline', line: 42 },
+        { ...decision(), id: 123 },
+        { ...decision(), id: '' },
+        good,
+      ],
+    })
+    expect(out.decisions).toEqual([good])
+    expect(out.transactions).toEqual([tx])
+  })
+
+  it('caps a pasted megabyte of a line instead of failing every later write', () => {
+    // Same quota argument as NOTE_MAX_LEN: one multi-megabyte string exhausts
+    // the origin's ~5MB budget by itself, after which saveState returns false
+    // forever and the app runs permanently in its persistFailed state.
+    const out = sanitizeState({
+      decisions: [decision({ line: 'x'.repeat(4_000_000) })],
+    })
+    expect(out.decisions[0].line).toHaveLength(DECISION_LINE_MAX_LEN)
+    // The row itself survives — the cap costs the tail of the line, not the
+    // decision it describes.
+    expect(out.decisions[0].amountDA).toBe(5_000)
+  })
+
+  it('holds the record to a bounded length, dropping the oldest', () => {
+    const many = Array.from({ length: DECISION_MAX + 20 }, (_, i) =>
+      decision({
+        id: `d${String(i).padStart(3, '0')}`,
+        // Two days: the newer day must be the one that survives.
+        date: i < 20 ? '2026-08-01' : '2026-08-04',
+      }),
+    )
+    const out = sanitizeState({ decisions: many })
+    expect(out.decisions).toHaveLength(DECISION_MAX)
+    // Newest day first, and nothing from the older day made the cut.
+    expect(out.decisions.every((d) => d.date === '2026-08-04')).toBe(true)
+    // The trim is a pure function of the SET, not of arrival order — that is
+    // what lets sanitize and merge agree about which rows survive.
+    expect(sanitizeState({ decisions: [...many].reverse() }).decisions).toEqual(out.decisions)
+  })
+
+  it('repairs an outcomeDate that does not belong to the outcome', () => {
+    // An open decision has no outcome day; a stray one would render "Recorded"
+    // beside a question the user never answered.
+    const out = sanitizeState({
+      decisions: [decision({ outcome: 'open', outcomeDate: '2026-08-05' })],
+    })
+    expect(out.decisions[0].outcomeDate).toBeUndefined()
+    expect(out.decisions[0].outcome).toBe('open')
+  })
+
+  it('converges when two tabs answer different decisions', () => {
+    const a: AppState = {
+      ...defaultState(),
+      decisions: [decision({ id: 'a', date: '2026-08-04' })],
+    }
+    const b: AppState = {
+      ...defaultState(),
+      decisions: [decision({ id: 'b', date: '2026-08-03' })],
+    }
+    // merge(A,B) deep-equals merge(B,A): crossed writes settle on one payload
+    // instead of each tab adopting the other's ordering forever.
+    expect(mergeStates(a, b).decisions).toEqual(mergeStates(b, a).decisions)
+    expect(mergeStates(a, b).decisions.map((d) => d.id)).toEqual(['a', 'b'])
+  })
+
+  it('keeps a decision closed in either tab closed', () => {
+    const open: AppState = { ...defaultState(), decisions: [decision()] }
+    const closed: AppState = {
+      ...defaultState(),
+      decisions: [decision({ outcome: 'bought', outcomeDate: '2026-08-05', txId: 't9' })],
+    }
+    // Recording an outcome is a user action the other tab has no evidence
+    // against; reviving it as open would ask the same question twice.
+    for (const merged of [mergeStates(open, closed), mergeStates(closed, open)]) {
+      expect(merged.decisions[0].outcome).toBe('bought')
+      expect(merged.decisions[0].txId).toBe('t9')
+    }
+    expect(mergeStates(open, closed)).toEqual(mergeStates(closed, open))
+  })
+
+  it('settles two DIFFERENT answers to one decision on the same string', () => {
+    // No recency signal exists (both closed the same day), so the tie-break is
+    // arbitrary but SYMMETRIC — what matters is that both tabs land on one
+    // payload rather than swapping answers forever.
+    const a: AppState = {
+      ...defaultState(),
+      decisions: [decision({ outcome: 'bought', outcomeDate: '2026-08-05' })],
+    }
+    const b: AppState = {
+      ...defaultState(),
+      decisions: [decision({ outcome: 'waited', outcomeDate: '2026-08-05' })],
+    }
+    expect(JSON.stringify(mergeStates(a, b))).toBe(JSON.stringify(mergeStates(b, a)))
+    expect(mergeStates(a, b).decisions).toHaveLength(1)
+    // …and re-merging the result changes nothing (the fixpoint).
+    const once = mergeStates(a, b)
+    expect(mergeStates(once, a)).toEqual(once)
+    expect(mergeStates(once, b)).toEqual(once)
+  })
+
+  it('mints ids that sort chronologically inside a day', () => {
+    // The record renders newest-first and the top row is the one the card
+    // treats as the current projection, so ordering inside a day has to be
+    // chronological — a bare uuid would put a fresh run second.
+    const early = newDecisionId()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.now() + 60_000))
+    const late = newDecisionId()
+    vi.useRealTimers()
+    expect(late > early).toBe(true)
+    // Fixed width, so the comparison stays lexicographic rather than numeric.
+    expect(early.split('-')[0]).toHaveLength(9)
+    expect(late.split('-')[0]).toHaveLength(9)
+  })
+
+  it('carries the record into the export — Trust Rule 7 covers it too', () => {
+    const state: AppState = {
+      ...defaultState(),
+      decisions: [decision({ outcome: 'waited', outcomeDate: '2026-08-05' })],
+    }
+    const parsed = JSON.parse(exportJSON(state)) as { decisions: Decision[] }
+    expect(parsed.decisions).toEqual(state.decisions)
+    // The frozen projection leaves with it: an export that dropped the line
+    // would hand back an amount and a date with no record of what was said.
+    expect(parsed.decisions[0].line).toBe(state.decisions[0].line)
+  })
+
+  // ── THE CHECK-BACK ──────────────────────────────────────────────────────
+  //
+  // Fourteen days after a decision closes as "Bought it", the record asks one
+  // factual question about the object and files the answer. The storage layer's
+  // whole job is that the answer survives a reload and a cross-tab merge
+  // WITHOUT disturbing anything else on the row (§12.5) and without ever
+  // becoming a number (§12.6).
+
+  const bought = (over: Partial<Decision> = {}): Decision =>
+    decision({ outcome: 'bought', outcomeDate: '2026-08-04', txId: 't1', ...over })
+
+  it('schedules a check-back only for a bought row, and only after the horizon', () => {
+    const b = bought()
+    expect(checkBackDueOn(b)).toBe(addDaysISO('2026-08-04', CHECK_BACK_DAYS))
+    // A row closed TODAY renders the scheduled line, never the question — and
+    // that boundary is a property of the constant, not of a comparison.
+    expect(checkBackState(b, '2026-08-04')).toBe('scheduled')
+    expect(checkBackState(b, addDaysISO('2026-08-04', CHECK_BACK_DAYS - 1))).toBe('scheduled')
+    expect(checkBackState(b, addDaysISO('2026-08-04', CHECK_BACK_DAYS))).toBe('due')
+    // …and stays due afterwards: a user who did not open the app on day 14
+    // must not lose the question on day 20.
+    expect(checkBackState(b, addDaysISO('2026-08-04', 60))).toBe('due')
+    // Nothing else schedules one. "Waited" and "Resisted it" bought no object,
+    // and an open row has not said anything happened at all.
+    for (const outcome of ['open', 'waited', 'resisted'] as const) {
+      const other = decision({ outcome, outcomeDate: outcome === 'open' ? undefined : '2026-08-04' })
+      expect(`${outcome}: ${checkBackDueOn(other)}`).toBe(`${outcome}: null`)
+      expect(checkBackState(other, '2027-01-01')).toBe('none')
+    }
+    // A bought row with no outcomeDate has no anchor to count from, so it
+    // schedules nothing rather than guessing one.
+    const undated = decision({ outcome: 'bought' })
+    expect(checkBackDueOn(undated)).toBeNull()
+  })
+
+  it('keeps only an enumerated answer, and a bad one costs the answer not the row', () => {
+    const answered = bought({ checkBack: 'using', checkBackDate: '2026-08-18' })
+    expect(sanitizeState({ decisions: [answered] }).decisions).toEqual([answered])
+    // Round-trips to an identical JSON string: the merge fixpoint compares
+    // whole states as strings, so a second pass must not reorder the keys.
+    const once = sanitizeState({ decisions: [answered] })
+    expect(JSON.stringify(sanitizeState(once))).toBe(JSON.stringify(once))
+    for (const junk of ['loved it', 'worth it', '', 42, null, { a: 1 }]) {
+      const [row] = sanitizeState({
+        decisions: [{ ...bought(), checkBack: junk, checkBackDate: '2026-08-18' }],
+      }).decisions
+      // The row survives with every money fact intact…
+      expect(row).toMatchObject({ id: 'd1', amountDA: 5_000, outcome: 'bought', txId: 't1' })
+      // …and the answer is simply not there — no default, no guess.
+      expect(`${JSON.stringify(junk)}: ${row.checkBack}`).toBe(
+        `${JSON.stringify(junk)}: undefined`,
+      )
+      expect(row.checkBackDate).toBeUndefined()
+    }
+    // An impossible day key loses the DATE and keeps the answer — same repair
+    // rule outcomeDate follows, for the same reason: the user still said it.
+    const repaired = sanitizeState({
+      decisions: [bought({ checkBack: 'unused', checkBackDate: '2026-02-30' })],
+    }).decisions[0]
+    expect(repaired.checkBack).toBe('unused')
+    expect(repaired.checkBackDate).toBeUndefined()
+  })
+
+  it('refuses an answer on a row the app would never have asked about', () => {
+    // Only 'bought' rows are ever asked (see checkBackDueOn), so an answer on a
+    // waited or resisted row is data this build could not have written. It
+    // costs the answer, never the row.
+    for (const outcome of ['open', 'waited', 'resisted'] as const) {
+      const [row] = sanitizeState({
+        decisions: [
+          {
+            ...decision({ outcome, outcomeDate: outcome === 'open' ? undefined : '2026-08-04' }),
+            checkBack: 'using',
+          },
+        ],
+      }).decisions
+      expect(`${outcome}: ${row.outcome} ${row.checkBack}`).toBe(`${outcome}: ${outcome} undefined`)
+    }
+  })
+
+  it('answers survive a merge — answered beats unanswered, in either order', () => {
+    // AND THE JSON TIE-BREAK GETS THIS BACKWARDS ON ITS OWN. `checkBack` is the
+    // last key in canonical order, so the unanswered row ends `"txId":"t1"}`
+    // where the answered one continues `"txId":"t1","checkBack":…` — and '}'
+    // (0x7D) sorts above ',' (0x2C). Without the explicit clause in
+    // preferDecision, a question the user already answered comes back after
+    // every peer write.
+    const open = { ...defaultState(), decisions: [bought()] }
+    const done = { ...defaultState(), decisions: [bought({ checkBack: 'stopped', checkBackDate: '2026-08-18' })] }
+    for (const merged of [mergeStates(open, done), mergeStates(done, open)]) {
+      expect(merged.decisions[0].checkBack).toBe('stopped')
+      expect(merged.decisions[0].checkBackDate).toBe('2026-08-18')
+    }
+    // Commutative, and it settles: two DIFFERENT answers carry no recency
+    // signal, so the greater JSON string wins — arbitrary but symmetric.
+    const a = { ...defaultState(), decisions: [bought({ checkBack: 'using', checkBackDate: '2026-08-18' })] }
+    const b = { ...defaultState(), decisions: [bought({ checkBack: 'unused', checkBackDate: '2026-08-19' })] }
+    expect(mergeStates(a, b)).toEqual(mergeStates(b, a))
+    const settled = mergeStates(a, b)
+    expect(mergeStates(settled, b)).toEqual(settled)
+    expect(CHECK_BACK_ANSWERS.map((x) => x.answer)).toContain(settled.decisions[0].checkBack)
+  })
+
+  it('freezes everything else on the row when the answer lands', () => {
+    // §12.5. A check-back ANSWERS the record; it does not edit it.
+    const before = bought({ demo: false })
+    const after = sanitizeState({
+      decisions: [{ ...before, checkBack: 'using', checkBackDate: '2026-08-18' }],
+    }).decisions[0]
+    const { checkBack: _a, checkBackDate: _d, ...rest } = after
+    expect(rest).toEqual(before)
+  })
+
+  it('carries the answer into the export — Trust Rule 7 covers it too', () => {
+    const state: AppState = {
+      ...defaultState(),
+      decisions: [bought({ checkBack: 'stopped', checkBackDate: '2026-08-18' })],
+    }
+    const parsed = JSON.parse(exportJSON(state)) as { decisions: Decision[] }
+    expect(parsed.decisions[0].checkBack).toBe('stopped')
+    expect(parsed.decisions[0].checkBackDate).toBe('2026-08-18')
+  })
+
+  it('states the cap edge it cannot fix, rather than pretending it has none', () => {
+    // DECISION_MAX trims from the OLDEST end, which is exactly where the most
+    // overdue check-backs live. A user who runs more than DECISION_MAX sims
+    // inside the window loses pending questions silently. Asserted so the edge
+    // is a known, tested property instead of a surprise — see the note above
+    // canonicalDecisions for why it is not "fixed" by exempting these rows.
+    const many = Array.from({ length: DECISION_MAX + 5 }, (_, i) =>
+      bought({ id: `d${String(i).padStart(3, '0')}`, date: addDaysISO('2026-08-04', i) }),
+    )
+    const kept = sanitizeState({ decisions: many }).decisions
+    expect(kept).toHaveLength(DECISION_MAX)
+    // The five oldest — the five nearest their due day — are the ones gone.
+    expect(kept.some((d) => d.id === 'd000')).toBe(false)
+    expect(kept.some((d) => d.id === `d${String(DECISION_MAX + 4).padStart(3, '0')}`)).toBe(true)
   })
 })

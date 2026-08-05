@@ -17,7 +17,7 @@ import {
 } from './healthScore.ts'
 import { RESIST_XP_DAILY_CAP } from './xp.ts'
 import type { SimProfile } from './simulator.ts'
-import type { ProfileData, Transaction } from '../state/store.ts'
+import { addDaysISO, type ProfileData, type Transaction } from '../state/store.ts'
 
 export interface UserProfile {
   monthlyIncome: number
@@ -84,6 +84,39 @@ export const DEMO_PROFILE_CONFIDENCE = 0.3
  * value because the numbers are at least the user's own.
  */
 export const USER_PROFILE_CONFIDENCE = 0.8
+
+/**
+ * Days of logged history the Health Score wants behind it before it stops
+ * describing itself as calibrating. Trust Rule 5, made into a number the UI
+ * can print: under this many days the app says so rather than projecting
+ * confidence it hasn't earned.
+ */
+export const CALIBRATION_DAYS = 90
+
+/** Days since a local day key, as a plain count (DST-proof via UTC math). */
+function dayIndex(dayISO: string): number {
+  const [y, m, d] = dayISO.split('-').map(Number)
+  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000)
+}
+
+/**
+ * How many days of history stand behind the score, first logged day counted
+ * as day 1. Measured from the earliest transaction, not from a profile save
+ * or an install stamp: the log is the only history the score actually reads,
+ * and a profile saved and then never logged against has backed nothing.
+ *
+ * Future-dated rows are ignored for the same reason deriveHealthInputs bounds
+ * its window on both ends — a skewed device clock must not be able to age the
+ * app past its own calibration period.
+ */
+export function historyDays(transactions: Transaction[], today: string): number {
+  let earliest: string | null = null
+  for (const t of transactions) {
+    if (t.date <= today && (earliest === null || t.date < earliest)) earliest = t.date
+  }
+  if (earliest === null) return 0
+  return dayIndex(today) - dayIndex(earliest) + 1
+}
 
 /**
  * What the active profile can honestly back: the confidence its numbers carry
@@ -186,19 +219,24 @@ export function resolveProfile(data: ProfileData | null): ResolvedProfile {
  * demo placeholder and the user's own stated essentials alike. Logged
  * transactions in these categories are excluded from trailing spend: counting
  * them would charge essentials twice (stated monthly figure + log), deflating
- * SR/BA and punishing exactly the "log every purchase" behavior the daily
- * quest rewards. Only discretionary logging moves SR/BA.
+ * SR/BA and punishing exactly the log-every-purchase behaviour the ENGAGEMENT
+ * track pays for (XP_REWARDS.logExpense, granted on every LOG_TX in
+ * state/reducer.ts). A health input that got worse the more the user logged
+ * would be the engagement track reaching into the score — Trust Rule 1, §12.1.
+ * Only discretionary logging moves SR/BA.
+ *
+ * The mechanism named here used to be "the daily quest", which round 6 deleted
+ * outright (XpStrip and the reducer both state there is no quest anywhere in
+ * the tree). Naming a device that no longer exists in the one file whose job is
+ * keeping the two tracks apart reads to the next person as a live coupling.
  */
 export const ESSENTIAL_CATEGORIES: ReadonlySet<string> = new Set(['Food', 'Bills', 'Health'])
 
-/** Local-calendar day key `n` days before `dayISO` (pure — no wall clock). */
-function daysBeforeISO(dayISO: string, n: number): string {
-  const [y, m, d] = dayISO.split('-').map(Number)
-  const dt = new Date(y, m - 1, d - n)
-  const mm = String(dt.getMonth() + 1).padStart(2, '0')
-  const dd = String(dt.getDate()).padStart(2, '0')
-  return `${dt.getFullYear()}-${mm}-${dd}`
-}
+/** Local-calendar day key `n` days before `dayISO`. One line over the single
+    day-arithmetic implementation (store.ts) — this module reads BACKWARDS
+    everywhere it counts days, and inverting the sign at four call sites reads
+    worse than naming the direction once. */
+const daysBeforeISO = (dayISO: string, n: number): string => addDaysISO(dayISO, -n)
 
 /**
  * Derive Health Score inputs from the transaction log and profile, windowed

@@ -1,0 +1,170 @@
+# The full test suite and the type-checked build are the release floor for this
+# repo. Without CI they only ever ran on a contributor's machine, so a red
+# branch could reach main unnoticed. Both jobs are cheap; run them on every
+# pull request and on main.
+name: CI
+
+on:
+  # Only main on push. Branch pushes are already covered by the pull_request
+  # trigger, and listening to both fires two identical runs per push — they do
+  # not dedupe, because push and pull_request resolve to different refs and so
+  # land in different concurrency groups.
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to the same branch makes the in-flight run obsolete — cancel it
+# rather than paying for a result nobody will read.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, because part of the suite reads PAST census artifacts
+          # out of git. §2.1b.3's copy-height table cites figures carried by
+          # specific commits, and census.test.ts binds each line by running
+          # `git show <sha>:docs/brand/census.json` rather than trusting the
+          # prose — which is the whole point, since three of those figures were
+          # once wrong with a green suite. checkout's default depth of 1 leaves
+          # those SHAs unreachable and the test dies on an opaque git error.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          # Resolve the LATEST 22.x — do not pin an exact minor here. jsdom is
+          # the reason, and it has now broken this pipeline twice from two
+          # different directions:
+          #   * Node 20 — undici 8 (via jsdom 30) calls
+          #     webidl.util.markAsUncloneable, added in Node 21.
+          #   * Node 22.6 — html-encoding-sniffer (via jsdom) `require()`s
+          #     @exodus/bytes, which is ESM. require(esm) is only unflagged
+          #     from Node 22.12; on 22.6 it throws ERR_REQUIRE_ESM.
+          # Both failures look the same and are the dangerous kind: the jsdom
+          # environment never initialises, so the DOM test files do not run at
+          # all and the suite reports a healthy-looking green count for the
+          # files that did. The floor that satisfies both is 22.12, and
+          # `engines` in package.json states it. Pinning an exact minor here is
+          # what caused the second outage — '22' tracks the newest patched 22.x.
+          node-version: '22'
+          # Vite 5 and Vitest resolve from the lockfile; caching it keeps the
+          # install step off the critical path.
+          cache: npm
+
+      # `npm ci` not `npm install`: it installs the locked tree exactly and
+      # fails if package.json and the lockfile have drifted apart, which is
+      # itself a defect worth catching here.
+      - run: npm ci
+
+      # Write a machine-readable report alongside the human one so the guard
+      # below can check WHICH files ran, not just that the exit code was zero.
+      - run: npm test -- --reporter=default --reporter=json --outputFile=vitest-report.json
+
+      # A passing exit code is not proof the suite ran. Twice now a jsdom
+      # incompatibility has skipped every DOM test file while the remaining
+      # files reported green — see scripts/assert-dom-tests-ran.mjs. This step
+      # turns that invariant into an enforced check instead of a comment.
+      - run: node scripts/assert-dom-tests-ran.mjs vitest-report.json
+
+      # `tsc -b && vite build` — this is what catches strict-mode type errors
+      # that the test run alone will not surface.
+      - run: npm run build
+
+  # ── THE COLOUR CENSUS — advisory, never blocking ─────────────────────────
+  #
+  # Three separate questions get three different answers here, and only one of
+  # them is this job.
+  #
+  # THE STALENESS TEST IS BLOCKING, and it is already above: it is a sha256
+  # over a file list, no browser, no network, milliseconds, zero flake, and it
+  # runs as an ordinary member of the suite in `verify`. Nothing about CI had
+  # to change to get it.
+  #
+  # A RATIO-LAW THRESHOLD GATE DOES NOT EXIST AND SHOULD NOT. The law is a
+  # TARGET, not a direction — two screens have overshot 60% field — so a naive
+  # gate ("field >= 50", "deviation must not increase") would block the correct
+  # work of pulling them back down. It would also flake: the measured number
+  # depends on the host's fonts, which legitimately move it 1-2pp between a dev
+  # container and a runner, and flaky gates get disabled, taking the honest
+  # reporting with them. Balance is a judgement about WHERE the colour sits,
+  # not only how much of it there is. The number is evidence for a human
+  # decision; do not automate the decision.
+  #
+  # THIS JOB REPORTS. It exists to hand a contributor without a local Chromium
+  # a correct census.json to commit, and to surface "this tree does not
+  # reproduce here" as information. continue-on-error means a missing Chrome in
+  # a future runner image, or a row that will not settle, never fails a PR.
+  census:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the path filter below diffs against the base ref.
+          fetch-depth: 0
+
+      # Path filter without an action dependency. The census only says
+      # something new when a pixel input moved; on any other PR it is 40s of
+      # runner time for a guaranteed "no change".
+      - id: touched
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          # Mirrors scripts/census/inputs.ts. vite.config.ts and
+          # scripts/htmlComments.ts are in it because serve.ts builds through
+          # Vite's Node API and that plugin transforms the served index.html —
+          # a change to either moves what the browser renders.
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+             | grep -qE '^(src/|index\.html$|vite\.config\.ts$|scripts/(census/|htmlComments\.ts$))'; then
+            echo "visual=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.touched.outputs.visual == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+        if: steps.touched.outputs.visual == 'true'
+
+      # The runner image ships Google Chrome. EMBER_CHROME is set explicitly
+      # rather than relying on PATH order, and the sandbox is opted out of
+      # because the runner is already an isolated VM.
+      - name: Measure
+        if: steps.touched.outputs.visual == 'true'
+        env:
+          EMBER_CHROME: /usr/bin/google-chrome
+          EMBER_CENSUS_NO_SANDBOX: '1'
+        run: |
+          {
+            echo '## Colour census'
+            echo
+            echo 'Advisory. This job never fails the build.'
+            echo
+            echo '```'
+            npm run census -- --diff --keep-shots 2>&1 || echo '(census did not complete — see the job log)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The artifact a browserless contributor commits, plus the evidence.
+      # census.json is written by a separate full run because --diff writes
+      # nothing on purpose.
+      - name: Produce a committable artifact
+        if: steps.touched.outputs.visual == 'true'
+        env:
+          EMBER_CHROME: /usr/bin/google-chrome
+          EMBER_CENSUS_NO_SANDBOX: '1'
+        run: npm run census -- --allow-dirty || true
+
+      - uses: actions/upload-artifact@v4
+        if: steps.touched.outputs.visual == 'true'
+        with:
+          name: census
+          path: |
+            docs/brand/census.json
+            docs/brand/census-shots/
+          if-no-files-found: ignore

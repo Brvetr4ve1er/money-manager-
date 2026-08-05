@@ -1,0 +1,17 @@
+{
+  "transactions": [],
+  "xp": {
+    "level": 1,
+    "xpIntoLevel": 0,
+    "totalXp": 0
+  },
+  "xpLog": [],
+  "prevHealthScore": null,
+  "stage": null,
+  "healthDate": "",
+  "lessonsSeen": [],
+  "muted": false,
+  "profile": null,
+  "achievements": [],
+  "decisions": []
+}

@@ -1,0 +1,1492 @@
+/* THE MARKETING SURFACE (see Landing.tsx). §5's signature layouts, in order:
+   A. THE BRICK WALL · B. THE SPEC SHEET · D. THE SHEAR · E. THE OBJECT ·
+   C. THE PLATE.
+
+   WHY THIS FILE PINS ITS COLOURS INSTEAD OF USING --ground/--ink.
+   The app is a themed surface and swaps grounds (§2.2). This page is a POSTER:
+   its fields are Flare, Espresso, Sand and Marigold in both themes, exactly as
+   the hero's Flare field already is, and every ratio that makes the
+   composition legal — 11.4:1 graphite/bone, 13.4:1 bone/espresso, 9.4:1
+   graphite/sand, 6.2:1 graphite/marigold, 7.4:1 marigold/espresso, and the two
+   large-text-only pairs on Flare (3.79 / 3.01) — is computed for those exact
+   hexes. An --ink that flipped to Bone in the dark theme would put Bone type on
+   a Bone plate. So the brand triad tokens (--brand-field/-form/-counter, which
+   §2.2 pins in both themes) carry this page, and the three extra fields name
+   their raw palette entries. This is the same argument the hero block in
+   app.css already makes; it is not an oversight and must not be "fixed" by
+   pointing these at the semantic tokens.
+
+   THE CONTRAST LAW IS THE LAYOUT (§2.1 rule 1). Flare is a FIELD, not a text
+   background: only the d1 wordmark, the mark and the keylines touch it. Every
+   string under 24px on this page sits on a plate. That constraint is what
+   produces the plates — remove a plate and you remove the only thing making
+   its text legal. */
+
+.landing {
+  /* The page's own three fields. Named here rather than inline so a section
+     cannot quietly invent a fourth (§1 trait 06: three tones per surface). */
+  --lp-flare: var(--brand-field);
+  --lp-form: var(--brand-form);
+  --lp-counter: var(--brand-counter);
+  --lp-espresso: var(--espresso);
+  --lp-sand: var(--sand);
+  --lp-gold: var(--marigold);
+
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  /* The sections carry their own fields, but a short viewport would otherwise
+     let the app's --ground (Espresso in dark) show through below the fold. */
+  min-height: 100vh;
+}
+
+/* Focus rings inside a pinned surface cannot use the global --ink: it is Bone
+   in the dark theme, and every focusable thing on this page sits on Bone or
+   Marigold, where a Bone ring is invisible. Trust Rule 8 — focus stays
+   visible — so the ring is pinned to the form colour like everything else
+   here. 3px and never lower, matching tokens.css.
+   Checked against every focusable element on the page — and the enumeration is
+   the point, because the first version of it was missing one: the two CTAs and
+   the spec-sheet anchor sit on Bone plates (Graphite ring, 11.4:1), the footer
+   links on Marigold (6.2:1), and .lp-spec ITSELF is focusable (tabIndex -1, the
+   jump target) on the Espresso field — which takes --lp-counter and its own
+   rule, immediately below. */
+.landing :focus-visible { outline: 3px solid var(--lp-form); outline-offset: 2px; }
+/* THE ELEMENT THE LIST ABOVE USED TO MISS. The old comment even predicted it —
+   "a future control on the Espresso section would need --lp-counter and its own
+   rule" — while the control already existed. .lp-spec is `tabIndex={-1}` because it
+   is the "Spec sheet" jump target (Landing.tsx), so activating the page's only
+   in-page link lands focus on the Espresso field. Graphite on Espresso is
+   1.16:1, and the section is full-bleed, so the ring's left and right segments
+   fall off-viewport: what a keyboard user actually got was two horizontal lines
+   sitting 2px outside the section's own 2px Graphite border. Bone is 13.3:1
+   here, and the NEGATIVE offset pulls the ring inside the section so it cannot
+   be read as a neighbouring section keyline — the same construction
+   .hero-nav a:focus-visible uses in app.css.
+   CONSTRAINT: Trust Rule 8 / WCAG 2.4.7 — focus stays visible. */
+.lp-spec:focus-visible { outline-color: var(--lp-counter); outline-offset: -6px; }
+/* THE SECOND ELEMENT ON THE ESPRESSO FIELD, and the enumeration above predicted
+   it in so many words: "a future control on the Espresso section would need
+   --lp-counter and its own rule". The footer links moved off the Marigold plate
+   onto the footer's own Espresso field (see .lp-foot below), where the page's
+   Graphite ring is 1.16:1. Bone is 13.4:1. No negative offset here — these are
+   inline controls with the section's padding around them, not a full-bleed
+   section whose ring would fall off the viewport.
+   CONSTRAINT: Trust Rule 8 / WCAG 2.4.7 — focus stays visible. */
+.lp-foot-links a:focus-visible { outline-color: var(--lp-counter); }
+
+/* THE STACK (§9 move 1) at every width. app.css only attaches .hero-rise's
+   animation at ≥1024px (the mobile topbar has nothing to stage); this page is
+   a poster at 320px too, so it attaches its own. The keyframes and the
+   reduced-motion delay reset both live in app.css and are shared — transform
+   only, no opacity, so a dropped animation can never leave a blank section
+   (§9: nothing may become invisible at rest). */
+@media (prefers-reduced-motion: no-preference) {
+  .landing .hero-rise { animation: hero-rise var(--t-slow) var(--ease-entrance) both; }
+}
+
+/* Every section is a full-bleed field with one centred measure inside it. */
+.lp-measure {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* Section headings: d2 tier (§3), stacked hard. The d2 tier IS Tier 1, so the
+   display face is named here rather than inherited — tokens.css now sets
+   h1/h2/h3 in Tier 2 (Grotesk), because a card title is not a wordmark. A 72px
+   section brick is, so it says so. */
+.lp-section-h {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: var(--fs-d2);
+  line-height: var(--lh-d2);
+  letter-spacing: var(--tr-d2);
+  margin-bottom: var(--s2);
+}
+
+/* ── A. THE BRICK WALL (§5A) ──────────────────────────────────────────────
+   Full-bleed colour, a single centred container, ~60% negative field. The
+   COLOUR runs to the frame edge and the rounded containers stand in it — so
+   the field itself takes no radius and no inset. */
+.lp-wall {
+  position: relative;
+  background: var(--lp-flare);
+  border-bottom: var(--keyline-w) solid var(--lp-form);
+  /* --s7 at the top, one step over the --s5 at the foot, and the asymmetry is
+     CONSTRAINT §2.1b rather than taste. The wall's plate is 1018px tall on a
+     375px phone — taller than the viewport — so window @0 is the top of the
+     Flare field plus the top of the plate and nothing else: measured 32.40%
+     field / 55.20% Bone at tree 71b5608, under the 35 floor and over the 55
+     band on the FIRST screen anyone sees. §5A asks for "~60% negative field"
+     around the container; 104px of it above a full-measure plate is not that.
+     The step buys 64px of field before the plate starts and costs the fold
+     nothing — the wall is min-height capped, so the CTA does not move. */
+  padding: var(--s7) var(--s3) var(--s5);
+  /* Keeps the shear and the grain inside the field. */
+  overflow: hidden;
+  /* Six-second read, in order: mark → name → what it is → what it costs →
+     one button. min-height, never a fixed 100vh: a 100vh wall on a 568px
+     phone in landscape pushes the CTA below the fold, and the CTA is the
+     point of the section. */
+  /* 896px = 112 baseline steps (§5); 900 was off the grid. */
+  min-height: min(100vh, 896px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* THE SHEAR inside the wall — the one 38° diagonal that cuts the composition
+   (§1 trait 09; §8 "centre everything, then break it once with a diagonal").
+   It runs the full field and passes BEHIND the centred container, so the
+   container is what breaks it. rotate(), not a percentage polygon: a polygon
+   shears with the box and the angle would drift with the viewport — 38° has to
+   stay 38°. This transform is LAYOUT, not motion, so reduced motion must not
+   take it (same reason --press is a token instead of a blanket
+   `transform: none`). A hard-edged bar, never a gradient band. */
+.lp-wall::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -30%;
+  width: 160%;
+  height: var(--keyline-heavy);
+  background: var(--lp-form);
+  transform: translateY(-50%) rotate(-38deg);
+  pointer-events: none;
+}
+/* §8's fine offset-print grain at 6% — --grain-tile from tokens.css, which is
+   literally the same tile the app hero uses rather than a copy of it that has
+   to be kept identical by hand. This and the halftone inside
+   the display letterforms are the only two textures in the product, which is
+   the whole §8 texture budget. */
+.lp-wall::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain-tile);
+  opacity: 0.06;
+  /* multiply, not overlay — the grain sits directly behind the d1 wordmark,
+     the one string on this page legally on Flare at 3.01:1, i.e. with 0.02 of
+     headroom. Overlay lightens as well as darkens, and on the brightest noise
+     pixels it lifts the local field enough to push Bone-on-Flare to ~2.88:1,
+     under the large-text floor. multiply can only darken: worst case
+     Bone-on-Flare ~3.39:1, Graphite-on-Flare ~3.38:1. Same change in app.css
+     behind the desktop hero lockup, same reason. */
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.lp-wall-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+}
+
+/* Mono spec labels in the corners (§8), each on its own Graphite plate. §2.1
+   rule 1 is absolute: an 11px mono string may not sit on a 3.79:1 field, and a
+   spec label is exactly the "form help text" that rule names. On the plate it
+   reads at 11.4:1. */
+.lp-corner {
+  position: absolute;
+  z-index: 2;
+  background: var(--lp-form);
+  color: var(--lp-counter);
+  border-radius: var(--r-sm);
+  /* Whole-box superellipse (§11: clip-path, not border-radius, wherever
+     aspect > 1.5). corner-shape ships in Chromium only, so on every other
+     engine the shape law was silently absent and this plate was a plain
+     circular arc; the clip holds everywhere. Safe here where it is not safe on
+     .card: this plate is one line of 11px mono at a fixed height, free-
+     standing in the corner, with its longest string ("LOCAL/FIRST") measured
+     clear of the cut. corner-shape stays as the fallback. */
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  clip-path: var(--se-42);
+  padding: var(--s1) var(--s2);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+.lp-corner-tl { top: var(--s3); left: var(--s3); }
+.lp-corner-tr { top: var(--s3); right: var(--s3); }
+
+/* Mark + wordmark travel as one unit; both scale off the lockup's font-size in
+   em, so the brick and the word can never drift apart. */
+.lp-lockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  font-size: var(--fs-d1);
+}
+/* Height only — the viewBox supplies the width, so the brick keeps its 1:2.1
+   aspect at every size (§4 forbids stretching). */
+.lp-brick { height: 1.62em; }
+
+/* The d1 stack, DIRECTLY on the Flare field. This is the one string on this
+   page allowed to do that, and only because it is display type: Bone on Flare
+   is 3.01:1, which clears WCAG's 3:1 large-text floor and nothing else. The
+   --fs-d1 clamp bottoms out at 56px, comfortably inside the ≥24px allowance.
+   DO NOT shrink this below the clamp — it stops being legal, it does not just
+   get smaller. */
+/* Descendant-qualified so it cannot lose a specificity tie to app.css's
+   `.wordmark` (the mobile-topbar sizing) on stylesheet-order alone — both
+   classes land on the same element, and which file the bundler emits last is
+   not something this rule should depend on. */
+.landing .lp-wordmark {
+  display: flex;
+  flex-direction: column;
+  font-size: 1em;
+  line-height: var(--lh-d1);
+  letter-spacing: var(--tr-d1);
+  color: var(--lp-counter);
+}
+/* Rows stack FLUSH, they do not justify to a common measure. `space-between`
+   was doing that and it is not tracking: with rows of 3 and 2 letters it
+   spreads the slack over two gaps in EMB and dumps all of it into the single
+   gap in ER, so the page's h1 rendered as `EMB` / `E   R` — a dropped letter.
+   §4 asks for equal optical MASS per row, which two rows of the same face at
+   the same size already have, and no CSS tracks a short row out to a long one
+   without scaling the letters — which §4 forbids outright.
+   app.css's base .wm-row already says exactly this; the rule stays here only
+   so the landing cannot lose a specificity tie on stylesheet order. */
+.landing .lp-wordmark .wm-row {
+  display: flex;
+  justify-content: flex-start;
+}
+/* The halftone screen that app.css puts inside the desktop hero letterforms is
+   deliberately NOT repeated here: it screens Void over a GRAPHITE letter, and
+   these letters are Bone. A dark screen on Bone type would drag the 3.01:1
+   pair below the large-text floor — the one pair on this page with no
+   headroom. */
+
+/* The one centred container (§5A). Bone, because everything inside it is under
+   24px and therefore illegal on the field. It is also what interrupts the
+   shear. */
+.lp-plate {
+  position: relative;
+  width: 100%;
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s3);
+}
+/* THE MISSING STEP, second and last instance — the poster half of it.
+   A census of every declared size on this page read 112 / 72 / 30 / 22 / 17:
+   --fs-h1 (42px) had zero uses here, so the ramp fell 2.4× in one jump from
+   the d2 section brick to this line, and 3.7× from the d1 lockup that stands
+   directly above it in the wall. app.css's .hero-thesis took the step for the
+   product at ≥1024; this is the same defect on the page that has to sell it,
+   and it survived that fix because the landing has its own stylesheet.
+
+   THIS LINE AND NOT THE LEDE BELOW IT, because the two jumps are different
+   kinds of gap. The section brick over a lede (72 → 22) is a SIGN over COPY —
+   two roles, and the size difference is the role difference. This is the
+   page's promise line: the first reading-tier string under the mark in the
+   wall (§5A) and under the specimen in the object (§5E). At h2 it rendered at
+   exactly the size of a card title inside the app and only 1.36× its own lede,
+   which is a nudge and not a hierarchy. At h1 it is 1.9× the lede and the ramp
+   reads 112 / 42 / 22 / 17 in the wall.
+   Tier 2 (Grotesk 700) is unchanged and correct: §3 reserves the display face
+   for 1–3 stacked words, and "Built flat. Logged in DA." is five. Taking the
+   h1 SIZE tier does not make it the page h1 either — that is the wordmark, and
+   there is still exactly one.
+   On a 375px plate --fs-h1 clamps to 32px against h2's 24px, so the step
+   survives the clamp on the phone rather than only reading at 1440. */
+.lp-thesis {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  letter-spacing: var(--tr-h1);
+  margin-bottom: var(--s2);
+  /* "Built flat. Logged in DA." wrapped to an orphan "DA." on a 375px plate —
+     a two-word second line under a five-word first. Balanced wrapping splits
+     it at the sentence instead. Progressive: engines without it wrap as
+     before, and the string is short enough that the balancer's line cap is
+     never in play. */
+  text-wrap: balance;
+}
+.lp-lede {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: 700;
+}
+.lp-sub { margin: var(--s1) 0 0; font-size: var(--fs-body); }
+/* THE TERMS THE READER IS ON (see Landing.tsx) — what the app will and will not
+   do to the person reading, between the lede and the hand-off.
+
+   IT TAKES THE INK BAR AND NOT THE ACCENT ONE, and that is the hierarchy rather
+   than a shortage. §1 trait 06 caps a surface at three tones and .lp-share
+   below has already spent the accent on the paragraph that earns it — the one
+   mechanic no bank-linked tracker can do. So this block gets the same §6 6px
+   keyline in --lp-form: Graphite on Bone, a non-text rule at 11.4:1, and a
+   quieter peer of the Flare bar under it. Two bars, one loud, and the loud one
+   is on the claim.
+
+   ITS LEAD IS BODY-700, NOT --fs-h3, AND THAT IS DELIBERATE. The wall's ramp is
+   stated three rules down: d1 wordmark / h1 thesis / h3 lede / h3 hand-off /
+   body, "and the two h3s are the two things a stranger has to leave with". A
+   third h3 does not add a third thing, it flattens the two that are there. What
+   flags this block instead is the mono stamp above it — §1 trait 10 and §7.4's
+   deadpan spec label, which is the register these four lines are written in
+   anyway.
+
+   NO PLATE, IN EITHER DIRECTION. CONSTRAINT §2.1b: below 720px the wall
+   alternates Bone (thesis/lede/this) → Espresso (.lp-share) → Bone (.lp-sub) →
+   Espresso (.lp-terms), and grounding this block would fuse it to the plate
+   under it into one field run. Measured on the tree before it existed, at
+   375x812: the leading Bone run was 283–452 = 169px, and this block extends it
+   to roughly 320 — well inside §2.1b's derived ~605px limit for a Bone run
+   against the 35% field floor. It moves window @0 (66.48% field / 24.25% Bone
+   in both themes, docs/brand/census.json at tree 83c9a9e) TOWARD the 60/30
+   target rather than away, which is why the give-back is not needed here. */
+.lp-grade {
+  margin: var(--s2) 0 0;
+  border-left: var(--keyline-heavy) solid var(--lp-form);
+  padding-left: var(--s2);
+}
+/* Same mono spec register as every other stamp on this poster (.lp-index,
+   .lp-corner, .lp-facts, .lp-share-tag, .lp-shot-tag), and the same half-step
+   gap: a caption clamped to the thing under it. */
+.lp-grade-tag {
+  margin: 0 0 calc(var(--s1) / 2);
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+.lp-grade-lead {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+/* The terms under the claim. 500 against the lead's 700 — the same weight step
+   .lp-share-body and .lp-terms both make, and for the same reason: a list of
+   facts supports a claim, it is not the claim. */
+.lp-grade-body {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
+/* THE HAND-OFF (see Landing.tsx) — the reason to pass this on, above the fold.
+   It gets the §6 6px keyline bar rather than a plate of its own: a second ink
+   plate inside the wall's plate would make the composition four boxes deep,
+   and the wall already carries the facts pill. Flare on Bone is 3.01:1 —
+   under the body-text floor and comfortably over the 3:1 non-text minimum,
+   which is exactly what a signal bar is. The type itself stays Graphite on
+   Bone at 11.4:1; the accent never touches a letterform. */
+.lp-share {
+  margin: var(--s2) 0 0;
+  border-left: var(--keyline-heavy) solid var(--lp-flare);
+  padding-left: var(--s2);
+}
+/* THE HAND-OFF TAKES THE COUNTER GROUND ON THE PHONE, and the paragraph above
+   argued against exactly this until §2.1b was measured over the wall. The
+   argument it made — "a second ink plate inside the wall's plate would make the
+   composition four boxes deep" — is a composition preference; the window band
+   is a law, and §12 style rules lose to it the same way §2 loses to a Trust
+   Rule. THE MEASUREMENT: .lp-plate is 1018px tall on a 375px phone and the
+   viewport is 812, so the plate is a single ground running longer than a
+   screen — the defect the window band exists to catch. It put window @0 at
+   49.3% Bone and @812 at 46.4% with the page's mean-of-windows Bone at 41.19
+   (dark) against a 30±6 tolerance: the wall plate IS this poster's Bone budget.
+   From 720px up the wall's plate is 583px, inside a 900px viewport, so the
+   composition round 3 verified on pixels at 768/1024/1440 is untouched — the
+   same breakpoint and the same reasoning as .lp-badge's.
+   CONTRAST, all four pairs: the copy is Bone on Espresso at 13.4:1 (against
+   11.4:1 Graphite on Bone), the §6 Flare signal bar is 4.41:1 on Espresso
+   (against 3.01:1 on Bone), the plate's own boundary is Espresso on Bone at
+   13.4:1 so it needs no keyline, and nothing focusable lives inside it. Every
+   one of those is better than what it replaces. */
+@media (max-width: 719px) {
+  .lp-share {
+    background: var(--lp-espresso);
+    color: var(--lp-counter);
+    border-radius: var(--r-lg);
+    corner-shape: squircle;
+    corner-shape: superellipse(2.07);
+    padding: var(--s2);
+  }
+}
+/* THE ROW'S INDEX. Same mono spec register as every other index on this poster
+   (.lp-index, .lp-corner, .lp-facts, .lp-shot-tag) — this one labels the fold's
+   one claim with its position in the spec sheet below, so it has to READ as one
+   of that family and not as a heading. Half-step gap, exactly as .lp-shot-tag
+   sets it: both are a caption clamped to the thing under them. */
+.lp-share-tag {
+  margin: 0 0 calc(var(--s1) / 2);
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+/* THE LEAD TAKES THE LEDE'S TIER, and that is the hierarchy fix, not a nudge.
+   The hand-off was one run of body-weight-700 text — the same size as the
+   paragraph above it and the paragraph below it — so the strongest sentence on
+   the page was distinguished from its neighbours by a 6px bar and nothing
+   else. At --fs-h3 it is the plate's second reading-tier line, under a --fs-h1
+   thesis: the ramp in the wall now reads d1 wordmark / h1 thesis / h3 lede /
+   h3 hand-off / body, and the two h3s are the two things a stranger has to
+   leave with. Still Graphite on Bone at 11.4:1 — the accent stays on the bar
+   and never touches a letterform (§2.1 rule 1). */
+.lp-share-lead {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: 700;
+  /* Same reason as .lp-thesis: an eight-word line orphans its last word on a
+     375px plate, and this is the sentence that has to survive the phone. */
+  text-wrap: balance;
+}
+/* The mechanic, in the app's own words. 500 rather than 700: the weight step
+   is the hierarchy between the claim and how it works, exactly as .lp-terms
+   steps down from the claim to the terms under it. */
+.lp-share-body {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
+/* The instruction, last, back at 700 — it is a peer of the lead, not of the
+   body between them. */
+.lp-share-call {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+/* THE TERMS, under the hand-off. No second keyline bar: §1 trait 06 caps a
+   surface at three tones and the accent has already been spent on the bar
+   above, which is the paragraph that earns it. This one is plain body ink on
+   the same Bone plate (11.4:1) at 500 rather than 700 — the weight step is the
+   whole hierarchy, and it is the correct one: a list of refusals supports the
+   reason, it is not the reason. */
+.lp-terms {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
+/* THE SECOND COUNTER PLATE IN THE WALL, AND IT IS STRIPING, NOT DECORATION.
+   CONSTRAINT §2.1b. Moving the hand-off above the market argument moved the
+   plate that carries the wall's only counter ground with it, and the bottom of
+   the wall went flat: in the artifact AT COMMIT 80f643d, landing.375x812 window
+   @812 read 33.72% field / 51.46% Bone in both themes — under the 35 floor, and
+   the page's worst window after @4872. The
+   layout probe behind that attribution puts .lp-share at 452–976, .lp-sub at
+   984–1239 and this block at 1247–1349, i.e. ~500px of unbroken Bone plate from
+   984 to the wall's foot inside an 812px window.
+   THE TERMS ARE THE RIGHT BLOCK TO GIVE BACK, and .lp-sub is not: plating the
+   paragraph instead would join it to .lp-share into one 787px field run, past
+   §2.1b's derived ~702px limit for a field run against the 15% Bone floor. This
+   one leaves .lp-sub as a Bone island between two counter plates, which is the
+   alternation the law asks for rather than a longer run of the other ground.
+   Below 720px only, exactly as .lp-share is scoped and for the same measured
+   reason: at ≥720 the wall's plate is shorter than the viewport and there is no
+   run to break.
+   CONTRAST: Bone on Espresso at 13.4:1, up from 11.4:1 Graphite on Bone, and
+   nothing focusable lives in this paragraph. */
+@media (max-width: 719px) {
+  .lp-terms {
+    background: var(--lp-espresso);
+    color: var(--lp-counter);
+    border-radius: var(--r-lg);
+    corner-shape: squircle;
+    corner-shape: superellipse(2.07);
+    padding: var(--s2);
+  }
+}
+.lp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+/* .btn is styled for an inline <button>; an <a> needs the box turned on before
+   its 48px floor means anything (§11: touch targets stay ≥48px). */
+.lp-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s1) var(--s3);
+  text-decoration: none;
+}
+/* .btn's default fill is --field/--ink, which ground-swap; on this pinned
+   plate that would render a Graphite button with Bone type in dark mode, on a
+   Bone plate, inverted from its light-mode twin. Pin both. .btn-flame is
+   already pinned in tokens.css (Graphite plate, Bone label, Flare keyline) and
+   needs nothing here. */
+.lp-plate .btn:not(.btn-flame) {
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  border-color: var(--lp-form);
+}
+.lp-plate .btn:not(.btn-flame):not(:disabled):hover:not(:focus-visible) {
+  outline-color: var(--lp-form);
+}
+
+/* The three facts — the entire competitive position against every bank-linked
+   budgeting app — above the fold on its own ink plate. Under 24px, so it
+   cannot sit on the field.
+   No superellipse cut, unlike .lp-corner: this plate is a PILL, and a 999px
+   radius is already a stadium — re-cutting it with the n=4.2 whole-box
+   polygon would replace that stadium with an elliptical-cornered rectangle.
+   tokens.css leaves pills out of the corner-shape list for the same reason. */
+.lp-facts {
+  margin: 0;
+  background: var(--lp-form);
+  color: var(--lp-counter);
+  /* --r-lg below 720px, the pill above it. A 999px radius is a STADIUM, and a
+     stadium whose content has wrapped to two lines is just a rounded box with
+     bulging ends — which is what this was at 375px. The radius token set has a
+     value for a two-line plate and it is not the pill. */
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s1) var(--s3);
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* ── B. THE SPEC SHEET (§5B) ──────────────────────────────────────────────
+   4-up grid of badges on Espresso, captioned with mono index labels. Bone on
+   Espresso is 13.4:1 — the strongest pair in the table — so this is the
+   surface that carries the product explanation. */
+/* THE BOTTOM KEYLINE IS BONE BECAUSE THE SECTION BELOW IS NOW ESPRESSO TOO.
+   .lp-shear inverted to an Espresso ground (see §5D below), so this seam stopped
+   being a colour offset and became two identical grounds meeting. A Graphite
+   rule between them is 1.16:1 — the same invisible stroke .lp-spec:focus-visible
+   already had to be rescued from. Bone is 13.4:1 on both sides, so §5's "depth
+   comes from colour offset + keylines" is carried here by the keyline alone,
+   which is the half of that sentence the offset can no longer spend.
+   CONSTRAINT §2.1 rule 3: Bone on Espresso is in the table at 13.4:1. */
+.lp-spec {
+  background: var(--lp-espresso);
+  color: var(--lp-counter);
+  border-bottom: var(--keyline-w) solid var(--lp-counter);
+  padding: var(--s5) var(--s3);
+}
+.lp-spec-lede {
+  margin: 0 0 var(--s3);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+}
+/* CONSTRAINT §2.1b — THE SECTION'S HEAD GETS THE PLATE ITS FOOT ALREADY HAS,
+   and it is the window band that asks for it.
+   THE DEFECT: .lp-spec is 2131px of unbroken Espresso at 1440 — over two
+   viewports of one ground, which is the length §2.1b derives its whole window
+   band from. The only interruption inside it is .lp-note-strip, 1303px in. So
+   the window that lands on the section's head has the shot's mat and nothing
+   else: in the artifact committed at dc529fb, landing.1440x900.*.fresh window
+   @900 read 81.04% field / 15.57% Bone, over the 80 band.
+   THE FIX IS THE SECTION'S OWN CONSTRUCTION, NOT A NEW ONE. .lp-note-strip is
+   already "a Bone plate ... because it is a claim about the product and not a
+   caption on the shot", and the lede is the same kind of sentence — the claim
+   the section opens with. It takes the same ground, keeps its own h3 register,
+   and the Espresso run is broken where the window needs it.
+   SCOPED TO ≥1024 BECAUSE A PLATE IS A GIVE-BACK. On the phone this section is
+   three viewports of a different rhythm and both 375 landing rows are inside
+   the band with no breach; giving Bone to a window that is not short of it is
+   how the plate mechanism inverts (see .counter-plate in tokens.css). Below
+   1024 nothing here applies.
+   NO NEW PAIR: --lp-form on --lp-counter is the note strip's pair and the
+   poster's pinned ink on its pinned paper, 11.4:1, already measured. */
+@media (min-width: 1024px) {
+  .lp-spec .lp-spec-lede {
+    background: var(--lp-counter);
+    color: var(--lp-form);
+    border: var(--keyline-w) solid var(--lp-form);
+    border-radius: var(--r-lg);
+    corner-shape: squircle;
+    corner-shape: superellipse(2.07);
+    padding: var(--s2);
+  }
+}
+/* ── THE PRODUCT SHOT ─────────────────────────────────────────────────────
+   A live <Ledger>, not an image (see Landing.tsx). It therefore arrives fully
+   dressed by tokens.css/app.css and this block adds nothing to its inside —
+   restyling the card here would make the shot a lie about the product.
+
+   THE CARD IS THEMED WHERE THE PAGE IS PINNED, and that is correct. Everything
+   else on this poster keeps its hex in both themes (see the file header); the
+   card is a specimen OF the app, so whatever the app paints is what the shot
+   shows. Both of these cards now carry .spec-sheet (§5B — the archive half of
+   the app's stack stands on Espresso in BOTH themes), so the specimen is an
+   Espresso card with a Bone keyline for every visitor. Against this section's
+   own Espresso field that is a 1.00:1 fill offset delimited solely by the 2px
+   Bone keyline at 13.4:1 — which is §5's rule that depth comes from colour
+   offset AND keylines spending the second half of its sentence, and the same
+   arrangement the dark theme already shipped. Every pair INSIDE the card is
+   the app's own, unchanged; nothing here repaints it. */
+.lp-shot { margin: 0 0 var(--s3); }
+/* CONSTRAINT §2.1b — THE MOUNT TAKES THE MEASURE; THE SPECIMEN KEEPS THE CAP.
+   The 560px limit belongs to the CARD — "a card stretched to a 1080px measure
+   is not the card anyone will use, and the target device is the phone" — and it
+   was being enforced by shrinking the MAT, which is a different element with a
+   different job. On a 1440px page that left a 560px mount adrift in 880px of
+   bare Espresso for 935 unbroken rows: 61% of every one of those rows in the
+   field bucket, on the section that already had the least paper in it.
+   Measured on the tree of 9a42bd8 plus this round's shear inversion,
+   landing.1440x900 read mean-of-windows field 68.22 against §2.1b's 60±8 — a
+   breach the phone rows do not have, because on the phone the mat already runs
+   the full measure. Handing the mount the 1080 measure the note strip and the
+   badge grid already take is the same give-back, spent on the one plate that
+   was refusing it, and it needs no breakpoint: below 560px of measure the cap
+   below never binds and nothing moves.
+   The specimen does not change. It is still 560px, still centred, still the
+   app's own card with nothing repainted on it. */
+.lp-shot-frame {
+  margin: 0 auto;
+  /* The app's own card rhythm (.main-stack's gap). The frame holds ONE card
+     today (Root.test asserts exactly that) and .card carries no margin, so the
+     gap is here for the same reason the app's stack has one: it is the app's
+     rhythm, and a second specimen must not have to reintroduce it. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  /* THE POSTER'S PINNED INK STOPS HERE, and this line is load-bearing.
+     .lp-spec pins its foreground to Bone for the copy standing on the Espresso
+     field. A card is a PLATE on that field with its own fill, and tokens.css's
+     .card sets a background without setting a colour — so the shot would
+     inherit Bone and render Bone type on the Bone light-theme card. An
+     invisible product shot, on the developer's dark machine only. The card
+     takes the app's own ink, which is what makes it the app's card. */
+  color: var(--ink);
+  /* THE MAT — Bone paper under the specimen, and it is §2.1b's theme-twin
+     check answered rather than a frame for its own sake.
+     THE DEFECT: the card is the one element on this poster that is NOT pinned
+     (see the block above — it is the app's card, so it paints what the app
+     paints), and its .reading-plate regions are Bone in light and Espresso in
+     dark. So the window over the shot measured 78.13% field / 14.50% Bone in
+     dark against 45.87 / 45.47 in light — landing.375x812 @1624 in the artifact
+     AT COMMIT 80f643d, the same DOM in the same place, one breaching the 15%
+     Bone floor and the other 15pp off the target in the opposite direction.
+     §2.1b: that is one defect seen twice, and the fix is a ground the two
+     themes share.
+     A MAT IS THAT GROUND. It is the page's paper, not the card's paint, so it
+     adds nothing to the shot's inside and the specimen still renders exactly
+     what the app renders. It reads as a mount — §1 trait 01, the mark inside a
+     shape — and it settles a second thing the block above only half-solved: an
+     Espresso card on an Espresso field is a 1.00:1 fill offset holding on a
+     single 2px keyline. On paper it is delimited by the field it stands on.
+     WHAT IT MEASURED, AND THE HALF IT DID NOT FIX. In the artifact committed
+     at dc529fb, @1624 reads 72.03 / 20.79 dark and 40.28 / 51.32 light. The
+     dark half is the result: 14.50 -> 20.79 Bone, back over §2.1b's 15% floor,
+     and both themes are now inside the band at that window. The TWIN half is
+     not: the light/dark Bone spread there was 30.97pp before the mat and is
+     30.53pp after, so the mat lifted both themes by about the same 6pp and
+     moved the divergence by 0.44. @2436 says the same thing (39.45 dark against
+     28.38 light, from 33.37 against 21.79). This block used to claim the mat
+     "lands the same Bone in BOTH themes"; it lands the same ADDED Bone, which
+     is a different sentence and the one the numbers support. The twin defect at
+     @1624 is still open — closing it means giving the shot a ground the card
+     cannot re-role under it (pinning .reading-plate inside .lp-shot-frame is
+     the obvious candidate and has not been measured).
+     Radius one step out from the card's own --r-lg so the mount reads as
+     outside the plate rather than as a second edge on it. */
+  background: var(--lp-counter);
+  padding: var(--s2);
+  border-radius: calc(var(--r-lg) + var(--s2));
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+}
+/* app.css cuts a macro-break above the month card because there it opens the
+   archive half of the app's stack — everything you read rather than act on.
+   There is no such split here: both cards ARE the subject, and the month card
+   is the first thing in its figure. Zeroed rather than left alone because that
+   --s4 step would otherwise print as a hanging gap above the shot. */
+.lp-shot-frame .archive-card { margin-top: 0; }
+/* THE SPECIMEN'S CAP, moved here off the mount (see the block above). Geometry
+   only — no fill, no stroke, no ink, no type size — so the shot is still
+   exactly what the app renders. `margin-inline` rather than `margin: 0 auto`
+   because .archive-card's own top margin is zeroed one line up and a shorthand
+   here would silently take it back. */
+.lp-shot-frame .card {
+  max-width: 560px;
+  margin-inline: auto;
+}
+/* CONSTRAINT §2.1b — THE MAT TAKES THE SECTION'S MEASURE, AND THE FULL BLEED
+   IS WHAT PAID FOR IT.
+   THE DEFECT, and it is one the committed artifact could not report. Bled out
+   of the section gutter, the mat was a full-bleed opaque Bone ground running
+   1911–2918 = 1007px against an 812px viewport — the only run on this page over
+   §2.1b's "no single ground may run longer than one viewport", and 195px over
+   it. What that costs shows up only if you slide the window instead of tiling
+   it from zero: measured on the tree of 9a42bd8, landing.375x812.light holds a
+   window at @1992 reading 27.84% field / 63.79% Bone — 7.2pp under the 35 floor
+   and over the 55 Bone ceiling — while the grid windows either side of it
+   (@1624 F 40.28, @2436 F 64.53) both pass and the row recorded no breach at
+   all. In light the mat and the card's Bone .reading-plate interiors are one
+   Bone mass; in dark those interiors are Espresso, so the same DOM read
+   F 46.75 / B 45.53 there against F 30.71 / B 61.23 in light — §2.1b's
+   theme-twin check, 16pp apart.
+   INSETTING IT IS THE FIX AND IT IS ARITHMETIC, not taste: a 327px mat on a
+   375px page leaves the section's own 12.8% Flare/Espresso gutter on EVERY mat
+   row, which is round 6's model constant `field% = 12.8 + 76.7·rho` spent on
+   the one region that was refusing to pay it. It also ends the over-length run,
+   because the mat stops being full-bleed and stops being a ground at all.
+   THE SPECIMEN IS NOT WHAT PAYS. The block this replaces was right that a card
+   narrowed to 295px is no longer "the card anyone will use", so the mat's
+   INLINE padding drops to --s1 on the phone and the card comes back at 311px —
+   16px off the 327 it had before the mat existed, and still wider than the app's
+   own card at the narrowest width this product supports. The vertical padding
+   is untouched: nothing is competing for the height.
+   §8's "let the container touch the frame edge in one place per layout" is now
+   spent where §5B actually breaks its frame — .lp-object-mark crossing the top
+   edge of its own section — rather than on a mount.
+   Phone only: from 720px up the frame is inside its 560px measure with the
+   section's gutter to spare, and there was never a bleed to undo. */
+@media (max-width: 719px) {
+  .lp-shot-frame {
+    padding-inline: var(--s1);
+  }
+}
+/* The caption is the shot's alt text (the shot is aria-hidden), so it is real
+   body copy, not a footnote: Bone on Espresso, 13.4:1. */
+.lp-shot-cap {
+  max-width: 60ch;
+  margin: var(--s2) auto 0;
+  font-size: var(--fs-body);
+}
+/* The honesty label, in the mono spec register (§1 trait 10) so it reads as a
+   stamp on the plate rather than as the first clause of the caption.
+   Its own class rather than a second use of .lp-index, deliberately: that class
+   means "the badge's position in the four-mechanic grid" and a test reads every
+   .lp-index on the page to check the denominator is the grid's real length. A
+   caption tag borrowing the class would break that check's subject. */
+.lp-shot-tag {
+  display: block;
+  margin-bottom: calc(var(--s1) / 2);
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+
+/* The note-pad line. A Bone plate like the badges below it, because it is a
+   claim about the product and not a caption on the shot above it — and because
+   §1 trait 01 puts every mark inside a shape. */
+.lp-note-strip {
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+  margin: 0 0 var(--s3);
+  font-size: var(--fs-body);
+}
+/* §11: all numerals render in the mono stack. The denominations, the mechanic
+   count and the note cap are the only numerals in their sentences, so each mono
+   run is scoped to exactly them — the same split .calibrating makes in the app.
+   .lp-count is the same treatment for a numeral that is READ from code
+   (MECHANICS.length, NOTE_MAX_LEN) rather than typed into the copy. */
+/* .lp-quote is the third case and the same rule: a string the APP prints,
+   quoted verbatim in the fold (the record's resisted line — see
+   resistedChipLabel). It carries a numeral, so §11's "all numerals render in
+   the mono stack" applies; and quoting the product's own output in the product's
+   own register is what makes it read as a quotation rather than as copy.
+   NO COLOUR OF ITS OWN, deliberately: it inherits whichever pair .lp-share is
+   on — Graphite on Bone at 11.4:1 from 720px up, Bone on Espresso at 13.4:1 on
+   the phone plate — so it introduces no fourth tone (§1 trait 06) and no
+   unchecked foreground/field pair (§2.1 rule 3). */
+.lp-notes-keys,
+.lp-count,
+.lp-quote {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: var(--tr-spec);
+}
+
+.lp-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* 3-up where there is room, 2-up on a tablet, 1-up on a phone. The track
+     minimum is what picks the column count out of the 1080px measure, and 296px
+     picks three — which is the one that divides the roster evenly. A 220px
+     minimum picked four, and four columns over six badges leaves a two-badge
+     orphan row on the widest, most-composed view of the page. The count is not
+     hard-coded anywhere; if the roster changes, this is the number to re-derive
+     against it.
+     min(296px, 100%), NOT a bare 296px: a fixed track minimum cannot shrink
+     below itself, and .lp-measure inside .lp-spec's `var(--s5) var(--s3)`
+     padding is only 272px at the stated 320px floor — so the grid overflowed
+     by 24px and, because .lp-spec is the one section without overflow:hidden,
+     the whole document scrolled sideways (WCAG 1.4.10 Reflow, failing for
+     every viewport at or under 343px). min() clamps the floor to the container
+     and is a no-op from 344px up, so the 3-up/2-up/1-up choice above is
+     unchanged. */
+  grid-template-columns: repeat(auto-fit, minmax(min(296px, 100%), 1fr));
+  gap: var(--s2);
+}
+/* Each badge is a Bone plate: the body copy inside is 17px, and 17px Bone on
+   Espresso would be legal — but a badge (§5B) is a container, and §1 trait 01
+   says nothing floats. The plate is the badge. */
+.lp-badge {
+  background: var(--lp-counter);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+/* THE BADGE IS A KEYLINE ON THE PHONE, AND A FILL FROM 720px UP.
+
+   PROVENANCE: HISTORICAL — MEASURED BEFORE THIS RULE LANDED, TREE UNRECORDED.
+   THESE FOUR ROWS APPEAR IN NO COMMITTED census.json, AND THE BLOCK USED TO
+   CLAIM THEY WERE THE CURRENT TREE'S. That claim was checked and it is false at
+   the tree that carried it (73b9260: 44.31/45.93 dev 35.32 and 55.18/35.93 dev
+   15.18), false at HEAD, and false in every artifact in between — which is
+   round 3's defect in miniature, inside the round that built the census
+   specifically to end it. They are kept only as the BEFORE state this decision
+   was weighed against. The landing had never been censused at phone width until
+   the round that added this rule, and on those figures it was the worst surface
+   in the matrix by a distance:
+
+     landing.375x812.dark    28.8 field / 60.2 Bone   deviation 64.0
+     landing.375x812.light   40.1 field / 49.8 Bone   deviation 43.1
+     landing.1440x900.dark   59.6 / 34.1              deviation  9.5  <- at law
+     landing.1440x900.light  66.2 / 27.9              deviation 13.7
+
+   FOR WHAT THE TREE MEASURES NOW, READ docs/brand/census.json — the four
+   landing.* rows, which `npm run census` rewrites and a staleness test refuses
+   to let go stale. Two conclusions this block used to draw no longer hold and
+   are retired rather than restated: the window reading was described as "three
+   consecutive viewport windows at 73 / 73 / 69 percent Bone", which matches no
+   window in any committed artifact (landing.375x812.dark.fresh's Bone windows
+   read 55.20, 42.10, 76.81, 25.21, 4.89, 39.76, 83.30, 38.04 at this tree, and
+   the artifact's own breaches array names the real ones), and "the worst
+   surface in the matrix by a distance" is now false — the phone app page is
+   worse. Do not retype either list; read the row.
+
+   THE DIRECTION THE FIGURES ARGUED IS UNAFFECTED, and it is the reason the
+   block survives at all. Same DOM, same colours, four times the deviation.
+   Nothing on this page is theme-dependent except the product shot, so the whole
+   of that gap is WIDTH: .lp-grid is 3-up at 1440 and 1-up at 375, so seven
+   badges that read as objects standing in an Espresso field at desktop become
+   seven full-measure Bone slabs stacked into a column, against §2's 30% budget
+   and the amended law's 65% cap.
+
+   THE ARGUMENT IS §5A's, NOT AN OPTIMISATION. "Full-bleed colour, a single
+   centred container, 60% negative field." A container that spans the whole
+   measure is not a container standing in a field — it IS the field, and the
+   figure/ground relation §1 trait 01 asks for has quietly inverted. At 375px a
+   badge is 335 of 375 pixels wide: 89% of the line. At 1440 it is one of three
+   objects in a 1080px measure with Espresso running around and between them.
+   So the phone gets the OTHER construction the design system offers for the
+   same job — §1 trait 05, the optical keyline: "marks are ringed by a 2nd
+   contour that offsets them from the field". The badge keeps its shape, its
+   2px border, its squircle and its 48px-safe padding. It gives up its fill.
+
+   CONTRAST IS BETTER, NOT WORSE, AND THE BASE RULE'S OWN COMMENT SAYS SO:
+   "the body copy inside is 17px, and 17px Bone on Espresso would be legal".
+   §2.1's table: Bone #F5E6E0 on Espresso #2A1E18 is 13.4:1, against 11.4:1 for
+   the Graphite-on-Bone pair it replaces. The keyline is that same 13.4:1
+   against the section field. .lp-index inherits the colour and moves 11.4 ->
+   13.4 with it. Three tones on the surface becomes two (§1 trait 06).
+
+   NOTHING INSIDE A BADGE IS FOCUSABLE — .lp-badge is an <li> holding a span, an
+   h3 and a p (Landing.tsx) — so the page-level Graphite focus ring, which is
+   1.16:1 on Espresso and is the trap .lp-spec:focus-visible exists to fix,
+   never lands inside one. Root.test.tsx asserts the roster's shape; a badge
+   that grew a control would need the .lp-spec treatment first.
+
+   720px IS THE PAGE'S OWN BREAKPOINT, not a new one: it is where .lp-wall
+   stops running its plate full-bleed and "the composition gets its 60%
+   negative field back" (see the block at the end of this file). This is the
+   same sentence applied to the same section's containers. */
+/* THE BADGES ALTERNATE, and the nth-child is CONSTRAINT §2.1b rather than
+   decoration. The block above gives the phone badge a keyline instead of a
+   fill, for §5A's reason, and that argument still stands for the badge it is
+   about — but applied to ALL EIGHT it produced 1487px of unbroken Espresso in a
+   column whose viewport is 812px. Measured at tree 71b5608: window @3248 read
+   89.77% field / 4.89% Bone in BOTH themes, over the 85 cap and under the 15
+   floor at once. A grid of keyline badges is one ground running longer than a
+   screen, which is the defect §2.1b's window band exists to catch.
+   So every third badge keeps its fill: the longest keyline run is two badges
+   (~370px, against the ~605px at which a Bone-flanked run fails the 35% field
+   floor), the figure/ground relation §5A asks for is still drawn, and the
+   interval is §5B's spec-sheet rhythm — one filled badge per row of the 3-up
+   grid this same roster forms from 720px up. Contrast is unchanged on both
+   halves: Graphite on Bone 11.4:1, Bone on Espresso 13.4:1.
+   ONE IN THREE RATHER THAN ONE IN TWO, and the second number is measured too:
+   at every other badge the phone rows came back with mean-of-windows field at
+   46.75 (dark) / 48.83 (light) against §2.1b's 60±8 and Bone at 41.19 / 39.36
+   against 30±6 — the windows were inside the band and the document they average
+   to was not. Bone plates are this page's whole Bone budget; four of them in a
+   column is most of it.
+   THE NOTE STRIP DOES NOT GO WITH THEM, and that was measured both ways: it is
+   "a Bone plate like the badges below it", so taking the badges' phone
+   construction was the obvious move — and it dropped window @2436 to 12.97%
+   Bone in dark, under the 15 floor, because that window is the shot's tail and
+   the strip is the only Bone in it. It keeps its fill.
+   AND THE LAST BADGE KEEPS ITS FILL TOO, BECAUSE THE RUN BELOW IT IS NOT A
+   BADGE. The `~370px` derivation above prices a keyline run the way the stripe
+   assumes it: FLANKED BY BONE on both sides. The roster's tail is the one run
+   that is not. Under the last badge there is no next badge — there is
+   `.lp-spec`'s `--s5` tail padding, the Bone seam keyline, `.lp-shear`'s `--s5`
+   head padding and its d2 sign, all on the SAME Espresso ground, and the two
+   sections abut on it. Measured in Chromium at 375x812 on the tree of 44ff64a:
+   badge 08 ended at 4838 and the next Bone was `.lp-rules-lede`'s Sand plate at
+   5383 — 545px of one ground, half again the two-badge run this rule was
+   derived for, and it straddles a section boundary so neither section's own
+   reading can see it. The grid window that samples it, `@4872`, read 80.11%
+   field in BOTH landing.375x812 rows in the census committed at 44ff64a: a
+   recorded band breach, 0.11 over §2.1b's 80.
+   `:not(:last-child)` gives the tail run the Bone flank the derivation already
+   assumed. It moves no box — a fill is not a length — so §2.1b.1's "any change
+   that lengthens a section by 60px moves the reported number without improving
+   one screen" is not being spent here; the ground changed, which is the unit
+   §2.1b says is the right one. It is also roster-proof: when the roster's
+   length is a multiple of three the last badge is already `3n` and this clause
+   is a no-op, and the longest keyline run stays two badges either way.
+   CONSTRAINT §2.1b: window band, field 35-80. Contrast is the base rule's own
+   pair, Graphite on Bone 11.4:1 — no new pair. */
+@media (max-width: 719px) {
+  .lp-badge:not(:nth-child(3n)):not(:last-child) {
+    background: none;
+    color: var(--lp-counter);
+    border-color: var(--lp-counter);
+  }
+}
+
+/* The mono index caption (§1 trait 10 / §5B). Full form colour on the Bone
+   badge — 11.4:1. It is NOT tinted with the section accent: Marigold reads
+   7.4:1 on the Espresso ground (computed, since §2.1's table does not list the
+   pair and rule 3 requires computing anything it omits) but only 2.0:1 on the
+   Bone badge these captions actually sit on. A 2.0:1 caption is not a caption,
+   so the accent stays off this surface entirely — which also keeps the badge
+   inside the three-tone cap (§1 trait 06). */
+.lp-index {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+.lp-badge-h {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--tr-h3);
+}
+.lp-badge-body { margin: 0; font-size: var(--fs-body); }
+
+/* ── D. THE SHEAR (§5D) ───────────────────────────────────────────────────
+   One 38° Flare band splits the canvas, on Espresso ground with Sand plates.
+
+   CONSTRAINT §2 / §2.1b — SAND IS A COUNTER, SO IT CANNOT BE A SECTION'S
+   GROUND, and this section was standing on it. §2's own sentence is "60% Flare
+   or Espresso"; Sand is filed in the Bone family (paper — palette.ts's bucket
+   note, §2's "sand: aged paper, spec sheets", §1 trait 07). A Sand-grounded
+   section therefore contributes NOTHING to the 60% field budget, and the only
+   field it can ever show is whatever its plates and its band cover.
+
+   The arithmetic, measured rather than argued. Round 6's model reads
+   `field% = g + (c - g)·rho`, where g is the ground's own field value, c the
+   plate's and rho the plate's coverage. On .lp-spec, g = 100 and c = 12.8 (the
+   Flare gutter beside a 327px card). On this section g was 0 — Sand is
+   full-bleed, so there is no gutter, because Sand IS the gutter. At 100% plate
+   coverage it topped out at 86.13% field and it ran about 40%.
+
+   What that measured, in the artifact committed at 9a42bd8, per the SECTION
+   reading this round adds (see §2.1b): landing.1440x900 `.lp-shear` is 627px
+   against a 900px viewport — a composition the eye holds ENTIRE, which is §2's
+   own precondition for itself — and it read 30.40% field / 66.45% Bone. Under
+   §2.1b that is below the 35 floor AND over the 65 Bone HARD CAP, in both
+   themes. No window in that row isolates it, so the window reading structurally
+   could not see it and the artifact recorded zero breaches for the row.
+
+   INVERTING IS THE FIX, and it costs no new pair: Espresso ground takes Bone
+   copy at 13.4:1 (better than the 9.4:1 Graphite-on-Sand it replaces), and the
+   plates become Sand with Graphite ink at 9.4:1 — the pair landing.css already
+   defends. §2's approved pairing `Espresso + Sand + Coral` names Espresso
+   first; this section now spends it in that order.
+
+   The bottom keyline stays Graphite: it delimits this section from .lp-object's
+   Flare below, where Graphite is 3.79:1 (non-text, over the 3:1 minimum). The
+   seam ABOVE is the one that moved — see .lp-spec's border-bottom. */
+.lp-shear {
+  position: relative;
+  background: var(--lp-espresso);
+  color: var(--lp-counter);
+  border-bottom: var(--keyline-w) solid var(--lp-form);
+  padding: var(--s5) var(--s3);
+  overflow: hidden;
+}
+/* THE LANE — the phone's answer to §5D, and the reason the marks below are no
+   longer switched off there.
+
+   THE UNFINISHED HALF. The construction documented under .lp-band solves the
+   occlusion for a section that is WIDER THAN IT IS TALL: at 1440 the diagonal
+   has a 678px run through a 530px-tall box, the rules grid is four 258px
+   columns, and there is band left over above and beside it for whole marks to
+   stand in. None of that is true on a phone. Below 720px the grid collapses to
+   one full-measure column, the column IS the viewport, and the band's visible
+   run is reduced to ~60px slivers between stacked plates — so the marks were
+   gated off and the stated primary device shipped §5D's first clause and none
+   of its second. That gate was honest about the symptom. It was not a fix.
+
+   THE COLLISION IS THE OVERLAP, so the fix is to stop overlapping. The band
+   stops passing behind the plates on the phone and gets a canvas of its own:
+   a full-bleed panel between the sign and the plates, splitting the section
+   into what it says and what it lists. Nothing is drawn over it, so nothing
+   occludes it, and the marks are legible at every width instead of at four of
+   them. §5D is satisfied more literally here than at 1440, not less — one 38°
+   band, splitting a canvas, with type parallel to it and no plate in the way.
+
+   THE HEIGHT IS THE ANGLE, not a chosen number, which is why it is a ratio and
+   not a token. tan 38° = 0.78129, so a lane whose height is its width times
+   that tangent is the box whose corner-to-corner diagonal IS 38°: the band's
+   centreline enters at the bottom-left corner and leaves at the top-right one,
+   touching both side edges at every viewport. One step shorter and the band no
+   longer reaches the side edges — it exits through the top and bottom instead
+   and dies to a sliver in each bottom corner, which is the same fragment
+   artefact one level up. aspect-ratio rather than a vw calc so the ratio is
+   measured against the lane's own box and a scrollbar cannot skew it.
+
+   §5's 8px grid is untouched by this: the lane declares no length. Its height
+   is the geometric consequence of one angle and the canvas width, the same way
+   .card::before's 24px inner radius is 28 minus its inset rather than a new
+   step in the radius set.
+
+   display: contents at ≥720 dissolves the lane completely — no box, so no
+   containing block, so the band falls back to being absolutely positioned in
+   .lp-shear exactly as it was. One band element, one rule set, two geometries:
+   the phone gets a lane, the desktop keeps the composition round 3 verified on
+   pixels at 768 / 1024 / 1440. */
+.lp-band-lane {
+  position: relative;
+  overflow: hidden;
+  /* Full-bleed out of the section's --s3 inline padding. .lp-shear clips, so
+     this can never open a horizontal scrollbar. */
+  margin: var(--s4) calc(-1 * var(--s3));
+  /* The lane's only in-flow content is an absolutely-positioned band, so
+     height:auto is 0 and the ratio is the only thing giving it a box. This
+     floor is the failure mode, not the design: on an engine that ignores
+     aspect-ratio the lane would collapse and the phone would lose the band
+     entirely — worse than the typeless band it replaces. --s7 is below the
+     geometric height at every viewport from 320px up (250px there, 293px at
+     375px), so it never binds where aspect-ratio works. */
+  min-height: var(--s7);
+  aspect-ratio: 1 / 0.78129; /* tan 38° */
+}
+
+/* THE BAND IS A FIELD, NOT A TEXT BLOCK, and that is a correction.
+   It used to carry the section's line — `text-align: center` + `nowrap`,
+   rotated about the section centre, which is exactly where the rule plates
+   sit. The middle of the line was therefore occluded at EVERY width: at 1440
+   you read "…VER CROSSED.", at 375 you got orange slivers with rotated letter
+   fragments between stacked cards. On the page whose whole subject is the
+   two-track rule, the display line was permanently truncated to a fragment.
+
+   The geometry is not tuneable. A 38° line across a section wider than it is
+   tall is only inside the box within ±(H/2)/tan38 of the centre — at 1440×570
+   that is x ∈ [355, 1085], and the 1080px plate measure covers all of it.
+   There is no lane. Laying the type OVER the plates instead trades a truncated
+   headline for two rules of body copy nobody can read, which is a worse trade:
+   the plates are content and the band is decoration (aria-hidden).
+
+   So the band does the job §5D's first clause gives it — one 38° band splits
+   the canvas — and the sentence lives where it is legible, as real text in the
+   section lede.
+
+   §5D'S SECOND CLAUSE — "type sits parallel to it" — IS BACK, and the fix is
+   the KIND of type, not its position. The occlusion argument above is a proof
+   about SENTENCES: a sentence has one reading order, so covering its middle
+   destroys it. A repeated spec index has no middle. Whatever the plates cover,
+   what is left is still whole marks of `38°`, which is §1 trait 10 exactly —
+   fractional/indexed labels as decorative truth-telling — and §7.3's own
+   example of the voice ("38° beats dynamic"). The staircase layout the
+   previous note said would be needed is needed to run a SENTENCE along the
+   diagonal. It is not needed to run an index along it.
+
+   That argument holds where the plates leave gaps, which is ≥720px only. Below
+   it the band no longer passes behind the plates at all — see .lp-band-lane,
+   which is where the phone's half of §5D lives.
+
+   §2.1 rule 1 is why the marks are display-tier and not the mono spec size the
+   rest of the poster captions with: Flare is a FIELD, and no string under 24px
+   may sit on it. --fs-h2 floors at 24px and these are set at 700, where the
+   table's bold threshold is 18.66px — so Graphite's 3.79:1 on Flare is legal
+   with headroom at every viewport, and it never becomes legal by rounding.
+   aria-hidden at the call site: this is a printed mark on a decorative band,
+   and the section's sentence is real text in the lede.
+
+   The rotation is layout, not motion — reduced motion drops motion transforms
+   and must not take this one. See .lp-wall::before. */
+.lp-band {
+  position: absolute;
+  top: 50%;
+  left: -20%;
+  width: 140%;
+  /* --s6 at every width now, not --s5 below 720. On the desktop composition
+     this was already --s6 (see the ≥720 block, which no longer needs to say
+     so); on the phone the band has stopped being a stripe passing behind the
+     content and become the section's principal graphic, so it takes the same
+     weight. 104px against the lane's 132px of vertical thickness is ~45% of a
+     375px lane — a band that splits its canvas rather than crossing it. */
+  height: var(--s6);
+  margin: 0;
+  transform: translateY(-50%) rotate(-38deg);
+  background: var(--lp-flare);
+  /* CONSTRAINT §2.1 — THE BAND'S KEYLINE IS BONE BECAUSE ITS GROUND IS NOW
+     ESPRESSO. It was Graphite, delimiting Flare from the Sand this section used
+     to stand on at 9.4:1. Against Espresso a Graphite stroke is 1.16:1 and dies.
+     Bone is 13.4:1 on the Espresso outside and 3.01:1 on the Flare inside —
+     non-text, so the 3:1 minimum applies and it clears it, which is the same
+     bar .lp-object-mark's 3.79:1 is judged against.
+     The offset does not depend on it either way: Flare on Espresso computes
+     4.43:1, against the 2.52:1 Flare-on-Sand it replaces, so §5's "depth comes
+     from colour offset + keylines" is now carried BETTER by the offset than it
+     was before, and the keyline is the second contour rather than the only edge.
+     The marks inside are unchanged — Graphite on Flare, 3.79:1, ≥24px/700. */
+  border-top: var(--keyline-w) solid var(--lp-counter);
+  border-bottom: var(--keyline-w) solid var(--lp-counter);
+  pointer-events: none;
+  /* The marks are children, so they inherit the rotation and are parallel BY
+     CONSTRUCTION — there is no second angle to keep in sync with the first.
+     The clip has to land off-canvas, and it does in both geometries for two
+     different reasons: at ≥720 both band ends sit outside the section (the run
+     is only inside the box within ±(H/2)/tan38 of the centre), and inside the
+     lane the marks are centred and capped in number so they never reach the
+     band's ends at all. No mark is ever cut in half on screen at any width. */
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  /* CENTRED, which is what keeps the phone's marks off the clip. Inside the
+     lane the band's centre coincides with the lane's centre, and the lane's
+     centre is the deepest point of the crossing: the run reaches ±W/(2·cos38)
+     from there before it meets a corner — 238px at 375, 305px at 480. Three
+     marks measure 288px end to end (±144) and five measure 522px (±261), so
+     both sit inside the run with >40px of margin at every width they are drawn
+     at. Reset to flex-start at ≥720, where the band is absolute across the
+     whole section and its ends are off-canvas anyway. */
+  justify-content: center;
+  gap: var(--s5);
+  padding-inline: var(--s5);
+  color: var(--lp-form);
+  /* MONO, not Grotesk, and the split is the same one .score-line already
+     litigated: §3 gives the SCALE (h2, the smallest step §2.1 rule 1 allows on
+     a Flare field) and §11 gives the FACE — "all numerals render in the mono
+     stack, uppercase, +0.14em" is unconditional, and `38°` is a numeral. Every
+     other spec index on this poster (.lp-index, .lp-corner, .lp-facts,
+     .lp-shot-tag, .lp-count) is already mono; this was the one that was not.
+     The pair is unchanged by the swap — Graphite on Flare at ≥24px/700 is
+     3.79:1, legal for large text with headroom at every viewport. */
+  font-family: var(--mono);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+  font-weight: 700;
+  /* Behind the rule plates: the composition is centred, then broken once by
+     the diagonal — the plates are what break it. */
+  z-index: 0;
+}
+/* Never shrink: a squeezed `38°` is the truncation this whole note is about,
+   one glyph down. Overflow past the band's off-canvas end is the correct
+   place for the surplus to go.
+
+   THE COUNT IS THE GATE NOW, not the display. This rule used to switch every
+   mark off below 720px, because the band's only run there was ~60px slivers
+   between stacked plates and each one cut a glyph in half. .lp-band-lane
+   removes the plates from the band's path entirely, so the constraint is no
+   longer "is there a gap" but "how long is the run": the lane's corner-to-
+   corner diagonal is W/cos38, and the marks are centred on it, so what has to
+   fit is the mark run inside that length.
+     <480   3 marks, 288px end to end, in a run of ≥406px (320px lane)
+     ≥480   5 marks, 522px, in a run of ≥609px
+     ≥720   all 18 — the desktop composition, where the band spans 140% of the
+            section and both its ends are outside the frame.
+   18 marks are still rendered at every width; the surplus is not drawn rather
+   than drawn and clipped, so no mark is ever cut mid-glyph on any screen. That
+   was the whole point of the original gate and it is preserved, at the cost of
+   nothing this time.
+
+   Cascade note: the ≥720 rule is (0,1,0) and these are (0,2,0), so the nth
+   rules keep winning there — which is fine, because both say `block`. The base
+   `display: none` is what the ≥720 rule overrides, and it is the same
+   specificity, so source order decides and the media block is last. */
+.lp-band-mark { display: none; flex-shrink: 0; }
+.lp-band-mark:nth-child(-n + 3) { display: block; }
+.lp-rules-body { position: relative; z-index: 1; }
+/* THE SECTION'S SENTENCE TAKES THE SAME PLATE ITS LIST DOES — same rule as
+   before the inversion, same reason, opposite colours (see .lp-rule).
+   RENAMED. It was `.lp-spec-lede-dark`, and the name was the state rather than
+   the role: a Sand plate called "dark" is a comment that has stopped being
+   true, and this file has already paid for one of those. `.lp-rules-lede` says
+   which section's lede it is, which does not change when the section's ground
+   does.
+   NOT THE HEADING TOO: §5D's sign is the one mark on this section that belongs
+   on the ground. A d2 brick in Bone on Espresso is 13.4:1, where 17px body copy
+   is the marginal case this plate exists for. */
+.lp-rules-lede {
+  max-width: 46ch;
+  background: var(--lp-sand);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+}
+/* CONSTRAINT §2.1b — THE PLATE TAKES THE POSTER'S FULL MEASURE ON THE DESKTOP,
+   and it is the MEAN of windows that asks for it, not any single one.
+   Inverting this section moved 1440's `.lp-shear` from 30.40% field to 72.0 —
+   the section breach is closed, but the row's mean-of-windows field went to
+   68.42 against §2.1b's 60±8, which is a breach the phone rows do not have
+   because the phone's plates already run the full measure. A 563px plate on a
+   1440px page leaves 61% of its own rows in the field bucket; at 1080 it leaves
+   25. Same plate, same copy, same pair — 36 percentage points of Bone bought
+   back on the rows that were furthest over.
+   Scoped like .lp-spec .lp-spec-lede's plate, at the same breakpoint and for
+   the mirror-image reason: below 1024 the measure and the viewport are close
+   enough that there is nothing to give back. */
+@media (min-width: 1024px) {
+  .lp-rules-lede { max-width: none; }
+}
+.lp-rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* min(), for the reflow reason .lp-grid documents in full: a bare track
+     minimum cannot shrink below itself, and this section clips rather than
+     scrolls (overflow: hidden), so the failure here is lost content instead of
+     a sideways document. No-op above 308px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: var(--s2);
+}
+/* SAND plates on the Espresso ground, and this rule has now been round the
+   whole loop: Bone plates on Sand (tree 71b5608 — window @4872 read 9.18% field
+   / 83.30% Bone, deviation 106.60, the worst window in that matrix), then
+   Espresso plates on Sand (tree 9a42bd8 — the section itself read 30.40 / 66.45
+   at 1440, over the Bone hard cap), now Sand plates on Espresso.
+
+   THE TWO EARLIER STATES WERE THE SAME MISTAKE AT DIFFERENT DEPTHS: a section
+   whose GROUND is in the Bone family spends its whole area against the 30%
+   budget and can only buy field back a plate at a time. Swapping which of the
+   pair is the ground fixes it once, everywhere in the section, instead of once
+   per plate. See .lp-shear for the arithmetic and the measurement.
+
+   The plates still do the two jobs they were given: they interrupt the
+   diagonal, and where a rule crosses the Flare band the plate is the only thing
+   keeping 17px type off a 3.79:1 field. Graphite on Sand is 9.4:1 — full body
+   weight, and the pair the section already shipped before the plates existed.
+   The keyline moves back to Graphite WITH the ink: on the Espresso ground a
+   Sand fill is a 9.4:1 offset by itself, so the stroke is the second contour
+   (§1 trait 05) rather than the only edge. */
+.lp-rule {
+  background: var(--lp-sand);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s2);
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
+
+/* ── E. THE OBJECT (§5E) ──────────────────────────────────────────────────
+   Single hard-lit specimen, dead-centre on flat Flare, no shadow, no context,
+   cropping the frame. */
+.lp-object {
+  position: relative;
+  background: var(--lp-flare);
+  border-bottom: var(--keyline-w) solid var(--lp-form);
+  padding: var(--s5) var(--s3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s4);
+}
+/* The mark alone, one colour, cropping the frame in one place (§8: let the
+   container touch the frame edge once per layout). Graphite on Flare is
+   3.79:1 — over the 3:1 non-text minimum, and the mark is non-text: the h1
+   above already carries the name. Decorative by construction (aria-hidden
+   lives on the <svg> in Monogram.tsx). */
+.lp-object-mark {
+  height: clamp(11rem, 34vw, 20rem);
+  color: var(--lp-form);
+  /* Bleeds off the top edge — the one place per layout where the container
+     touches (here, crosses) the frame (§8). The section's overflow does the
+     cropping; 104px against 64px of padding leaves ~40px outside the frame. */
+  margin-top: calc(-1 * var(--s6));
+  flex-shrink: 0;
+}
+/* CONSTRAINT §2.1b — THE CLOSING PLATE TAKES THE POSTER'S OWN MEASURE, and
+   the last window is why. In the artifact committed at dc529fb,
+   landing.1440x900.*.fresh window @3873 read 77.48% field / 10.64% Bone —
+   under the 15% Bone floor, and the row's worst window at deviation 46.69. The
+   window is the object section's Flare with the Espresso footer beneath it and
+   ONE Bone plate in the whole 900px: this one, at 640px in a 1440px frame.
+   1080px is not a new number — it is `.lp-measure`, the measure every other
+   section on this poster is set to, and the one thing on the page that was
+   narrower than it for no stated reason. Below ~724px the plate is already
+   narrower than its container, so no phone pixel moves; the 375 rows are in
+   band and stay untouched. */
+.lp-object-plate {
+  max-width: 1080px;
+  text-align: center;
+}
+.lp-object-plate .lp-actions { justify-content: center; }
+
+/* ── C. THE PLATE (§5C) ───────────────────────────────────────────────────
+   Footer as a horizontal subway-proportion lockup on Marigold with a hard
+   keyline. Graphite on Marigold is 6.2:1 — the only accent in this palette
+   that carries body copy, which is why the accent surface is the footer and
+   not a section above it. --on-accent, never Bone (§2.1 rule 2). */
+/* THE LOCKUP IS THE PLATE, AND THE SECTION IS THE FIELD. §5C is satisfied more
+   literally this way, not less: "horizontal lockup ON marigold ... hard
+   keyline" describes a CONTAINER, and a container that runs to both frame
+   edges is the field rather than a thing standing in it — the same inversion
+   the .lp-badge block argues about one section up (§5A, §1 trait 01).
+   CONSTRAINT §2.1b, measured, and it is two breaches in one element. At tree
+   71b5608 the full-bleed footer put 19.22% ACCENT in window @5526 and left it
+   at 31.87% field, under the 35 floor, because Marigold counts as neither
+   field nor Bone; and it spent 2.44 of the document's measured 2.76% accent by
+   itself, against a 2% cap. The plate keeps every pair the full-bleed field
+   had — Graphite on Marigold 6.2:1, the same 3px Graphite focus ring on the
+   links, the knockout mark in currentColor — and adds one: Marigold on
+   Espresso, 7.4:1, which is the plate's own boundary and is why it needs no
+   fill offset from its keyline.
+   THE TOP RULE TURNS BONE for the same reason. §6's 6px keyline in Graphite
+   measured 1.16:1 against the Espresso field it now sits on, i.e. a fault
+   marker nobody can see; Bone is 13.4:1 on Espresso below and 3.01:1 on the
+   Flare object section above, clearing §2.1's 3:1 non-text floor on both. */
+.lp-foot {
+  background: var(--lp-espresso);
+  color: var(--lp-counter);
+  border-top: var(--keyline-heavy) solid var(--lp-counter);
+  padding: var(--s4) var(--s3);
+}
+.lp-foot-inner {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  background: var(--lp-gold);
+  color: var(--on-accent);
+  border: var(--keyline-w) solid var(--lp-form);
+  border-radius: var(--r-lg);
+  corner-shape: squircle;
+  corner-shape: superellipse(2.07);
+  padding: var(--s3);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+}
+/* §4 minimum size is 32px tall; 48px keeps the letterform slots resolving well
+   clear of it. currentColor, so the knockout takes the footer's ink. */
+.lp-foot-mark { height: 48px; flex-shrink: 0; }
+.lp-signoff {
+  margin: 0;
+  flex: 1 1 14rem;
+  font-family: var(--display);
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--tr-h3);
+}
+.lp-foot-links {
+  width: 100%;
+  max-width: 1080px;
+  margin: var(--s2) auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+/* Underlined, not colour-coded: a link distinguished by hue alone fails WCAG
+   1.4.1, and there is no second legal ink on Marigold anyway. inline-flex +
+   min-height is the §11 48px target. */
+.lp-foot-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  /* Bone, not --on-accent: the links left the Marigold plate (see Landing.tsx)
+     and --on-accent is Graphite, which is 1.16:1 on the Espresso field they
+     stand on now. Bone is 13.4:1 there. */
+  color: var(--lp-counter);
+  font-weight: 700;
+  font-size: var(--fs-cap);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  transition: transform var(--t-quick) var(--ease-pop);
+}
+/* THE PRESS reaches every interactive control (§9 move 5) — an anchor that
+   navigates is one. --press is `none` under reduced motion, where the focus
+   ring and the underline carry the affordance instead. 90ms on `primary` for
+   the compression; the 180ms `pop` on the resting rule is the release. */
+.lp-foot-links a:active {
+  transform: var(--press);
+  transition: transform var(--t-instant) var(--ease-primary);
+}
+
+/* ≥480px: the lane's diagonal run has grown by ~200px, so two more marks fit
+   inside it. Nothing else on the page changes here — this breakpoint exists
+   only because the mark count is a function of the run length. */
+@media (min-width: 480px) {
+  .lp-band-mark:nth-child(-n + 5) { display: block; }
+}
+
+/* ≥720px: the wall's plate stops running full-bleed and the composition gets
+   its 60% negative field back. */
+@media (min-width: 720px) {
+  .lp-wall { padding: var(--s6) var(--s5) var(--s5); }
+  .lp-plate { padding: var(--s4); }
+  .lp-spec,
+  .lp-shear,
+  .lp-object { padding: var(--s6) var(--s5); }
+  /* One line at this width, so the stadium is honest again. corner-shape has
+     to be reset WITH the radius: the base rule cuts an n=2.07 superellipse, and
+     that declaration is inherited by this one — a 999px radius under a
+     superellipse cut renders as a superellipse-ended bar, not a stadium, which
+     is the exact pairing tokens.css excludes pills from the corner-shape list
+     to prevent and which the base rule's own comment claims to avoid. */
+  .lp-facts {
+    border-radius: var(--r-pill);
+    corner-shape: round;
+  }
+  /* THE LANE DISSOLVES. display: contents generates no box, so it stops being
+     a containing block and .lp-band goes back to being absolutely positioned
+     in .lp-shear — the composition round 3 verified on pixels, unchanged. The
+     phone keeps the lane; this is where the section is wider than it is tall
+     and the diagonal has a run the plates cannot cover. */
+  .lp-band-lane { display: contents; }
+  /* Free-flowing rather than centred: the band spans 140% of the section here
+     and both its ends are outside the frame, so the marks run from the band's
+     own start and the surplus clips off-canvas. */
+  .lp-band { justify-content: flex-start; }
+  /* All 18, which is enough to run the full 140% band width at 1440 and to
+     overflow it below that. Below this width the count is capped instead — see
+     .lp-band-mark. */
+  .lp-band-mark { display: block; }
+}

@@ -15,13 +15,20 @@ import type { AppState } from '../state/store.ts'
 /**
  * True when this tab plausibly hosts the user action behind a state change.
  * The effects below diff state without knowing its origin, so a peer tab's
- * write (a HYDRATE merge) moves XP/level/quests here too — but a celebration
+ * write (a HYDRATE merge) moves XP and levels here too — but a celebration
  * sound must never play in a background tab the user never touched. A hidden
  * tab is certainly not where the tap landed, and a tab with no user
  * activation cannot even resume its AudioContext. Defaults open (?? true) on
  * browsers without navigator.userActivation. The toast/chip still render:
  * sound never carries information alone, so suppressing it loses nothing.
  */
+/** Grants of one action in the append-only log, counted without allocating. */
+function countGrants(log: AppState['xpLog'], action: string): number {
+  let n = 0
+  for (const g of log) if (g.action === action) n += 1
+  return n
+}
+
 function likelyLocalAction(): boolean {
   return (
     document.visibilityState === 'visible' &&
@@ -29,13 +36,26 @@ function likelyLocalAction(): boolean {
   )
 }
 
+/**
+ * TOAST VOICE (§7.4, hard ban on exclamation marks). Every message pushed
+ * below is a two-fragment spec statement — the §7 success exemplar is
+ * "Done. Batch 07 confirmed.", not a cheer. These land in the permanently
+ * mounted role="status" region, so the punctuation is not decoration: a
+ * screen reader gets the same flat, factual sentence a sighted user reads.
+ *
+ * The engagement/financial split (Trust Rule 1) constrains the wording too.
+ * A boss win is stated about the monster, never re-framed as praise of the
+ * user — "You beat the Impulse Monster" would put an engagement event in the
+ * register the Health Score speaks in.
+ */
 export function useRewards(state: AppState): { toast: string | null; xpGain: number | null } {
-  // Toasts QUEUE instead of overwrite: completing the final quest can cross a
-  // level boundary in the same commit, and both effects below then announce
-  // in one batch — a bare setToast would let the later (quest) effect stomp
-  // the level-up before the live region ever carried it, leaving the fanfare
-  // to announce the level alone, which sound must never do. The head of the
-  // queue is the visible toast; the dismiss timer shifts to the next.
+  // Toasts QUEUE instead of overwrite: one commit can produce several
+  // announcements — a badge unlock and the level-up its XP crossed, a boss win
+  // and the level it pushed through — and a bare setToast would let the later
+  // effect stomp the earlier one before the live region ever carried it,
+  // leaving the fanfare to announce the level alone, which sound must never do.
+  // The head of the queue is the visible toast; the dismiss timer shifts to the
+  // next.
   const [toastQueue, setToastQueue] = useState<string[]>([])
   const toast = toastQueue.length > 0 ? toastQueue[0] : null
   function pushToast(message: string) {
@@ -74,10 +94,30 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
       // so the keyed dismiss timer below resets each time.
       const gained = state.xp.totalXp - prev.totalXp
       setXpGain((cur) => ({ amount: gained + (cur?.amount ?? 0), at: Date.now() }))
+    } else if (state.xp.totalXp < prev.totalXp) {
+      // A REVOKED GRANT MUST NOT KEEP CLAIMING A GAIN.
+      //
+      // Total XP is monotonic everywhere except one path: UNDO_TX removes the
+      // row AND its `tx:{id}` grant (see the reducer), which is the whole
+      // point of the grace window. The chip and its sr-only twin in App are
+      // the only surfaces that assert a GAIN, and they outlived it. Measured
+      // at commit 73b9260's tree: log 2,000 DA, press Undo inside the window,
+      // and the "XP gains" region still read "+5 XP" while the progress bar
+      // read 0 — one live region contradicting another, next to LogCard's
+      // "Removed. 2,000 DA log undone." Worse, the accumulator above carried
+      // the dead amount forward: the next resist announced "+55 XP" for a
+      // 50 XP grant, a figure that never happened.
+      //
+      // Cleared, not re-announced as a loss. The removal already has its
+      // announcement — from the control that caused it, naming the row — and
+      // a second region saying "-5 XP" would put a penalty register on an
+      // action that is explicitly forgiven (§12.3, §12.6). The chip means
+      // "you just earned this"; when that stops being true it says nothing.
+      setXpGain(null)
     }
     if (state.xp.level > prev.level) {
       playFanfare()
-      pushToast(`Level ${state.xp.level} — ${levelTitle(state.xp.level)}!`)
+      pushToast(`Level ${state.xp.level}. ${levelTitle(state.xp.level)}.`)
     }
   }, [state.xp])
 
@@ -88,13 +128,26 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
   // on every mount. The fanfare (its doc comment reserves "boss defeated")
   // never carries the win alone: the toast announces it through the live
   // region and BossCard shows the persistent beaten chip.
-  const prevBossWins = useRef(state.xpLog.filter((g) => g.action === 'weeklyBoss').length)
+  // Counting loop, not filter().length — the idiom App.tsx uses for
+  // resistXpCapped and achievements.ts for `ten-logs`, and for the same reason:
+  // the filter allocated an intermediate array over the whole grant log to
+  // produce one integer. The log grows one entry per grant and is never pruned,
+  // so it is the structure here that scales with a long-lived install.
+  //
+  // AND THE SEED IS LAZY, which is the bigger half. `useRef(expr)` evaluates
+  // `expr` on EVERY render and throws the result away after the first — so the
+  // mount-only baseline below was re-scanning the whole grant log on each of
+  // the two extra renders every grant schedules (the +XP chip clear at 1800ms
+  // and the toast shift at 2600ms), plus every render anything else causes. A
+  // useState initialiser runs exactly once.
+  const [seedBossWins] = useState(() => countGrants(state.xpLog, 'weeklyBoss'))
+  const prevBossWins = useRef(seedBossWins)
   useEffect(() => {
-    const n = state.xpLog.filter((g) => g.action === 'weeklyBoss').length
+    const n = countGrants(state.xpLog, 'weeklyBoss')
     const prev = prevBossWins.current
     prevBossWins.current = n
     if (n > prev) {
-      pushToast('Impulse Monster beaten — lighter week than last!')
+      pushToast('Impulse Monster beaten. Lighter week than last.')
       playFanfare()
     }
   }, [state.xpLog])
@@ -112,8 +165,8 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
   // for logging a purchase) would run that effect's cleanup, cancel the
   // dismiss timer, and strand the toast — and the role="status" live region
   // content — on screen until the next level-up. Shifting (not clearing)
-  // lets a queued second message ("All quests complete!") take its own turn
-  // in the live region after the current one dismisses.
+  // lets a queued second message (a badge earned in the same commit) take its
+  // own turn in the live region after the current one dismisses.
   useEffect(() => {
     if (toastQueue.length === 0) return
     const t = setTimeout(() => setToastQueue((q) => q.slice(1)), 2600)
@@ -122,7 +175,15 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
 
   // Codex collection milestones — every 5 lessons gets the rare-pull shimmer.
   // The toast is the sparkle's visible counterpart (sound never carries the
-  // moment alone), and the CodexCard count is its persistent one.
+  // moment alone, §10), and LessonCard's `n / 30 collected` line is its
+  // persistent one. That line is the whole reason the count survived the
+  // collection sheet's deletion: a milestone celebrated only by a sound and a
+  // 2.6-second toast leaves nothing on screen at rest to have been about.
+  // (The persistent counterpart used to be CollectionCard's grid — one tile
+  // per lesson. "32-tile" stood here and in App.test and was never true at any
+  // commit: the grid rendered LESSONS.map, and LESSONS has been 30 since it
+  // shipped. A wrong number in a comment about a DELETED surface is unfalsifiable
+  // by anything but a reading, which is why it survived four rounds.)
   const prevLessons = useRef(state.lessonsSeen.length)
   useEffect(() => {
     const n = state.lessonsSeen.length
@@ -132,20 +193,28 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     // landing several collected lessons at once) must still celebrate the
     // milestone it crossed instead of skipping it.
     if (n > prev && Math.floor(n / 5) > Math.floor(prev / 5)) {
-      pushToast(`Codex: ${n} / ${LESSONS.length} lessons collected!`)
+      pushToast(`Codex: ${n} / ${LESSONS.length} lessons collected.`)
       if (likelyLocalAction()) sfx.sparkle()
     }
   }, [state.lessonsSeen])
 
   // Achievement unlocks — the rare-pull shimmer with its visible counterpart:
   // one toast PER badge names it and its pet (the queue takes turns in the
-  // live region), and AchievementsCard/the pet strip are the persistent
-  // state, so the sparkle never carries the moment alone. Diffing persisted
+  // live region), and the pet strip beside the score is the persistent state,
+  // so the sparkle never carries the moment alone (§10). The strip is now the
+  // ONLY persistent surface an unlock reaches — the 9-tile badge shelf that
+  // used to hold the name and the earned date went with CollectionCard — which
+  // is why every badge in the roster carries a pet and glyphRoster.test.ts
+  // holds it to that. Diffing persisted
   // ids keeps this origin-agnostic (a peer tab's unlock still toasts here)
   // while the ref initializer keeps long-held badges from re-celebrating on
   // every mount. One sparkle per batch — a merge landing several badges at
   // once must not stack the shimmer into doubled gain.
-  const prevAchievements = useRef(new Set(state.achievements.map((a) => a.id)))
+  // Lazy seed, for the reason spelled out above prevBossWins: `useRef(expr)`
+  // re-evaluates on every render, so this minted a throwaway array and a
+  // throwaway Set on each one.
+  const [seedAchievements] = useState(() => new Set(state.achievements.map((a) => a.id)))
+  const prevAchievements = useRef(seedAchievements)
   useEffect(() => {
     const prev = prevAchievements.current
     const added = state.achievements.filter((a) => !prev.has(a.id))
@@ -153,31 +222,12 @@ export function useRewards(state: AppState): { toast: string | null; xpGain: num
     if (added.length === 0) return
     for (const u of added) {
       const a = achievementById(u.id)
-      if (a) pushToast(`${a.name} earned — ${a.pet.emoji} ${a.pet.name} joins you!`)
+      // Name only: the companion's mark is a drawn glyph now (§8), and an
+      // announcement is text — a live region cannot read a vector.
+      if (a) pushToast(`${a.name} earned. ${a.pet.name} joins you.`)
     }
     if (likelyLocalAction()) sfx.sparkle()
   }, [state.achievements])
-
-  // Quest-completion sounds, likewise driven by state changes only.
-  const prevQuestsDone = useRef(state.quests.filter((q) => q.done).length)
-  useEffect(() => {
-    const doneCount = state.quests.filter((q) => q.done).length
-    const prev = prevQuestsDone.current
-    prevQuestsDone.current = doneCount
-    if (doneCount > prev) {
-      const local = likelyLocalAction()
-      if (local) sfx.blip()
-      if (state.quests.every((q) => q.done)) {
-        // The arpeggio never carries the moment alone: the toast announces it
-        // through the live region and QuestCard shows a persistent badge.
-        pushToast('All quests complete!')
-        if (local) {
-          const t = setTimeout(sfx.arpeggio, 180)
-          return () => clearTimeout(t)
-        }
-      }
-    }
-  }, [state.quests])
 
   return { toast, xpGain: xpGain?.amount ?? null }
 }

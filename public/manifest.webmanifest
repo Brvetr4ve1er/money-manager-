@@ -1,0 +1,33 @@
+{
+  "name": "Ember — a money app that runs on your phone, not on your bank",
+  "short_name": "Ember",
+  "description": "A money app that runs on your phone, not on your bank. Manual logging in dinars, a health score that explains itself, and full export. No account, no bank link.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance", "productivity"],
+  "background_color": "#F5E6E0",
+  "theme_color": "#F93E06",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

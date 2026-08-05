@@ -4,6 +4,12 @@
  * cycle. Voice rules for every lesson: playful-but-honest, money examples in
  * DA, tradeoffs never verdicts, and no medical or therapeutic claims (impulse
  * lessons speak in everyday behavioral terms only).
+ *
+ * The design system's §7 fragment rule applies to titles and one-liners, NOT
+ * to bodies: a lesson has to teach, and teaching needs sentences. What §7
+ * does bind everywhere here is the word list (§7.5) and the exclamation ban
+ * (§7.4) — both are guarded in lessons.test.ts so a new lesson cannot quietly
+ * reintroduce them.
  */
 
 export interface Lesson {
@@ -65,7 +71,12 @@ export const LESSONS: ReadonlyArray<Lesson> = [
     id: 'start-small',
     title: 'Start embarrassingly small',
     oneLiner: 'The first goal is the habit, not the balance.',
-    body: '500 DA a week feels pointless — until it is 26,000 DA a year, and more importantly a habit with momentum. The first job of saving is proving to yourself you are a person who saves.',
+    // "proving to yourself you are a person who saves" is cut, for the same
+    // §7.1 reason "You are not weak; you are outnumbered" was cut from
+    // 'stores-are-designed' eleven entries down: it asserts something about
+    // the reader's self-concept the app has no evidence for, and it only works
+    // by presupposing they already doubt it. Every lesson stays on the object.
+    body: '500 DA a week feels pointless — until it is 26,000 DA a year, and more importantly a habit with momentum. The first goal is the habit. The balance follows.',
   },
   {
     id: 'name-the-goal',
@@ -171,7 +182,10 @@ export const LESSONS: ReadonlyArray<Lesson> = [
     id: 'cheapest-insurance',
     title: 'The fund is cheap insurance',
     oneLiner: 'Cheaper than the loan the surprise demands.',
-    body: 'Without a cushion, surprises get funded by borrowing at whatever rate the emergency accepts — usually the worst one on offer. The fund is insurance you pay yourself, at a premium you keep.',
+    // "premium" was the insurance sense, not the marketing one — but §7.5's
+    // ban is worded absolutely, and "a rate you set yourself" says the same
+    // thing in the register the rest of the roster already uses.
+    body: 'Without a cushion, surprises get funded by borrowing at whatever rate the emergency accepts — usually the worst one on offer. The fund is insurance you pay yourself, at a rate you set yourself.',
   },
   // — Impulse psychology —
   {
@@ -190,7 +204,11 @@ export const LESSONS: ReadonlyArray<Lesson> = [
     id: 'stores-are-designed',
     title: 'Stores are designed',
     oneLiner: 'A list is armor in an engineered arena.',
-    body: 'End-of-aisle displays, "only 2 left", sweets at the register — shop layouts are engineered by professionals to shrink the gap between seeing and buying. You are not weak; you are outnumbered. A written list is armor.',
+    // "You are not weak; you are outnumbered" is cut: §7.1's soft/coddling
+    // failure mode. It asserts something about the reader's character the app
+    // has no evidence for, and it only works by presupposing they already
+    // believe the first half. Every other lesson stays on the object.
+    body: 'End-of-aisle displays, "only 2 left", sweets at the register — shop layouts are engineered by professionals to shrink the gap between seeing and buying. A written list is armor.',
   },
   {
     id: 'discount-math',

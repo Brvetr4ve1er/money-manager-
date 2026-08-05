@@ -10,19 +10,13 @@
  */
 
 import { ESSENTIAL_CATEGORIES } from './profile.ts'
-import type { Transaction } from '../state/store.ts'
+import { addDaysISO, type Transaction } from '../state/store.ts'
 
-function localDayISO(d: Date): string {
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${dd}`
-}
-
-/** Local-calendar day key `n` days after `dayISO` (pure — no wall clock). */
-export function addDaysISO(dayISO: string, n: number): string {
-  const [y, m, d] = dayISO.split('-').map(Number)
-  return localDayISO(new Date(y, m - 1, d + n))
-}
+/* Re-exported, not redefined. The local-day rule has ONE implementation (see
+   store.ts) and this module's callers — achievements.ts, useBossBattle.ts,
+   boss.test.ts — reach it here because week arithmetic is what this engine is
+   about. The definition is not. */
+export { addDaysISO }
 
 /**
  * Monday of the week containing `dayISO` — weeks run Mon–Sun on local dates,
@@ -46,18 +40,64 @@ function feedsTheMonster(t: Transaction): boolean {
   return t.impulseFlagged === true || !ESSENTIAL_CATEGORIES.has(t.category)
 }
 
-/** Sum of monster-feeding spend in the Mon–Sun week starting at `weekStart`. */
-export function impulseSpendInWeek(transactions: Transaction[], weekStart: string): number {
-  const end = addDaysISO(weekStart, 7) // exclusive: next Monday
-  return transactions
-    .filter((t) => t.date >= weekStart && t.date < end && feedsTheMonster(t))
-    .reduce((s, t) => s + t.amountDA, 0)
+/** What one Mon–Sun week's rows add up to, in the two terms this engine asks. */
+interface WeekTally {
+  /** Any logged row at all (resists included) — evidence the log was alive. */
+  logged: boolean
+  /** Sum of monster-feeding spend. */
+  spend: number
 }
 
-/** Any logged row (resists included) — evidence the log was alive that week. */
-function hasLogInWeek(transactions: Transaction[], weekStart: string): boolean {
-  const end = addDaysISO(weekStart, 7)
-  return transactions.some((t) => t.date >= weekStart && t.date < end)
+/**
+ * Several weeks, ONE PASS.
+ *
+ * Both public derivations below ask two questions ("was the log alive?", "what
+ * did the monster eat?") about two weeks each, and each question used to be its
+ * own full walk of the ledger — `hasLogInWeek` twice plus `impulseSpendInWeek`
+ * twice per call, with `.filter()` allocating an intermediate array over the
+ * WHOLE record to sum at most seven days of it. useBossBattle calls both on
+ * every transactions change, so a logged purchase cost SEVEN traversals and
+ * four throwaway arrays; it now costs two and none. The same idiom App.tsx
+ * already applies to `resistXpCapped` and achievements.ts to `ten-logs` —
+ * count in a loop, allocate nothing — applied to the week windows.
+ *
+ * WHAT THIS IS AND IS NOT WORTH, stated so nobody re-measures it hoping.
+ * Timed in jsdom against a local reimplementation of the shape it replaces, at
+ * 5,000 rows, the two forms sit inside each other's noise — 100–140 µs either
+ * way — because V8 optimises the filter/reduce well and the `.some()` guard
+ * short-circuits early on a newest-first ledger. What the change buys is the
+ * ALLOCATIONS: four arrays as long as the whole record, per logged purchase, on
+ * the mid-range Android this product is built for. It does not buy milliseconds
+ * and this comment does not claim it does. The traversal count is the part that
+ * is now pinned — boss.test.ts traps every walking array method and asserts one
+ * pass per derivation.
+ *
+ * The pass is still whole-ledger and deliberately so: transaction order is not
+ * taken on trust anywhere in this codebase (a hand-edited payload can put any
+ * date at the head), so there is no prefix to stop at. What it stops doing is
+ * walking it more than once.
+ *
+ * `break` on the first matching week is safe because the weeks handed in here
+ * are always disjoint Mondays — a local day key belongs to exactly one Mon–Sun
+ * week.
+ */
+function tallyWeeks(transactions: Transaction[], weekStarts: string[]): WeekTally[] {
+  const ends = weekStarts.map((w) => addDaysISO(w, 7)) // exclusive: next Monday
+  const out: WeekTally[] = weekStarts.map(() => ({ logged: false, spend: 0 }))
+  for (const t of transactions) {
+    for (let i = 0; i < weekStarts.length; i += 1) {
+      if (t.date < weekStarts[i] || t.date >= ends[i]) continue
+      out[i].logged = true
+      if (feedsTheMonster(t)) out[i].spend += t.amountDA
+      break
+    }
+  }
+  return out
+}
+
+/** Sum of monster-feeding spend in the Mon–Sun week starting at `weekStart`. */
+export function impulseSpendInWeek(transactions: Transaction[], weekStart: string): number {
+  return tallyWeeks(transactions, [weekStart])[0].spend
 }
 
 /**
@@ -82,13 +122,17 @@ export type BossBattle =
 export function bossBattle(transactions: Transaction[], today: string): BossBattle {
   const weekStart = weekStartISO(today)
   const prevWeekStart = addDaysISO(weekStart, -7)
-  if (!hasLogInWeek(transactions, prevWeekStart)) return { kind: 'sizing-up', weekStart }
+  // One pass for both weeks and both questions — see tallyWeeks. The
+  // sizing-up branch still short-circuits on the SAME evidence it always did
+  // (was last week logged), it just no longer needs its own walk to find out.
+  const [last, current] = tallyWeeks(transactions, [prevWeekStart, weekStart])
+  if (!last.logged) return { kind: 'sizing-up', weekStart }
   return {
     kind: 'battle',
     weekStart,
     prevWeekStart,
-    thisWeekSpend: impulseSpendInWeek(transactions, weekStart),
-    lastWeekSpend: impulseSpendInWeek(transactions, prevWeekStart),
+    thisWeekSpend: current.spend,
+    lastWeekSpend: last.spend,
   }
 }
 
@@ -114,11 +158,15 @@ export function completedWeekVictory(
 ): BossVictory | null {
   const prevWeekStart = addDaysISO(weekStartISO(today), -7)
   const beforeWeekStart = addDaysISO(prevWeekStart, -7)
-  if (!hasLogInWeek(transactions, prevWeekStart)) return null
-  if (!hasLogInWeek(transactions, beforeWeekStart)) return null
-  const spend = impulseSpendInWeek(transactions, prevWeekStart)
-  const targetSpend = impulseSpendInWeek(transactions, beforeWeekStart)
-  return spend < targetSpend ? { weekStart: prevWeekStart, spend, targetSpend } : null
+  // One pass for both weeks and both questions — see tallyWeeks. Four walks of
+  // the ledger and two throwaway arrays became one walk; the two show-up guards
+  // are unchanged and still both required.
+  const [before, prev] = tallyWeeks(transactions, [beforeWeekStart, prevWeekStart])
+  if (!prev.logged) return null
+  if (!before.logged) return null
+  return prev.spend < before.spend
+    ? { weekStart: prevWeekStart, spend: prev.spend, targetSpend: before.spend }
+    : null
 }
 
 /**

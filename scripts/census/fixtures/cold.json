@@ -1,0 +1,66 @@
+{
+  "transactions": [
+    {
+      "id": "c06",
+      "date": "2025-03-12",
+      "amountDA": 1500,
+      "category": "Other",
+      "resistedImpulse": true
+    },
+    {
+      "id": "c01",
+      "date": "2025-03-12",
+      "amountDA": 420,
+      "category": "Food",
+      "note": "coffee"
+    },
+    {
+      "id": "c02",
+      "date": "2025-03-11",
+      "amountDA": 380,
+      "category": "Food"
+    },
+    {
+      "id": "c03",
+      "date": "2025-03-10",
+      "amountDA": 450,
+      "category": "Food"
+    },
+    {
+      "id": "c04",
+      "date": "2025-03-09",
+      "amountDA": 200,
+      "category": "Transport"
+    },
+    {
+      "id": "c05",
+      "date": "2025-03-08",
+      "amountDA": 250,
+      "category": "Transport"
+    }
+  ],
+  "xp": {
+    "level": 1,
+    "xpIntoLevel": 75,
+    "totalXp": 75
+  },
+  "xpLog": [
+    { "id": "c-log-1", "action": "logExpense", "amount": 5, "date": "2025-03-08" },
+    { "id": "c-log-2", "action": "logExpense", "amount": 5, "date": "2025-03-09" },
+    { "id": "c-log-3", "action": "logExpense", "amount": 5, "date": "2025-03-10" },
+    { "id": "c-log-4", "action": "logExpense", "amount": 5, "date": "2025-03-11" },
+    { "id": "c-log-5", "action": "logExpense", "amount": 5, "date": "2025-03-12" },
+    { "id": "c-resist-1", "action": "resistImpulse", "amount": 50, "date": "2025-03-12" }
+  ],
+  "prevHealthScore": null,
+  "stage": null,
+  "healthDate": "2025-03-12",
+  "lessonsSeen": [],
+  "muted": false,
+  "profile": null,
+  "achievements": [
+    { "id": "first-log", "date": "2025-03-08" },
+    { "id": "first-resist", "date": "2025-03-12" }
+  ],
+  "decisions": []
+}

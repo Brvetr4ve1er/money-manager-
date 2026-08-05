@@ -163,3 +163,123 @@ describe('bossGrantId', () => {
     expect(bossGrantId('2026-08-03')).toBe('boss:2026-08-03')
   })
 })
+
+/**
+ * ONE PASS, AND THE SAME ANSWER.
+ *
+ * useBossBattle recomputes both derivations on every transactions change, so
+ * every logged purchase paid for them. They used to walk the whole ledger seven
+ * times between them — a `hasLogInWeek` guard plus an `impulseSpendInWeek` per
+ * week, each a separate traversal, two of them allocating a throwaway array the
+ * length of the record to sum at most seven days of it. tallyWeeks does both
+ * questions for both weeks in one walk.
+ *
+ * The pass count is asserted mechanically rather than timed: every array method
+ * that traverses is trapped on the way out, so a future edit that reaches for a
+ * second `.filter()` fails here instead of quietly costing a scan.
+ */
+describe('the boss engine walks the ledger once per derivation', () => {
+  const TRAVERSALS = ['filter', 'some', 'reduce', 'map', 'forEach', 'find', 'slice']
+
+  /** Counts whole-ledger traversals: `for…of` takes Symbol.iterator, and every
+      array method that walks is named above. */
+  function counted(rows: Transaction[]): { rows: Transaction[]; passes: () => number } {
+    let n = 0
+    const proxy = new Proxy(rows, {
+      get(target, prop, receiver) {
+        if (prop === Symbol.iterator || (typeof prop === 'string' && TRAVERSALS.includes(prop))) {
+          n += 1
+        }
+        return Reflect.get(target, prop, receiver)
+      },
+    })
+    return { rows: proxy, passes: () => n }
+  }
+
+  const ledger = [
+    tx({ amountDA: 5_000, date: '2026-07-29' }),
+    tx({ amountDA: 1_000, category: 'Food', date: '2026-07-30' }),
+    tx({ amountDA: 3_000, date: '2026-08-05' }),
+    tx({ amountDA: 2_000, date: '2026-08-06', resistedImpulse: true }),
+    tx({ amountDA: 900, category: 'Bills', date: '2026-08-07', impulseFlagged: true }),
+    tx({ amountDA: 700, date: '2026-08-12' }),
+  ]
+
+  it('reads the whole record exactly once for the card', () => {
+    const c = counted(ledger)
+    expect(bossBattle(c.rows, '2026-08-12')).toEqual(bossBattle(ledger, '2026-08-12'))
+    expect(c.passes()).toBe(1)
+  })
+
+  it('reads the whole record exactly once for the victory check', () => {
+    const c = counted(ledger)
+    expect(completedWeekVictory(c.rows, '2026-08-12')).toEqual(
+      completedWeekVictory(ledger, '2026-08-12'),
+    )
+    expect(c.passes()).toBe(1)
+  })
+
+  it('still short-circuits to sizing-up on the same evidence, in that one pass', () => {
+    // Nothing in Aug 3–9: the opponent number is unknown, so there is no battle.
+    const thisWeekOnly = [tx({ amountDA: 4_000, date: '2026-08-12' })]
+    const c = counted(thisWeekOnly)
+    expect(bossBattle(c.rows, '2026-08-12')).toEqual({
+      kind: 'sizing-up',
+      weekStart: '2026-08-10',
+    })
+    expect(c.passes()).toBe(1)
+  })
+
+  it('gives the same answers as the per-question form on a randomised record', () => {
+    // The tally is a rewrite of four independent window questions into one
+    // loop, so the property that matters is that nothing about the ANSWERS
+    // moved. Re-derived here from the primitive that did not change.
+    const cats = ['Food', 'Transport', 'Fun', 'Bills', 'Health', 'Other']
+    let seed = 20260812
+    const rand = (n: number) => {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      return seed % n
+    }
+    for (let trial = 0; trial < 40; trial += 1) {
+      const rows = Array.from({ length: rand(60) }, () =>
+        tx({
+          amountDA: 100 + rand(9_000),
+          category: cats[rand(cats.length)],
+          date: addDaysISO('2026-08-12', -rand(30)),
+          resistedImpulse: rand(5) === 0,
+          impulseFlagged: rand(4) === 0,
+        }),
+      )
+      const weekStart = weekStartISO('2026-08-12')
+      const prevWeekStart = addDaysISO(weekStart, -7)
+      const beforeWeekStart = addDaysISO(prevWeekStart, -7)
+      const hasLog = (w: string) =>
+        rows.some((t) => t.date >= w && t.date < addDaysISO(w, 7))
+
+      const battle = bossBattle(rows, '2026-08-12')
+      expect(`${trial}: ${JSON.stringify(battle)}`).toBe(
+        `${trial}: ${JSON.stringify(
+          hasLog(prevWeekStart)
+            ? {
+                kind: 'battle',
+                weekStart,
+                prevWeekStart,
+                thisWeekSpend: impulseSpendInWeek(rows, weekStart),
+                lastWeekSpend: impulseSpendInWeek(rows, prevWeekStart),
+              }
+            : { kind: 'sizing-up', weekStart },
+        )}`,
+      )
+
+      const spend = impulseSpendInWeek(rows, prevWeekStart)
+      const target = impulseSpendInWeek(rows, beforeWeekStart)
+      const expected =
+        hasLog(prevWeekStart) && hasLog(beforeWeekStart) && spend < target
+          ? { weekStart: prevWeekStart, spend, targetSpend: target }
+          : null
+      expect(`${trial}: ${JSON.stringify(completedWeekVictory(rows, '2026-08-12'))}`).toBe(
+        `${trial}: ${JSON.stringify(expected)}`,
+      )
+    }
+  })
+})

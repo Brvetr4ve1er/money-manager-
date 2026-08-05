@@ -5,7 +5,9 @@ import {
   buildSimProfile,
   resolveProfile,
   ASSUMED_REVOLVING_APR,
+  CALIBRATION_DAYS,
   DEMO_META,
+  historyDays,
   DEMO_PROFILE,
   DEMO_PROFILE_CONFIDENCE,
   IC_RESISTED_DAILY_CAP,
@@ -382,5 +384,35 @@ describe('buildSimProfile', () => {
       extraDebtPayment: DEMO_PROFILE.extraDebtPayment,
       goal: DEMO_PROFILE.goal,
     })
+  })
+})
+
+describe('historyDays (Trust Rule 5)', () => {
+  it('counts the first logged day as day 1', () => {
+    expect(historyDays([tx({ id: 'a', date: TODAY })], TODAY)).toBe(1)
+  })
+
+  it('measures from the earliest row, not the newest', () => {
+    const rows = [tx({ id: 'a', date: '2026-07-30' }), tx({ id: 'b', date: '2026-07-03' })]
+    expect(historyDays(rows, TODAY)).toBe(30)
+  })
+
+  it('reads zero with nothing logged — no history is not day one', () => {
+    expect(historyDays([], TODAY)).toBe(0)
+  })
+
+  it('ignores future-dated rows so a skewed clock cannot age past calibration', () => {
+    // Same bound deriveHealthInputs applies: a device-clock-skewed row must
+    // not be able to hand the app 90 days of history it never had.
+    const skewed = [tx({ id: 'a', date: '2020-01-01' }), tx({ id: 'b', date: TODAY })]
+    expect(historyDays([skewed[1]], TODAY)).toBe(1)
+    expect(historyDays(skewed, TODAY)).toBeGreaterThan(CALIBRATION_DAYS)
+    expect(historyDays([tx({ id: 'c', date: '2099-01-01' })], TODAY)).toBe(0)
+  })
+
+  it('is DST-proof: a spring-forward window still counts whole days', () => {
+    // Northern-hemisphere DST transition inside the window — a naive
+    // millisecond division would come back 0.96 days short and floor wrong.
+    expect(historyDays([tx({ id: 'a', date: '2026-03-01' })], '2026-04-01')).toBe(32)
   })
 })

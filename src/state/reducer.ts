@@ -1,29 +1,41 @@
 /**
  * Pure AppState transitions, consumed via useReducer in App. Living outside
- * the component makes the guarded behaviors — quest double-grant protection,
- * the day-rollover health snapshot — unit-testable instead of only existing
+ * the component makes the guarded behaviors — the once-per-day XP grants, the
+ * day-rollover health snapshot — unit-testable instead of only existing
  * inside effect closures. Reducers must stay pure: StrictMode double-invokes
  * them in dev, and sounds/toasts fire from effects that watch the results.
  */
 
-import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS, xpStateFromTotal } from '../engine/xp.ts'
+import {
+  grantXp,
+  RESIST_XP_DAILY_CAP,
+  XP_REWARDS,
+  xpFromLog,
+  xpStateFromTotal,
+} from '../engine/xp.ts'
 import { bossGrantId } from '../engine/boss.ts'
 import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 import type { Stage } from '../engine/healthScore.ts'
 import { LESSON_IDS } from '../content/lessons.ts'
 import {
+  canonicalDecisions,
   mergeStates,
-  rollQuests,
+  sanitizeDecision,
   sanitizeProfile,
+  withSanitizedNote,
   type AppState,
+  type CheckBackAnswer,
+  type Decision,
+  type DecisionOutcome,
   type ProfileData,
   type Transaction,
 } from './store.ts'
 
 export type AppAction =
-  | { type: 'LOG_TX'; tx: Transaction }
+  /** `decisionId` links the row to the decision that predicted it — see
+   *  LOG_TX. Optional and usually absent: an ordinary log has no decision. */
+  | { type: 'LOG_TX'; tx: Transaction; decisionId?: string }
   | { type: 'UNDO_TX'; id: string }
-  | { type: 'COMPLETE_QUEST'; id: string }
   | { type: 'READ_LESSON'; id: string; date: string }
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
   | { type: 'BOSS_VICTORY'; weekStart: string; date: string }
@@ -31,6 +43,14 @@ export type AppAction =
   | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
   | { type: 'PROFILE_SET'; profile: ProfileData }
+  | { type: 'RUN_SIM'; decision: Decision }
+  | {
+      type: 'CLOSE_DECISION'
+      id: string
+      outcome: Exclude<DecisionOutcome, 'open'>
+      date: string
+    }
+  | { type: 'ANSWER_CHECK_BACK'; id: string; answer: CheckBackAnswer; date: string }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -38,17 +58,56 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // Resist XP caps per day: the button is an unverifiable self-report
       // that also feeds the IC health component, so an uncapped grant would
       // pay the user to game the score. The entry itself always logs.
+      //
+      // COUNTS THE EVIDENCE, NOT THE ROWS. xpFromLog — the authoritative fold,
+      // and the only one that survives a cross-tab merge — caps on resist
+      // GRANTS. Counting resist ROWS here was a second implementation of one
+      // rule, and the two drifted on undo: log r0 (grant), r1 (grant), r2 (no
+      // grant), then UNDO r0 removes the row AND grant tx:r0, leaving 2 rows
+      // but 1 paid grant. The next resist saw 2 rows and refused a grant the
+      // cap still allowed. Reading state.xpLog makes the reducer and the fold
+      // run the identical rule; App's "(XP capped today)" label reads it too.
       const resisted = action.tx.resistedImpulse === true
       const resistGrantsToday = resisted
-        ? state.transactions.filter(
-            (t) => t.resistedImpulse && t.date === action.tx.date,
+        ? state.xpLog.filter(
+            (g) => g.action === 'resistImpulse' && g.date === action.tx.date,
           ).length
         : 0
       const grantsXp = !resisted || resistGrantsToday < RESIST_XP_DAILY_CAP
       const xpAction = resisted ? 'resistImpulse' : 'logExpense'
+      // Decision link. The row is the money event a decision predicted, so the
+      // record can point at it instead of asserting it happened. Written once
+      // and never overwritten: a decision already holding a txId has its money
+      // event, and a later log is a different purchase.
+      //
+      // IT PAYS NOTHING AND CHANGES NO GRANT (§12.1): the branches above are
+      // computed from the transaction alone, and this only stamps an id onto a
+      // row of the record. A linked log earns exactly what the same log earns
+      // unlinked.
+      const decisions =
+        action.decisionId !== undefined &&
+        state.decisions.some((d) => d.id === action.decisionId && d.txId === undefined)
+          ? state.decisions.map((d) =>
+              // Rebuilt through the sanitizer, not spread in place: it is the
+              // one canonical key-order builder for a decision, and mergeStates
+              // compares whole states as JSON STRINGS — a row that grew its
+              // fields in a different order would never string-equal the same
+              // row loaded from disk, and the merge fixpoint would never settle.
+              d.id === action.decisionId
+                ? (sanitizeDecision({ ...d, txId: action.tx.id }) ?? d)
+                : d,
+            )
+          : state.decisions
       return {
         ...state,
-        transactions: [action.tx, ...state.transactions],
+        decisions,
+        // Note sanitised on the way in, for the same reason PROFILE_SET
+        // re-validates a form-checked profile: the string comes from a
+        // free-text field, and a note that only the sanitizer would reject
+        // would render on the row now and silently vanish at next load. What
+        // is on screen must be what reloads. It never affects the grant below
+        // — see the XP note in LogCard.
+        transactions: [withSanitizedNote(action.tx), ...state.transactions],
         xp: grantsXp ? grantXp(state.xp, xpAction).next : state.xp,
         // Every grant also lands in the append-only grant log. The tx-derived
         // id is deterministic: two tabs merging the same purchase dedupe to
@@ -75,75 +134,121 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // the grant evidence (sanitizeState reconciles the two at every load).
       // A resist past the daily cap granted nothing, so only the row leaves.
       // Multi-tab: a peer still holding the tx re-adds it via the union merge;
-      // a second undo works the same way. Quest flags and badges earned off
-      // the logged state stay — neither is money data, and badges pay no XP.
+      // a second undo works the same way. Badges earned off the logged state
+      // stay — they are not money data, and they pay no XP.
+      //
+      // WHAT LEAVES THE COUNTER IS WHAT THE FOLD ACTUALLY PAID, NOT THE
+      // GRANT'S NOMINAL AMOUNT, and the difference is only visible after a
+      // merge. xpFromLog re-applies RESIST_XP_DAILY_CAP over the WHOLE log, so
+      // a union of two tabs that each logged two resists on one day holds four
+      // `tx:*` resist grants and pays for two of them. Subtracting
+      // `grant.amount` there took 50 XP off a counter that had never been paid
+      // it: state.xp.totalXp fell to 50 while xpFromLog(state.xpLog) still
+      // folded to 100, saveState persisted 50, and sanitizeState restored 100
+      // at the next load — the counter visibly dropping and silently jumping
+      // back. store.ts (see the xpLog cap note) names that as the one thing
+      // the two-track rule's engagement side must never do.
+      // Differencing the authoritative fold is exact by construction: for an
+      // uncapped grant it equals grant.amount, and for a grant the cap swallowed
+      // it is 0, so the counter holds.
       if (!state.transactions.some((t) => t.id === action.id)) return state
       const grantId = `tx:${action.id}`
       const grant = state.xpLog.find((g) => g.id === grantId)
+      const nextLog = grant ? state.xpLog.filter((g) => g.id !== grantId) : state.xpLog
+      const paid = grant ? xpFromLog(state.xpLog).totalXp - xpFromLog(nextLog).totalXp : 0
       return {
         ...state,
+        // The row is gone, so the decision's pointer to it is gone with it —
+        // a record citing a transaction the ledger no longer holds is a
+        // dangling claim. The OUTCOME stays: the user said what they did, and
+        // undoing a mis-typed amount is not a retraction of that.
+        decisions: state.decisions.some((d) => d.txId === action.id)
+          ? state.decisions.map((d) => {
+              if (d.txId !== action.id) return d
+              const next = { ...d }
+              delete next.txId
+              return next
+            })
+          : state.decisions,
         transactions: state.transactions.filter((t) => t.id !== action.id),
-        xp: grant ? xpStateFromTotal(Math.max(0, state.xp.totalXp - grant.amount)) : state.xp,
-        xpLog: grant ? state.xpLog.filter((g) => g.id !== grantId) : state.xpLog,
-      }
-    }
-    case 'COMPLETE_QUEST': {
-      // Quest flag and XP grant happen in one atomic transition: a second
-      // dispatch before re-render sees done === true and is a no-op, so rapid
-      // double clicks can never double-grant XP.
-      const quest = state.quests.find((q) => q.id === action.id)
-      if (!quest || quest.done) return state
-      const quests = state.quests.map((q) => (q.id === action.id ? { ...q, done: true } : q))
-      return {
-        ...state,
-        quests,
-        xp: grantXp(state.xp, quest.xpAction).next,
-        // Grant id is deterministic per (quest, day): two tabs completing the
-        // same quest on the same day merge to a single grant — matching the
-        // done-flag union in mergeStates, which likewise pays once.
-        xpLog: [
-          ...state.xpLog,
-          {
-            id: `quest:${quest.id}:${state.questsDate}`,
-            action: quest.xpAction,
-            amount: XP_REWARDS[quest.xpAction],
-            date: state.questsDate,
-          },
-        ],
+        xp: grant ? xpStateFromTotal(Math.max(0, state.xp.totalXp - paid)) : state.xp,
+        xpLog: nextLog,
       }
     }
     case 'READ_LESSON': {
-      // Codex collection only — deliberately NO XP here. The daily readLesson
-      // grant travels through COMPLETE_QUEST('lesson') (App dispatches both on
-      // "Got it"), reusing its atomic double-grant guard and per-(quest, day)
-      // grant id; a second grant here would pay twice for one tap. Ids outside
-      // the canonical roster never persist (the sanitizer would drop them and
-      // the codex count would lie until then). Re-reading a lesson after the
-      // roster wraps keeps the ORIGINAL first-read date — lessonForDay's
-      // no-repeat rule keys off it (see LessonSeen in the store).
+      // TWO THINGS, ONE TAP, AND THEY ARE GUARDED SEPARATELY.
+      //
+      // The lesson goes into the codex at most once ever (lessonsSeen keeps the
+      // FIRST read date — lessonForDay's no-repeat rule keys off it), and the
+      // daily readLesson grant lands at most once per LOCAL DAY. Those are not
+      // the same condition: once the 30-lesson roster wraps, lessonForDay may
+      // serve a lesson already in the codex, and reading it still pays the day's
+      // grant. Ids outside the canonical roster never persist (the sanitizer
+      // would drop them and the codex count would lie until then).
+      //
+      // THE GRANT USED TO TRAVEL THROUGH COMPLETE_QUEST, and the quest is gone
+      // (see XpStrip). It is paid here now, on the deterministic per-day grant
+      // id `lesson:<day>` — the pattern BOSS_VICTORY has always used. The xpLog
+      // IS the persistence, so a StrictMode double-dispatch, a double tap, a
+      // reload and a peer tab claiming the same day (grant logs union by id in
+      // mergeStates) all pay exactly once, with no extra state field.
+      //
+      // THE OLD ID IS STILL HONOURED AS PAYMENT, FOR ONE RELEASE. A payload
+      // written by the previous build carries `quest:lesson:<day>`, and
+      // sanitizeState deliberately preserves those grants (see store.ts —
+      // "the GRANTS those quests minted keep folding at full value"). A guard
+      // that only knew the new id would not see yesterday's payment, so the
+      // day a user upgrades would pay the lesson twice: 30 XP minted for one
+      // read, engagement track, once. `legacyGrantId` below is the same day key
+      // under the old prefix, so the deterministic-id promise above ("a reload
+      // and a peer tab claiming the same day all pay exactly once") holds
+      // across the schema change too.
       if (!LESSON_IDS.has(action.id)) return state
-      if (state.lessonsSeen.some((e) => e.id === action.id)) return state
-      const lessonsSeen = [...state.lessonsSeen, { id: action.id, date: action.date }].sort(
-        (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
-      )
-      return { ...state, lessonsSeen }
+      const grantId = `lesson:${action.date}`
+      const legacyGrantId = `quest:lesson:${action.date}`
+      const paid = state.xpLog.some((g) => g.id === grantId || g.id === legacyGrantId)
+      const collected = state.lessonsSeen.some((e) => e.id === action.id)
+      if (paid && collected) return state
+      const lessonsSeen = collected
+        ? state.lessonsSeen
+        : [...state.lessonsSeen, { id: action.id, date: action.date }].sort((a, b) =>
+            a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+          )
+      if (paid) return { ...state, lessonsSeen }
+      return {
+        ...state,
+        lessonsSeen,
+        xp: grantXp(state.xp, 'readLesson').next,
+        xpLog: [
+          ...state.xpLog,
+          {
+            id: grantId,
+            action: 'readLesson',
+            amount: XP_REWARDS.readLesson,
+            date: action.date,
+          },
+        ],
+      }
     }
     case 'ROLL_DAY': {
       // Persist a once-per-day health snapshot so asymmetric smoothing and
       // stage hysteresis actually compound day over day. Keyed on healthDate:
       // snapshotting per render would re-apply smooth() many times within a
-      // single day. Quests roll here too. Returns the same object when
-      // nothing needs to change so dispatching is render-free on no-op days.
-      if (state.healthDate === action.today && state.questsDate === action.today) return state
-      const rolled = rollQuests(state, action.today)
-      return state.healthDate === action.today
-        ? rolled
-        : {
-            ...rolled,
-            prevHealthScore: action.healthScore,
-            stage: action.healthStage,
-            healthDate: action.today,
-          }
+      // single day. Returns the same object when nothing needs to change so
+      // dispatching is render-free on no-op days.
+      //
+      // IT ROLLED THE QUEST LIST TOO, and there is no list to roll. The daily
+      // grants that outlived the quests are capped by their own per-day grant
+      // ids (`lesson:<day>`, `sim:<day>`), which need no midnight sweep: the day
+      // key is IN the id, so a tab left open past midnight is already on a fresh
+      // id the moment `today` changes.
+      if (state.healthDate === action.today) return state
+      return {
+        ...state,
+        prevHealthScore: action.healthScore,
+        stage: action.healthStage,
+        healthDate: action.today,
+      }
     }
     case 'BOSS_VICTORY': {
       // Weekly boss win (computed by the boss engine, dispatched from
@@ -195,6 +300,105 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // canonical key order — mergeStates compares profiles as JSON strings.
       const profile = sanitizeProfile(action.profile)
       return profile === null ? state : { ...state, profile }
+    }
+    case 'RUN_SIM': {
+      // The simulator's output stops being a render-local string. Re-validated
+      // on the way in for the same reason PROFILE_SET is: the line comes from
+      // describeResult and the amount from a free-text field, and anything the
+      // sanitizer would reject at next load must not render now — what is on
+      // screen has to be what reloads.
+      //
+      // THE RECORD IS DATA; ONLY THE GRANT IS CAPPED (§12.1). The daily
+      // runSimulation grant used to travel through COMPLETE_QUEST('sim'); the
+      // quest is gone (see XpStrip) and it is paid here now, on the
+      // deterministic per-day id `sim:<day>` — same mechanism as the lesson
+      // above and as BOSS_VICTORY. A SECOND RUN THE SAME DAY STILL RECORDS ITS
+      // DECISION and pays nothing: the record exists to hold what the user did,
+      // and refusing to file the second run would be the engagement track
+      // deciding what the money record is allowed to remember.
+      const decision = sanitizeDecision(action.decision)
+      if (decision === null) return state
+      if (state.decisions.some((d) => d.id === decision.id)) return state
+      const decisions = canonicalDecisions([decision, ...state.decisions])
+      // The legacy `quest:sim:<day>` id counts as payment for the same reason
+      // READ_LESSON honours `quest:lesson:<day>` — see the note there.
+      const grantId = `sim:${decision.date}`
+      const legacyGrantId = `quest:sim:${decision.date}`
+      if (state.xpLog.some((g) => g.id === grantId || g.id === legacyGrantId)) {
+        return { ...state, decisions }
+      }
+      return {
+        ...state,
+        decisions,
+        xp: grantXp(state.xp, 'runSimulation').next,
+        xpLog: [
+          ...state.xpLog,
+          {
+            id: grantId,
+            action: 'runSimulation',
+            amount: XP_REWARDS.runSimulation,
+            date: decision.date,
+          },
+        ],
+      }
+    }
+    case 'CLOSE_DECISION': {
+      // What happened, recorded once. Only an OPEN decision closes: a second
+      // dispatch before re-render (double tap, StrictMode) sees a closed row
+      // and is a no-op, and a peer tab's answer is never overwritten by a
+      // stale one — the same read-the-state-first guard BOSS_VICTORY and
+      // ANSWER_CHECK_BACK use.
+      //
+      // NO XP, NO HEALTH INPUT (§12.1). Nothing here touches xp, xpLog,
+      // prevHealthScore or transactions. The resist branch's money event is an
+      // ORDINARY LOG_TX dispatched beside this one, so it earns through the
+      // capped path every other resist earns through and feeds Impulse Control
+      // as itself, not as a decision.
+      const target = state.decisions.find((d) => d.id === action.id)
+      if (!target || target.outcome !== 'open') return state
+      return {
+        ...state,
+        decisions: state.decisions.map((d) =>
+          // Canonical rebuild, same reason as LOG_TX's link above.
+          d.id === action.id
+            ? (sanitizeDecision({ ...d, outcome: action.outcome, outcomeDate: action.date }) ?? d)
+            : d,
+        ),
+      }
+    }
+    case 'ANSWER_CHECK_BACK': {
+      // THE CHECK-BACK, ANSWERED ONCE. Only a BOUGHT row that has not been
+      // answered accepts one: a second dispatch before re-render (double tap,
+      // StrictMode) sees a filled `checkBack` and is a no-op, and a peer tab's
+      // answer is never overwritten by a stale one — the same atomic guard
+      // CLOSE_DECISION and BOSS_VICTORY use.
+      //
+      // NO XP, NO HEALTH INPUT, NO TALLY (§12.1). Nothing here touches xp,
+      // xpLog, transactions, prevHealthScore or stage, and there is no
+      // counter anywhere that this increments. Answering is the whole event:
+      // the record files what the user said and stops (§7.1).
+      //
+      // AND NOTHING ELSE ON THE ROW MOVES (§12.5). The rebuild spreads the
+      // EXISTING row and adds two keys, so `line`, `demo`, `amountDA`,
+      // `outcome`, `outcomeDate` and `txId` come through byte-identical —
+      // an answer answers the record, it does not edit it. Canonical rebuild
+      // through the sanitizer for the same reason as LOG_TX's link: it is the
+      // one key-order builder for a decision, and mergeStates compares whole
+      // states as JSON strings.
+      const target = state.decisions.find((d) => d.id === action.id)
+      if (!target || target.outcome !== 'bought' || target.checkBack !== undefined) return state
+      return {
+        ...state,
+        decisions: state.decisions.map((d) =>
+          d.id === action.id
+            ? (sanitizeDecision({
+                ...d,
+                checkBack: action.answer,
+                checkBackDate: action.date,
+              }) ?? d)
+            : d,
+        ),
+      }
     }
   }
 }

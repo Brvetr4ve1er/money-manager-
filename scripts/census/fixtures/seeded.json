@@ -1,0 +1,478 @@
+{
+  "transactions": [
+    {
+      "id": "t01",
+      "date": "2025-03-12",
+      "amountDA": 480,
+      "category": "Food",
+      "note": "coffee and a sandwich"
+    },
+    {
+      "id": "t02",
+      "date": "2025-03-12",
+      "amountDA": 200,
+      "category": "Transport"
+    },
+    {
+      "id": "t03",
+      "date": "2025-03-12",
+      "amountDA": 6500,
+      "category": "Fun",
+      "note": "headphones",
+      "impulseFlagged": true
+    },
+    {
+      "id": "t04",
+      "date": "2025-03-11",
+      "amountDA": 3200,
+      "category": "Food",
+      "note": "week shop"
+    },
+    {
+      "id": "t05",
+      "date": "2025-03-11",
+      "amountDA": 1500,
+      "category": "Health"
+    },
+    {
+      "id": "t06",
+      "date": "2025-03-11",
+      "amountDA": 9000,
+      "category": "Fun",
+      "note": "jacket I put back",
+      "resistedImpulse": true
+    },
+    {
+      "id": "t07",
+      "date": "2025-03-10",
+      "amountDA": 250,
+      "category": "Transport"
+    },
+    {
+      "id": "t08",
+      "date": "2025-03-10",
+      "amountDA": 1200,
+      "category": "Food",
+      "note": "lunch out"
+    },
+    {
+      "id": "t09",
+      "date": "2025-03-09",
+      "amountDA": 14000,
+      "category": "Bills",
+      "note": "electricity"
+    },
+    {
+      "id": "t10",
+      "date": "2025-03-09",
+      "amountDA": 700,
+      "category": "Food"
+    },
+    {
+      "id": "t11",
+      "date": "2025-03-08",
+      "amountDA": 2400,
+      "category": "Other",
+      "note": "phone credit"
+    },
+    {
+      "id": "t12",
+      "date": "2025-03-07",
+      "amountDA": 900,
+      "category": "Food",
+      "note": "bread and eggs"
+    },
+    {
+      "id": "t13",
+      "date": "2025-03-06",
+      "amountDA": 4500,
+      "category": "Transport",
+      "note": "monthly pass"
+    },
+    {
+      "id": "t14",
+      "date": "2025-03-05",
+      "amountDA": 3800,
+      "category": "Fun",
+      "note": "cinema and dinner"
+    },
+    {
+      "id": "t15",
+      "date": "2025-03-04",
+      "amountDA": 1100,
+      "category": "Food"
+    },
+    {
+      "id": "t16",
+      "date": "2025-03-03",
+      "amountDA": 22000,
+      "category": "Bills",
+      "note": "rent share"
+    },
+    {
+      "id": "t17",
+      "date": "2025-03-01",
+      "amountDA": 650,
+      "category": "Health",
+      "note": "pharmacy"
+    },
+    {
+      "id": "t18",
+      "date": "2025-02-27",
+      "amountDA": 5200,
+      "category": "Fun",
+      "note": "trainers I did not buy",
+      "resistedImpulse": true
+    },
+    {
+      "id": "t19",
+      "date": "2025-02-25",
+      "amountDA": 1800,
+      "category": "Food",
+      "note": "market"
+    },
+    {
+      "id": "t20",
+      "date": "2025-02-22",
+      "amountDA": 3000,
+      "category": "Other"
+    },
+    {
+      "id": "t21",
+      "date": "2025-02-20",
+      "amountDA": 900,
+      "category": "Transport"
+    }
+  ],
+  "xp": {
+    "level": 4,
+    "xpIntoLevel": 60,
+    "totalXp": 510
+  },
+  "xpLog": [
+    {
+      "id": "g-log-01",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-12"
+    },
+    {
+      "id": "g-log-02",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-11"
+    },
+    {
+      "id": "g-log-03",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-10"
+    },
+    {
+      "id": "g-log-04",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-09"
+    },
+    {
+      "id": "g-log-05",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-08"
+    },
+    {
+      "id": "g-log-06",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-07"
+    },
+    {
+      "id": "g-log-07",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-06"
+    },
+    {
+      "id": "g-log-08",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-05"
+    },
+    {
+      "id": "g-log-09",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-04"
+    },
+    {
+      "id": "g-log-10",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-03"
+    },
+    {
+      "id": "g-log-11",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-02"
+    },
+    {
+      "id": "g-log-12",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-01"
+    },
+    {
+      "id": "g-log-13",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-12"
+    },
+    {
+      "id": "g-log-14",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-11"
+    },
+    {
+      "id": "g-log-15",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-10"
+    },
+    {
+      "id": "g-log-16",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-09"
+    },
+    {
+      "id": "g-log-17",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-08"
+    },
+    {
+      "id": "g-log-18",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-07"
+    },
+    {
+      "id": "g-log-19",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-06"
+    },
+    {
+      "id": "g-log-20",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-05"
+    },
+    {
+      "id": "g-log-21",
+      "action": "logExpense",
+      "amount": 5,
+      "date": "2025-03-04"
+    },
+    {
+      "id": "g-resist-1",
+      "action": "resistImpulse",
+      "amount": 50,
+      "date": "2025-03-11"
+    },
+    {
+      "id": "g-resist-2",
+      "action": "resistImpulse",
+      "amount": 50,
+      "date": "2025-02-27"
+    },
+    {
+      "id": "sim:2025-03-12",
+      "action": "runSimulation",
+      "amount": 15,
+      "date": "2025-03-12"
+    },
+    {
+      "id": "sim:2025-03-08",
+      "action": "runSimulation",
+      "amount": 15,
+      "date": "2025-03-08"
+    },
+    {
+      "id": "sim:2025-03-03",
+      "action": "runSimulation",
+      "amount": 15,
+      "date": "2025-03-03"
+    },
+    {
+      "id": "lesson:2025-03-12",
+      "action": "readLesson",
+      "amount": 15,
+      "date": "2025-03-12"
+    },
+    {
+      "id": "lesson:2025-03-10",
+      "action": "readLesson",
+      "amount": 15,
+      "date": "2025-03-10"
+    },
+    {
+      "id": "lesson:2025-03-08",
+      "action": "readLesson",
+      "amount": 15,
+      "date": "2025-03-08"
+    },
+    {
+      "id": "lesson:2025-03-06",
+      "action": "readLesson",
+      "amount": 15,
+      "date": "2025-03-06"
+    },
+    {
+      "id": "lesson:2025-03-04",
+      "action": "readLesson",
+      "amount": 15,
+      "date": "2025-03-04"
+    },
+    {
+      "id": "lesson:2025-03-02",
+      "action": "readLesson",
+      "amount": 15,
+      "date": "2025-03-02"
+    },
+    {
+      "id": "g-review-1",
+      "action": "reviewRecent",
+      "amount": 10,
+      "date": "2025-03-11"
+    },
+    {
+      "id": "g-review-2",
+      "action": "reviewRecent",
+      "amount": 10,
+      "date": "2025-03-07"
+    },
+    {
+      "id": "boss:2025-03-03",
+      "action": "weeklyBoss",
+      "amount": 150,
+      "date": "2025-03-06"
+    }
+  ],
+  "prevHealthScore": 61,
+  "stage": "hearth",
+  "healthDate": "2025-03-12",
+  "lessonsSeen": [
+    {
+      "id": "budget-sketch",
+      "date": "2025-03-02"
+    },
+    {
+      "id": "pay-yourself-first",
+      "date": "2025-03-08"
+    },
+    {
+      "id": "savings-bill",
+      "date": "2025-03-10"
+    },
+    {
+      "id": "start-small",
+      "date": "2025-03-12"
+    },
+    {
+      "id": "track-first",
+      "date": "2025-03-04"
+    },
+    {
+      "id": "zero-based",
+      "date": "2025-03-06"
+    }
+  ],
+  "muted": false,
+  "profile": {
+    "monthlyIncome": 85000,
+    "monthlyEssentials": 48000,
+    "efBalance": 60000,
+    "debt": {
+      "balance": 120000,
+      "minimum": 8000
+    },
+    "goal": {
+      "name": "Laptop",
+      "target": 180000,
+      "current": 45000,
+      "monthlyContribution": 12000
+    },
+    "savedDate": "2025-02-20"
+  },
+  "achievements": [
+    {
+      "id": "boss-win",
+      "date": "2025-03-06"
+    },
+    {
+      "id": "codex-5",
+      "date": "2025-03-10"
+    },
+    {
+      "id": "first-log",
+      "date": "2025-02-20"
+    },
+    {
+      "id": "first-resist",
+      "date": "2025-02-27"
+    },
+    {
+      "id": "first-sim",
+      "date": "2025-03-03"
+    },
+    {
+      "id": "streak-7",
+      "date": "2025-03-09"
+    },
+    {
+      "id": "ten-logs",
+      "date": "2025-03-03"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "d1",
+      "date": "2025-03-12",
+      "amountDA": 6500,
+      "line": "That is about 2 weeks of your goal contribution.",
+      "demo": false,
+      "outcome": "bought",
+      "outcomeDate": "2025-03-12",
+      "txId": "t03"
+    },
+    {
+      "id": "d2",
+      "date": "2025-03-08",
+      "amountDA": 18000,
+      "line": "Your goal slips about 1 month.",
+      "demo": false,
+      "outcome": "waited",
+      "outcomeDate": "2025-03-09"
+    },
+    {
+      "id": "d3",
+      "date": "2025-03-03",
+      "amountDA": 5200,
+      "line": "That is about 11 days of your goal contribution.",
+      "demo": false,
+      "outcome": "open"
+    },
+    {
+      "id": "d0",
+      "date": "2025-02-24",
+      "amountDA": 24000,
+      "line": "Your goal slips about 2 months.",
+      "demo": false,
+      "outcome": "bought",
+      "outcomeDate": "2025-02-24"
+    }
+  ]
+}

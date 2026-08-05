@@ -3,39 +3,124 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Ember — build financial instincts. A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
-    <meta name="theme-color" content="#ff4b2b" />
-    <!-- Flame-mark favicon: without it browsers 404 on /favicon.ico and the
-         tab shows a generic globe — an unfinished look next to the flame
-         brand head above. SVG scales for tabs/bookmarks; the PNG covers iOS
+    <!-- The SERP line. It names the mechanic the landing leads with rather than
+         only the category: "a row for the thing you did not buy" is the resist
+         path (reducer.ts writes the row, ledger.ts adds 0 for it, ArchiveCard
+         sums the month), and it is the one claim here no bank-linked tracker can
+         make at all. The simulator clause it replaced was true and generic;
+         this one is true and specific, which is the whole difference on a
+         surface a stranger reads in one line. -->
+    <meta name="description" content="Ember — a money app that runs on your phone, not on your bank. Manual logging in dinars, a row for the thing you did not buy, and a health score that explains itself. No account, no bank link, full export." />
+    <!-- Browser chrome, per scheme. Flare is the brand field (§2: 45% of all
+         surface) and is literally the first paint a new visitor gets — the
+         landing's brick wall. Dark takes the ground swap (§2.2: light ground
+         Bone, dark ground Espresso), so the chrome follows the page into the
+         dark theme instead of staying orange in both. Both hexes are the
+         current palette; the old #ff4b2b predates it. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F93E06" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#2A1E18" />
+    <!-- The mark (§4): the EMB stack in a superellipse container, generated
+         from the same geometry the app renders — see scripts/brand-assets.ts.
+         SVG scales for tabs and bookmarks; the PNG covers iOS
          add-to-home-screen (Safari ignores SVG touch icons), which matters in
-         the mobile-heavy target market. -->
+         the mobile-heavy target market where add-to-home-screen IS the
+         distribution channel. -->
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Add-to-home-screen: name, standalone display, the icon set and the
+         splash colours. Without it Android gets a bookmark with no identity
+         and iOS gets a chrome-framed one.
+
+         The manifest carries NO "orientation" key, and that is a decision, not
+         an omission (JSON takes no comments, so it is recorded here). Locking
+         it to portrait fails WCAG 2.1 SC 1.3.4 — orientation is not essential
+         to a ledger — and it would strand the installed app on the ≥1024px
+         two-column layout app.css already ships. The spec default is "any". -->
+
+    <link rel="manifest" href="/manifest.webmanifest" />
     <!-- Social cards (WhatsApp/Facebook/Telegram are the dominant share
          channels in the target market). Those crawlers require ABSOLUTE
          image URLs: set VITE_SITE_URL at build time and vite.config.ts
-         rewrites the /og.png references and injects og:url.
-         Titles carry the tagline and descriptions say what the product IS
-         (a money app, manual DA logging, local-first): a card showing only
-         the bare word "Ember" plus a slogan tells a stranger nothing. -->
+         rewrites the /og.png references and injects og:url + canonical.
+
+         og.png is now GENERATED, by `npm run brand`, from the same geometry
+         the app draws its mark with — it is no longer the hand-drawn
+         pre-design-system card. It renders §5 layout E (THE OBJECT) rather
+         than og.svg's layout A, and that split is deliberate: the repo owns no
+         rasteriser and takes no dependency to get one, so the PNG writer in
+         scripts/brand-assets.ts can fill and stroke paths but cannot set type.
+         Layout E is the one signature layout that needs no type at all — the
+         mark alone, hard-lit, dead-centre on flat Flare. The words the card
+         used to carry are in og:title and og:description below, which every
+         one of these crawlers renders as text beside the image anyway.
+
+         og.svg keeps layout A (it is the README header, where a real font
+         engine is present). The alt text below describes the PNG, because the
+         PNG is what ships to a crawler. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Ember" />
     <meta property="og:locale" content="en_US" />
-    <meta property="og:title" content="Ember — build financial instincts" />
-    <meta property="og:description" content="A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
+    <meta property="og:title" content="Ember — a money app that runs on your phone, not on your bank" />
+    <meta property="og:description" content="A money app that runs on your phone, not on your bank. Log what you spend in DA. And log the thing you did not buy — no bank feed can see that row. No account, no bank link, full export." />
     <meta property="og:image" content="/og.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Ember — build financial instincts" />
+    <meta property="og:image:alt" content="The Ember mark — the EMB letter stack in a rounded container — alone and dead-centre on a flat orange field, crossed by one 38-degree graphite diagonal." />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Ember — build financial instincts" />
-    <meta name="twitter:description" content="A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
+    <meta name="twitter:title" content="Ember — a money app that runs on your phone, not on your bank" />
+    <meta name="twitter:description" content="A money app that runs on your phone, not on your bank. Log what you spend in DA. And log the thing you did not buy — no bank feed can see that row. No account, no bank link, full export." />
     <meta name="twitter:image" content="/og.png" />
-    <title>Ember</title>
+    <meta name="twitter:image:alt" content="The Ember mark — the EMB letter stack in a rounded container — alone and dead-centre on a flat orange field, crossed by one 38-degree graphite diagonal." />
+    <!-- The tab, the bookmark, the SERP line and every Slack/Teams unfurl
+         headline read this. The bare word "Ember" told a stranger nothing —
+         and "build financial instincts", which stood here, named a faculty the
+         app cannot measure and does not train (see HeroShell.tsx, where the
+         same string was cut from the hero for grazing §12.4). What ships here
+         is the positioning line, and it maps to code: no account, no bank
+         link, everything in this browser.
+
+         Kept as one sentence rather than the §7 rule-2 fragments the on-page
+         lede uses: a <title> and an unfurl headline arrive with no page around
+         them, so this is the one surface that has to name the category before
+         it names the differentiator. Landing.tsx records the same split. -->
+    <title>Ember — a money app that runs on your phone, not on your bank</title>
   </head>
   <body>
     <div id="root"></div>
+    <!-- The page is 100% client-rendered, so with scripting off #root stays an
+         empty rectangle: JS-off users, text-mode previews and low-end share
+         contexts got a blank page and no way to tell what they were looking
+         at. This block costs nothing and says the one useful thing.
+
+         Literal hexes, not tokens: browsers ignore noscript CONTENT entirely
+         when scripting is on, so nothing here can leak into the app — and when
+         scripting is off there is no guarantee about what else has loaded. The
+         values are §2's Flare / Graphite / Bone. Copy under 24px sits on the
+         Bone plate, never on the Flare field (§2.1 rule 1). -->
+    <noscript>
+      <style>
+        .ns { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+              background: #F93E06; padding: 40px 24px; margin: 0;
+              font-family: "Space Grotesk", Helvetica, Arial, sans-serif; }
+        .ns-plate { max-width: 560px; background: #F5E6E0; color: #2A2D2C;
+                    border: 2px solid #2A2D2C; border-radius: 28px; padding: 32px; }
+        .ns-plate h1 { margin: 0 0 16px; font-size: 56px; line-height: 0.78;
+                       letter-spacing: -0.045em; text-transform: uppercase;
+                       font-family: "Archivo Black", "Arial Black", sans-serif; }
+        .ns-plate p { margin: 0 0 8px; font-size: 17px; line-height: 1.5; }
+        .ns-spec { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+                   font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+      </style>
+      <div class="ns">
+        <div class="ns-plate">
+          <h1>Ember</h1>
+          <p><strong>A money app that runs on your phone, not on your bank.</strong></p>
+          <p>Ember needs JavaScript. It runs entirely in your browser — there is no server to fall back to.</p>
+          <p class="ns-spec">No account · No bank link · Export always</p>
+        </div>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

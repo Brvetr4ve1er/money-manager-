@@ -136,9 +136,12 @@ describe('levelTitle', () => {
   it('maps level bands to titles', () => {
     expect(levelTitle(1)).toBe('Spark')
     expect(levelTitle(4)).toBe('Spark')
-    expect(levelTitle(5)).toBe('Money Apprentice')
-    expect(levelTitle(10)).toBe('Financial Explorer')
-    expect(levelTitle(20)).toBe('Financial Strategist')
-    expect(levelTitle(30)).toBe('Financial Sage')
+    // §7.3 rewrite of the ladder: the RPG-flattery titles ('Money
+    // Apprentice', 'Financial Sage'…) named the user's supposed financial
+    // skill off engagement XP alone. Thresholds are unchanged.
+    expect(levelTitle(5)).toBe('Logger')
+    expect(levelTitle(10)).toBe('Ledger Hand')
+    expect(levelTitle(20)).toBe('Machinist')
+    expect(levelTitle(30)).toBe('Fabricator')
   })
 })
