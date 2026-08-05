@@ -94,10 +94,15 @@ An application document is not one composition. It is a sequence of them, and th
 whole-document average is a number nobody ever looks at. Measured — `app.375x812.light.seeded`
 (PROVENANCE: `docs/brand/census.json`, the committed artifact, kept current by the staleness
 hash rather than by a commit hash that ages), which is what the rule below
-means by "comes from that file": the page averages **56.25% field / 34.62% Bone** over the whole
-document, while its **seven** viewport windows run 57.50, 47.65, 68.84, 53.43, 48.70, 44.92
-and 73.98 percent field. Those seven are all inside the band below; the average they
+means by "comes from that file": the page averages **57.00% field / 33.98% Bone** over the whole
+document, while its **eight** viewport windows run 59.36, 51.40, 65.26, 50.72, 50.22, 53.35, 62.61
+and 74.07 percent field. Those eight are all inside the band below; the average they
 produce is still a number that appears on no screen, which is the point.
+(It was **seven** windows and 56.25 / 34.62 one round ago, on the same fixture and the same
+viewport. Nothing about the law moved: card 01 started printing the week block in every state
+rather than only while the score is withheld, the phone document grew 5,605 → 5,818px, and an
+eighth window appeared at the tail. A worked example whose row grows a window is exactly the
+case the binding test above it exists for.)
 
 **AND THE FIRST OF THOSE SEVEN USED TO BE A CELEBRATION.** This paragraph quoted 56.73 / 34.05
 and a first window of 59.41 for three rounds, from the artifact committed at `dc529fb`, and both
@@ -237,6 +242,10 @@ sample of a statistic with a 37-point spread, and the true worst — @1992, **27
 63.79% Bone**, outside the band on both axes — sat between two grid windows that both passed
 (@1624 field 40.28, @2436 field 64.53). The row recorded `breaches: []`. Any change that
 lengthens a section by 60px moves the reported number without improving one screen.
+**THAT PROBE IS AN INSTRUMENT NOW — see §2.1b.4** — and two things follow. Its figures were a
+scratch probe on `9a42bd8` and are NOT in the committed `sliding` series, so they may not be
+diffed against it; and @1992 is CLOSED (42.33 field / 49.24 Bone on this tree, inside the band on
+both axes). The row's worst has moved to `.lp-shear`.
 
 **An application document has no authored composition boundaries. That is why §2.1b substitutes
 a window for one. A marketing page has them.** They are in the DOM, they are opaque grounds, and
@@ -303,8 +312,8 @@ with no disposition anywhere in this document. Carried through: in a §5C plate 
 is holding the COUNTER'S ROLE, not an accent's.
 A 31% Marigold lockup standing on 61% Espresso is §2's 60/30 read exactly, and Marigold is the
 one accent in this palette that legally carries body copy (Graphite on Marigold, 6.38:1, §2.1
-rule 2) — so the plate can do the counter's whole job, which is why the counter bucket is empty
-rather than skimped. The band is measuring the wrong two buckets for
+rule 2) — so the plate can do the counter's whole job, which is why the Bone bucket holds a
+keyline and two links rather than a plate. The band is measuring the wrong two buckets for
 this one composition, and a Bone band added to satisfy it would be designing around a
 classification artefact — which §2.1 forbids by name.
 
@@ -651,7 +660,9 @@ it changes length. At the 178px draft it read 80.11 — a recorded band breach, 
 field cap, on both `landing.375x812` rows — and it was one grid sample of a run that had ALREADY
 been measured worse: on the clean tree of `9a42bd8` the sliding-window probe put
 `landing.375x812.dark` at 81.78% field / 14.42% Bone at offset 4783, outside the band on both
-axes, at a phase the grid does not sample.
+axes, at a phase the grid does not sample. (That figure is HISTORICAL and belongs to no committed
+series — see §2.1b.4. On this tree @4783 reads 58.37 / 35.62, so the badge fill closed it at every
+phase and not only at the grid's.)
 **The cause was the run, not the paragraph, and the run is what was cut.** `.lp-spec`'s tail meets
 `.lp-shear`'s head on the SAME Espresso ground, and the badge stripe's derivation ("the longest
 keyline run is two badges, ~370px") silently assumed every keyline run is flanked by Bone. The
@@ -662,6 +673,127 @@ not a length — so §2.1b.1's binding sentence is not being spent: **the answer
 relengthen the wall until the grid sampled somewhere kinder.** `@4872` now reads 64.20 field /
 30.31 Bone, deviation 9.01, and both `landing.375x812` rows record zero window breaches. The bill
 was paid in Bone, not in phase.
+
+#### 2.1b.4 The fourth reading — the band with the grid's phase taken away
+
+**`worst`, `mean`, `meanDeviation`, `breaches` and `windows[]` ARE UNCHANGED AND ARE STILL THE
+GRID'S.** Nothing above this heading is renumbered, retired or recomputed; every figure §2.1b,
+§2.1b.1, §2.1b.2 and §2.1b.3 quotes, every `@0`/`@4872` column and every pinned window waiver
+still means what it meant. `scrollingForm.sliding` is a NEW BLOCK and a NEW SERIES, starting at
+round 8, with **no comparable predecessor in any earlier census**. The round-7 sliding figures
+elsewhere in this document — `landing.375x812.light` @1992 at 27.84 / 63.79, the 30.48–67.58
+spread, `landing.375x812.dark` 81.78 / 14.42 @4783 — were a SCRATCH PROBE on the clean tree of
+`9a42bd8`. They are not this series and must never be diffed against it.
+
+§2.1b.1 already stated the defect: *"The window grid has a phase, and the phase is arbitrary."*
+It was stated and not acted on for a round. `sliding` evaluates the same band and the same caps
+at **every** offset — step 1, because a step of 8 is a smaller arbitrary phase rather than the
+absence of one — and records the worst screen, the two banded buckets' extremes, and each
+crossed bound with **how many offsets cross it**.
+
+```
+worst        the worst screen on the page, at any offset. Phase-free.
+extremes     field and bone, min and max, with the offset of each.
+excursions   one per bucket per side: the bound crossed, the worst value,
+             the offset, and the EXTENT in offsets. The cap is reported
+             INSTEAD of the band, as it is for a window — restated for a
+             range, where one row can hold offsets past the cap and other
+             offsets past the band only.
+NO MEAN, and that is a rule rather than an omission.
+```
+
+**There is no sliding mean and there may not be one.** Scanline *y* is covered by
+`min(y,L) − max(0,y−W+1) + 1` windows, so an all-offsets mean down-weights the first and last
+viewport of every page on a ramp from 1/W to 1: a triangular-weighted DOCUMENT average dressed
+as a mean of screens, which is the exact statistic this whole section exists to reject. The
+grid's mean gives every screen weight 1 and stays the mean. This is why the fourth reading is an
+ADDITION and not a replacement — the grid is the better instrument for one of the two statistics,
+so retiring it would be paying a comparability discontinuity for a downgrade.
+
+**The implementation changed and the numbers did not, and that is checked rather than claimed.**
+Re-slicing per window is O(window pixels), and the slide asks for **88,154** windows across the
+matrix instead of 136. So each SCANLINE is classified once and prefix-summed, and every window —
+grid or sliding — is an O(1) subtraction. The counts are integers, so the swap does not
+approximate the old slicer, it reproduces it: `census.test.ts` compares the two over every offset
+of three viewport heights and the worst disagreement is **0**, not "0 to 2dp".
+
+The cost is negative, which is the whole reason the reading is affordable. Measured on this
+container over all twenty committed rasters (a scratch bench on this tree, not the census):
+
+```
+prefix pass, all 20 rows          576 ms     <- REPLACES the line below
+per-window slicing, 136 windows  1352 ms
+grid windows off the prefix      0.33 ms
+sliding, all 88,154 offsets        46 ms
+naive slide (extrapolated)       ~875 s      = 14.6 minutes
+```
+
+The fourth reading costs 622ms where the second alone cost 1352ms, so the census got faster while
+gaining it. That matters more than it sounds: a tool nobody re-runs when pixels move is the
+failure this instrument exists to end, and 14.6 minutes is how you get one.
+
+**WHAT IT REPORTS: SIX BREACHES ON FIVE ROWS, AND ALL FIVE ROWS RECORD ZERO WINDOW BAND BREACHES.**
+Fifteen of twenty rows are clean at every offset, so this is not a reading that fails everything.
+(PROVENANCE: `docs/brand/census.json`.) The grid worst understates the true worst screen on every
+row in the matrix, by 0.17 deviation points (`app.375x812.light.seeded.breakdown`) to 25.12
+(`landing.1440x900.*`).
+
+```
+                                   grid worst        sliding worst
+app.375x812.dark.day0              22.39 @3494       40.75 @2844
+landing.1440x900.*.fresh           30.60 @4068       55.72 @1455
+landing.375x812.*.fresh            37.96 @5684       53.96 @5891
+```
+
+1. **`app.375x812.dark.day0`, `bone 14.31 under the 15 band, 88 of 3495 offsets, @1111.** The
+   pre-setup structural run §2.1b.2 records — closed at the grid's phase by ProfileCard's counter
+   plate, which took eleven waived entries with it, and still there between two grid samples. The
+   window at @1111 catches 77px of that plate's tail and then ~735px in which no scanline band
+   exceeds 15% Bone; the grid reads Bone 29.44 at @812 and 30.69 at @1624. **It is in no section
+   record either** — the row carries `pageGround: null`, one section (`div.hero-frame`, 276px) and
+   `nested: []` — so this is the one screen in the matrix that the second and third readings both
+   structurally cannot see. It is one defect seen twice: at the same offset of the same DOM, dark
+   reads 71.52 field / 14.31 Bone and light reads 59.56 / 27.93, so a plate — the ground's
+   opposite — moves both the right way at once. (PROVENANCE: `docs/brand/census.json` for the
+   grid, section and sliding figures. The light twin's vector at @1111 is not a field in that
+   file — only the extremes are — so it was read off the same run's raster on this tree, with
+   `--keep-shots`, and it is stamped here rather than committed.)
+
+2. **`landing.1440x900.*`, `bone 57.86 over the 55 band, 175 of 4069 offsets, @1453.** Inside
+   `section.lp-spec` (@1180, **h2241** against a 900px viewport, `held: false`). §2.1b.1 does not
+   band-check a section longer than the viewport, and it says why: *"Longer is a SEQUENCE and the
+   windows already own it."* The windows own it and the windows' phase misses it — @900 reads Bone
+   37.92 and @1800 reads 41.47. **That is the seam between the second and third readings**, and
+   the slide is the only one of the three with a boundary in the middle of a section two and a
+   half viewports long.
+
+3. **`landing.375x812.*`, `field 34.92 under the 35 band (6 of 6570)` and `bone 55.65 over the 55
+   band (150 of 6570)`.** The same seam on the phone, in `section.lp-shear` (@5270, **h1365**
+   against 812, `held: false`). Two bounds, one run. The field entry is a HAIRLINE and is waived
+   as one rather than hidden: 0.08pp under, across six offsets, 5886–5891. The instrument's own
+   run-to-run drift, observed once on `app.375x812.dark.cold`, is 0.01pp, so it is eight times the
+   noise floor and real. Round 7's probe put this row's worst at @1992 (27.84 / 63.79) and @4783
+   (81.78 / 14.42); **both are closed** — 42.33 / 49.24 and 58.37 / 35.62 on this tree, inside the
+   band on both axes. The worst moved, which is what a worst does. (PROVENANCE: the round-7 pair
+   is HISTORICAL, a scratch probe on the clean tree of `9a42bd8`. The breach strings and their
+   extents are `docs/brand/census.json`; the two closure vectors were read off this run's rasters
+   at @1992 and @4783, offsets the artifact does not serialise.)
+
+**Enforced exactly like the other two.** `census.test.ts` carries `SLIDING_WAIVERS`, verbatim and
+exact in both directions: a new breach fails, a drifted number fails, a closed breach fails.
+**The string pins the EXTENT as well as the depth**, which the window strings cannot: over a range
+a hairline that stays exactly as deep and spreads from six offsets to six hundred is a regression
+no magnitude can see. A count is a fact, so this needs no threshold and does not become the tuned
+heuristic §2.1b.1 forbids by name. And the churn is not new — `inputsHash` already forces a full
+re-census on any pixel change, so these waivers move exactly when the window waivers already move.
+
+**These six are OPEN, not WONTFIX**, which is the opposite of the `.lp-foot` entries above. The
+cause of each is named and none was paid in the round that built the reading that found them. The
+precedent is round 7's four fixture pairs: they broke on arrival, they were waived with their
+cause stated, and round 8 paid fifteen of the sixteen. **`scripts/census/artifact.ts` joins the
+staleness inputs in the same change**, because it decides what every number in the file means and
+its absence from that list is how `BUCKET_NOTE` contradicted the rows block of its own file for
+three rounds without the suite going red.
 
 The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
 test fails when it stops describing the tree. Any figure quoted about this product's pixels

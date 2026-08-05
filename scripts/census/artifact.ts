@@ -80,6 +80,11 @@ export interface ScrollingFormRecord {
   /** Empty when the row is at law. Each entry names a window and a bound. */
   breaches: string[]
   windows: WindowStat[]
+  /** The fourth reading: the same band with the grid's phase taken away. It is
+   *  an ADDITION — `worst`, `mean`, `breaches` and `windows` above are
+   *  unchanged and still the grid's, so every figure §2.1b, §2.1b.1, §2.1b.2
+   *  and §2.1b.3 quote stays comparable. See censusSliding. */
+  sliding: SlidingRecord
 }
 
 /**
@@ -227,7 +232,7 @@ export interface Census {
      *  and why that is not a defect. Recorded so the count in `breaches` can be
      *  read without re-deriving it. */
     declaredAccents: string[]
-    scrollingForm: ScrollingFormLaw & { note: string }
+    scrollingForm: ScrollingFormLaw & { note: string; slidingNote: string }
     /** The third reading's scope note. The BOUNDS are scrollingForm's — the
      *  section check spends the same band and the same caps, which is the
      *  point: §2.1b is one law read over three sets of boundaries, not three
@@ -395,8 +400,17 @@ export function windowTops(docHeight: number, viewportHeight: number): number[] 
  * would cost more than the classification it saves. The classifier is passed
  * IN so its memo survives across every window of a row — the same few thousand
  * distinct colours recur on every screen of the same page.
+ *
+ * IT IS NO LONGER WHAT THE CENSUS RUNS. `bucketPrefix`/`prefixSlice` below
+ * replaced it when the sliding reading landed, because re-slicing per offset is
+ * O(pixels) per window and the sliding read asks for ~4,000 windows per row
+ * rather than seven. THIS FUNCTION STAYS AS THE REFERENCE IMPLEMENTATION: the
+ * swap may not move one published grid figure, and the only honest way to say
+ * so is an executable check rather than a commit message, so census.test.ts
+ * asserts the two agree EXACTLY — not to 2dp — over a raster and every offset
+ * in it. Delete this and that assertion has nothing to compare against.
  */
-function sliceBuckets(
+export function sliceBuckets(
   rgb: Uint8Array,
   offset: number,
   pixels: number,
@@ -417,6 +431,235 @@ function sliceBuckets(
   const out = {} as Record<Bucket, number>
   for (const b of BUCKET_ORDER) out[b] = (perBucket[b] / pixels) * 100
   return out
+}
+
+/**
+ * Every scanline classified once, prefix-summed down the page.
+ *
+ * WHY THE SHAPE CHANGED. `sliceBuckets` costs O(window pixels) per window, and
+ * the grid asks for seven of them. Sliding the window over EVERY offset asks
+ * for one per pixel of document height — ~4,000 on the phone, ~87,000 across
+ * the matrix — and the naive form of that was measured at 1,035s against the
+ * whole census's 51.3s (this tree, this container, scratch probe). A tool
+ * nobody re-runs when pixels move is the failure the census exists to end, so
+ * the method is what buys the reading: classify each SCANLINE once, prefix-sum,
+ * and every window — grid or sliding — is an O(1) subtraction.
+ *
+ * The counts are integers and the subtraction is exact, so this does not
+ * approximate `sliceBuckets`, it reproduces it. census.test.ts pins that.
+ *
+ * The 16MB byte cache is transient and is keyed by the packed 24-bit colour, in
+ * front of the classifier's own memo: this walks every pixel of the document
+ * rather than every distinct colour of a window, so the per-pixel step has to
+ * be an array index rather than a Map lookup.
+ */
+export interface BucketPrefix {
+  width: number
+  height: number
+  /** `(y * 4) + b` is the count of bucket `BUCKET_ORDER[b]` in scanlines
+   *  `[0, y)`. Length `(height + 1) * 4`, so row `height` is the whole page. */
+  sums: Int32Array
+}
+
+export function bucketPrefix(
+  rgb: Uint8Array,
+  width: number,
+  height: number,
+  palette: Token[],
+  classify: (r: number, g: number, b: number) => { index: number; deltaE: number },
+): BucketPrefix {
+  const bucketIndex = new Map<Bucket, number>(BUCKET_ORDER.map((b, i) => [b, i]))
+  // 0 means "not yet classified"; a bucket is stored as its index + 1.
+  const cache = new Uint8Array(1 << 24)
+  const sums = new Int32Array((height + 1) * 4)
+  for (let y = 0; y < height; y++) {
+    const base = y * 4
+    const out = base + 4
+    for (let b = 0; b < 4; b++) sums[out + b] = sums[base + b]
+    let i = y * width * 3
+    const end = i + width * 3
+    for (; i < end; i += 3) {
+      const key = (rgb[i] << 16) | (rgb[i + 1] << 8) | rgb[i + 2]
+      let slot = cache[key]
+      if (slot === 0) {
+        const match = classify((key >> 16) & 255, (key >> 8) & 255, key & 255)
+        slot = (bucketIndex.get(palette[match.index].bucket) ?? 0) + 1
+        cache[key] = slot
+      }
+      sums[out + slot - 1]++
+    }
+  }
+  return { width, height, sums }
+}
+
+/** One window of `height` scanlines from `top`, as exact percentages. */
+export function prefixSlice(
+  prefix: BucketPrefix,
+  top: number,
+  height: number,
+): Record<Bucket, number> {
+  const pixels = prefix.width * height
+  const lo = top * 4
+  const hi = (top + height) * 4
+  const out = {} as Record<Bucket, number>
+  for (let b = 0; b < 4; b++) {
+    out[BUCKET_ORDER[b]] = ((prefix.sums[hi + b] - prefix.sums[lo + b]) / pixels) * 100
+  }
+  return out
+}
+
+// ── the sliding read ──────────────────────────────────────────────────────
+
+/** One bound crossed somewhere in the slide, with its worst offset AND its
+ *  extent. The extent is the half that a magnitude alone cannot carry: a
+ *  hairline that WIDENS from three offsets to three hundred is a regression
+ *  even when its peak never moves. */
+export interface SlidingExcursion {
+  bucket: 'field' | 'bone'
+  side: 'under' | 'over'
+  bound: number
+  kind: 'band' | 'cap'
+  /** Offset of the worst crossing; lowest offset wins an exact tie. */
+  top: number
+  pct: number
+  /** How many offsets cross this bound. */
+  offsets: number
+}
+
+export interface SlidingRecord {
+  /** 1. Not a tunable: a step is a smaller arbitrary phase, not the absence of
+   *  one, and it is recorded so a future round cannot quietly introduce one. */
+  step: number
+  /** How many screens exist, i.e. `docHeight - viewportHeight + 1`. */
+  offsets: number
+  worst: { top: number; deviation: number }
+  /** The row's swing on the two BANDED buckets. field/bone only, because those
+   *  are the two the band and the caps speak about; graphite and accent are
+   *  document budgets (see SCROLLING_FORM). */
+  extremes: Record<'field' | 'bone', { min: { top: number; pct: number }; max: { top: number; pct: number } }>
+  excursions: SlidingExcursion[]
+  breaches: string[]
+}
+
+/**
+ * THE FOURTH READING: the window band with its phase taken away.
+ *
+ * §2.1b.1 already said the grid's phase is arbitrary — `windowTops` starts at 0
+ * and steps by the viewport, and a reader does not. This evaluates the same
+ * band at EVERY offset, so the verdict stops depending on where the tiling
+ * happened to land.
+ *
+ * ONLY THE WORST IS TAKEN, AND THAT IS DELIBERATE. A sliding MEAN is not the
+ * grid mean with more samples: scanline y is covered by min(y,L) - max(0,y-W+1)
+ * + 1 windows, so the first and last viewport of every page are down-weighted
+ * on a ramp — a triangular-weighted document average dressed as a mean of
+ * screens, which is the exact statistic §2.1b exists to reject. The grid's mean
+ * gives every screen weight 1 and stays the mean. This adds a statistic; it
+ * does not substitute a reading.
+ *
+ * Percentages are compared ROUNDED, exactly as the grid windows are, so a
+ * hairline reads the same way in both blocks.
+ */
+export function censusSliding(
+  prefix: BucketPrefix,
+  docHeight: number,
+  viewportHeight: number,
+): SlidingRecord {
+  const law = SCROLLING_FORM
+  const height = Math.min(viewportHeight, docHeight)
+  const last = docHeight - height
+  // Three tallies per bucket, not two, because the reported bound is decided
+  // AFTER the loop (see the cap rule below) and the count has to be of the
+  // offsets crossing the bound that is actually reported. Counting band
+  // crossings and printing a cap would overstate the extent of the cap breach.
+  const counts = {
+    field: { underBand: 0, overBand: 0, overCap: 0 },
+    bone: { underBand: 0, overBand: 0, overCap: 0 },
+  }
+  const extremes = {} as SlidingRecord['extremes']
+  let worst = { top: 0, deviation: -1 }
+
+  for (let top = 0; top <= last; top++) {
+    const exact = prefixSlice(prefix, top, height)
+    const dev = deviation(exact)
+    if (dev > worst.deviation) worst = { top, deviation: dev }
+    for (const bucket of ['field', 'bone'] as const) {
+      const pct = round2(exact[bucket])
+      const seen = extremes[bucket]
+      if (seen === undefined) {
+        extremes[bucket] = { min: { top, pct }, max: { top, pct } }
+      } else {
+        // Strict comparisons: the lowest offset wins an exact tie, so two runs
+        // of one tree cannot disagree about WHERE the extreme is.
+        if (pct < seen.min.pct) seen.min = { top, pct }
+        if (pct > seen.max.pct) seen.max = { top, pct }
+      }
+      if (pct > law.cap[bucket]) counts[bucket].overCap++
+      if (pct > law.band[bucket][1]) counts[bucket].overBand++
+      else if (pct < law.band[bucket][0]) counts[bucket].underBand++
+    }
+  }
+
+  const excursions: SlidingExcursion[] = []
+  for (const bucket of ['field', 'bone'] as const) {
+    const ext = extremes[bucket]
+    // THE CAP IS REPORTED INSTEAD OF THE BAND, the same rule
+    // scrollingFormBreaches states for a window — restated for a RANGE, which
+    // is where it needed restating: over a slide one row can hold offsets past
+    // the cap and other offsets past the band only, and emitting both lines
+    // publishes the supremum of the non-cap set, an odd reading of exactly the
+    // bound (`65.00 over the 55 band`). One line per bucket per side, naming
+    // the harsher bound the extreme crossed, and counting the offsets that
+    // cross THAT bound.
+    if (ext.max.pct > law.band[bucket][1]) {
+      const cap = ext.max.pct > law.cap[bucket]
+      excursions.push({
+        bucket,
+        side: 'over',
+        bound: cap ? law.cap[bucket] : law.band[bucket][1],
+        kind: cap ? 'cap' : 'band',
+        top: ext.max.top,
+        pct: ext.max.pct,
+        offsets: cap ? counts[bucket].overCap : counts[bucket].overBand,
+      })
+    }
+    if (ext.min.pct < law.band[bucket][0]) {
+      excursions.push({
+        bucket,
+        side: 'under',
+        bound: law.band[bucket][0],
+        kind: 'band',
+        top: ext.min.top,
+        pct: ext.min.pct,
+        offsets: counts[bucket].underBand,
+      })
+    }
+  }
+
+  return {
+    step: 1,
+    offsets: last + 1,
+    worst: { top: worst.top, deviation: round2(worst.deviation) },
+    extremes,
+    excursions,
+    breaches: slidingBreaches(excursions, last + 1),
+  }
+}
+
+/**
+ * One sentence per crossed bound, pinning the value AND the extent.
+ *
+ * The extent is what makes this stronger than a magnitude gate and what lets it
+ * need no threshold: a hairline that deepens changes the value, a hairline that
+ * spreads changes the count, and either fails a pinned waiver. §2.1b.1 forbids
+ * tuned heuristics by name; a count is a fact, not a tuning.
+ */
+export function slidingBreaches(excursions: SlidingExcursion[], offsets: number): string[] {
+  return excursions.map(
+    (e) =>
+      `slide @${e.top}: ${e.bucket} ${e.pct.toFixed(2)} ${e.side} the ${e.bound} ${e.kind} ` +
+      `(${e.offsets} of ${offsets} offsets)`,
+  )
 }
 
 /**
@@ -444,10 +687,12 @@ export function censusScrollingForm(
   const classify = makeClassifier(palette)
   const tops = windowTops(docHeight, viewportHeight)
   const height = Math.min(viewportHeight, docHeight)
-  const pixels = width * height
+  // One classification pass for the whole document; both readings subtract off
+  // it. The grid figures are unmoved by the swap — see bucketPrefix.
+  const prefix = bucketPrefix(rgb, width, docHeight, palette, classify)
 
   const windows: WindowStat[] = tops.map((top) => {
-    const exact = sliceBuckets(rgb, top * width * 3, pixels, palette, classify)
+    const exact = prefixSlice(prefix, top, height)
     return {
       top,
       pct: Object.fromEntries(BUCKET_ORDER.map((b) => [b, round2(exact[b])])) as Record<Bucket, number>,
@@ -507,6 +752,7 @@ export function censusScrollingForm(
       declaredAccents,
     ),
     windows,
+    sliding: censusSliding(prefix, docHeight, viewportHeight),
   }
 }
 
@@ -800,6 +1046,31 @@ export function formatDiff(committed: Census | null, measured: Census): string[]
             `breaches ${wasForm.breaches.length} -> ${nowForm.breaches.length}`,
         )
       }
+      // The fourth reading gets its own line, for the reason the second one
+      // does one paragraph up: the sliding worst is a DIFFERENT screen from any
+      // grid window, so a change can move it while every grid figure holds
+      // still. `?? null` for the same reason formatDiff guards `announcements`
+      // — this is the one function here that reads an artifact it did not
+      // write, and a committed file from before this field existed must diff
+      // rather than crash.
+      const wasSlide = wasForm.sliding ?? null
+      const nowSlide = nowForm.sliding ?? null
+      if (wasSlide && nowSlide) {
+        const moved = Math.abs(nowSlide.worst.deviation - wasSlide.worst.deviation) >= 0.005
+        if (moved || nowSlide.breaches.length !== wasSlide.breaches.length) {
+          out.push(
+            `${pad(id, 30)} ${pad('slide', 9)} worst dev ${wasSlide.worst.deviation.toFixed(2)} @${wasSlide.worst.top} -> ` +
+              `${nowSlide.worst.deviation.toFixed(2)} @${nowSlide.worst.top}  ` +
+              `(${signed(nowSlide.worst.deviation - wasSlide.worst.deviation)})   ` +
+              `breaches ${wasSlide.breaches.length} -> ${nowSlide.breaches.length}`,
+          )
+        }
+      } else if (nowSlide && !wasSlide) {
+        out.push(
+          `${pad(id, 30)} ${pad('slide', 9)} NEW READING  worst dev ${nowSlide.worst.deviation.toFixed(2)} ` +
+            `@${nowSlide.worst.top}  breaches ${nowSlide.breaches.length}`,
+        )
+      }
     }
     // Not a colour at all, and reported anyway. It is the only recorded field
     // that can move without the tree moving, so leaving it out of the diff
@@ -959,5 +1230,25 @@ export const SCROLLING_FORM_NOTE =
   'DISAGREE, THE WINDOWS ARE THE TRUTH — they are what a reader is looking at. The document ' +
   'average moves when a card gets taller; only the windows move when a page gets better ' +
   'arranged, which is why the remaining work is INTERLEAVING rather than more or less Flare.'
+
+/**
+ * WHY THE ARTIFACT CARRIES A FOURTH READING, and what it deliberately does NOT
+ * do — recorded beside the numbers for the reason SCROLLING_FORM_NOTE is.
+ */
+export const SLIDING_NOTE =
+  'THE SAME BAND, WITH THE GRID PHASE TAKEN AWAY. windowTops() starts at offset 0 and steps by ' +
+  'the viewport; a reader scrolls continuously, so every offset is a screen somebody holds. ' +
+  '`sliding` evaluates the band and the caps at EVERY offset (step 1 — a step of 8 is a smaller ' +
+  'arbitrary phase, not the absence of one) and reports the worst, its extent in offsets, and ' +
+  'the two banded buckets\' extremes. IT IS AN ADDITION AND NOT A REPLACEMENT, in both ' +
+  'directions: `worst`, `mean`, `meanDeviation`, `breaches` and `windows` are unchanged and ' +
+  'still the GRID\'s, so every figure DESIGN-SYSTEM.md §2.1b through §2.1b.3 quotes stays ' +
+  'comparable; and no sliding MEAN is computed, because scanline y is covered by ' +
+  'min(y,L)-max(0,y-W+1)+1 windows, so an all-offsets mean down-weights the first and last ' +
+  'viewport of every page on a ramp — a triangular-weighted DOCUMENT average dressed as a mean ' +
+  'of screens, which is the statistic §2.1b exists to reject. The grid mean gives every screen ' +
+  'weight 1 and stays the mean. `sliding` is a NEW SERIES starting at round 8: it has no ' +
+  'predecessor in any earlier census, and the round-7 sliding figures in §2.1b.1 and §2.1b.3 ' +
+  'were a scratch probe on the tree of 9a42bd8, not this series.'
 
 export const LAW_TARGETS = TARGETS

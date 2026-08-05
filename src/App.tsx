@@ -138,8 +138,9 @@ export default function App({
   // no longer takes it: a day total is an exact fact from day one, so a 90-day
   // index on that card made accurate figures look provisional (see ArchiveCard).
   const loggedDays = useMemo(() => historyDays(state.transactions, today), [state.transactions, today])
-  // THE LAST SEVEN DAYS, for the card that has no score to print yet (see
-  // HeroCard's hasScore). A third reader of the two props ArchiveCard already
+  // THE LAST SEVEN DAYS, printed by card 01 in every state — it used to be
+  // withheld the moment a score arrived, and HeroCard's render says why that
+  // was wrong. A third reader of the two props ArchiveCard already
   // takes — transactions and a day — and nothing else: no profile, no xp, no
   // achievements, so no engagement figure and no budget can reach it even by a
   // later edit (Trust Rule 1, kept structurally rather than by convention).
@@ -448,9 +449,12 @@ export default function App({
       // simulator can never disagree about it.
       historyDays={loggedDays}
       isDemo={isDemo}
-      // What the card prints INSTEAD of a score it has not earned. Handed down
-      // rather than derived in the card so the derivation stays testable
-      // without a DOM and so the memo lives with every other one.
+      // What the card prints ALONGSIDE the score, and instead of it before
+      // there is one. Handed down rather than derived in the card so the
+      // derivation stays testable without a DOM and so the memo lives with
+      // every other one. It carries transactions and a day and nothing else,
+      // which is what keeps a money readout out of reach of the engagement
+      // track however long it stays on screen (Trust Rule 1).
       week={week}
     />,
     <LogCard

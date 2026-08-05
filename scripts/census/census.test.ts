@@ -35,15 +35,20 @@ import {
   ARTIFACT_PATH,
   LIVE_REGION_SCRIPT,
   SCHEMA_VERSION,
+  bucketPrefix,
   censusPixels,
   censusScrollingForm,
+  censusSliding,
   dirtyPaths,
   disagreeingProbe,
   isDirty,
   movedInputs,
   paintedAnnouncements,
+  prefixSlice,
   scrollingFormBreaches,
   serialiseCensus,
+  sliceBuckets,
+  slidingBreaches,
   windowTops,
   type BucketStat,
   type Census,
@@ -650,10 +655,10 @@ describe('the fixtures do not rot', () => {
  *
  * The finding that produced it, and the reason this exists at all: the
  * document average is the arithmetic mean of regimes that never appear
- * together. app.375x812.light.seeded in docs/brand/census.json reads 56.25
- * field / 34.62 Bone over the whole document, while its seven viewport windows
- * run 57.50, 47.65, 68.84, 53.43, 48.70, 44.92 and 73.98 percent field.
- * Nobody sees 56.25/34.62. So the windows are measured too, and where the two
+ * together. app.375x812.light.seeded in docs/brand/census.json reads 57.00
+ * field / 33.98 Bone over the whole document, while its eight viewport windows
+ * run 59.36, 51.40, 65.26, 50.72, 50.22, 53.35, 62.61 and 74.07 percent field.
+ * Nobody sees 57.00/33.98. So the windows are measured too, and where the two
  * disagree the windows are the truth.
  *
  * WHAT THAT ROW LOOKED LIKE WHEN THIS TOOL FOUND IT, stamped: on the clean tree
@@ -803,6 +808,141 @@ describe('the window reading measures screens, not documents', () => {
     ).toEqual(['mean field 69.00 outside 60±8', 'mean bone 23.00 outside 30±6'])
   })
 
+  /**
+   * THE SWAP THAT MAY NOT MOVE A NUMBER.
+   *
+   * The sliding read needs ~4,000 windows per row instead of seven, so the grid
+   * stopped re-slicing per window and started subtracting off a scanline prefix
+   * sum. That is a change to how every published grid figure is COMPUTED, in the
+   * round that adds a new reading beside them — precisely the moment a quiet
+   * drift would be blamed on the new thing.
+   *
+   * So the claim is executable rather than asserted: the two implementations are
+   * compared on the same raster at EVERY offset of three viewport heights, and
+   * the tolerance is ZERO. Not "to 2dp" — the counts are integers and the
+   * denominators are identical, so the percentages are bit-identical, and
+   * anything else is a defect rather than a rounding difference. artifact.ts
+   * keeps sliceBuckets alive for exactly this comparison.
+   */
+  it('subtracts off a prefix sum and gets the slicer\'s answer exactly', () => {
+    // Token colours with a ±2 jitter, so the classifier is doing real work on
+    // near-miss colours rather than on twelve exact hexes: the antialiased
+    // glyph edges are where a bucket disagreement would actually hide.
+    let seed = 12345
+    const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff
+    const hexes = palette.map((t) => t.hex)
+    const W = 37
+    const H = 400
+    const rgb = new Uint8Array(W * H * 3)
+    for (let i = 0; i < W * H; i++) {
+      const hex = hexes[Math.floor(rnd() * hexes.length)]
+      const jitter = Math.floor(rnd() * 5) - 2
+      for (let c = 0; c < 3; c++) {
+        const v = parseInt(hex.slice(1 + c * 2, 3 + c * 2), 16) + jitter
+        rgb[i * 3 + c] = Math.max(0, Math.min(255, v))
+      }
+    }
+    const classify = makeClassifier(palette)
+    const prefix = bucketPrefix(rgb, W, H, palette, classify)
+    let worst = 0
+    let compared = 0
+    for (const vh of [40, 100, 133]) {
+      for (let top = 0; top + vh <= H; top++) {
+        const sliced = sliceBuckets(rgb, top * W * 3, W * vh, palette, classify)
+        const prefixed = prefixSlice(prefix, top, vh)
+        for (const b of BUCKET_ORDER) {
+          worst = Math.max(worst, Math.abs(sliced[b] - prefixed[b]))
+          compared++
+        }
+      }
+    }
+    expect(`${compared} comparisons, worst disagreement ${worst}`).toBe(
+      `${compared} comparisons, worst disagreement 0`,
+    )
+    expect(compared).toBeGreaterThan(3000)
+  })
+
+  /**
+   * THE PHASE, DEMONSTRATED — the whole case for the fourth reading in one
+   * raster the grid calls clean.
+   */
+  it('finds the screen between two grid windows that both pass', () => {
+    // 30 scanlines, 10-tall viewport, one 10px Bone run straddling the first
+    // grid boundary and a 5px one straddling the second.
+    const rgb = banded(10, [
+      ['#f93e06', 5],
+      ['#f5e6e0', 10],
+      ['#f93e06', 5],
+      ['#f5e6e0', 5],
+      ['#f93e06', 5],
+    ])
+    const doc = censusPixels(rgb, palette)
+    const form = censusScrollingForm(rgb, 10, 30, 10, palette, doc.buckets, doc.tokens, DECLARED)
+
+    // THE GRID SEES NOTHING. Its three windows all read 50/50, inside the
+    // 35-80 field band and the 15-55 Bone band, so not one `window @` entry is
+    // emitted. (The document MEAN is off target and says so; that is a
+    // different bound and not what this test is about.)
+    expect(form.windows.map((w) => `${w.top}:${w.pct.field}`)).toEqual(['0:50', '10:50', '20:50'])
+    expect(form.breaches.filter((b) => b.startsWith('window @'))).toEqual([])
+
+    // THE SLIDE SEES A SCREEN THAT IS ENTIRELY BONE. @5 is a real screen — a
+    // reader scrolls continuously — and it is over the Bone HARD CAP with no
+    // field on it at all.
+    const s = form.sliding
+    expect(s.step).toBe(1)
+    expect(s.offsets).toBe(21) // 30 - 10 + 1: every screen that exists
+    expect(s.worst).toEqual({ top: 5, deviation: 140 })
+    expect(s.extremes.bone.max).toEqual({ top: 5, pct: 100 })
+    expect(s.extremes.field.min).toEqual({ top: 5, pct: 0 })
+    // The cap is reported INSTEAD of the band, and the count is of the offsets
+    // crossing the bound that is reported: seven offsets are over the 65 cap
+    // (@2..@8), nine are over the 55 band. Printing "65 cap (9)" would
+    // overstate the cap breach, which is why the tally is kept per bound.
+    expect(s.breaches).toEqual([
+      'slide @5: field 0.00 under the 35 band (7 of 21 offsets)',
+      'slide @5: bone 100.00 over the 65 cap (7 of 21 offsets)',
+    ])
+    expect(s.breaches).toEqual(slidingBreaches(s.excursions, s.offsets))
+  })
+
+  it('reports the extent as well as the depth, and needs no threshold for it', () => {
+    /* A COUNT IS A FACT, NOT A TUNING. §2.1b.1 forbids the tuned heuristic by
+       name; a magnitude gate ("waive anything under 0.1pp") would be one, and
+       it would also be blind in the direction that matters — a hairline that
+       stays exactly as deep and spreads from three offsets to three hundred is
+       a regression that no magnitude can see. So the waiver string pins both,
+       and a change to either fails it. */
+    const excursion = {
+      bucket: 'bone' as const,
+      side: 'under' as const,
+      bound: 15,
+      kind: 'band' as const,
+      top: 1111,
+      pct: 14.31,
+      offsets: 88,
+    }
+    expect(slidingBreaches([excursion], 3495)).toEqual([
+      'slide @1111: bone 14.31 under the 15 band (88 of 3495 offsets)',
+    ])
+    // Same depth, wider: a different string, therefore a different waiver.
+    expect(slidingBreaches([{ ...excursion, offsets: 300 }], 3495)[0]).not.toBe(
+      slidingBreaches([excursion], 3495)[0],
+    )
+  })
+
+  it('slides over a page shorter than the viewport without inventing offsets', () => {
+    // One screen exists, so there is one offset and the slide is the document.
+    // The guard matters because `docHeight - viewportHeight + 1` is negative
+    // here, and a negative count would make every downstream ratio nonsense.
+    const rgb = banded(10, [['#f93e06', 6]])
+    const classify = makeClassifier(palette)
+    const s = censusSliding(bucketPrefix(rgb, 10, 6, palette, classify), 6, 10)
+    expect(s.offsets).toBe(1)
+    expect(s.worst.top).toBe(0)
+    expect(s.extremes.field).toEqual({ min: { top: 0, pct: 100 }, max: { top: 0, pct: 100 } })
+  })
+
   it('counts how many accents are painting, not only how much accent', () => {
     /* §2's accent rule has TWO halves and this instrument checked one.
        palette.ts states the other in prose — "the budget is 2% for ONE of them
@@ -874,11 +1014,18 @@ describe('the window reading measures screens, not documents', () => {
     expect(SCROLLING_FORM.band).toEqual({ field: [35, 80], bone: [15, 55] })
     expect(SCROLLING_FORM.cap).toEqual({ field: 85, bone: 65 })
     expect(SCROLLING_FORM.meanTolerance).toEqual({ field: 8, bone: 6 })
-    const { note, ...bounds } = ARTIFACT.law.scrollingForm
+    const { note, slidingNote, ...bounds } = ARTIFACT.law.scrollingForm
     expect(bounds).toEqual(SCROLLING_FORM)
     // §2 is unamended for anything the eye holds at once. That sentence is the
     // whole scope of this block and it ships inside the artifact.
     expect(note).toMatch(/COMPOSITION law and it is unchanged/)
+    // THE FOURTH READING SPENDS NO BOUNDS OF ITS OWN — it is the same band and
+    // the same caps with the grid's phase taken away, which is why `bounds`
+    // above is still exactly SCROLLING_FORM. The two halves the next round is
+    // most likely to get wrong ship inside the artifact: that the grid figures
+    // are unchanged, and that no sliding MEAN exists or may be added.
+    expect(slidingNote).toMatch(/ADDITION AND NOT A REPLACEMENT/)
+    expect(slidingNote).toMatch(/no sliding MEAN is computed/)
   })
 
   it('says the same thing the design system says, in the design system', () => {
@@ -899,6 +1046,49 @@ describe('the window reading measures screens, not documents', () => {
     // And the scope sentence, which is the half most likely to be dropped: the
     // composition law is not weakened, it is given a second form.
     expect(doc).toMatch(/§2's 60\/30\/8\/2 is a \*\*composition\*\* law\. It is unchanged/)
+  })
+
+  it('argues every sliding breach in §2.1b.4, verbatim, with its extent', () => {
+    /**
+     * THE DISCONTINUITY, HANDLED IN THE ONE PLACE A READER WILL LOOK. A new
+     * reading beside an old one is the moment history gets silently renumbered,
+     * and §2.1b through §2.1b.3 are built out of grid figures — the `@0` and
+     * `@4872` columns, the 0.082pp-per-pixel slope, every BEFORE/MIDDLE/AFTER
+     * block and all of WINDOW_WAIVERS. So the section has to say in its own
+     * first sentence that none of them moved, and that the round-7 sliding
+     * PROBE figures are not the start of this series.
+     */
+    const raw = readFileSync(new URL('docs/brand/DESIGN-SYSTEM.md', REPO_ROOT), 'utf8')
+    // Whitespace-collapsed, so the assertions are about the sentences rather
+    // than about where the paragraph happens to wrap.
+    const doc = raw.replace(/\s+/g, ' ')
+    expect(raw).toContain("#### 2.1b.4 The fourth reading — the band with the grid's phase taken away")
+    expect(doc).toContain("ARE UNCHANGED AND ARE STILL THE GRID'S")
+    expect(doc).toContain('no comparable predecessor in any earlier census')
+    // The rule that keeps this an addition rather than a substitution. Without
+    // it the next round adds a sliding mean, which is a document average with a
+    // triangular weight — the statistic §2.1b was written to reject.
+    expect(doc).toContain('There is no sliding mean and there may not be one')
+
+    // EVERY WAIVED BREACH IS ARGUED BY ITS OWN NUMBERS. Not "a paragraph
+    // exists": the value and the EXTENT of each one, in the prose, so a waiver
+    // whose depth or width drifted takes its argument with it.
+    for (const [id, row] of Object.entries(ARTIFACT.rows)) {
+      const s = row.scrollingForm.sliding
+      for (const e of s.excursions) {
+        expect(`${id} @${e.top}: depth ${doc.includes(e.pct.toFixed(2))}`).toBe(
+          `${id} @${e.top}: depth true`,
+        )
+        expect(`${id} @${e.top}: extent ${doc.includes(`${e.offsets} of ${s.offsets}`)}`).toBe(
+          `${id} @${e.top}: extent true`,
+        )
+      }
+    }
+    // The two closures this round earns, stated rather than left implied: the
+    // round-7 probe's worked example is fixed, and so is the other figure it
+    // published. A future round reading those two numbers must not go hunting.
+    expect(doc).toContain('42.33 / 49.24')
+    expect(doc).toContain('58.37 / 35.62')
   })
 
   it('binds the worked example in the prose to the row it claims to quote', () => {
@@ -1037,6 +1227,74 @@ describe('the window reading measures screens, not documents', () => {
     }
   })
 
+  it("keeps every committed row's sliding arithmetic self-consistent", () => {
+    /**
+     * The fourth reading cannot be re-derived from the artifact the way the
+     * grid can — its inputs are 87,806 window vectors and serialising them
+     * would be ~22MB of unreviewable diff. So what is committed is the WORST,
+     * the EXTREMES and the EXCURSIONS, and everything derivable from those is
+     * derived here. A hand-edited verdict still cannot survive: `breaches` is
+     * recomputed from `excursions`, and `excursions` is pinned against
+     * `extremes`, which is pinned against the grid windows, which are pinned
+     * against each other by the test above.
+     */
+    for (const [id, row] of Object.entries(ARTIFACT.rows)) {
+      const form = row.scrollingForm
+      const s = form.sliding
+      const height = Math.min(row.viewport.height, row.dimensions.height)
+      expect(`${id}: step ${s.step}`).toBe(`${id}: step 1`)
+      // Every screen that exists, and no others.
+      expect(`${id}: ${s.offsets}`).toBe(`${id}: ${row.dimensions.height - height + 1}`)
+      expect(`${id}: worst in range ${s.worst.top >= 0 && s.worst.top < s.offsets}`).toBe(
+        `${id}: worst in range true`,
+      )
+      // THE GRID IS A SUBSET OF THE SLIDE, so the sliding worst can never be
+      // the smaller of the two. If it ever is, the two readings are not
+      // measuring the same windows and every comparison between them is void.
+      expect(`${id}: slide ${s.worst.deviation} >= grid ${form.worst.deviation}`).toBe(
+        `${id}: slide ${Math.max(s.worst.deviation, form.worst.deviation)} >= grid ${form.worst.deviation}`,
+      )
+      for (const bucket of ['field', 'bone'] as const) {
+        const ext = s.extremes[bucket]
+        expect(`${id} ${bucket}: min <= max ${ext.min.pct <= ext.max.pct}`).toBe(
+          `${id} ${bucket}: min <= max true`,
+        )
+        // Every grid window is one of the offsets, so its vector is bracketed.
+        for (const w of form.windows) {
+          expect(`${id} ${bucket} @${w.top}: ${ext.min.pct <= w.pct[bucket] && w.pct[bucket] <= ext.max.pct}`)
+            .toBe(`${id} ${bucket} @${w.top}: true`)
+        }
+      }
+      for (const e of s.excursions) {
+        const ext = s.extremes[e.bucket][e.side === 'over' ? 'max' : 'min']
+        // The excursion IS the extreme — the same offset and the same value.
+        // Two blocks pinning each other, so neither can be edited alone.
+        expect(`${id} ${e.bucket} ${e.side}: @${e.top} ${e.pct}`).toBe(
+          `${id} ${e.bucket} ${e.side}: @${ext.top} ${ext.pct}`,
+        )
+        const law = SCROLLING_FORM
+        const bound =
+          e.side === 'over'
+            ? e.pct > law.cap[e.bucket]
+              ? { n: law.cap[e.bucket], kind: 'cap' }
+              : { n: law.band[e.bucket][1], kind: 'band' }
+            : { n: law.band[e.bucket][0], kind: 'band' }
+        expect(`${id} ${e.bucket} ${e.side}: ${e.bound} ${e.kind}`).toBe(
+          `${id} ${e.bucket} ${e.side}: ${bound.n} ${bound.kind}`,
+        )
+        expect(`${id} ${e.bucket} ${e.side}: crosses ${e.side === 'over' ? e.pct > e.bound : e.pct < e.bound}`)
+          .toBe(`${id} ${e.bucket} ${e.side}: crosses true`)
+        // At least the worst offset crosses, and no more offsets exist.
+        expect(`${id} ${e.bucket} ${e.side}: extent ${e.offsets >= 1 && e.offsets <= s.offsets}`).toBe(
+          `${id} ${e.bucket} ${e.side}: extent true`,
+        )
+      }
+      expect(`${id}: ${s.breaches.join(' | ')}`).toBe(
+        `${id}: ${slidingBreaches(s.excursions, s.offsets).join(' | ')}`,
+      )
+    }
+  })
+
   /**
    * THE BAND, DEFENDED — the one assertion the artifact-wide checks did not
    * make.
@@ -1089,24 +1347,49 @@ describe('the window reading measures screens, not documents', () => {
   const WINDOW_WAIVERS: Record<string, string[]> = {
     // A DECISION, NOT A DEFERRAL. The dense day's run is broken — every one of
     // this row's nine windows is inside the band, and its twin
-    // (app.375x812.light.dense) is inside on the mean as well, with 1.04pp of
-    // room. What is left is a DOCUMENT MEAN, 0.59pp over the 30±6 tolerance, on
-    // a fixture built to be adversarial (24 rows on one day).
+    // (app.375x812.light.dense) is inside on the mean as well, with 2.38pp of
+    // room (mean bone 33.62). What is left is a DOCUMENT MEAN, 1.86pp over the
+    // 30±6 tolerance, on a fixture built to be adversarial (24 rows on one day).
     //
-    // THE FIX EXISTS AND IS REFUSED, WHICH IS WHY THIS IS A DECISION. The sub-
-    // day stripe's two plates are DUALS (§2.1b: a plate is the ground's
-    // opposite), so any duty cycle that pulls light's mean Bone down pushes
-    // dark's up by nearly as much, and the corridor satisfying both at once is
-    // about half a point wide. Measured on this tree, both dense rows:
-    // 1-in-2 gives light 34.96 and dark 36.59; 2-in-5 gives light 35.97 and dark
-    // 35.59 — inside by 0.03 and 0.41. Taking 2-in-5 would delete this entry
-    // and buy two rows that a single re-wrap re-opens, by choosing a modulus so
-    // a mean lands inside a tolerance. §2.1b.1 forbids exactly that move on the
-    // landing ("the answer was not to relengthen the wall until the grid
-    // sampled somewhere kinder") and it is the same move here. So the stripe
-    // stays at one in two — the alternation the day groups already use — and
-    // this number is pinned instead, where a drift in either direction fails.
-    'app.375x812.dark.dense': ['mean bone 36.59 outside 30±6'],
+    // THE NUMBER GREW THIS ROUND, FROM 36.59, AND WHAT GREW IT IS NAMED HERE.
+    // Card 01 prints the week block in every state now, not only while the
+    // score is withheld (HeroCard). The block is a `.counter-plate`, and a
+    // counter plate is BONE in dark and Espresso in light — so putting it on
+    // every post-setup row moved this row's mean Bone up 1.27pp and its light
+    // twin's down 1.34pp. That is a plate behaving exactly as §2.1b says a
+    // plate behaves; it is not drift and it is not a regression that went
+    // unnoticed.
+    //
+    // TWO FIXES EXIST AND BOTH ARE REFUSED, WHICH IS WHY THIS IS A DECISION.
+    //
+    //  1. THE DUTY CYCLE. The sub-day stripe's two plates are DUALS (§2.1b: a
+    //     plate is the ground's opposite), so any cycle that pulls light's mean
+    //     Bone down pushes dark's up by nearly as much; the corridor satisfying
+    //     both at once is about half a point wide. Measured before the week
+    //     block landed, both dense rows: 1-in-2 gave light 34.96 and dark 36.59;
+    //     2-in-5 gave light 35.97 and dark 35.59 — inside by 0.03 and 0.41.
+    //     Those two figures are HISTORICAL (the census this round inherited).
+    //     2-in-5 no longer even reaches: the same ±1.0pp applied to today's pair
+    //     lands dark at ~36.9, still out. And it was refused on principle
+    //     anyway — choosing a modulus so a mean lands inside a tolerance is the
+    //     move §2.1b.1 forbids by name on the landing ("the answer was not to
+    //     relengthen the wall until the grid sampled somewhere kinder").
+    //  2. UNPLATING THE WEEK BLOCK AFTER SETUP. The obvious response to "a plate
+    //     put Bone into dark" is to take the plate off the state that added it.
+    //     MEASURED, because a plate's dual makes intuition useless here: a
+    //     scratch probe on THIS TREE with `.counter-plate` dropped from the
+    //     block whenever `hasScore` (in no committed artifact — re-derive by
+    //     making that one edit and running `npm run census -- --diff`) moves
+    //     this row to mean-dev 12.25 and STILL breaches, while
+    //     app.375x812.light.seeded.breakdown goes to mean field 54.3 / bone
+    //     36.8, mean-dev 13.6 — a NEW mean-bone breach — and picks up two
+    //     sliding excursions where it had none. Both `light.seeded` rows move
+    //     ~2pp of Bone the wrong way. It buys one breach with three.
+    //
+    // So the stripe stays at one in two, the plate stays on the block in every
+    // state, and this number is pinned instead, where a drift in either
+    // direction fails.
+    'app.375x812.dark.dense': ['mean bone 37.86 outside 30±6'],
   }
 
   /** Section/run breaches that are recorded and argued. Row id -> verbatim. */
@@ -1166,6 +1449,90 @@ describe('the window reading measures screens, not documents', () => {
     'landing.1440x900.dark.fresh': ['section footer.lp-foot @4718: bone 2.52 under the 15 band'],
   }
 
+  /**
+   * Sliding-band breaches that are recorded and argued. Row id -> verbatim.
+   *
+   * SIX ENTRIES, ALL OF THEM NEW, AND EVERY ONE ON A ROW THE GRID CALLS CLEAN.
+   * That is the finding, not a failure of the round: §2.1b.1 said in round 7
+   * that the grid's phase is arbitrary, and this is the first artifact in which
+   * the band is evaluated at every offset instead of at seven of them. Five of
+   * twenty rows breach; fifteen are clean at EVERY offset, so the reading does
+   * not simply fail everything.
+   *
+   * PINNED THE SAME WAY AND FOR THE SAME REASON as WINDOW_WAIVERS: verbatim,
+   * exact in both directions, so a new breach fails, a drifted number fails,
+   * and a CLOSED breach fails too. The string carries the EXTENT as well as the
+   * depth, which the window strings cannot — over a range, a hairline that
+   * spreads from six offsets to six hundred is a regression the peak value does
+   * not show. §2.1b.4 argues each of these three findings.
+   *
+   * THEY ARE OPEN WORK, NOT WONTFIX, and the distinction is the point of
+   * writing it down. COMPOSITION_WAIVERS below is a refusal with a price
+   * attached; these three are defects with a cause named and no fix attempted
+   * in the round that built the instrument that found them. The precedent is
+   * round 7's four fixture pairs: they broke on arrival, they were waived with
+   * their cause stated, and round 8 paid fifteen of the sixteen.
+   */
+  const SLIDING_WAIVERS: Record<string, string[]> = {
+    // THE PRE-SETUP STRUCTURAL RUN, WHICH THE GRID NOW MISSES AND THE SECTION
+    // READING STRUCTURALLY CANNOT SEE. §2.1b.2 named this defect on `day0` and
+    // `cold` and round 8 closed it AT THE GRID'S PHASE — the counter plate
+    // under ProfileCard's optional groups took all eleven waived entries out.
+    // At @1111 it is still there in dark: the window catches 77px of that
+    // plate's tail and then ~735px in which no scanline band exceeds 15% Bone.
+    // The grid cannot see it (its @812 reads bone 29.44 and its @1624 reads
+    // 30.69, both comfortable), and the section walk cannot either: this row
+    // records pageGround null, one section (div.hero-frame, 276px) and nested
+    // [], so offset 1111 appears in NO composition record at all. Sliding is
+    // the only one of the three readings with a boundary there.
+    //
+    // IT IS ONE DEFECT SEEN TWICE, which is §2.1b's theme-twin rule paying for
+    // itself again. Measured on this tree at the same offset of the same DOM:
+    // dark 71.52 field / 14.31 Bone against light 59.56 / 27.93. A plate is the
+    // ground's OPPOSITE, so the fix is one plate and not two.
+    'app.375x812.dark.day0': [
+      'slide @1111: bone 14.31 under the 15 band (88 of 3495 offsets)',
+    ],
+    // `.lp-spec` IS 2241px AGAINST A 900px VIEWPORT, so §2.1b.1 does not
+    // band-check it — "Longer is a SEQUENCE and the windows already own it" —
+    // and the windows own it at a phase that misses this. @1453 lies inside
+    // that section (@1180, h2241, held:false); the two grid windows either side
+    // read bone 37.92 (@900) and 41.47 (@1800). This is the seam between the
+    // second and third readings, stated as a number: neither of them has a
+    // boundary in the middle of a section that is two and a half viewports
+    // long. 175 of 4069 offsets is 4.3% of the screens on that page.
+    'landing.1440x900.light.fresh': [
+      'slide @1453: bone 57.86 over the 55 band (175 of 4069 offsets)',
+    ],
+    'landing.1440x900.dark.fresh': [
+      'slide @1453: bone 57.86 over the 55 band (175 of 4069 offsets)',
+    ],
+    // The same seam on the phone, in `.lp-shear` (@5270, h1365 against 812,
+    // held:false). Two bounds, and they are two ends of ONE run: the Bone one
+    // is 0.65pp over across 150 offsets, and the field one is 0.08pp under
+    // across 6 — 5886..5891, a six-pixel window. THE HAIRLINE IS WAIVED AS A
+    // HAIRLINE AND NOT HIDDEN: 0.08pp is small, and the instrument's own
+    // run-to-run drift, observed on app.375x812.dark.cold, is 0.01pp, so it is
+    // eight times the noise floor and real. It is also the entry most likely to
+    // move for a reason that is not a design change, which is exactly why its
+    // extent is in the string.
+    //
+    // ROUND 7's SLIDING PROBE FOUND ITS WORST ON THIS ROW AT @1992 (27.84 field
+    // / 63.79 Bone, on the tree of 9a42bd8, a scratch probe and not this
+    // series). THAT ONE IS CLOSED: @1992 reads 42.33 / 49.24 on this tree,
+    // inside the band on both axes, and @4783 — the other probe figure, 81.78 /
+    // 14.42 — reads 58.37 / 35.62. The `.lp-shot-frame` and badge-fill work
+    // paid both. The worst has moved, which is what a worst does.
+    'landing.375x812.light.fresh': [
+      'slide @5891: field 34.92 under the 35 band (6 of 6570 offsets)',
+      'slide @5755: bone 55.65 over the 55 band (150 of 6570 offsets)',
+    ],
+    'landing.375x812.dark.fresh': [
+      'slide @5891: field 34.92 under the 35 band (6 of 6570 offsets)',
+      'slide @5755: bone 55.65 over the 55 band (150 of 6570 offsets)',
+    ],
+  }
+
   it('admits no band breach that is not argued in the design system', () => {
     for (const [id, row] of Object.entries(ARTIFACT.rows)) {
       // The two-accent advisory is filtered by name, not waived per row: it is
@@ -1178,9 +1545,18 @@ describe('the window reading measures screens, not documents', () => {
       expect(`${id}: ${row.composition.breaches.join(' | ')}`).toBe(
         `${id}: ${(COMPOSITION_WAIVERS[id] ?? []).join(' | ')}`,
       )
+      // The fourth reading is enforced on exactly the same terms, filtered by
+      // nothing: it emits no advisory, so every entry is a band verdict.
+      expect(`${id}: ${row.scrollingForm.sliding.breaches.join(' | ')}`).toBe(
+        `${id}: ${(SLIDING_WAIVERS[id] ?? []).join(' | ')}`,
+      )
     }
     // A waiver for a row that no longer exists is a waiver nobody is reading.
-    for (const id of [...Object.keys(WINDOW_WAIVERS), ...Object.keys(COMPOSITION_WAIVERS)]) {
+    for (const id of [
+      ...Object.keys(WINDOW_WAIVERS),
+      ...Object.keys(COMPOSITION_WAIVERS),
+      ...Object.keys(SLIDING_WAIVERS),
+    ]) {
       expect(`${id}: ${id in ARTIFACT.rows}`).toBe(`${id}: true`)
     }
   })
@@ -1852,6 +2228,11 @@ describe('THE STALENESS TEST', () => {
       // which DOM nodes count as grounds re-cuts every section in the artifact,
       // the same way changing the bucket map re-buckets every pixel.
       'scripts/census/composition.ts',
+      // Every reading's arithmetic and every verdict's wording. Out of this
+      // list for seven rounds, which is how BUCKET_NOTE's four figures could
+      // contradict the rows block of their own file and never turn the suite
+      // red — the staleness hash structurally could not see them.
+      'scripts/census/artifact.ts',
       'scripts/census/fixtures/seeded.json',
     ]) {
       expect(`${required}: ${inputs.includes(required)}`).toBe(`${required}: true`)

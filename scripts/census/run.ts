@@ -38,6 +38,7 @@ import {
   LAW_NOTE,
   SCHEMA_VERSION,
   SCROLLING_FORM_NOTE,
+  SLIDING_NOTE,
   TOOL,
   censusPixels,
   censusScrollingForm,
@@ -710,7 +711,7 @@ async function main(): Promise<void> {
       bucketNote: BUCKET_NOTE,
       buckets: BUCKETS,
       declaredAccents,
-      scrollingForm: { ...SCROLLING_FORM, note: SCROLLING_FORM_NOTE },
+      scrollingForm: { ...SCROLLING_FORM, note: SCROLLING_FORM_NOTE, slidingNote: SLIDING_NOTE },
       // No bounds of its own: the section check spends scrollingForm's band and
       // caps. §2.1b is one law read over three sets of boundaries.
       composition: { note: COMPOSITION_NOTE },

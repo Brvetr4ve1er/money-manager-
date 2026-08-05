@@ -75,6 +75,17 @@ const RULES: Rule[] = [
     not a driver file: chrome.ts and png.ts carry a measurement out, this one
     defines it. */
 const CENSUS_INPUTS = [
+  /* artifact.ts is here for the reason composition.ts is, and its absence was a
+     hole rather than a decision. It holds censusPixels, windowTops,
+     scrollingFormBreaches and now censusSliding — i.e. it decides what every
+     number in the file MEANS, which is the header's own criterion. The reason
+     it was out is stated in artifact.ts's BUCKET_NOTE as a defect: a hard-coded
+     paragraph there disagreed with the rows block of the same file for three
+     rounds and "because artifact.ts is deliberately outside CENSUS_INPUTS the
+     staleness hash can never turn red over it". It can now. The cost is that a
+     comment edit in that file forces a re-census, which is the cost palette.ts
+     has always carried for the same reason. */
+  'scripts/census/artifact.ts',
   'scripts/census/composition.ts',
   'scripts/census/determinism.ts',
   'scripts/census/matrix.ts',

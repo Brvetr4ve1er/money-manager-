@@ -86,7 +86,12 @@ function PetStrip({ pets, loose }: { pets: PixelPet[]; loose?: boolean }) {
 }
 
 /**
- * THE WEEK BLOCK — what card 01 prints while it has no score to print.
+ * THE WEEK BLOCK — the last seven days of the record, on card 01, always.
+ *
+ * It used to be printed only while the score was withheld. That gate is gone
+ * (see the render below): the score is a reading of the profile and this is a
+ * reading of the record, and a card may hold both without either becoming the
+ * other.
  *
  * Every figure here is a sum over rows the user typed, in a window bounded at
  * both ends (see weekToDate). Nothing is projected, nothing is averaged,
@@ -206,7 +211,10 @@ export function HeroCard({
   historyDays: number
   /** True while the score runs on DEMO_PROFILE rather than the user's numbers. */
   isDemo: boolean
-  /** The last seven days of the record. Printed only while there is no score. */
+  /**
+   * The last seven days of the record. Printed in EVERY state — see the block
+   * above the render for why it stopped being the score's understudy.
+   */
   week: WeekSoFar
 }) {
   const meta = STAGE_META[stage]
@@ -262,21 +270,44 @@ export function HeroCard({
           Graphite ink, and that is the one thing a counter plate may not
           carry. */}
       <h2 className="counter-plate">Health score</h2>
-      {/* THE SWAP. One of these two is on screen, never both: a score the app
-          has earned, or the record it actually holds. See `hasScore` above.
-          THE MONEY BLOCK LEADS AND THE LOOT FOLLOWS, which is the two-track
-          rule as reading order: the card's subject is the record, and the
-          companions are decoration the user earned on the other track. They
-          are rendered here at all — rather than only beside a stage badge that
-          is not on screen — because a badge earned before setup must not
-          vanish until setup (Trust Rule 2). At ≥1024 app.css hides
-          .hero-card .stage-col, so this strip is deliberately NOT inside it. */}
-      {!hasScore && (
-        <>
-          <WeekBlock week={week} />
-          {pets.length > 0 && <PetStrip pets={pets} loose />}
-        </>
-      )}
+      {/* THERE IS NO SWAP ANY MORE, AND THE SWAP WAS THE DEFECT.
+          This slot used to hold one of two things, never both — a score the app
+          had earned, or the record it actually holds — on the premise that the
+          week block was a CONSOLATION for having no score. It is not. The score
+          is about the profile; the block is about the record (see App: it is
+          handed `transactions` and a day, and nothing else). Those are not
+          alternatives, so `hasScore` no longer decides whether the record is
+          printed. It decides only whether there is a readout above it.
+
+          WHAT THE SWAP COST, MEASURED RATHER THAN GUESSED. The block first has
+          something to say on day 3 — `weekToDate` needs two rows in a category
+          before a repeat exists — and setup deleted it permanently, so the one
+          line in week one the record knows and the person does not shipped only
+          to users who ignored the card's own "Set up my numbers" control. The
+          state was so unreachable that §2.1b.2 had to INVENT the `cold` fixture
+          ("six rows over five days, pre-setup") to measure a non-empty block at
+          all. A surface no ordinary path reaches is not a surface.
+
+          IT CANNOT BECOME A VERDICT BY BEING PRINTED LONGER. Nothing here reads
+          the profile, the budget, XP or an achievement — not through a prop and
+          not through a later edit — so a card that now shows a Health Score and
+          a week of rows still shows two facts side by side and grades neither
+          (Trust Rules 1, 3 and 6). WeekBlock's own header states the rest.
+
+          ORDER: the readout leads WHEN THERE IS ONE, and the record leads when
+          there is not. Either way the card's most specific answer is first, and
+          the pre-setup DOM is byte-for-byte what it was — which is why the
+          `day0` and `cold` rows of docs/brand/census.json did not move on this
+          change and only the `seeded`, `dense` and `breakdown` rows did.
+
+          THE LOOT FOLLOWS THE MONEY, which is the two-track rule as reading
+          order. The loose strip is rendered here at all — rather than only
+          beside a stage badge that is not on screen — because a badge earned
+          before setup must not vanish until setup (Trust Rule 2). Once the
+          badge is back, the strip inside .stage-col carries the same shelf, so
+          the loose one stands down rather than doubling it. At ≥1024 app.css
+          hides .hero-card .stage-col, so this strip is deliberately NOT
+          inside it. */}
       {hasScore && (
       <div className="hero-main">
         <div className="stage-col">
@@ -353,6 +384,8 @@ export function HeroCard({
         </div>
       </div>
       )}
+      <WeekBlock week={week} />
+      {!hasScore && pets.length > 0 && <PetStrip pets={pets} loose />}
       {/* Trust Rule 5, said out loud, in its two halves.
           WHAT IS MISSING (isDemo) comes first, because it is the bigger claim.
           Before setup SR/BA/EF/DT are computed from DEMO_PROFILE's invented

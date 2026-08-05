@@ -1,24 +1,26 @@
 {
   "schemaVersion": 1,
   "tool": "scripts/census/run.ts",
-  "capturedAt": "2026-08-05T05:27:45.887Z",
+  "capturedAt": "2026-08-05T06:17:58.003Z",
   "tree": {
-    "sha": "1e0e1c226162d7a6abc7959568ab4a9513e57ec1",
+    "sha": "78dfdb5f815600a797fd4b515b71f37762a6d9a1",
     "branch": "claude/money-app-market-analysis-oi2pht",
     "dirty": true,
     "dirtyPaths": [
       "README.md",
       "docs/brand/DESIGN-SYSTEM.md",
       "docs/brand/census.json",
+      "scripts/census/artifact.ts",
       "scripts/census/census.test.ts",
+      "scripts/census/inputs.ts",
+      "scripts/census/run.ts",
       "src/App.test.tsx",
-      "src/components/ArchiveCard.tsx",
-      "src/components/LogCard.tsx",
-      "src/components/ProfileCard.tsx",
+      "src/App.tsx",
+      "src/components/HeroCard.tsx",
       "src/styles/app.css"
     ]
   },
-  "inputsHash": "sha256:57408bc4a7e0f571765444b646efed38610a5109128b28bdc28c0acdb5f8c032",
+  "inputsHash": "sha256:480f1a23829eb94dbd8c95ef5d42628846c054de45daadee3b19c5625030da6d",
   "env": {
     "node": "v22.22.2",
     "chrome": "Chrome/141.0.7390.37",
@@ -125,7 +127,8 @@
       },
       "inkOnPaperMin": 6,
       "accentMax": 2,
-      "note": "DESIGN-SYSTEM.md §2 is a COMPOSITION law and it is unchanged for every surface the eye holds at once: the poster, the mark, the hero band, each landing section, the OG image. This block is the same law read over a SCROLLING DOCUMENT, which is not one composition but a sequence of them. THE FINDING THAT PRODUCED IT IS HISTORICAL AND IS STAMPED AS SUCH: on the CLEAN TREE OF COMMIT a2d4e6d (round 5, 2026-08-04), MEASURED BY THE PRE-TOOL AD-HOC METHOD rather than by this tool — the two disagree by roughly 5 percentage points on identical pixels, so a tree stamp alone does not make two figures comparable; the instrument has to be named too. Before the collection card was deleted, the app's 375 light document read 56.0/36.9/4.5/2.6 — deviation 15.0, apparently the best app screen in the matrix — while its eight viewport windows read 41.6, 15.6, 44.9, 18.4, 65.7, 91.1, 86.6 and 83.9 percent field: a Bone form stack at the head and a dark index sheet at the tail, averaging to a vector that appeared on no screen, with a mean-of-screens deviation of 52.8. THAT DOCUMENT IS NOT THIS ONE — the card was deleted and the page is shorter now; for what this tree measures, read rows[\"app.375x812.light.seeded\"] below rather than this sentence. `deviation` per row is the document reading and stays comparable with rounds 1-4; `scrollingForm` per row is the window reading. WHEN THEY DISAGREE, THE WINDOWS ARE THE TRUTH — they are what a reader is looking at. The document average moves when a card gets taller; only the windows move when a page gets better arranged, which is why the remaining work is INTERLEAVING rather than more or less Flare."
+      "note": "DESIGN-SYSTEM.md §2 is a COMPOSITION law and it is unchanged for every surface the eye holds at once: the poster, the mark, the hero band, each landing section, the OG image. This block is the same law read over a SCROLLING DOCUMENT, which is not one composition but a sequence of them. THE FINDING THAT PRODUCED IT IS HISTORICAL AND IS STAMPED AS SUCH: on the CLEAN TREE OF COMMIT a2d4e6d (round 5, 2026-08-04), MEASURED BY THE PRE-TOOL AD-HOC METHOD rather than by this tool — the two disagree by roughly 5 percentage points on identical pixels, so a tree stamp alone does not make two figures comparable; the instrument has to be named too. Before the collection card was deleted, the app's 375 light document read 56.0/36.9/4.5/2.6 — deviation 15.0, apparently the best app screen in the matrix — while its eight viewport windows read 41.6, 15.6, 44.9, 18.4, 65.7, 91.1, 86.6 and 83.9 percent field: a Bone form stack at the head and a dark index sheet at the tail, averaging to a vector that appeared on no screen, with a mean-of-screens deviation of 52.8. THAT DOCUMENT IS NOT THIS ONE — the card was deleted and the page is shorter now; for what this tree measures, read rows[\"app.375x812.light.seeded\"] below rather than this sentence. `deviation` per row is the document reading and stays comparable with rounds 1-4; `scrollingForm` per row is the window reading. WHEN THEY DISAGREE, THE WINDOWS ARE THE TRUTH — they are what a reader is looking at. The document average moves when a card gets taller; only the windows move when a page gets better arranged, which is why the remaining work is INTERLEAVING rather than more or less Flare.",
+      "slidingNote": "THE SAME BAND, WITH THE GRID PHASE TAKEN AWAY. windowTops() starts at offset 0 and steps by the viewport; a reader scrolls continuously, so every offset is a screen somebody holds. `sliding` evaluates the band and the caps at EVERY offset (step 1 — a step of 8 is a smaller arbitrary phase, not the absence of one) and reports the worst, its extent in offsets, and the two banded buckets' extremes. IT IS AN ADDITION AND NOT A REPLACEMENT, in both directions: `worst`, `mean`, `meanDeviation`, `breaches` and `windows` are unchanged and still the GRID's, so every figure DESIGN-SYSTEM.md §2.1b through §2.1b.3 quotes stays comparable; and no sliding MEAN is computed, because scanline y is covered by min(y,L)-max(0,y-W+1)+1 windows, so an all-offsets mean down-weights the first and last viewport of every page on a ramp — a triangular-weighted DOCUMENT average dressed as a mean of screens, which is the statistic §2.1b exists to reject. The grid mean gives every screen weight 1 and stays the mean. `sliding` is a NEW SERIES starting at round 8: it has no predecessor in any earlier census, and the round-7 sliding figures in §2.1b.1 and §2.1b.3 were a scratch probe on the tree of 9a42bd8, not this series."
     },
     "composition": {
       "note": "THE THIRD READING, and it is the HARSHER one. `deviation` is the document, `scrollingForm` is the reader's screens on a grid phased from offset 0, and this is §2 read over the compositions the page AUTHORED. Boundaries are derived mechanically from the render tree — an opaque, full-bleed, in-flow ground whose colour differs from its nearest ground ancestor's — so there is no selector list and no offset table to keep in sync with a stylesheet. SECTIONS are the grounds directly under the page ground, and §2 is enforced on one ONLY where it is no taller than the viewport, because \"anything the eye holds at once\" is §2's own precondition; anything longer is a sequence and the windows own it. NESTED grounds are judged instead on §2.1b's \"no single ground may run longer than one viewport\", which is the run with no authored exit. ACCENT IS NOT RE-CHECKED HERE and must not be: §5C's PLATE is a Marigold lockup, so in that composition Marigold is a field, and a per-section accent budget would make a signature layout permanently illegal. WHY IT WAS ADDED: on the tree of 9a42bd8 the landing's window reading recorded zero band breaches while landing.1440x900 `.lp-shear` — 627px against a 900px viewport, a composition held entire — read 30.40% field / 66.45% Bone, under the 35 floor and over the 65 Bone hard cap. No window isolates that section, so no phase of the grid could see it. This reading ADDS breaches and removes none, which is the direction that makes it falsifiable."
@@ -151,28 +154,28 @@
       },
       "buckets": {
         "field": {
-          "pixels": 2628754,
-          "pct": 59.83
+          "pixels": 2623458,
+          "pct": 59.71
         },
         "bone": {
-          "pixels": 1469241,
-          "pct": 33.44
+          "pixels": 1471325,
+          "pct": 33.48
         },
         "graphite": {
-          "pixels": 249395,
-          "pct": 5.68
+          "pixels": 252607,
+          "pct": 5.75
         },
         "accent": {
           "pixels": 46594,
           "pct": 1.06
         }
       },
-      "deviation": 6.88,
+      "deviation": 6.97,
       "tokens": {
-        "flare": 34.06,
+        "flare": 32.49,
         "graphite": 2.85,
-        "bone": 19.50,
-        "espresso": 25.77,
+        "bone": 19.55,
+        "espresso": 27.22,
         "sand": 13.93,
         "fog": 0.00,
         "void": 1.28,
@@ -181,16 +184,16 @@
         "cobalt": 0.00,
         "signal": 0.03,
         "moss": 0.03,
-        "spec:676562": 0.43,
-        "spec-sunken:535250": 0.13,
-        "spec:b8aaa4": 0.46,
-        "spec-sunken:ccbeb8": 0.28,
+        "spec:676562": 0.45,
+        "spec-sunken:535250": 0.14,
+        "spec:b8aaa4": 0.49,
+        "spec-sunken:ccbeb8": 0.29,
         "spec:4e4f49": 0.07,
-        "spec-sunken:40413d": 0.17
+        "spec-sunken:40413d": 0.18
       },
       "strays": {
-        "pctOverDeltaE12": 0.26,
-        "meanDeltaE": 0.24,
+        "pctOverDeltaE12": 0.27,
+        "meanDeltaE": 0.25,
         "top": [
           {
             "hex": "#8e8885",
@@ -217,10 +220,10 @@
             "deltaE": 12.28
           },
           {
-            "hex": "#5d3022",
+            "hex": "#988a84",
             "pct": 0.00,
-            "nearest": "espresso",
-            "deltaE": 22.39
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.09
           }
         ],
         "nearMisses": [
@@ -260,13 +263,13 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 60.81,
-          "bone": 32.69,
-          "graphite": 5.49,
+          "field": 60.69,
+          "bone": 32.74,
+          "graphite": 5.56,
           "accent": 1.01
         },
-        "meanDeviation": 7.00,
-        "inkOnPaper": 14.51,
+        "meanDeviation": 6.86,
+        "inkOnPaper": 14.65,
         "worst": {
           "top": 3391,
           "deviation": 23.86
@@ -288,12 +291,12 @@
           {
             "top": 900,
             "pct": {
-              "field": 66.01,
-              "bone": 24.39,
-              "graphite": 7.28,
+              "field": 65.44,
+              "bone": 24.61,
+              "graphite": 7.63,
               "accent": 2.32
             },
-            "deviation": 12.66
+            "deviation": 11.51
           },
           {
             "top": 1800,
@@ -325,7 +328,39 @@
             },
             "deviation": 23.86
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 3392,
+          "worst": {
+            "top": 3207,
+            "deviation": 46.41
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 3144,
+                "pct": 42.69
+              },
+              "max": {
+                "top": 677,
+                "pct": 71.06
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 677,
+                "pct": 19.10
+              },
+              "max": {
+                "top": 3207,
+                "pct": 53.20
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -370,27 +405,27 @@
       },
       "buckets": {
         "field": {
-          "pixels": 2780904,
-          "pct": 63.29
+          "pixels": 2711884,
+          "pct": 61.72
         },
         "bone": {
-          "pixels": 1337872,
-          "pct": 30.45
+          "pixels": 1401662,
+          "pct": 31.90
         },
         "graphite": {
-          "pixels": 228564,
-          "pct": 5.20
+          "pixels": 233794,
+          "pct": 5.32
         },
         "accent": {
           "pixels": 46644,
           "pct": 1.06
         }
       },
-      "deviation": 7.47,
+      "deviation": 7.24,
       "tokens": {
-        "flare": 34.06,
-        "graphite": 3.54,
-        "bone": 29.28,
+        "flare": 32.49,
+        "graphite": 3.59,
+        "bone": 30.73,
         "espresso": 29.23,
         "sand": 1.17,
         "fog": 0.00,
@@ -400,16 +435,16 @@
         "cobalt": 0.00,
         "signal": 0.03,
         "moss": 0.04,
-        "spec:676562": 0.43,
+        "spec:676562": 0.46,
         "spec-sunken:535250": 0.14,
-        "spec:b8aaa4": 0.47,
-        "spec-sunken:ccbeb8": 0.28,
+        "spec:b8aaa4": 0.50,
+        "spec-sunken:ccbeb8": 0.29,
         "spec:4e4f49": 0.04,
         "spec-sunken:40413d": 0.18
       },
       "strays": {
-        "pctOverDeltaE12": 0.25,
-        "meanDeltaE": 0.24,
+        "pctOverDeltaE12": 0.26,
+        "meanDeltaE": 0.25,
         "top": [
           {
             "hex": "#8e8885",
@@ -437,7 +472,7 @@
           },
           {
             "hex": "#8a8582",
-            "pct": 0.00,
+            "pct": 0.01,
             "nearest": "spec:676562",
             "deltaE": 13.06
           }
@@ -479,16 +514,16 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 61.21,
-          "bone": 32.61,
-          "graphite": 5.16,
+          "field": 59.71,
+          "bone": 34.00,
+          "graphite": 5.28,
           "accent": 1.01
         },
-        "meanDeviation": 7.65,
-        "inkOnPaper": 14.59,
+        "meanDeviation": 8.00,
+        "inkOnPaper": 14.30,
         "worst": {
-          "top": 3391,
-          "deviation": 14.41
+          "top": 900,
+          "deviation": 27.93
         },
         "breaches": [
           "accents painting: marigold 0.69, acid 0.31 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
@@ -507,12 +542,12 @@
           {
             "top": 900,
             "pct": {
-              "field": 55.81,
-              "bone": 36.72,
-              "graphite": 5.15,
+              "field": 48.32,
+              "bone": 43.64,
+              "graphite": 5.71,
               "accent": 2.32
             },
-            "deviation": 14.09
+            "deviation": 27.93
           },
           {
             "top": 1800,
@@ -544,7 +579,39 @@
             },
             "deviation": 14.41
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 3392,
+          "worst": {
+            "top": 2445,
+            "deviation": 38.81
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 491,
+                "pct": 46.09
+              },
+              "max": {
+                "top": 2445,
+                "pct": 79.41
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 2447,
+                "pct": 17.16
+              },
+              "max": {
+                "top": 505,
+                "pct": 46.74
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -589,28 +656,28 @@
       },
       "buckets": {
         "field": {
-          "pixels": 3524301,
-          "pct": 65.28
+          "pixels": 3519005,
+          "pct": 65.18
         },
         "bone": {
-          "pixels": 1567563,
-          "pct": 29.03
+          "pixels": 1569647,
+          "pct": 29.07
         },
         "graphite": {
-          "pixels": 260425,
-          "pct": 4.82
+          "pixels": 263637,
+          "pct": 4.88
         },
         "accent": {
           "pixels": 46751,
           "pct": 0.87
         }
       },
-      "deviation": 10.55,
+      "deviation": 10.36,
       "tokens": {
-        "flare": 42.30,
+        "flare": 40.88,
         "graphite": 2.39,
-        "bone": 16.94,
-        "espresso": 22.97,
+        "bone": 16.98,
+        "espresso": 24.29,
         "sand": 12.10,
         "fog": 0.00,
         "void": 1.17,
@@ -619,16 +686,16 @@
         "cobalt": 0.00,
         "signal": 0.03,
         "moss": 0.03,
-        "spec:676562": 0.35,
+        "spec:676562": 0.37,
         "spec-sunken:535250": 0.11,
-        "spec:b8aaa4": 0.37,
+        "spec:b8aaa4": 0.40,
         "spec-sunken:ccbeb8": 0.23,
         "spec:4e4f49": 0.06,
-        "spec-sunken:40413d": 0.14
+        "spec-sunken:40413d": 0.15
       },
       "strays": {
-        "pctOverDeltaE12": 0.21,
-        "meanDeltaE": 0.23,
+        "pctOverDeltaE12": 0.22,
+        "meanDeltaE": 0.24,
         "top": [
           {
             "hex": "#8e8885",
@@ -649,16 +716,16 @@
             "deltaE": 12.62
           },
           {
-            "hex": "#8a8582",
-            "pct": 0.00,
-            "nearest": "spec:676562",
-            "deltaE": 13.06
-          },
-          {
             "hex": "#8c7f79",
             "pct": 0.00,
             "nearest": "spec:676562",
             "deltaE": 12.28
+          },
+          {
+            "hex": "#988a84",
+            "pct": 0.00,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.09
           }
         ],
         "nearMisses": [
@@ -698,16 +765,16 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 65.32,
-          "bone": 29.21,
-          "graphite": 4.66,
+          "field": 65.23,
+          "bone": 29.24,
+          "graphite": 4.71,
           "accent": 0.81
         },
-        "meanDeviation": 10.65,
-        "inkOnPaper": 14.25,
+        "meanDeviation": 10.46,
+        "inkOnPaper": 14.38,
         "worst": {
           "top": 900,
-          "deviation": 19.97
+          "deviation": 19.05
         },
         "breaches": [],
         "windows": [
@@ -724,12 +791,12 @@
           {
             "top": 900,
             "pct": {
-              "field": 69.95,
-              "bone": 21.68,
-              "graphite": 6.34,
+              "field": 69.49,
+              "bone": 21.86,
+              "graphite": 6.62,
               "accent": 2.04
             },
-            "deviation": 19.97
+            "deviation": 19.05
           },
           {
             "top": 1800,
@@ -761,7 +828,39 @@
             },
             "deviation": 15.15
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 3319,
+          "worst": {
+            "top": 3135,
+            "deviation": 33.82
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 3069,
+                "pct": 49.70
+              },
+              "max": {
+                "top": 677,
+                "pct": 75.09
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 677,
+                "pct": 16.58
+              },
+              "max": {
+                "top": 3134,
+                "pct": 46.91
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -806,27 +905,27 @@
       },
       "buckets": {
         "field": {
-          "pixels": 3663775,
-          "pct": 67.86
+          "pixels": 3587215,
+          "pct": 66.44
         },
         "bone": {
-          "pixels": 1453003,
-          "pct": 26.91
+          "pixels": 1524333,
+          "pct": 28.23
         },
         "graphite": {
-          "pixels": 235460,
-          "pct": 4.36
+          "pixels": 240690,
+          "pct": 4.46
         },
         "accent": {
           "pixels": 46802,
           "pct": 0.87
         }
       },
-      "deviation": 15.72,
+      "deviation": 12.88,
       "tokens": {
-        "flare": 42.30,
-        "graphite": 3.01,
-        "bone": 25.83,
+        "flare": 40.88,
+        "graphite": 3.04,
+        "bone": 27.15,
         "espresso": 25.56,
         "sand": 1.08,
         "fog": 0.00,
@@ -836,16 +935,16 @@
         "cobalt": 0.00,
         "signal": 0.03,
         "moss": 0.03,
-        "spec:676562": 0.35,
-        "spec-sunken:535250": 0.11,
-        "spec:b8aaa4": 0.39,
-        "spec-sunken:ccbeb8": 0.22,
-        "spec:4e4f49": 0.03,
+        "spec:676562": 0.37,
+        "spec-sunken:535250": 0.12,
+        "spec:b8aaa4": 0.41,
+        "spec-sunken:ccbeb8": 0.23,
+        "spec:4e4f49": 0.04,
         "spec-sunken:40413d": 0.15
       },
       "strays": {
-        "pctOverDeltaE12": 0.21,
-        "meanDeltaE": 0.23,
+        "pctOverDeltaE12": 0.22,
+        "meanDeltaE": 0.24,
         "top": [
           {
             "hex": "#8e8885",
@@ -872,10 +971,10 @@
             "deltaE": 12.62
           },
           {
-            "hex": "#92847e",
+            "hex": "#8a8582",
             "pct": 0.00,
             "nearest": "spec:676562",
-            "deltaE": 14.29
+            "deltaE": 13.06
           }
         ],
         "nearMisses": [
@@ -915,13 +1014,13 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 66.42,
-          "bone": 28.47,
-          "graphite": 4.30,
+          "field": 65.09,
+          "bone": 29.71,
+          "graphite": 4.39,
           "accent": 0.81
         },
-        "meanDeviation": 12.83,
-        "inkOnPaper": 13.95,
+        "meanDeviation": 10.17,
+        "inkOnPaper": 13.64,
         "worst": {
           "top": 2700,
           "deviation": 19.31
@@ -941,12 +1040,12 @@
           {
             "top": 900,
             "pct": {
-              "field": 60.67,
-              "bone": 32.97,
-              "graphite": 4.32,
+              "field": 54.02,
+              "bone": 39.16,
+              "graphite": 4.78,
               "accent": 2.04
             },
-            "deviation": 7.36
+            "deviation": 18.40
           },
           {
             "top": 1800,
@@ -978,7 +1077,39 @@
             },
             "deviation": 15.08
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 3319,
+          "worst": {
+            "top": 2372,
+            "deviation": 39.06
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 924,
+                "pct": 52.82
+              },
+              "max": {
+                "top": 2372,
+                "pct": 79.53
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 2374,
+                "pct": 17.40
+              },
+              "max": {
+                "top": 505,
+                "pct": 40.39
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -1023,28 +1154,28 @@
       },
       "buckets": {
         "field": {
-          "pixels": 3958114,
-          "pct": 66.94
+          "pixels": 3953036,
+          "pct": 66.86
         },
         "bone": {
-          "pixels": 1638832,
-          "pct": 27.72
+          "pixels": 1640700,
+          "pct": 27.75
         },
         "graphite": {
-          "pixels": 268564,
-          "pct": 4.54
+          "pixels": 271774,
+          "pct": 4.60
         },
         "accent": {
           "pixels": 47130,
           "pct": 0.80
         }
       },
-      "deviation": 13.89,
+      "deviation": 13.71,
       "tokens": {
-        "flare": 44.88,
+        "flare": 43.75,
         "graphite": 2.23,
-        "bone": 15.83,
-        "espresso": 22.06,
+        "bone": 15.86,
+        "espresso": 23.11,
         "sand": 11.88,
         "fog": 0.00,
         "void": 1.16,
@@ -1053,16 +1184,16 @@
         "cobalt": 0.00,
         "signal": 0.03,
         "moss": 0.03,
-        "spec:676562": 0.32,
+        "spec:676562": 0.33,
         "spec-sunken:535250": 0.10,
-        "spec:b8aaa4": 0.34,
+        "spec:b8aaa4": 0.36,
         "spec-sunken:ccbeb8": 0.21,
         "spec:4e4f49": 0.06,
         "spec-sunken:40413d": 0.13
       },
       "strays": {
         "pctOverDeltaE12": 0.20,
-        "meanDeltaE": 0.23,
+        "meanDeltaE": 0.24,
         "top": [
           {
             "hex": "#8e8885",
@@ -1072,7 +1203,7 @@
           },
           {
             "hex": "#90827c",
-            "pct": 0.00,
+            "pct": 0.01,
             "nearest": "spec:676562",
             "deltaE": 13.58
           },
@@ -1083,16 +1214,16 @@
             "deltaE": 12.62
           },
           {
-            "hex": "#8a8582",
-            "pct": 0.00,
-            "nearest": "spec:676562",
-            "deltaE": 13.06
-          },
-          {
             "hex": "#8c7f79",
             "pct": 0.00,
             "nearest": "spec:676562",
             "deltaE": 12.28
+          },
+          {
+            "hex": "#988a84",
+            "pct": 0.00,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.09
           }
         ],
         "nearMisses": [
@@ -1132,13 +1263,13 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 65.81,
-          "bone": 29.08,
-          "graphite": 4.38,
+          "field": 65.74,
+          "bone": 29.11,
+          "graphite": 4.43,
           "accent": 0.73
         },
-        "meanDeviation": 11.63,
-        "inkOnPaper": 14.08,
+        "meanDeviation": 11.47,
+        "inkOnPaper": 14.21,
         "worst": {
           "top": 0,
           "deviation": 24.74
@@ -1158,12 +1289,12 @@
           {
             "top": 900,
             "pct": {
-              "field": 70.05,
-              "bone": 21.50,
-              "graphite": 6.61,
+              "field": 69.66,
+              "bone": 21.64,
+              "graphite": 6.86,
               "accent": 1.84
             },
-            "deviation": 20.10
+            "deviation": 19.31
           },
           {
             "top": 1800,
@@ -1195,7 +1326,39 @@
             },
             "deviation": 15.57
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 3207,
+          "worst": {
+            "top": 3023,
+            "deviation": 29.57
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 2964,
+                "pct": 52.13
+              },
+              "max": {
+                "top": 2479,
+                "pct": 74.61
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 565,
+                "pct": 17.52
+              },
+              "max": {
+                "top": 3022,
+                "pct": 44.79
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -1240,27 +1403,27 @@
       },
       "buckets": {
         "field": {
-          "pixels": 3893061,
-          "pct": 65.84
+          "pixels": 3826037,
+          "pct": 64.71
         },
         "bone": {
-          "pixels": 1720441,
-          "pct": 29.10
+          "pixels": 1782453,
+          "pct": 30.15
         },
         "graphite": {
-          "pixels": 251938,
-          "pct": 4.26
+          "pixels": 256950,
+          "pct": 4.35
         },
         "accent": {
           "pixels": 47200,
           "pct": 0.80
         }
       },
-      "deviation": 11.69,
+      "deviation": 9.71,
       "tokens": {
-        "flare": 44.88,
-        "graphite": 3.03,
-        "bone": 17.08,
+        "flare": 43.75,
+        "graphite": 3.06,
+        "bone": 18.13,
         "espresso": 20.96,
         "sand": 12.02,
         "fog": 0.00,
@@ -1270,16 +1433,16 @@
         "cobalt": 0.00,
         "signal": 0.03,
         "moss": 0.03,
-        "spec:676562": 0.32,
+        "spec:676562": 0.34,
         "spec-sunken:535250": 0.10,
-        "spec:b8aaa4": 0.34,
-        "spec-sunken:ccbeb8": 0.19,
+        "spec:b8aaa4": 0.36,
+        "spec-sunken:ccbeb8": 0.20,
         "spec:4e4f49": 0.06,
-        "spec-sunken:40413d": 0.13
+        "spec-sunken:40413d": 0.14
       },
       "strays": {
         "pctOverDeltaE12": 0.20,
-        "meanDeltaE": 0.23,
+        "meanDeltaE": 0.24,
         "top": [
           {
             "hex": "#8e8885",
@@ -1349,13 +1512,13 @@
         "viewportHeight": 900,
         "count": 5,
         "mean": {
-          "field": 64.81,
-          "bone": 30.34,
-          "graphite": 4.12,
+          "field": 63.78,
+          "bone": 31.30,
+          "graphite": 4.20,
           "accent": 0.73
         },
-        "meanDeviation": 10.30,
-        "inkOnPaper": 12.77,
+        "meanDeviation": 10.15,
+        "inkOnPaper": 12.60,
         "worst": {
           "top": 0,
           "deviation": 24.74
@@ -1375,12 +1538,12 @@
           {
             "top": 900,
             "pct": {
-              "field": 62.43,
-              "bone": 31.16,
-              "graphite": 4.57,
+              "field": 57.26,
+              "bone": 35.95,
+              "graphite": 4.95,
               "accent": 1.84
             },
-            "deviation": 7.18
+            "deviation": 11.89
           },
           {
             "top": 1800,
@@ -1412,7 +1575,39 @@
             },
             "deviation": 15.57
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 3207,
+          "worst": {
+            "top": 3023,
+            "deviation": 29.57
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 2964,
+                "pct": 52.13
+              },
+              "max": {
+                "top": 2054,
+                "pct": 74.74
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 24,
+                "pct": 20.93
+              },
+              "max": {
+                "top": 3022,
+                "pct": 44.79
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -1651,7 +1846,39 @@
             },
             "deviation": 10.09
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 4237,
+          "worst": {
+            "top": 3025,
+            "deviation": 40.66
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 3025,
+                "pct": 41.65
+              },
+              "max": {
+                "top": 1326,
+                "pct": 72.23
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1253,
+                "pct": 16.14
+              },
+              "max": {
+                "top": 441,
+                "pct": 48.02
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -1880,7 +2107,51 @@
             },
             "deviation": 22.39
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 3495,
+          "worst": {
+            "top": 2844,
+            "deviation": 40.75
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 2844,
+                "pct": 41.60
+              },
+              "max": {
+                "top": 1157,
+                "pct": 75.10
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1111,
+                "pct": 14.31
+              },
+              "max": {
+                "top": 2802,
+                "pct": 46.32
+              }
+            }
+          },
+          "excursions": [
+            {
+              "bucket": "bone",
+              "side": "under",
+              "bound": 15,
+              "kind": "band",
+              "top": 1111,
+              "pct": 14.31,
+              "offsets": 88
+            }
+          ],
+          "breaches": [
+            "slide @1111: bone 14.31 under the 15 band (88 of 3495 offsets)"
+          ]
+        }
       },
       "composition": {
         "pageGround": null,
@@ -1918,52 +2189,52 @@
       "view": "rest",
       "dimensions": {
         "width": 375,
-        "height": 6816
+        "height": 7050
       },
       "pixels": {
-        "total": 2556000
+        "total": 2643750
       },
       "buckets": {
         "field": {
-          "pixels": 1437759,
-          "pct": 56.25
+          "pixels": 1461664,
+          "pct": 55.29
         },
         "bone": {
-          "pixels": 907476,
-          "pct": 35.50
+          "pixels": 966525,
+          "pct": 36.56
         },
         "graphite": {
-          "pixels": 170949,
-          "pct": 6.69
+          "pixels": 175746,
+          "pct": 6.65
         },
         "accent": {
-          "pixels": 39816,
-          "pct": 1.56
+          "pixels": 39815,
+          "pct": 1.51
         }
       },
-      "deviation": 11.01,
+      "deviation": 13.12,
       "tokens": {
-        "flare": 21.06,
-        "graphite": 2.44,
-        "bone": 25.61,
-        "espresso": 35.19,
-        "sand": 9.90,
+        "flare": 20.78,
+        "graphite": 2.40,
+        "bone": 26.99,
+        "espresso": 34.50,
+        "sand": 9.57,
         "fog": 0.00,
-        "void": 1.53,
-        "acid": 0.72,
-        "marigold": 0.76,
+        "void": 1.48,
+        "acid": 0.70,
+        "marigold": 0.74,
         "cobalt": 0.00,
         "signal": 0.03,
-        "moss": 0.05,
-        "spec:676562": 0.77,
+        "moss": 0.04,
+        "spec:676562": 0.79,
         "spec-sunken:535250": 0.21,
-        "spec:b8aaa4": 0.83,
-        "spec-sunken:ccbeb8": 0.50,
+        "spec:b8aaa4": 0.85,
+        "spec-sunken:ccbeb8": 0.51,
         "spec:4e4f49": 0.09,
         "spec-sunken:40413d": 0.31
       },
       "strays": {
-        "pctOverDeltaE12": 0.37,
+        "pctOverDeltaE12": 0.38,
         "meanDeltaE": 0.25,
         "top": [
           {
@@ -2000,19 +2271,19 @@
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 1.42,
+            "pct": 1.37,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 0.76,
+            "pct": 0.73,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 0.53,
+            "pct": 0.51,
             "nearest": "flare",
             "deltaE": 1.21
           },
@@ -2034,113 +2305,145 @@
         "viewportHeight": 812,
         "count": 9,
         "mean": {
-          "field": 55.32,
-          "bone": 36.59,
-          "graphite": 6.63,
+          "field": 54.01,
+          "bone": 37.86,
+          "graphite": 6.68,
           "accent": 1.45
         },
-        "meanDeviation": 13.19,
-        "inkOnPaper": 15.85,
+        "meanDeviation": 15.71,
+        "inkOnPaper": 15.39,
         "worst": {
           "top": 5684,
-          "deviation": 35.69
+          "deviation": 44.65
         },
         "breaches": [
-          "mean bone 36.59 outside 30±6",
-          "accents painting: marigold 0.76, acid 0.72 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+          "mean bone 37.86 outside 30±6",
+          "accents painting: marigold 0.74, acid 0.70 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 64.32,
-              "bone": 27.48,
-              "graphite": 6.03,
+              "field": 60.79,
+              "bone": 30.89,
+              "graphite": 6.15,
               "accent": 2.17
             },
-            "deviation": 8.98
+            "deviation": 3.70
           },
           {
             "top": 812,
             "pct": {
-              "field": 50.83,
-              "bone": 31.86,
-              "graphite": 13.38,
-              "accent": 3.92
+              "field": 48.68,
+              "bone": 39.79,
+              "graphite": 11.52,
+              "accent": 0.02
             },
-            "deviation": 18.35
+            "deviation": 26.61
           },
           {
             "top": 1624,
             "pct": {
-              "field": 66.80,
-              "bone": 25.19,
-              "graphite": 5.31,
-              "accent": 2.69
+              "field": 69.90,
+              "bone": 17.50,
+              "graphite": 5.99,
+              "accent": 6.61
             },
-            "deviation": 15.00
+            "deviation": 29.02
           },
           {
             "top": 2436,
             "pct": {
-              "field": 44.68,
-              "bone": 42.83,
-              "graphite": 10.26,
+              "field": 48.03,
+              "bone": 38.84,
+              "graphite": 10.89,
               "accent": 2.24
             },
-            "deviation": 30.65
+            "deviation": 23.93
           },
           {
             "top": 3248,
             "pct": {
-              "field": 59.36,
-              "bone": 35.43,
-              "graphite": 5.10,
+              "field": 57.85,
+              "bone": 36.99,
+              "graphite": 5.05,
               "accent": 0.11
             },
-            "deviation": 10.86
+            "deviation": 13.98
           },
           {
             "top": 4060,
             "pct": {
-              "field": 63.23,
-              "bone": 30.73,
-              "graphite": 4.12,
+              "field": 57.67,
+              "bone": 35.37,
+              "graphite": 5.03,
               "accent": 1.92
             },
-            "deviation": 7.91
+            "deviation": 10.75
           },
           {
             "top": 4872,
             "pct": {
-              "field": 51.56,
-              "bone": 44.14,
-              "graphite": 4.30,
+              "field": 50.64,
+              "bone": 45.15,
+              "graphite": 4.21,
               "accent": 0.00
             },
-            "deviation": 28.27
+            "deviation": 30.29
           },
           {
             "top": 5684,
             "pct": {
-              "field": 46.66,
-              "bone": 47.84,
-              "graphite": 5.50,
+              "field": 42.09,
+              "bone": 52.33,
+              "graphite": 5.59,
               "accent": 0.00
             },
-            "deviation": 35.69
+            "deviation": 44.65
           },
           {
-            "top": 6004,
+            "top": 6238,
             "pct": {
               "field": 50.44,
               "bone": 43.85,
               "graphite": 5.70,
               "accent": 0.01
             },
-            "deviation": 27.70
+            "deviation": 27.69
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 6239,
+          "worst": {
+            "top": 6034,
+            "deviation": 45.70
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 662,
+                "pct": 40.80
+              },
+              "max": {
+                "top": 1663,
+                "pct": 72.30
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1493,
+                "pct": 16.90
+              },
+              "max": {
+                "top": 6034,
+                "pct": 52.85
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -2178,52 +2481,52 @@
       "view": "rest",
       "dimensions": {
         "width": 375,
-        "height": 5605
+        "height": 5818
       },
       "pixels": {
-        "total": 2101875
+        "total": 2181750
       },
       "buckets": {
         "field": {
-          "pixels": 1221448,
-          "pct": 58.11
+          "pixels": 1244787,
+          "pct": 57.05
         },
         "bone": {
-          "pixels": 688905,
-          "pct": 32.78
+          "pixels": 741842,
+          "pct": 34.00
         },
         "graphite": {
-          "pixels": 151708,
-          "pct": 7.22
+          "pixels": 155846,
+          "pct": 7.14
         },
         "accent": {
-          "pixels": 39814,
-          "pct": 1.89
+          "pixels": 39275,
+          "pct": 1.80
         }
       },
-      "deviation": 5.55,
+      "deviation": 8.00,
       "tokens": {
-        "flare": 22.82,
-        "graphite": 2.48,
-        "bone": 23.28,
-        "espresso": 35.29,
-        "sand": 9.50,
+        "flare": 22.45,
+        "graphite": 2.42,
+        "bone": 24.85,
+        "espresso": 34.60,
+        "sand": 9.15,
         "fog": 0.00,
-        "void": 1.86,
-        "acid": 0.88,
-        "marigold": 0.93,
+        "void": 1.79,
+        "acid": 0.84,
+        "marigold": 0.88,
         "cobalt": 0.00,
         "signal": 0.03,
-        "moss": 0.06,
-        "spec:676562": 0.80,
+        "moss": 0.05,
+        "spec:676562": 0.83,
         "spec-sunken:535250": 0.22,
-        "spec:b8aaa4": 0.88,
-        "spec-sunken:ccbeb8": 0.54,
+        "spec:b8aaa4": 0.90,
+        "spec-sunken:ccbeb8": 0.55,
         "spec:4e4f49": 0.10,
         "spec-sunken:40413d": 0.33
       },
       "strays": {
-        "pctOverDeltaE12": 0.43,
+        "pctOverDeltaE12": 0.42,
         "meanDeltaE": 0.28,
         "top": [
           {
@@ -2251,249 +2554,10 @@
             "deltaE": 12.28
           },
           {
-            "hex": "#b78313",
-            "pct": 0.01,
-            "nearest": "marigold",
-            "deltaE": 19.84
-          }
-        ],
-        "nearMisses": [
-          {
-            "hex": "#f73e06",
-            "pct": 1.72,
-            "nearest": "flare",
-            "deltaE": 0.80
-          },
-          {
-            "hex": "#f83e06",
-            "pct": 0.92,
-            "nearest": "flare",
-            "deltaE": 0.40
-          },
-          {
-            "hex": "#f63e06",
-            "pct": 0.64,
-            "nearest": "flare",
-            "deltaE": 1.21
-          },
-          {
-            "hex": "#f53e06",
-            "pct": 0.11,
-            "nearest": "flare",
-            "deltaE": 1.61
-          },
-          {
-            "hex": "#f73d06",
-            "pct": 0.08,
-            "nearest": "flare",
-            "deltaE": 0.72
-          }
-        ]
-      },
-      "scrollingForm": {
-        "viewportHeight": 812,
-        "count": 7,
-        "mean": {
-          "field": 57.77,
-          "bone": 33.13,
-          "graphite": 7.23,
-          "accent": 1.87
-        },
-        "meanDeviation": 6.27,
-        "inkOnPaper": 18.05,
-        "worst": {
-          "top": 2436,
-          "deviation": 30.65
-        },
-        "breaches": [
-          "accents painting: marigold 0.93, acid 0.88 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
-        ],
-        "windows": [
-          {
-            "top": 0,
-            "pct": {
-              "field": 64.32,
-              "bone": 27.48,
-              "graphite": 6.03,
-              "accent": 2.17
-            },
-            "deviation": 8.98
-          },
-          {
-            "top": 812,
-            "pct": {
-              "field": 50.83,
-              "bone": 31.86,
-              "graphite": 13.38,
-              "accent": 3.92
-            },
-            "deviation": 18.35
-          },
-          {
-            "top": 1624,
-            "pct": {
-              "field": 66.80,
-              "bone": 25.19,
-              "graphite": 5.32,
-              "accent": 2.69
-            },
-            "deviation": 14.99
-          },
-          {
-            "top": 2436,
-            "pct": {
-              "field": 44.68,
-              "bone": 42.83,
-              "graphite": 10.26,
-              "accent": 2.24
-            },
-            "deviation": 30.65
-          },
-          {
-            "top": 3248,
-            "pct": {
-              "field": 59.36,
-              "bone": 35.43,
-              "graphite": 5.10,
-              "accent": 0.11
-            },
-            "deviation": 10.86
-          },
-          {
-            "top": 4060,
-            "pct": {
-              "field": 67.96,
-              "bone": 25.29,
-              "graphite": 4.82,
-              "accent": 1.92
-            },
-            "deviation": 15.93
-          },
-          {
-            "top": 4793,
-            "pct": {
-              "field": 50.44,
-              "bone": 43.85,
-              "graphite": 5.70,
-              "accent": 0.01
-            },
-            "deviation": 27.69
-          }
-        ]
-      },
-      "composition": {
-        "pageGround": null,
-        "sections": [
-          {
-            "label": "div.hero-frame",
-            "top": 0,
-            "height": 276,
-            "pct": {
-              "field": 74.39,
-              "bone": 16.31,
-              "graphite": 8.95,
-              "accent": 0.35
-            },
-            "deviation": 30.67,
-            "held": true
-          }
-        ],
-        "nested": [],
-        "breaches": []
-      },
-      "externalRequests": 0,
-      "settleAttempts": 3,
-      "announcements": []
-    },
-    "app.375x812.dark.seeded.breakdown": {
-      "screen": "app",
-      "viewport": {
-        "width": 375,
-        "height": 812,
-        "mobile": true
-      },
-      "theme": "dark",
-      "state": "seeded",
-      "view": "breakdown",
-      "dimensions": {
-        "width": 375,
-        "height": 5800
-      },
-      "pixels": {
-        "total": 2175000
-      },
-      "buckets": {
-        "field": {
-          "pixels": 1279758,
-          "pct": 58.84
-        },
-        "bone": {
-          "pixels": 696794,
-          "pct": 32.04
-        },
-        "graphite": {
-          "pixels": 158626,
-          "pct": 7.29
-        },
-        "accent": {
-          "pixels": 39822,
-          "pct": 1.83
-        }
-      },
-      "deviation": 4.07,
-      "tokens": {
-        "flare": 22.49,
-        "graphite": 2.41,
-        "bone": 22.86,
-        "espresso": 36.35,
-        "sand": 9.18,
-        "fog": 0.00,
-        "void": 1.91,
-        "acid": 0.85,
-        "marigold": 0.90,
-        "cobalt": 0.00,
-        "signal": 0.03,
-        "moss": 0.05,
-        "spec:676562": 0.83,
-        "spec-sunken:535250": 0.22,
-        "spec:b8aaa4": 0.92,
-        "spec-sunken:ccbeb8": 0.55,
-        "spec:4e4f49": 0.11,
-        "spec-sunken:40413d": 0.35
-      },
-      "strays": {
-        "pctOverDeltaE12": 0.44,
-        "meanDeltaE": 0.29,
-        "top": [
-          {
-            "hex": "#8e8885",
-            "pct": 0.02,
-            "nearest": "spec:b8aaa4",
-            "deltaE": 13.91
-          },
-          {
-            "hex": "#90827c",
+            "hex": "#8a8581",
             "pct": 0.01,
             "nearest": "spec:676562",
-            "deltaE": 13.58
-          },
-          {
-            "hex": "#988a84",
-            "pct": 0.01,
-            "nearest": "spec:b8aaa4",
-            "deltaE": 12.09
-          },
-          {
-            "hex": "#8c7f79",
-            "pct": 0.01,
-            "nearest": "spec:676562",
-            "deltaE": 12.28
-          },
-          {
-            "hex": "#92847e",
-            "pct": 0.01,
-            "nearest": "spec:676562",
-            "deltaE": 14.29
+            "deltaE": 13.04
           }
         ],
         "nearMisses": [
@@ -2533,102 +2597,415 @@
         "viewportHeight": 812,
         "count": 8,
         "mean": {
-          "field": 57.15,
-          "bone": 34.04,
-          "graphite": 7.18,
-          "accent": 1.63
+          "field": 55.47,
+          "bone": 35.87,
+          "graphite": 7.05,
+          "accent": 1.61
         },
-        "meanDeviation": 8.07,
-        "inkOnPaper": 18.54,
+        "meanDeviation": 11.73,
+        "inkOnPaper": 17.36,
         "worst": {
-          "top": 1624,
-          "deviation": 33.78
+          "top": 4872,
+          "deviation": 31.72
         },
         "breaches": [
-          "accents painting: marigold 0.90, acid 0.85 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+          "accents painting: marigold 0.88, acid 0.84 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 63.74,
-              "bone": 27.74,
-              "graphite": 6.35,
+              "field": 60.79,
+              "bone": 30.89,
+              "graphite": 6.16,
               "accent": 2.17
             },
-            "deviation": 7.82
+            "deviation": 3.69
           },
           {
             "top": 812,
             "pct": {
-              "field": 59.05,
-              "bone": 26.35,
-              "graphite": 14.57,
-              "accent": 0.03
+              "field": 49.21,
+              "bone": 38.13,
+              "graphite": 12.64,
+              "accent": 0.02
             },
-            "deviation": 13.15
+            "deviation": 25.54
           },
           {
             "top": 1624,
             "pct": {
-              "field": 72.30,
-              "bone": 17.51,
-              "graphite": 3.60,
-              "accent": 6.59
+              "field": 71.25,
+              "bone": 17.48,
+              "graphite": 4.77,
+              "accent": 6.50
             },
-            "deviation": 33.78
+            "deviation": 31.51
           },
           {
             "top": 2436,
             "pct": {
-              "field": 44.80,
-              "bone": 41.77,
-              "graphite": 11.19,
+              "field": 46.42,
+              "bone": 40.34,
+              "graphite": 11.00,
               "accent": 2.24
             },
-            "deviation": 30.41
+            "deviation": 27.16
           },
           {
             "top": 3248,
             "pct": {
-              "field": 57.86,
-              "bone": 36.91,
-              "graphite": 5.13,
+              "field": 57.95,
+              "bone": 36.92,
+              "graphite": 5.02,
               "accent": 0.11
             },
-            "deviation": 13.81
+            "deviation": 13.85
           },
           {
             "top": 4060,
             "pct": {
-              "field": 60.82,
-              "bone": 32.45,
-              "graphite": 4.81,
-              "accent": 1.92
+              "field": 59.75,
+              "bone": 33.48,
+              "graphite": 4.93,
+              "accent": 1.84
             },
-            "deviation": 6.54
+            "deviation": 6.96
           },
           {
             "top": 4872,
             "pct": {
-              "field": 48.18,
-              "bone": 45.70,
-              "graphite": 6.11,
+              "field": 47.93,
+              "bone": 45.86,
+              "graphite": 6.20,
               "accent": 0.01
             },
-            "deviation": 31.40
+            "deviation": 31.72
           },
           {
-            "top": 4988,
+            "top": 5006,
             "pct": {
-              "field": 50.44,
-              "bone": 43.85,
+              "field": 50.46,
+              "bone": 43.83,
               "graphite": 5.70,
               "accent": 0.01
             },
-            "deviation": 27.70
+            "deviation": 27.67
+          }
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 5007,
+          "worst": {
+            "top": 659,
+            "deviation": 40.39
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 2786,
+                "pct": 41.95
+              },
+              "max": {
+                "top": 1642,
+                "pct": 72.40
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1471,
+                "pct": 16.90
+              },
+              "max": {
+                "top": 658,
+                "pct": 50.19
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
+      },
+      "composition": {
+        "pageGround": null,
+        "sections": [
+          {
+            "label": "div.hero-frame",
+            "top": 0,
+            "height": 276,
+            "pct": {
+              "field": 74.39,
+              "bone": 16.31,
+              "graphite": 8.95,
+              "accent": 0.35
+            },
+            "deviation": 30.67,
+            "held": true
+          }
+        ],
+        "nested": [],
+        "breaches": []
+      },
+      "externalRequests": 0,
+      "settleAttempts": 3,
+      "announcements": []
+    },
+    "app.375x812.dark.seeded.breakdown": {
+      "screen": "app",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "mobile": true
+      },
+      "theme": "dark",
+      "state": "seeded",
+      "view": "breakdown",
+      "dimensions": {
+        "width": 375,
+        "height": 6013
+      },
+      "pixels": {
+        "total": 2254875
+      },
+      "buckets": {
+        "field": {
+          "pixels": 1303109,
+          "pct": 57.79
+        },
+        "bone": {
+          "pixels": 749718,
+          "pct": 33.25
+        },
+        "graphite": {
+          "pixels": 162767,
+          "pct": 7.22
+        },
+        "accent": {
+          "pixels": 39281,
+          "pct": 1.74
+        }
+      },
+      "deviation": 6.50,
+      "tokens": {
+        "flare": 22.15,
+        "graphite": 2.36,
+        "bone": 24.40,
+        "espresso": 35.64,
+        "sand": 8.85,
+        "fog": 0.00,
+        "void": 1.84,
+        "acid": 0.81,
+        "marigold": 0.85,
+        "cobalt": 0.00,
+        "signal": 0.03,
+        "moss": 0.05,
+        "spec:676562": 0.85,
+        "spec-sunken:535250": 0.22,
+        "spec:b8aaa4": 0.94,
+        "spec-sunken:ccbeb8": 0.56,
+        "spec:4e4f49": 0.10,
+        "spec-sunken:40413d": 0.34
+      },
+      "strays": {
+        "pctOverDeltaE12": 0.44,
+        "meanDeltaE": 0.28,
+        "top": [
+          {
+            "hex": "#8e8885",
+            "pct": 0.02,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 13.91
+          },
+          {
+            "hex": "#90827c",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 13.58
+          },
+          {
+            "hex": "#988a84",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.09
+          },
+          {
+            "hex": "#8c7f79",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 12.28
+          },
+          {
+            "hex": "#958882",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.95
+          }
+        ],
+        "nearMisses": [
+          {
+            "hex": "#f73e06",
+            "pct": 1.60,
+            "nearest": "flare",
+            "deltaE": 0.80
+          },
+          {
+            "hex": "#f83e06",
+            "pct": 0.86,
+            "nearest": "flare",
+            "deltaE": 0.40
+          },
+          {
+            "hex": "#f63e06",
+            "pct": 0.60,
+            "nearest": "flare",
+            "deltaE": 1.21
+          },
+          {
+            "hex": "#f53e06",
+            "pct": 0.11,
+            "nearest": "flare",
+            "deltaE": 1.61
+          },
+          {
+            "hex": "#f73d06",
+            "pct": 0.07,
+            "nearest": "flare",
+            "deltaE": 0.72
           }
         ]
+      },
+      "scrollingForm": {
+        "viewportHeight": 812,
+        "count": 8,
+        "mean": {
+          "field": 56.68,
+          "bone": 34.59,
+          "graphite": 7.12,
+          "accent": 1.61
+        },
+        "meanDeviation": 9.17,
+        "inkOnPaper": 17.84,
+        "worst": {
+          "top": 5201,
+          "deviation": 27.67
+        },
+        "breaches": [
+          "accents painting: marigold 0.85, acid 0.81 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+        ],
+        "windows": [
+          {
+            "top": 0,
+            "pct": {
+              "field": 60.79,
+              "bone": 30.88,
+              "graphite": 6.16,
+              "accent": 2.17
+            },
+            "deviation": 3.68
+          },
+          {
+            "top": 812,
+            "pct": {
+              "field": 54.04,
+              "bone": 36.91,
+              "graphite": 9.04,
+              "accent": 0.01
+            },
+            "deviation": 15.91
+          },
+          {
+            "top": 1624,
+            "pct": {
+              "field": 64.89,
+              "bone": 19.47,
+              "graphite": 9.81,
+              "accent": 5.83
+            },
+            "deviation": 21.06
+          },
+          {
+            "top": 2436,
+            "pct": {
+              "field": 53.94,
+              "bone": 37.94,
+              "graphite": 7.42,
+              "accent": 0.70
+            },
+            "deviation": 15.88
+          },
+          {
+            "top": 3248,
+            "pct": {
+              "field": 51.26,
+              "bone": 37.53,
+              "graphite": 8.89,
+              "accent": 2.33
+            },
+            "deviation": 17.49
+          },
+          {
+            "top": 4060,
+            "pct": {
+              "field": 61.48,
+              "bone": 32.39,
+              "graphite": 4.60,
+              "accent": 1.53
+            },
+            "deviation": 7.74
+          },
+          {
+            "top": 4872,
+            "pct": {
+              "field": 56.58,
+              "bone": 37.74,
+              "graphite": 5.37,
+              "accent": 0.32
+            },
+            "deviation": 15.47
+          },
+          {
+            "top": 5201,
+            "pct": {
+              "field": 50.46,
+              "bone": 43.83,
+              "graphite": 5.70,
+              "accent": 0.01
+            },
+            "deviation": 27.67
+          }
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 5202,
+          "worst": {
+            "top": 2982,
+            "deviation": 36.11
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 2981,
+                "pct": 41.95
+              },
+              "max": {
+                "top": 1838,
+                "pct": 72.40
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1666,
+                "pct": 16.90
+              },
+              "max": {
+                "top": 5002,
+                "pct": 46.83
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -2867,7 +3244,39 @@
             },
             "deviation": 10.71
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 4237,
+          "worst": {
+            "top": 2483,
+            "deviation": 49.48
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 2483,
+                "pct": 35.26
+              },
+              "max": {
+                "top": 1522,
+                "pct": 73.54
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1520,
+                "pct": 19.15
+              },
+              "max": {
+                "top": 2603,
+                "pct": 51.80
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -3096,7 +3505,39 @@
             },
             "deviation": 5.80
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 3495,
+          "worst": {
+            "top": 2302,
+            "deviation": 49.68
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 2302,
+                "pct": 35.16
+              },
+              "max": {
+                "top": 1353,
+                "pct": 74.27
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1351,
+                "pct": 19.31
+              },
+              "max": {
+                "top": 2423,
+                "pct": 51.90
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -3134,48 +3575,48 @@
       "view": "rest",
       "dimensions": {
         "width": 375,
-        "height": 6816
+        "height": 7050
       },
       "pixels": {
-        "total": 2556000
+        "total": 2643750
       },
       "buckets": {
         "field": {
-          "pixels": 1448756,
-          "pct": 56.68
+          "pixels": 1517071,
+          "pct": 57.38
         },
         "bone": {
-          "pixels": 896655,
-          "pct": 35.08
+          "pixels": 910424,
+          "pct": 34.44
         },
         "graphite": {
-          "pixels": 170588,
+          "pixels": 176252,
           "pct": 6.67
         },
         "accent": {
-          "pixels": 40001,
-          "pct": 1.56
+          "pixels": 40003,
+          "pct": 1.51
         }
       },
-      "deviation": 10.16,
+      "deviation": 8.87,
       "tokens": {
-        "flare": 21.06,
-        "graphite": 3.96,
-        "bone": 33.54,
-        "espresso": 35.62,
-        "sand": 1.54,
+        "flare": 20.78,
+        "graphite": 3.90,
+        "bone": 32.95,
+        "espresso": 36.60,
+        "sand": 1.49,
         "fog": 0.00,
         "void": 0.00,
-        "acid": 0.72,
-        "marigold": 0.76,
+        "acid": 0.70,
+        "marigold": 0.74,
         "cobalt": 0.00,
         "signal": 0.03,
         "moss": 0.05,
-        "spec:676562": 0.77,
+        "spec:676562": 0.79,
         "spec-sunken:535250": 0.23,
-        "spec:b8aaa4": 0.82,
+        "spec:b8aaa4": 0.85,
         "spec-sunken:ccbeb8": 0.48,
-        "spec:4e4f49": 0.08,
+        "spec:4e4f49": 0.09,
         "spec-sunken:40413d": 0.33
       },
       "strays": {
@@ -3216,19 +3657,19 @@
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 1.42,
+            "pct": 1.37,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 0.76,
+            "pct": 0.73,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 0.53,
+            "pct": 0.51,
             "nearest": "flare",
             "deltaE": 1.21
           },
@@ -3250,112 +3691,144 @@
         "viewportHeight": 812,
         "count": 9,
         "mean": {
-          "field": 57.05,
-          "bone": 34.96,
-          "graphite": 6.53,
+          "field": 58.37,
+          "bone": 33.62,
+          "graphite": 6.55,
           "accent": 1.46
         },
-        "meanDeviation": 9.92,
-        "inkOnPaper": 15.98,
+        "meanDeviation": 7.24,
+        "inkOnPaper": 16.22,
         "worst": {
-          "top": 6004,
-          "deviation": 27.96
+          "top": 6238,
+          "deviation": 27.95
         },
         "breaches": [
-          "accents painting: marigold 0.76, acid 0.72 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+          "accents painting: marigold 0.74, acid 0.70 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 57.50,
-              "bone": 32.85,
-              "graphite": 7.44,
-              "accent": 2.21
+              "field": 59.36,
+              "bone": 31.12,
+              "graphite": 7.31,
+              "accent": 2.20
             },
-            "deviation": 6.12
+            "deviation": 2.66
           },
           {
             "top": 812,
             "pct": {
-              "field": 47.65,
-              "bone": 39.47,
-              "graphite": 8.96,
-              "accent": 3.93
+              "field": 53.13,
+              "bone": 40.04,
+              "graphite": 6.81,
+              "accent": 0.02
             },
-            "deviation": 24.71
+            "deviation": 20.09
           },
           {
             "top": 1624,
             "pct": {
-              "field": 68.84,
-              "bone": 22.04,
-              "graphite": 6.43,
-              "accent": 2.70
+              "field": 65.33,
+              "bone": 20.22,
+              "graphite": 7.84,
+              "accent": 6.62
             },
-            "deviation": 19.08
+            "deviation": 19.89
           },
           {
             "top": 2436,
             "pct": {
-              "field": 53.43,
-              "bone": 34.72,
-              "graphite": 9.61,
+              "field": 49.24,
+              "bone": 37.73,
+              "graphite": 10.78,
               "accent": 2.25
             },
-            "deviation": 13.15
+            "deviation": 21.52
           },
           {
             "top": 3248,
             "pct": {
-              "field": 48.70,
-              "bone": 43.93,
-              "graphite": 7.26,
+              "field": 50.28,
+              "bone": 42.40,
+              "graphite": 7.21,
               "accent": 0.11
             },
-            "deviation": 27.86
+            "deviation": 24.80
           },
           {
             "top": 4060,
             "pct": {
-              "field": 50.52,
-              "bone": 41.35,
-              "graphite": 6.20,
+              "field": 55.19,
+              "bone": 36.23,
+              "graphite": 6.65,
               "accent": 1.93
             },
-            "deviation": 22.71
+            "deviation": 12.46
           },
           {
             "top": 4872,
             "pct": {
-              "field": 54.52,
-              "bone": 41.15,
-              "graphite": 4.34,
+              "field": 55.53,
+              "bone": 40.22,
+              "graphite": 4.25,
               "accent": 0.00
             },
-            "deviation": 22.29
+            "deviation": 20.44
           },
           {
             "top": 5684,
             "pct": {
-              "field": 58.31,
-              "bone": 37.03,
-              "graphite": 4.66,
+              "field": 63.26,
+              "bone": 32.50,
+              "graphite": 4.23,
               "accent": 0.00
             },
-            "deviation": 14.06
+            "deviation": 11.53
           },
           {
-            "top": 6004,
+            "top": 6238,
             "pct": {
               "field": 73.98,
               "bone": 22.12,
               "graphite": 3.89,
               "accent": 0.01
             },
-            "deviation": 27.96
+            "deviation": 27.95
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 6239,
+          "worst": {
+            "top": 4599,
+            "deviation": 33.99
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 937,
+                "pct": 43.82
+              },
+              "max": {
+                "top": 6238,
+                "pct": 73.98
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1617,
+                "pct": 19.94
+              },
+              "max": {
+                "top": 4599,
+                "pct": 46.99
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -3393,292 +3866,53 @@
       "view": "rest",
       "dimensions": {
         "width": 375,
-        "height": 5605
+        "height": 5818
       },
       "pixels": {
-        "total": 2101875
+        "total": 2181750
       },
       "buckets": {
         "field": {
-          "pixels": 1182340,
-          "pct": 56.25
+          "pixels": 1243641,
+          "pct": 57.00
         },
         "bone": {
-          "pixels": 727603,
-          "pct": 34.62
+          "pixels": 741415,
+          "pct": 33.98
         },
         "graphite": {
-          "pixels": 151931,
-          "pct": 7.23
+          "pixels": 157232,
+          "pct": 7.21
         },
         "accent": {
-          "pixels": 40001,
-          "pct": 1.90
+          "pixels": 39462,
+          "pct": 1.81
         }
       },
-      "deviation": 9.23,
+      "deviation": 7.97,
       "tokens": {
-        "flare": 22.82,
-        "graphite": 4.35,
-        "bone": 32.74,
-        "espresso": 33.43,
-        "sand": 1.87,
+        "flare": 22.45,
+        "graphite": 4.28,
+        "bone": 32.18,
+        "espresso": 34.55,
+        "sand": 1.80,
         "fog": 0.00,
         "void": 0.00,
-        "acid": 0.88,
-        "marigold": 0.93,
+        "acid": 0.83,
+        "marigold": 0.88,
         "cobalt": 0.00,
         "signal": 0.03,
         "moss": 0.06,
-        "spec:676562": 0.81,
-        "spec-sunken:535250": 0.25,
-        "spec:b8aaa4": 0.86,
-        "spec-sunken:ccbeb8": 0.51,
-        "spec:4e4f49": 0.09,
-        "spec-sunken:40413d": 0.35
-      },
-      "strays": {
-        "pctOverDeltaE12": 0.43,
-        "meanDeltaE": 0.28,
-        "top": [
-          {
-            "hex": "#8e8885",
-            "pct": 0.02,
-            "nearest": "spec:b8aaa4",
-            "deltaE": 13.91
-          },
-          {
-            "hex": "#90827c",
-            "pct": 0.02,
-            "nearest": "spec:676562",
-            "deltaE": 13.58
-          },
-          {
-            "hex": "#988a84",
-            "pct": 0.01,
-            "nearest": "spec:b8aaa4",
-            "deltaE": 12.09
-          },
-          {
-            "hex": "#92847e",
-            "pct": 0.01,
-            "nearest": "spec:676562",
-            "deltaE": 14.29
-          },
-          {
-            "hex": "#8c7f79",
-            "pct": 0.01,
-            "nearest": "spec:676562",
-            "deltaE": 12.28
-          }
-        ],
-        "nearMisses": [
-          {
-            "hex": "#f73e06",
-            "pct": 1.72,
-            "nearest": "flare",
-            "deltaE": 0.80
-          },
-          {
-            "hex": "#f83e06",
-            "pct": 0.92,
-            "nearest": "flare",
-            "deltaE": 0.40
-          },
-          {
-            "hex": "#f63e06",
-            "pct": 0.64,
-            "nearest": "flare",
-            "deltaE": 1.21
-          },
-          {
-            "hex": "#f53e06",
-            "pct": 0.11,
-            "nearest": "flare",
-            "deltaE": 1.61
-          },
-          {
-            "hex": "#f73d06",
-            "pct": 0.08,
-            "nearest": "flare",
-            "deltaE": 0.72
-          }
-        ]
-      },
-      "scrollingForm": {
-        "viewportHeight": 812,
-        "count": 7,
-        "mean": {
-          "field": 56.43,
-          "bone": 34.50,
-          "graphite": 7.19,
-          "accent": 1.88
-        },
-        "meanDeviation": 9.00,
-        "inkOnPaper": 17.27,
-        "worst": {
-          "top": 4060,
-          "deviation": 32.80
-        },
-        "breaches": [
-          "accents painting: marigold 0.93, acid 0.88 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
-        ],
-        "windows": [
-          {
-            "top": 0,
-            "pct": {
-              "field": 57.50,
-              "bone": 32.85,
-              "graphite": 7.44,
-              "accent": 2.21
-            },
-            "deviation": 6.12
-          },
-          {
-            "top": 812,
-            "pct": {
-              "field": 47.65,
-              "bone": 39.47,
-              "graphite": 8.96,
-              "accent": 3.93
-            },
-            "deviation": 24.71
-          },
-          {
-            "top": 1624,
-            "pct": {
-              "field": 68.84,
-              "bone": 22.04,
-              "graphite": 6.43,
-              "accent": 2.70
-            },
-            "deviation": 19.07
-          },
-          {
-            "top": 2436,
-            "pct": {
-              "field": 53.43,
-              "bone": 34.72,
-              "graphite": 9.61,
-              "accent": 2.25
-            },
-            "deviation": 13.15
-          },
-          {
-            "top": 3248,
-            "pct": {
-              "field": 48.70,
-              "bone": 43.93,
-              "graphite": 7.26,
-              "accent": 0.11
-            },
-            "deviation": 27.86
-          },
-          {
-            "top": 4060,
-            "pct": {
-              "field": 44.92,
-              "bone": 46.40,
-              "graphite": 6.75,
-              "accent": 1.93
-            },
-            "deviation": 32.80
-          },
-          {
-            "top": 4793,
-            "pct": {
-              "field": 73.98,
-              "bone": 22.12,
-              "graphite": 3.89,
-              "accent": 0.01
-            },
-            "deviation": 27.95
-          }
-        ]
-      },
-      "composition": {
-        "pageGround": null,
-        "sections": [
-          {
-            "label": "div.hero-frame",
-            "top": 0,
-            "height": 276,
-            "pct": {
-              "field": 74.39,
-              "bone": 16.31,
-              "graphite": 8.95,
-              "accent": 0.35
-            },
-            "deviation": 30.67,
-            "held": true
-          }
-        ],
-        "nested": [],
-        "breaches": []
-      },
-      "externalRequests": 0,
-      "settleAttempts": 3,
-      "announcements": []
-    },
-    "app.375x812.light.seeded.breakdown": {
-      "screen": "app",
-      "viewport": {
-        "width": 375,
-        "height": 812,
-        "mobile": true
-      },
-      "theme": "light",
-      "state": "seeded",
-      "view": "breakdown",
-      "dimensions": {
-        "width": 375,
-        "height": 5800
-      },
-      "pixels": {
-        "total": 2175000
-      },
-      "buckets": {
-        "field": {
-          "pixels": 1191589,
-          "pct": 54.79
-        },
-        "bone": {
-          "pixels": 779169,
-          "pct": 35.82
-        },
-        "graphite": {
-          "pixels": 164222,
-          "pct": 7.55
-        },
-        "accent": {
-          "pixels": 40020,
-          "pct": 1.84
-        }
-      },
-      "deviation": 11.65,
-      "tokens": {
-        "flare": 22.49,
-        "graphite": 4.57,
-        "bone": 33.90,
-        "espresso": 32.29,
-        "sand": 1.92,
-        "fog": 0.00,
-        "void": 0.00,
-        "acid": 0.85,
-        "marigold": 0.90,
-        "cobalt": 0.00,
-        "signal": 0.03,
-        "moss": 0.06,
-        "spec:676562": 0.85,
+        "spec:676562": 0.83,
         "spec-sunken:535250": 0.25,
         "spec:b8aaa4": 0.89,
-        "spec-sunken:ccbeb8": 0.53,
+        "spec-sunken:ccbeb8": 0.50,
         "spec:4e4f49": 0.09,
         "spec-sunken:40413d": 0.36
       },
       "strays": {
-        "pctOverDeltaE12": 0.43,
-        "meanDeltaE": 0.29,
+        "pctOverDeltaE12": 0.42,
+        "meanDeltaE": 0.28,
         "top": [
           {
             "hex": "#8e8885",
@@ -3748,102 +3982,415 @@
         "viewportHeight": 812,
         "count": 8,
         "mean": {
-          "field": 56.47,
-          "bone": 34.70,
-          "graphite": 7.19,
-          "accent": 1.64
+          "field": 58.37,
+          "bone": 33.12,
+          "graphite": 6.88,
+          "accent": 1.62
         },
-        "meanDeviation": 9.40,
-        "inkOnPaper": 17.41,
+        "meanDeviation": 6.24,
+        "inkOnPaper": 17.50,
         "worst": {
-          "top": 812,
-          "deviation": 47.51
+          "top": 5006,
+          "deviation": 28.14
         },
         "breaches": [
-          "accents painting: marigold 0.90, acid 0.85 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+          "accents painting: marigold 0.88, acid 0.83 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 55.56,
-              "bone": 34.29,
-              "graphite": 7.94,
-              "accent": 2.21
+              "field": 59.36,
+              "bone": 31.13,
+              "graphite": 7.31,
+              "accent": 2.20
             },
-            "deviation": 9.00
+            "deviation": 2.67
           },
           {
             "top": 812,
             "pct": {
-              "field": 38.21,
-              "bone": 50.75,
-              "graphite": 11.01,
-              "accent": 0.03
+              "field": 51.40,
+              "bone": 40.60,
+              "graphite": 7.98,
+              "accent": 0.02
             },
-            "deviation": 47.51
+            "deviation": 21.19
           },
           {
             "top": 1624,
             "pct": {
               "field": 65.26,
-              "bone": 22.57,
-              "graphite": 5.56,
-              "accent": 6.61
+              "bone": 21.53,
+              "graphite": 6.70,
+              "accent": 6.52
             },
-            "deviation": 19.74
+            "deviation": 19.56
           },
           {
             "top": 2436,
             "pct": {
-              "field": 52.28,
-              "bone": 34.57,
-              "graphite": 10.91,
+              "field": 50.72,
+              "bone": 36.15,
+              "graphite": 10.88,
               "accent": 2.25
             },
-            "deviation": 15.44
+            "deviation": 18.56
           },
           {
             "top": 3248,
             "pct": {
-              "field": 50.21,
-              "bone": 42.65,
-              "graphite": 7.03,
+              "field": 50.22,
+              "bone": 42.57,
+              "graphite": 7.10,
               "accent": 0.11
             },
-            "deviation": 25.31
+            "deviation": 25.15
           },
           {
             "top": 4060,
             "pct": {
-              "field": 52.32,
-              "bone": 39.16,
-              "graphite": 6.59,
-              "accent": 1.93
+              "field": 53.35,
+              "bone": 38.24,
+              "graphite": 6.56,
+              "accent": 1.85
             },
-            "deviation": 18.32
+            "deviation": 16.49
           },
           {
             "top": 4872,
             "pct": {
-              "field": 63.94,
-              "bone": 31.48,
-              "graphite": 4.56,
+              "field": 62.61,
+              "bone": 32.73,
+              "graphite": 4.65,
               "accent": 0.01
             },
-            "deviation": 10.85
+            "deviation": 10.68
           },
           {
-            "top": 4988,
+            "top": 5006,
             "pct": {
-              "field": 73.98,
-              "bone": 22.12,
+              "field": 74.07,
+              "bone": 22.03,
               "graphite": 3.89,
               "accent": 0.01
             },
-            "deviation": 27.96
+            "deviation": 28.14
+          }
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 5007,
+          "worst": {
+            "top": 4217,
+            "deviation": 34.10
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 916,
+                "pct": 43.73
+              },
+              "max": {
+                "top": 5006,
+                "pct": 74.07
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1596,
+                "pct": 20.03
+              },
+              "max": {
+                "top": 4217,
+                "pct": 47.05
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
+      },
+      "composition": {
+        "pageGround": null,
+        "sections": [
+          {
+            "label": "div.hero-frame",
+            "top": 0,
+            "height": 276,
+            "pct": {
+              "field": 74.39,
+              "bone": 16.31,
+              "graphite": 8.95,
+              "accent": 0.35
+            },
+            "deviation": 30.67,
+            "held": true
+          }
+        ],
+        "nested": [],
+        "breaches": []
+      },
+      "externalRequests": 0,
+      "settleAttempts": 3,
+      "announcements": []
+    },
+    "app.375x812.light.seeded.breakdown": {
+      "screen": "app",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "mobile": true
+      },
+      "theme": "light",
+      "state": "seeded",
+      "view": "breakdown",
+      "dimensions": {
+        "width": 375,
+        "height": 6013
+      },
+      "pixels": {
+        "total": 2254875
+      },
+      "buckets": {
+        "field": {
+          "pixels": 1252884,
+          "pct": 55.56
+        },
+        "bone": {
+          "pixels": 793002,
+          "pct": 35.17
+        },
+        "graphite": {
+          "pixels": 169508,
+          "pct": 7.52
+        },
+        "accent": {
+          "pixels": 39481,
+          "pct": 1.75
+        }
+      },
+      "deviation": 10.34,
+      "tokens": {
+        "flare": 22.15,
+        "graphite": 4.50,
+        "bone": 33.31,
+        "espresso": 33.41,
+        "sand": 1.86,
+        "fog": 0.00,
+        "void": 0.00,
+        "acid": 0.81,
+        "marigold": 0.85,
+        "cobalt": 0.00,
+        "signal": 0.03,
+        "moss": 0.06,
+        "spec:676562": 0.87,
+        "spec-sunken:535250": 0.25,
+        "spec:b8aaa4": 0.92,
+        "spec-sunken:ccbeb8": 0.53,
+        "spec:4e4f49": 0.09,
+        "spec-sunken:40413d": 0.36
+      },
+      "strays": {
+        "pctOverDeltaE12": 0.43,
+        "meanDeltaE": 0.29,
+        "top": [
+          {
+            "hex": "#8e8885",
+            "pct": 0.02,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 13.91
+          },
+          {
+            "hex": "#90827c",
+            "pct": 0.02,
+            "nearest": "spec:676562",
+            "deltaE": 13.58
+          },
+          {
+            "hex": "#988a84",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.09
+          },
+          {
+            "hex": "#92847e",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 14.29
+          },
+          {
+            "hex": "#8c7f79",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 12.28
+          }
+        ],
+        "nearMisses": [
+          {
+            "hex": "#f73e06",
+            "pct": 1.60,
+            "nearest": "flare",
+            "deltaE": 0.80
+          },
+          {
+            "hex": "#f83e06",
+            "pct": 0.86,
+            "nearest": "flare",
+            "deltaE": 0.40
+          },
+          {
+            "hex": "#f63e06",
+            "pct": 0.60,
+            "nearest": "flare",
+            "deltaE": 1.21
+          },
+          {
+            "hex": "#f53e06",
+            "pct": 0.11,
+            "nearest": "flare",
+            "deltaE": 1.61
+          },
+          {
+            "hex": "#f73d06",
+            "pct": 0.07,
+            "nearest": "flare",
+            "deltaE": 0.72
           }
         ]
+      },
+      "scrollingForm": {
+        "viewportHeight": 812,
+        "count": 8,
+        "mean": {
+          "field": 56.02,
+          "bone": 35.06,
+          "graphite": 7.30,
+          "accent": 1.62
+        },
+        "meanDeviation": 10.13,
+        "inkOnPaper": 17.61,
+        "worst": {
+          "top": 4872,
+          "deviation": 33.76
+        },
+        "breaches": [
+          "accents painting: marigold 0.85, acid 0.81 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+        ],
+        "windows": [
+          {
+            "top": 0,
+            "pct": {
+              "field": 59.39,
+              "bone": 31.10,
+              "graphite": 7.30,
+              "accent": 2.21
+            },
+            "deviation": 2.62
+          },
+          {
+            "top": 812,
+            "pct": {
+              "field": 48.54,
+              "bone": 42.61,
+              "graphite": 8.83,
+              "accent": 0.01
+            },
+            "deviation": 26.89
+          },
+          {
+            "top": 1624,
+            "pct": {
+              "field": 63.60,
+              "bone": 23.07,
+              "graphite": 7.50,
+              "accent": 5.84
+            },
+            "deviation": 14.87
+          },
+          {
+            "top": 2436,
+            "pct": {
+              "field": 52.20,
+              "bone": 35.54,
+              "graphite": 11.56,
+              "accent": 0.70
+            },
+            "deviation": 18.20
+          },
+          {
+            "top": 3248,
+            "pct": {
+              "field": 46.70,
+              "bone": 44.04,
+              "graphite": 6.92,
+              "accent": 2.33
+            },
+            "deviation": 28.75
+          },
+          {
+            "top": 4060,
+            "pct": {
+              "field": 56.60,
+              "bone": 35.23,
+              "graphite": 6.63,
+              "accent": 1.54
+            },
+            "deviation": 10.46
+          },
+          {
+            "top": 4872,
+            "pct": {
+              "field": 47.02,
+              "bone": 46.88,
+              "graphite": 5.78,
+              "accent": 0.32
+            },
+            "deviation": 33.76
+          },
+          {
+            "top": 5201,
+            "pct": {
+              "field": 74.07,
+              "bone": 22.03,
+              "graphite": 3.89,
+              "accent": 0.01
+            },
+            "deviation": 28.14
+          }
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 5202,
+          "worst": {
+            "top": 981,
+            "deviation": 47.70
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 981,
+                "pct": 38.14
+              },
+              "max": {
+                "top": 5201,
+                "pct": 74.07
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1791,
+                "pct": 20.03
+              },
+              "max": {
+                "top": 981,
+                "pct": 52.88
+              }
+            }
+          },
+          "excursions": [],
+          "breaches": []
+        }
       },
       "composition": {
         "pageGround": null,
@@ -4070,7 +4617,51 @@
             },
             "deviation": 30.60
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 4069,
+          "worst": {
+            "top": 1455,
+            "deviation": 55.72
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 1452,
+                "pct": 39.41
+              },
+              "max": {
+                "top": 3315,
+                "pct": 75.51
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 3995,
+                "pct": 18.52
+              },
+              "max": {
+                "top": 1453,
+                "pct": 57.86
+              }
+            }
+          },
+          "excursions": [
+            {
+              "bucket": "bone",
+              "side": "over",
+              "bound": 55,
+              "kind": "band",
+              "top": 1453,
+              "pct": 57.86,
+              "offsets": 175
+            }
+          ],
+          "breaches": [
+            "slide @1453: bone 57.86 over the 55 band (175 of 4069 offsets)"
+          ]
+        }
       },
       "composition": {
         "pageGround": "div.landing",
@@ -4351,7 +4942,51 @@
             },
             "deviation": 30.60
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 4069,
+          "worst": {
+            "top": 1455,
+            "deviation": 55.72
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 1452,
+                "pct": 39.41
+              },
+              "max": {
+                "top": 3315,
+                "pct": 75.51
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 3995,
+                "pct": 18.52
+              },
+              "max": {
+                "top": 1453,
+                "pct": 57.86
+              }
+            }
+          },
+          "excursions": [
+            {
+              "bucket": "bone",
+              "side": "over",
+              "bound": 55,
+              "kind": "band",
+              "top": 1453,
+              "pct": 57.86,
+              "offsets": 175
+            }
+          ],
+          "breaches": [
+            "slide @1453: bone 57.86 over the 55 band (175 of 4069 offsets)"
+          ]
+        }
       },
       "composition": {
         "pageGround": "div.landing",
@@ -4672,7 +5307,61 @@
             },
             "deviation": 18.67
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 6570,
+          "worst": {
+            "top": 5891,
+            "deviation": 53.96
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 5891,
+                "pct": 34.92
+              },
+              "max": {
+                "top": 3681,
+                "pct": 76.70
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 1734,
+                "pct": 15.33
+              },
+              "max": {
+                "top": 5755,
+                "pct": 55.65
+              }
+            }
+          },
+          "excursions": [
+            {
+              "bucket": "field",
+              "side": "under",
+              "bound": 35,
+              "kind": "band",
+              "top": 5891,
+              "pct": 34.92,
+              "offsets": 6
+            },
+            {
+              "bucket": "bone",
+              "side": "over",
+              "bound": 55,
+              "kind": "band",
+              "top": 5755,
+              "pct": 55.65,
+              "offsets": 150
+            }
+          ],
+          "breaches": [
+            "slide @5891: field 34.92 under the 35 band (6 of 6570 offsets)",
+            "slide @5755: bone 55.65 over the 55 band (150 of 6570 offsets)"
+          ]
+        }
       },
       "composition": {
         "pageGround": "div.landing",
@@ -4993,7 +5682,61 @@
             },
             "deviation": 18.67
           }
-        ]
+        ],
+        "sliding": {
+          "step": 1,
+          "offsets": 6570,
+          "worst": {
+            "top": 5891,
+            "deviation": 53.96
+          },
+          "extremes": {
+            "field": {
+              "min": {
+                "top": 5891,
+                "pct": 34.92
+              },
+              "max": {
+                "top": 3681,
+                "pct": 76.70
+              }
+            },
+            "bone": {
+              "min": {
+                "top": 3707,
+                "pct": 17.19
+              },
+              "max": {
+                "top": 5755,
+                "pct": 55.65
+              }
+            }
+          },
+          "excursions": [
+            {
+              "bucket": "field",
+              "side": "under",
+              "bound": 35,
+              "kind": "band",
+              "top": 5891,
+              "pct": 34.92,
+              "offsets": 6
+            },
+            {
+              "bucket": "bone",
+              "side": "over",
+              "bound": 55,
+              "kind": "band",
+              "top": 5755,
+              "pct": 55.65,
+              "offsets": 150
+            }
+          ],
+          "breaches": [
+            "slide @5891: field 34.92 under the 35 band (6 of 6570 offsets)",
+            "slide @5755: bone 55.65 over the 55 band (150 of 6570 offsets)"
+          ]
+        }
       },
       "composition": {
         "pageGround": "div.landing",

@@ -606,12 +606,21 @@ describe('health explainability drawer', () => {
 })
 
 /**
- * THE WEEK BLOCK — what card 01 prints in place of a score it has not earned.
+ * THE WEEK BLOCK — the last seven days of the record, on card 01, always.
  *
  * The whole point of the surface is comprehension, so these cases are about
  * what a stranger can read off it and what it is structurally incapable of
  * becoming. Two things it must never be, in the brief's own words: a streak the
  * user can lose, and an engagement figure on a money card.
+ *
+ * IT USED TO BE DELETED BY SETUP, AND THE CONTRACT BELOW IS THE ONE THAT
+ * CHANGED. The block first has something to say on day 3 — weekToDate needs two
+ * rows in a category before a repeat exists — and the card's own pre-setup
+ * control ("Set up my numbers") took it away, so the one line in week one the
+ * record knows and the person does not shipped only to users who refused the
+ * CTA. The score reads the profile and the block reads the record; they were
+ * never alternatives. The pair of cases at the end of this block are what stop
+ * the gate coming back.
  */
 describe('the week block', () => {
   const hero = () => screen.getByRole('main').querySelector('.hero-card') as HTMLElement
@@ -763,16 +772,78 @@ describe('the week block', () => {
     expect(hero().textContent).not.toMatch(/still haven|remember to|don.t forget|overdue|reminder/i)
   })
 
-  it('gives the block back the moment the numbers arrive', () => {
-    // The swap in the other direction: one of the two is on screen, never both.
+  it('KEEPS the block when the numbers arrive, beside the score and not instead of it', () => {
+    // THE CONTRACT THIS ROUND CHANGED, asserted in both directions rather than
+    // weakened away. It used to read `expect(...('.week-block')).toBeNull()`
+    // — setup deleted the record surface permanently, which is why the block
+    // only ever reached users who ignored the card's one control.
     seedRows([row({ id: 'a', amountDA: 400 })])
     render(<App />)
     expect(block()).not.toBeNull()
     fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
     fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
     fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
-    expect(hero().querySelector('.week-block')).toBeNull()
+    // Both, on one card: the score is a reading of the profile, the block is a
+    // reading of the record.
+    const readout = within(hero()).getByText(/^Health \d+(\.\d)?$/)
+    expect(block()).not.toBeNull()
+    expect(within(block()).getByText('400 DA logged')).toBeTruthy()
+    // …and the block is still named for AT after the swap it survived.
+    expect(within(hero()).getByRole('group', { name: 'Last 7 days' })).toBe(block())
+    // ORDER: the readout leads when there is one. The card's most specific
+    // answer comes first; the record follows it.
+    expect(readout.compareDocumentPosition(block()) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy()
+  })
+
+  it('prints the repeats line to a SET-UP user — the day-3 case the gate deleted', () => {
+    // The reason the gate was wrong, stated as a case. Four Food rows over four
+    // days is exactly the state a real user reaches around day 3, by which time
+    // almost nobody is still pre-setup — so the surface's one genuinely
+    // informative line used to ship to nearly nobody.
+    seedSetup({
+      transactions: [
+        { id: 'a', amountDA: 480, category: 'Food', date: todayISO(), resistedImpulse: false },
+        { id: 'b', amountDA: 520, category: 'Food', date: day(1), resistedImpulse: false },
+        { id: 'c', amountDA: 500, category: 'Food', date: day(2), resistedImpulse: false },
+        { id: 'd', amountDA: 420, category: 'Food', date: day(3), resistedImpulse: false },
+      ],
+    })
+    render(<App />)
+    const repeat = block().querySelector('.week-repeat') as HTMLElement
+    expect(within(repeat).getByText('Food')).toBeTruthy()
+    expect(within(repeat).getByText('4 rows')).toBeTruthy()
+    expect(within(repeat).getByText('1,920 DA')).toBeTruthy()
+    // The score is on the same card and the block still grades nothing: no
+    // target, no average, no projection, no superlative, no comparison.
     expect(within(hero()).getByText(/^Health \d+(\.\d)?$/)).toBeTruthy()
+    expect(block().textContent).not.toMatch(
+      /biggest|most|worst|top|highest|too much|should|budget|left|remaining|per day|projected|on track|480 DA/i,
+    )
+  })
+
+  it('carries no engagement figure and no profile figure once the score is on the card', () => {
+    // TRUST RULE 1 AND §12.3, on the state that did not exist before this
+    // round: a money block and a Health Score on one card. The block is handed
+    // `transactions` and a day (see App), so neither the XP track nor the
+    // profile can reach it — setupProfile's 60,000 DA income and 30,000 DA
+    // essentials and the XP level are on screen elsewhere on this page and
+    // must not appear here.
+    seedSetup({
+      transactions: [
+        { id: 'a', amountDA: 400, category: 'Food', date: todayISO(), resistedImpulse: false },
+      ],
+      xp: 510,
+    })
+    render(<App />)
+    expect(block().textContent).not.toMatch(/\bxp\b|level|badge|pet|quest|lesson|spark/i)
+    expect(block().textContent).not.toMatch(/60,000|30,000|income|essentials|health|score|stage/i)
+    // Logging through the card still pays exactly what a log pays, and the
+    // block moves because the RECORD moved.
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '1200' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(within(block()).getByText('1,600 DA logged')).toBeTruthy()
+    expect(block().textContent).not.toMatch(/\bxp\b|level/i)
   })
 
   it('keeps a badge earned before setup on screen (Trust Rule 2)', () => {
@@ -1088,6 +1159,13 @@ describe('daily lesson + codex', () => {
     expect(plated('.counter-plate')).toEqual([
       'HLT—01 h2',
       'HLT—01 div', // the score readout; .stage-col beside it holds the accent
+      // THE WEEK BLOCK, AND IT IS NEW IN THIS LIST because the block is on the
+      // card in every state now — it used to be printed only while the score
+      // was withheld, i.e. never on this seeded fixture. A plate is the
+      // ground's OPPOSITE, so a third one at the head of the phone stack moves
+      // light and dark the same way; docs/brand/census.json is what says
+      // whether it landed.
+      'HLT—01 div',
       'HLT—01 div', // the card's foot: the calibration disclosure + its control
       'LOG—02 h2',
       // The note keypad — the form's one accent-free panel. The plate is the

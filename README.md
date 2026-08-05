@@ -411,17 +411,19 @@ setup, the pre-setup app with a week of rows on it, a ledger day holding 24
 rows, and the health drawer open), classifies
 every pixel to its nearest palette token in CIELAB, and folds the twelve tokens
 into the four terms of the ratio law (§2's 60/30/8/2). `npm run census -- --diff`
-prints what moved without writing. The whole matrix takes about 56 seconds —
-roughly 27 for the twelve rows it had before, 24 for the eight added, and 7 for
-the extra settle comparison every phone-width app row now needs.
+prints what moved without writing. The whole matrix takes about 51 seconds on
+this container, which is slightly LESS than it took before the fourth reading
+below was added: the per-window pixel slicing was replaced by one scanline
+prefix-sum pass per row, so 1,352ms of slicing became 576ms of prefixing and
+every window — seven per row or four thousand — became an O(1) subtraction.
 
-It reads each page **three ways**. The document reading is the whole-page average
+It reads each page **four ways**. The document reading is the whole-page average
 and is comparable with every figure the project published before the tool existed.
 The second reading, `scrollingForm`, cuts the document into viewport-height
 windows and measures each one, because a document average is not something
-anybody looks at: `app.375x812.light.seeded` averages 56.25% field over the
-document while its seven windows run 57.50, 47.65, 68.84, 53.43, 48.70, 44.92
-and 73.98 — a vector that appears on no screen. (Those are the committed rows at this
+anybody looks at: `app.375x812.light.seeded` averages 57.00% field over the
+document while its eight windows run 59.36, 51.40, 65.26, 50.72, 50.22, 53.35, 62.61
+and 74.07 — a vector that appears on no screen. (Those are the committed rows at this
 tree, quoted the way §2.1b requires. An earlier draft of this paragraph said
 "averaged 56% while its windows ran 15% at the head and 91% at the tail" with no
 tree on it, which was a figure from a tree that still had a ninth card — on the
@@ -447,6 +449,19 @@ checked until now. There is no selector list and no per-page knowledge; the same
 walk runs on the app rows and finds the hero band, which is one of the surfaces
 §2 already names. See §2.1b.1 in `docs/brand/DESIGN-SYSTEM.md` for the rule and
 the two breaches it found that no phase of the window grid could see.
+
+And the **fourth** reading, `scrollingForm.sliding`, is the paragraph above
+taken literally rather than worked around: the same band and the same caps
+evaluated at **every** offset — 88,154 across the matrix — so a verdict stops
+depending on where the tiling happened to land. It reports the worst screen, the
+extremes, and each crossed bound with **how many offsets cross it**, because
+over a range a hairline that spreads from six offsets to six hundred is a
+regression no peak value can show. It records **no mean**, deliberately: an
+all-offsets mean down-weights the first and last viewport of every page, which
+makes it a document average wearing a mean-of-screens hat. The grid's `worst`,
+`mean` and `windows[]` are unchanged and still the grid's, so nothing published
+before this round was renumbered. It found six breaches on five rows, every one
+of them on a row the window grid calls clean — see §2.1b.4.
 
 Each row also records **whether the page was actually at rest**, because the
 settle check cannot answer that on its own: it compares two captures 400ms
@@ -567,8 +582,9 @@ image, or a row that will not hold still, reports rather than blocks.
   time; the source keeps every one of them
 - `scripts/census/` — the colour census: the row matrix, the tokens.css palette
   parser and CIELAB classifier, a PNG decoder that is the inverse of
-  `raster.ts`'s writer, the CDP driver, the viewport-window reading of the ratio
-  law, the DOM-derived composition reading in `composition.ts`, and the
+  `raster.ts`'s writer, the CDP driver, the viewport-window and sliding-window
+  readings of the ratio law, the DOM-derived composition reading in
+  `composition.ts`, and the
   staleness hash that keeps `docs/brand/census.json` from outliving the tree it
   describes
 

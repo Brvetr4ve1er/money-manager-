@@ -732,11 +732,17 @@
 }
 
 /* ── THE WEEK BLOCK (HeroCard) ─────────────────────────────────────────────
-   What card 01 prints while it has no score to print. It occupies the slot
-   .hero-main had, so the plate that was on .stage-info is on this box (see
-   .counter-plate in tokens.css) — CONSTRAINT §2.1b, and the day0 rows in
-   docs/brand/census.json are what say whether it lands. Box only; the ground
-   and the padding are the plate's. */
+   The last seven days of the record, on card 01, in every state. It used to
+   OCCUPY .hero-main's slot — printed only while the score was withheld — and
+   it now sits directly under .hero-main whenever there is one, so the card can
+   carry two plated boxes in a row (this one and .hero-foot).
+   CONSTRAINT §2.1b: the plate is the ground's OPPOSITE, so the box moves light
+   and dark the same way at the head of the phone stack, which is what it was
+   added for on the pre-setup rows. Printing it after setup puts the same
+   give-back on every `seeded`, `dense` and `breakdown` row; the `day0` and
+   `cold` rows do not move at all, because the pre-setup DOM is unchanged. Read
+   docs/brand/census.json for where that landed. Box only; the ground and the
+   padding are the plate's. */
 .week-block.counter-plate { margin-top: var(--s1); }
 /* The window's name, in the spec register (§1 trait 10 / §3 tier 3): it labels
    the figures below it, it is not one of them. --spec ink on the counter
@@ -2596,10 +2602,12 @@ form > .profile-note { margin-top: var(--s1); }
      Flare hero, not this card. See "WHERE THE TWO NEW PLATES STOP" at the top
      of this file. */
   /* …and the week block sheds its plate with it, for the identical reason and
-     in the identical form. It occupies .hero-main's slot on the card, so a
-     plate that stopped at one of the two and not the other would put a
-     counter ground on this card in one state and not the other at a width
-     where neither belongs. The undo is `unset` on every token the plate
+     in the identical form. The block is now on the card in EVERY state rather
+     than in .hero-main's slot, which strengthens the rule rather than changing
+     it: a plate that stopped at one of these two boxes and not the other would
+     put a counter ground on this card at a width where neither belongs, and it
+     would now do so on every row instead of only the pre-setup ones. The undo
+     is `unset` on every token the plate
      declares (custom properties inherit, so that is `inherit`) rather than a
      spelled-out fallback — see §2.1b: a spelled copy of :root's arithmetic is
      a contrast bug waiting on one branch, in one theme, at one width. */
