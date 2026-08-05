@@ -355,18 +355,20 @@ why every string under 24px in this product sits on a plate.
 
 `docs/brand/census.json` is the committed answer to "what colour is this app".
 `npm run census` builds the production bundle, serves it, drives a headless
-Chromium over the DevTools protocol with no dependency added, screenshots twelve
-full pages (landing at 375/1440, app at 375/1024/1280/1440, each in both
-themes), classifies every pixel to its nearest palette token in CIELAB, and
-folds the twelve tokens into the four terms of the ratio law (§2's 60/30/8/2).
-`npm run census -- --diff` prints what moved without writing.
+Chromium over the DevTools protocol with no dependency added, screenshots
+eighteen full pages (landing at 375/1440, app at 375/1024/1280/1440, each in
+both themes, plus three phone-width pairs: the app's first screen before any
+setup, a ledger day holding 24 rows, and the health drawer open), classifies
+every pixel to its nearest palette token in CIELAB, and folds the twelve tokens
+into the four terms of the ratio law (§2's 60/30/8/2). `npm run census -- --diff`
+prints what moved without writing. The whole matrix takes about 45 seconds.
 
 It reads each page **twice**. The document reading is the whole-page average and
 is comparable with every figure the project published before the tool existed.
 The second reading, `scrollingForm`, cuts the document into viewport-height
 windows and measures each one, because a document average is not something
-anybody looks at: `app.375x812.light.seeded` averages 56.73% field over the
-document while its seven windows run 59.41, 49.05, 68.84, 53.43, 48.70, 44.92
+anybody looks at: `app.375x812.light.seeded` averages 56.59% field over the
+document while its seven windows run 58.40, 49.05, 68.84, 53.43, 48.70, 44.92
 and 73.98 — a vector that appears on no screen. (Those are the committed rows at this
 tree, quoted the way §2.1b requires. An earlier draft of this paragraph said
 "averaged 56% while its windows ran 15% at the head and 91% at the tail" with no
@@ -391,6 +393,19 @@ checked until now. There is no selector list and no per-page knowledge; the same
 walk runs on the app rows and finds the hero band, which is one of the surfaces
 §2 already names. See §2.1b.1 in `docs/brand/DESIGN-SYSTEM.md` for the rule and
 the two breaches it found that no phase of the window grid could see.
+
+Each row also records **whether the page was actually at rest**, because the
+settle check cannot answer that on its own: it compares two captures 400ms
+apart, and a byte comparison cannot see anything that changes more slowly than
+it samples. App's reward toast lives 2,600ms, and for three rounds the census
+fixture qualified for two achievements it had not persisted — so every app row
+was captured mid-celebration and the design system's worked example quoted a
+banner as the app's reading at rest. `announcements` now lists every live region
+that was painting text at capture (empty on all eighteen rows, and a test says
+so), and `settleAttempts` records how many comparisons a row needed rather than
+swallowing the retries. See §2.1b.2 for the three row pairs added on the back of
+that, and for the band breaches they found on screens nothing was measuring —
+the app's first screen before setup breaches in both themes.
 
 It exists because the numbers used to live in an agent's recollection. One round
 shot its screenshots at 07:52, committed at 10:08, and published the 07:52

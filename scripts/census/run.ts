@@ -32,6 +32,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import {
   ARTIFACT_PATH,
   BUCKET_NOTE,
+  LIVE_REGION_SCRIPT,
   disagreeingProbe,
   movedInputs,
   LAW_NOTE,
@@ -44,8 +45,10 @@ import {
   dirtyPaths,
   formatDiff,
   isDirty,
+  paintedAnnouncements,
   serialiseCensus,
   type Census,
+  type LiveRegion,
   type RowRecord,
 } from './artifact.ts'
 import { launchChrome, type Cdp } from './chrome.ts'
@@ -69,6 +72,7 @@ import {
   formatRowId,
   identityOf,
   isMobileViewport,
+  type Action,
   type MatrixRow,
 } from './matrix.ts'
 import {
@@ -86,6 +90,29 @@ import { serveProductionBuild } from './serve.ts'
 
 /** Two captures this far apart must be byte-identical (see settle check). */
 const SETTLE_GAP_MS = 400
+
+/**
+ * How many two-capture comparisons a row may need before it is called unsettled.
+ *
+ * IT WAS 2, AND THAT NUMBER REFUSED HONEST ROWS. Every quiet app row at 375px
+ * fails a 2-attempt protocol on this container — day0, dense, the drawer, and
+ * the two `cold` rows the matrix has kept commented out since round 5 with a
+ * diagnosis ("the reward toasts that follow live ~1.8-2.6s") that was measurably
+ * false. The real difference between a phone row's first two captures is the
+ * antialiased keyline of the topbar's mute button, re-rastered over the first
+ * ~1.1s: tens of pixels out of two million, which cannot move a published figure
+ * at 2dp but is not byte-identical either.
+ *
+ * MORE ATTEMPTS, NOT A LOOSER COMPARISON. Tolerancing the byte check is the
+ * obvious fix and it is the wrong one: byte-exactness is precisely what stops a
+ * 2600ms toast from being averaged into a row, and a per-pixel epsilon would
+ * make the instrument blind in the direction it can least afford. Four attempts
+ * spans ~3.2s of wall clock, and every row that settles at all settles inside
+ * it; a row that is genuinely animating still fails, and still writes nothing.
+ * The attempt count is RECORDED per row (RowRecord.settleAttempts) so "needed
+ * three tries" is a fact in the artifact rather than a thing the loop swallowed.
+ */
+const SETTLE_ATTEMPTS = 4
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -251,6 +278,13 @@ async function measureRow(
     await loaded
     await quiet(cdp, sessionId)
 
+    // THE VIEW, REACHED BEFORE ANYTHING IS MEASURED. Dispatched after the first
+    // quiet (the control has to exist) and re-quieted after (the drawer it opens
+    // has to have laid out). A row whose actions list is empty — every `rest`
+    // row — pays nothing here.
+    for (const action of row.actions) await dispatch(cdp, sessionId, row, action)
+    if (row.actions.length > 0) await quiet(cdp, sessionId)
+
     const fonts = JSON.parse(await evaluate<string>(cdp, sessionId, FONT_PROBE)) as {
       families: Record<string, string>
       widths: Record<string, number>
@@ -265,6 +299,14 @@ async function measureRow(
     const grounds = JSON.parse(
       await evaluate<string>(cdp, sessionId, COMPOSITION_SCRIPT),
     ) as Ground[]
+
+    // Read in the same breath, and for the opposite reason: the grounds say
+    // WHERE the page is measured, this says WHETHER the page is at rest. See
+    // LIVE_REGION_SCRIPT — the settle check samples 400ms apart and cannot see
+    // a 2600ms banner, so the question has to be asked rather than watched for.
+    const announcements = paintedAnnouncements(
+      JSON.parse(await evaluate<string>(cdp, sessionId, LIVE_REGION_SCRIPT)) as LiveRegion[],
+    )
 
     // FULL PAGE, not viewport. That is what rounds 1-4 measured, and
     // comparability with those figures is the whole point of reproducing the
@@ -289,19 +331,21 @@ async function measureRow(
     // writes nothing rather than contributing a figure a future round would
     // trust.
     let png = ''
-    for (let attempt = 0; attempt < 2; attempt++) {
+    let settleAttempts = 0
+    for (let attempt = 1; attempt <= SETTLE_ATTEMPTS; attempt++) {
       const first = await capture(cdp, sessionId, clip)
       await sleep(SETTLE_GAP_MS)
       const second = await capture(cdp, sessionId, clip)
       if (first === second) {
         png = first
+        settleAttempts = attempt
         break
       }
-      if (attempt === 1) {
+      if (attempt === SETTLE_ATTEMPTS) {
         throw new Error(
           `census: ${formatRowId(identityOf(row))} would not settle — two captures ${SETTLE_GAP_MS}ms ` +
-            'apart differ after a retry. Something is still animating at rest, which §9 forbids. ' +
-            'No number is written for this row.',
+            `apart differ after ${SETTLE_ATTEMPTS} attempts. Something is still animating at rest, ` +
+            'which §9 forbids. No number is written for this row.',
         )
       }
     }
@@ -335,6 +379,7 @@ async function measureRow(
       viewport: { width: row.width, height: row.height, mobile: isMobileViewport(row.width) },
       theme: row.theme,
       state: row.state,
+      view: row.view,
       dimensions: { width: decoded.width, height: decoded.height },
       pixels: { total: counted.total },
       buckets: counted.buckets,
@@ -364,6 +409,8 @@ async function measureRow(
         makeClassifier(palette),
       ),
       externalRequests,
+      settleAttempts,
+      announcements,
     }
     return { measured: { record, png: bytes }, fonts }
   } finally {
@@ -378,6 +425,56 @@ async function evaluate<T>(cdp: Cdp, sessionId: string, expression: string): Pro
   }>('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId)
   if (res.exceptionDetails) throw new Error(`census: page evaluation failed — ${res.exceptionDetails.text}`)
   return res.result.value
+}
+
+/**
+ * Drive one scripted interaction, and REFUSE THE ROW IF IT DID NOT LAND.
+ *
+ * Three ways this can go wrong and all three are fatal rather than logged:
+ * the selector matches nothing (the class was renamed), it matches several
+ * (the selector stopped identifying one control), or the click produced
+ * nothing (`then` never appeared). Any of them silently turns an interaction
+ * row into a second copy of its `rest` twin — two ids in the artifact naming
+ * one screen, which is a lie no reader could detect from the file.
+ */
+async function dispatch(
+  cdp: Cdp,
+  sessionId: string,
+  row: MatrixRow,
+  action: Action,
+): Promise<void> {
+  const id = formatRowId(identityOf(row))
+  const outcome = await evaluate<string>(
+    cdp,
+    sessionId,
+    `(() => {
+       const found = document.querySelectorAll(${JSON.stringify(action.click)});
+       if (found.length !== 1) return 'matched ' + found.length;
+       found[0].click();
+       return 'clicked';
+     })()`,
+  )
+  if (outcome !== 'clicked') {
+    throw new Error(
+      `census: ${id} — the selector ${action.click} ${outcome} elements, so the row could not be ` +
+        'driven to its view. Nothing written; a row that quietly measures its rest twin instead ' +
+        'is worse than a missing row.',
+    )
+  }
+  // Re-quieted before the assertion: React commits the drawer on the next
+  // frame, so asking immediately would fail on a click that worked.
+  await quiet(cdp, sessionId)
+  const landed = await evaluate<boolean>(
+    cdp,
+    sessionId,
+    `document.querySelector(${JSON.stringify(action.then)}) !== null`,
+  )
+  if (!landed) {
+    throw new Error(
+      `census: ${id} — ${action.click} was pressed but ${action.then} never appeared, so the view ` +
+        'this row is named for is not on screen. Nothing written for this row.',
+    )
+  }
 }
 
 /** Fonts loaded, then two consecutive frames with nothing scheduled. */
@@ -416,12 +513,16 @@ async function main(): Promise<void> {
 
   const palette = readPalette()
   const declaredAccents = readDeclaredAccents()
+  // Read as TEXT and injected verbatim: parsing and re-serialising would let
+  // this tool normalise a fixture the app would have seen differently.
+  const fixture = (name: string): string =>
+    readFileSync(new URL(`scripts/census/fixtures/${name}.json`, REPO_ROOT), 'utf8').trim()
   const fixtures: Record<string, string | null> = {
     fresh: null,
-    // Read as TEXT and injected verbatim: parsing and re-serialising would let
-    // this tool normalise a fixture the app would have seen differently.
-    seeded: readFileSync(new URL('scripts/census/fixtures/seeded.json', REPO_ROOT), 'utf8').trim(),
-    cold: readFileSync(new URL('scripts/census/fixtures/cold.json', REPO_ROOT), 'utf8').trim(),
+    seeded: fixture('seeded'),
+    cold: fixture('cold'),
+    day0: fixture('day0'),
+    dense: fixture('dense'),
   }
 
   // THE HASH IS TAKEN BEFORE THE BUILD, NOT AFTER THE LAST ROW.
@@ -484,8 +585,15 @@ async function main(): Promise<void> {
           `ink/paper ${f.inkOnPaper.toFixed(1)}%  breaches ${f.breaches.length}\n` +
           `  ${' '.repeat(30)} ${c.sections.length} sections ` +
           `(${c.sections.filter((s) => s.held).length} held) on ${c.pageGround ?? '<none>'}, ` +
-          `${c.nested.length} nested  breaches ${c.breaches.length}`,
+          `${c.nested.length} nested  breaches ${c.breaches.length}` +
+          (r.settleAttempts > 1 ? `  settled on attempt ${r.settleAttempts}` : ''),
       )
+      // SAID OUT LOUD RATHER THAN ONLY FILED. This is the condition the settle
+      // check structurally cannot detect, so the run has to volunteer it: a
+      // painting live region means the row measured a page mid-announcement.
+      for (const a of r.announcements) {
+        console.log(`      ! live region painting at capture — ${a}`)
+      }
       if (options.windows) {
         for (const w of f.windows) {
           console.log(

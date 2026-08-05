@@ -32,6 +32,7 @@ import {
 import { REPO_ROOT, inputsHash, pixelInputs } from './inputs.ts'
 import {
   ARTIFACT_PATH,
+  LIVE_REGION_SCRIPT,
   SCHEMA_VERSION,
   censusPixels,
   censusScrollingForm,
@@ -39,11 +40,13 @@ import {
   disagreeingProbe,
   isDirty,
   movedInputs,
+  paintedAnnouncements,
   scrollingFormBreaches,
   serialiseCensus,
   windowTops,
   type BucketStat,
   type Census,
+  type LiveRegion,
   type WindowStat,
 } from './artifact.ts'
 import {
@@ -64,7 +67,8 @@ import {
   determinismScript,
 } from './determinism.ts'
 import { parseArgs as parseCensusArgs } from './options.ts'
-import { sanitizeState } from '../../src/state/store.ts'
+import { defaultState, sanitizeState, type AppState } from '../../src/state/store.ts'
+import { newlyEarnedIds } from '../../src/engine/achievements.ts'
 
 /**
  * THE CENSUS, TESTED WITHOUT A BROWSER.
@@ -455,18 +459,58 @@ describe('row ids round-trip and the matrix is well formed', () => {
     expect(() => parseRowId('app.375.light.seeded')).toThrow()
     expect(() => parseRowId('kiosk.375x812.light.seeded')).toThrow()
     expect(() => parseRowId('app.375x812.sepia.seeded')).toThrow()
+    expect(() => parseRowId('app.375x812.light.museum')).toThrow()
+    expect(() => parseRowId('app.375x812.light.seeded.zoomed')).toThrow()
+    expect(() => parseRowId('app.375x812.light.seeded.breakdown.x')).toThrow()
+  })
+
+  it('spells the default view by omitting it, and refuses the second spelling', () => {
+    // The view had to become an identity field the moment an interaction row
+    // existed: matrix.ts's own header used to warn that two rows differing only
+    // by their action script would collide, and the drawer pair is exactly
+    // that. Making it a FIFTH field would have renamed every row this repo has
+    // ever committed — and §2.1b's rule is "quote the row id", so every figure
+    // ever quoted against one would stop resolving. Hence: `rest` formats to
+    // nothing, and the redundant spelling is rejected rather than accepted as a
+    // synonym, because one row must have exactly one id.
+    const rest = parseRowId('app.375x812.light.seeded')
+    expect(rest.view).toBe('rest')
+    expect(formatRowId(rest)).toBe('app.375x812.light.seeded')
+    const open = parseRowId('app.375x812.light.seeded.breakdown')
+    expect(open.view).toBe('breakdown')
+    expect(formatRowId(open)).toBe('app.375x812.light.seeded.breakdown')
+    expect(() => parseRowId('app.375x812.light.seeded.rest')).toThrow(/written by omission/)
+  })
+
+  it('gives every action row a selector and a proof that it landed', () => {
+    // A click that silently misses turns an interaction row into a duplicate of
+    // its rest twin — same pixels, a different name, and nothing in the file
+    // saying so. `then` is what makes that detectable, so a row that drives the
+    // page must carry one; and a row with no actions must not claim a view.
+    for (const row of MATRIX) {
+      const id = formatRowId(identityOf(row))
+      expect(`${id}: ${row.actions.length > 0}`).toBe(`${id}: ${row.view !== 'rest'}`)
+      for (const action of row.actions) {
+        expect(`${id}: ${action.click !== '' && action.then !== ''}`).toBe(`${id}: true`)
+      }
+    }
   })
 
   it('covers both themes on every screen it measures', () => {
     // Round 4 measured four rows and nobody had ever censused the landing in
     // dark — the one surface the record called "at law". A claim about a
     // surface measured in one theme is a claim about one theme.
+    //
+    // `view` joins the match for the same reason it joined the id: without it a
+    // light `.breakdown` row would find the dark `rest` row and report a twin
+    // it does not have — the assertion passing on a surface nobody paired.
     for (const row of MATRIX) {
       const twin = MATRIX.find(
         (r) =>
           r.screen === row.screen &&
           r.width === row.width &&
           r.state === row.state &&
+          r.view === row.view &&
           r.theme !== row.theme,
       )
       expect(`${formatRowId(identityOf(row))} has a twin`).toBe(
@@ -512,15 +556,62 @@ describe('the injected determinism is what it claims to be', () => {
   })
 })
 
+const FIXTURES = ['seeded', 'cold', 'day0', 'dense'] as const
+
+const readFixture = (name: string): Record<string, unknown> =>
+  JSON.parse(readFileSync(new URL(`scripts/census/fixtures/${name}.json`, REPO_ROOT), 'utf8'))
+
 describe('the fixtures do not rot', () => {
   /* When AppState gains a field, sanitizeState fills a default the fixture
      does not carry and this fails — instead of the census quietly measuring a
      degraded state and nobody noticing why the numbers moved. */
-  it.each(['seeded', 'cold'])('%s survives the load path unchanged', (name) => {
-    const parsed = JSON.parse(
-      readFileSync(new URL(`scripts/census/fixtures/${name}.json`, REPO_ROOT), 'utf8'),
+  it.each(FIXTURES)('%s survives the load path unchanged', (name) => {
+    expect(sanitizeState(readFixture(name))).toEqual(readFixture(name))
+  })
+
+  it.each(FIXTURES)('%s is a state at rest, not one mid-celebration', (name) => {
+    // THE DEFECT THIS EXISTS TO END. The seeded fixture held five achievement
+    // unlocks and QUALIFIED for seven, so useAchievements unlocked `streak-7`
+    // and `boss-win` on every mount and useRewards queued two toasts — a fixed
+    // Flare banner in >=24px caps, 2.6s each. Eight of the matrix's app rows
+    // were therefore measured mid-celebration, the census captured inside the
+    // first toast's dwell, and §2.1b's worked example in the design system
+    // quoted a toast number as the app's reading at rest. The settle check
+    // could not see it: it samples 400ms apart and the transient lives 2600ms.
+    //
+    // The fix is a fixture that has already earned what it qualifies for.
+    // Anything a mount would grant belongs IN the fixture, and this is the
+    // assertion that says so.
+    expect(`${name}: ${newlyEarnedIds(readFixture(name) as AppState).join(',')}`).toBe(`${name}: `)
+  })
+
+  it('boots day0 into the app, at day zero, with nothing decided', () => {
+    // `fresh` is the LANDING — Root.tsx's gate reads storage, so writing
+    // nothing IS the marketing surface — and `cold` is day one with a log.
+    // Neither is the screen a real user actually meets first: the app with no
+    // profile, no ledger and ProfileCard's setup form open. day0 is literally
+    // what App's save effect writes on its first mount past the gate, which is
+    // why it is defaultState() verbatim rather than a hand-built state.
+    expect(readFixture('day0')).toEqual(defaultState())
+  })
+
+  it('puts dense enough rows on ONE day to outrun a viewport', () => {
+    // NOT "a big ledger", and the difference is the whole point of the row.
+    // ArchiveCard windows to WINDOW_DAYS = 3, so a ledger spread over hundreds
+    // of days renders eight rows and a SHORTER document than seeded. The card
+    // bounds days and never rows ("a single day holding hundreds of rows still
+    // renders whole") and §2.1b's stripe alternates per `ledger-day` — so one
+    // dense day is one unbroken ground run, which is the thing the run-length
+    // rule was written about.
+    const dense = readFixture('dense') as { transactions: Array<{ date: string }> }
+    const seeded = readFixture('seeded') as { transactions: Array<{ date: string }> }
+    const onDay = dense.transactions.filter((t) => t.date === censusLocalDay()).length
+    expect(onDay).toBeGreaterThanOrEqual(24)
+    // Everything else is seeded, so the pair differs by the dense day alone —
+    // a comparison, not a second unrelated screen.
+    expect(dense.transactions.filter((t) => t.date !== censusLocalDay())).toEqual(
+      seeded.transactions.filter((t) => t.date !== censusLocalDay()),
     )
-    expect(sanitizeState(parsed)).toEqual(parsed)
   })
 
   it('dates the fixtures against the frozen epoch', () => {
@@ -528,15 +619,19 @@ describe('the fixtures do not rot', () => {
     // every relative day label ("Today", "3 days ago") wrong in the shot, and
     // every once-per-day grant id would name a day the app is not on — so the
     // lesson card would shoot as unread on a fixture that has read it.
-    for (const name of ['seeded', 'cold']) {
-      const raw = JSON.parse(
-        readFileSync(new URL(`scripts/census/fixtures/${name}.json`, REPO_ROOT), 'utf8'),
-      ) as {
+    for (const name of FIXTURES) {
+      const raw = readFixture(name) as unknown as {
         healthDate: string
         transactions: Array<{ date: string }>
         xpLog: Array<{ id: string; date: string }>
       }
-      expect(`${name}: ${raw.healthDate}`).toBe(`${name}: ${censusLocalDay()}`)
+      // '' is not a drifted day, it is the ABSENCE of one: day zero has no
+      // persisted health snapshot yet, and useHealthDay's first-run branch
+      // reads exactly that. Requiring today's date here would have forced day0
+      // to claim a rollover that never happened.
+      if (raw.healthDate !== '') {
+        expect(`${name}: ${raw.healthDate}`).toBe(`${name}: ${censusLocalDay()}`)
+      }
       for (const tx of raw.transactions) expect(tx.date <= censusLocalDay()).toBe(true)
       // The per-day grant ids carry their own day, so a drifted date shows up
       // as an id that no longer matches the day it is stamped with.
@@ -554,10 +649,10 @@ describe('the fixtures do not rot', () => {
  *
  * The finding that produced it, and the reason this exists at all: the
  * document average is the arithmetic mean of regimes that never appear
- * together. app.375x812.light.seeded in docs/brand/census.json reads 56.73
- * field / 34.05 Bone over the whole document, while its seven viewport windows
- * run 59.41, 49.05, 68.84, 53.43, 48.70, 44.92 and 73.98 percent field.
- * Nobody sees 56.73/34.05. So the windows are measured too, and where the two
+ * together. app.375x812.light.seeded in docs/brand/census.json reads 56.59
+ * field / 34.29 Bone over the whole document, while its seven viewport windows
+ * run 58.40, 49.05, 68.84, 53.43, 48.70, 44.92 and 73.98 percent field.
+ * Nobody sees 56.59/34.29. So the windows are measured too, and where the two
  * disagree the windows are the truth.
  *
  * WHAT THAT ROW LOOKED LIKE WHEN THIS TOOL FOUND IT, stamped: on the clean tree
@@ -1213,6 +1308,93 @@ describe('the committed artifact is intact', () => {
     for (const [id, row] of Object.entries(ARTIFACT.rows)) {
       expect(`${id}: ${row.externalRequests}`).toBe(`${id}: 0`)
     }
+  })
+
+  it('measured every row at rest, with no live region painting', () => {
+    // THE GUARD THE SETTLE CHECK CANNOT BE. Two captures 400ms apart cannot
+    // detect anything that changes more slowly than they sample, and App's
+    // toast lives 2600ms — so for three rounds eight app rows were captured
+    // inside a celebration and the instrument had no way to say so. This
+    // assertion is the way it says so.
+    //
+    // IF A ROW IS EVER MEANT TO CARRY A MESSAGE — a persist-fault row, say —
+    // this is where that gets declared, deliberately and in one place. Do not
+    // relax it to make a red row green: an unexplained entry here means the
+    // census measured a screen that was in the middle of saying something.
+    for (const [id, row] of Object.entries(ARTIFACT.rows)) {
+      expect(`${id}: ${row.announcements.join(' | ')}`).toBe(`${id}: `)
+    }
+  })
+
+  it('records how many attempts each row needed to hold still', () => {
+    // Swallowed retries are how a row that is quietly unstable stays invisible.
+    // 1 means the page was already at rest; anything higher is a fact about the
+    // tree, recorded rather than averaged away.
+    for (const [id, row] of Object.entries(ARTIFACT.rows)) {
+      expect(`${id}: ${Number.isInteger(row.settleAttempts) && row.settleAttempts >= 1}`).toBe(
+        `${id}: true`,
+      )
+    }
+  })
+
+  it('agrees with its own id about which view each row is in', () => {
+    // The id is the only handle prose has on a row (§2.1b: "quote the row id"),
+    // so a record whose fields contradict its key would make every quotation
+    // ambiguous.
+    for (const [id, row] of Object.entries(ARTIFACT.rows)) {
+      const parsed = parseRowId(id)
+      expect(`${id}: ${row.screen}/${row.theme}/${row.state}/${row.view}`).toBe(
+        `${id}: ${parsed.screen}/${parsed.theme}/${parsed.state}/${parsed.view}`,
+      )
+    }
+  })
+})
+
+describe('the live-region guard reads what the settle check cannot sample', () => {
+  const region = (over: Partial<LiveRegion>): LiveRegion => ({
+    label: 'Announcements',
+    text: '',
+    painted: true,
+    ...over,
+  })
+
+  it('reports a painting region that is saying something', () => {
+    expect(
+      paintedAnnouncements([region({ text: 'Level 5. Steady Hand.' })]),
+    ).toEqual(['Announcements: Level 5. Steady Hand.'])
+  })
+
+  it('ignores a painting region with nothing to say', () => {
+    // Every one of App's regions is permanently mounted (Trust Rule 8), so
+    // "present" is the normal case and means nothing on its own.
+    expect(paintedAnnouncements([region({ text: '' })])).toEqual([])
+  })
+
+  it('ignores sr-only regions however much they are saying', () => {
+    // At rest the ledger-range, lesson-status and log-status regions all carry
+    // text they are SUPPOSED to carry, and none of them moves a pixel — the
+    // .sr-only clip collapses them to 1x1. Listing them would bury the one
+    // entry that means something under prose that is working as designed.
+    expect(
+      paintedAnnouncements([
+        region({ label: 'Ledger range', text: 'Showing 3 of 12 days.', painted: false }),
+        region({ label: 'XP gains', text: '+5 XP', painted: false }),
+      ]),
+    ).toEqual([])
+  })
+
+  it('asks the page for facts and decides in Node', () => {
+    // Same split composition.ts makes: a rule that exists only as a string
+    // evaluated in a browser is a rule no test can reach. The script reports
+    // label/text/painted; every judgement about them is the function above.
+    expect(LIVE_REGION_SCRIPT).toContain('[role="status"]')
+    expect(LIVE_REGION_SCRIPT).toContain('[role="alert"]')
+    expect(LIVE_REGION_SCRIPT).toContain('[aria-live]')
+    // The three ways the cascade hides a mounted region, all of which the app
+    // actually uses: .sr-only clips to 1x1, .toast:empty sets opacity 0.
+    expect(LIVE_REGION_SCRIPT).toContain('rect.width > 1')
+    expect(LIVE_REGION_SCRIPT).toContain("cs.visibility !== 'hidden'")
+    expect(LIVE_REGION_SCRIPT).toContain('parseFloat(cs.opacity) > 0')
   })
 })
 

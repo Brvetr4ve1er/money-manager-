@@ -82,11 +82,80 @@ export interface ScrollingFormRecord {
   windows: WindowStat[]
 }
 
+/**
+ * One live region as the browser reported it, before any judgement.
+ *
+ * The BROWSER answers facts and NODE decides what they mean — the same split
+ * composition.ts makes, and for the same reason: a rule that only exists as a
+ * string evaluated in a page is a rule no test can reach.
+ */
+export interface LiveRegion {
+  /** aria-label, or the role when the region carries none. */
+  label: string
+  text: string
+  /** Its box is larger than the 1x1 clip every `.sr-only` region collapses to,
+   *  and nothing in the cascade has made it invisible. A painted region with
+   *  text is a region MOVING PIXELS. */
+  painted: boolean
+}
+
+/**
+ * THE GUARD THE SETTLE CHECK CANNOT BE, in one expression, evaluated in the
+ * page after `quiet()` and before the capture.
+ *
+ * Trust Rule 8 keeps every live region permanently mounted, so they are always
+ * in the tree and always findable; what varies is whether one is currently
+ * SAYING something. That matters to a census because App's `.toast` is a
+ * fixed-position Flare banner in display caps that lives 2600ms and then
+ * vanishes — and the settle check samples 400ms apart, so a byte comparison
+ * structurally cannot see a transient that dwells six times longer than its
+ * own window. Eight of this matrix's app rows were measured mid-celebration for
+ * three rounds and nothing in the tool could say so.
+ */
+export const LIVE_REGION_SCRIPT = `(() => {
+  const nodes = document.querySelectorAll('[role="status"], [role="alert"], [aria-live]');
+  const out = [];
+  for (const el of nodes) {
+    const cs = getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    out.push({
+      label: el.getAttribute('aria-label') || el.getAttribute('role') || '<unlabelled>',
+      text: (el.textContent || '').replace(/\\s+/g, ' ').trim(),
+      painted:
+        rect.width > 1 &&
+        rect.height > 1 &&
+        cs.display !== 'none' &&
+        cs.visibility !== 'hidden' &&
+        parseFloat(cs.opacity) > 0,
+    });
+  }
+  return JSON.stringify(out);
+})()`
+
+/**
+ * The regions that are both painting and speaking, as `label: text`.
+ *
+ * SR-ONLY REGIONS ARE DELIBERATELY NOT HERE, and that is not laxity. At rest
+ * the app's ledger-range, lesson-status and log-status regions all carry text
+ * they are SUPPOSED to carry — that is what a permanently-mounted region is —
+ * and none of them moves a pixel, because `.sr-only` clips them to 1x1. Listing
+ * them would fill the artifact with prose and bury the one entry that means
+ * something.
+ */
+export function paintedAnnouncements(regions: LiveRegion[]): string[] {
+  return regions
+    .filter((r) => r.painted && r.text !== '')
+    .map((r) => `${r.label}: ${r.text}`)
+}
+
 export interface RowRecord {
   screen: string
   viewport: { width: number; height: number; mobile: boolean }
   theme: string
   state: string
+  /** What the row was driven to before capture. `rest` unless a script opened
+   *  something. See matrix.ts for why this is an identity field. */
+  view: string
   /** FULL PAGE. This is the denominator — see the note in `law.note`. */
   dimensions: { width: number; height: number }
   pixels: { total: number }
@@ -101,6 +170,22 @@ export interface RowRecord {
    *  bucket set but a different set of BOUNDARIES over the same pixels. */
   composition: CompositionRecord
   externalRequests: number
+  /** How many two-capture comparisons the row needed before it held still.
+   *  1 is a page that was already at rest. Recorded rather than swallowed: a
+   *  row that quietly needs three attempts every run is a defect that a silent
+   *  retry loop would hide forever, and the number is the only way to tell
+   *  "settled" from "settled eventually".
+   *
+   *  IT IS THE ONE FIELD HERE THAT MEASURES THE MACHINE RATHER THAN THE TREE.
+   *  What it counts is how far into the page's first ~1.1s of rasterisation the
+   *  captures fell, so a slower or busier host can legitimately move it by one.
+   *  formatDiff reports it when it moves — churn that is visible is survivable,
+   *  churn that is silent is what this whole tool exists to end — and no test
+   *  binds a value, only that it is a positive integer. */
+  settleAttempts: number
+  /** Live regions that were painting text at capture — see LIVE_REGION_SCRIPT.
+   *  Empty is the only correct value for a row measuring a page at rest. */
+  announcements: string[]
 }
 
 export interface Census {
@@ -715,6 +800,27 @@ export function formatDiff(committed: Census | null, measured: Census): string[]
             `breaches ${wasForm.breaches.length} -> ${nowForm.breaches.length}`,
         )
       }
+    }
+    // Not a colour at all, and reported anyway. It is the only recorded field
+    // that can move without the tree moving, so leaving it out of the diff
+    // would make it the one number in the file that changes silently.
+    if (was.settleAttempts !== now.settleAttempts) {
+      out.push(
+        `${pad(id, 30)} ${pad('settle', 9)} attempts ${was.settleAttempts} -> ${now.settleAttempts} ` +
+          '(host timing, not pixels)',
+      )
+    }
+    // `?? []` because formatDiff is the ONE function here that reads an
+    // artifact it did not write — a committed file from before a field existed
+    // must diff rather than crash, or the round that adds a field cannot see
+    // what it changed.
+    const wasSaid = (was.announcements ?? []).join('|')
+    const nowSaid = (now.announcements ?? []).join('|')
+    if (wasSaid !== nowSaid) {
+      out.push(
+        `${pad(id, 30)} ${pad('live', 9)} regions painting at capture: ` +
+          `${(was.announcements ?? []).length} -> ${(now.announcements ?? []).length}`,
+      )
     }
     // The third reading gets its own line for the same reason the second does:
     // a change that re-grounds a SECTION can leave both the document average

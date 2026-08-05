@@ -1782,7 +1782,11 @@ describe('no pixel figure anywhere in the tree may be undated', () => {
    */
   const MEASUREMENT = new RegExp(
     [
-      String.raw`\b(?:app|landing)\.\d{3,4}x\d{3,4}\.(?:light|dark)\.(?:seeded|fresh|cold)\b`,
+      // The state and view alternatives track matrix.ts's unions. A row id the
+      // gate does not recognise is a pixel claim the guard waves through, so
+      // adding a row to the matrix means adding its spelling here — which is
+      // what round 7 had to do for day0, dense and the `.breakdown` view.
+      String.raw`\b(?:app|landing)\.\d{3,4}x\d{3,4}\.(?:light|dark)\.(?:seeded|fresh|cold|day0|dense)(?:\.breakdown)?\b`,
       String.raw`census\.json`,
       String.raw`%\s*field`,
       String.raw`mean field`,

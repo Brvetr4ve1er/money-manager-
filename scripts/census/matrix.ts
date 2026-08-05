@@ -7,14 +7,27 @@
  * into the row it names (census.test.ts asserts parse(format(r)) === r), so
  * every identity field is IN the id and nothing else is.
  *
- *   screen . WIDTHxHEIGHT . theme . state
+ *   screen . WIDTHxHEIGHT . theme . state [ . view ]
  *   app.375x812.dark.seeded
+ *   app.375x812.dark.seeded.breakdown
  *
  * `mobile` is deliberately NOT an identity field: it is a function of the
  * viewport width (isMobileViewport), so carrying it separately would let the
- * id and the emulation disagree. `actions` is not either — it is reserved
- * capacity (see below), and two rows differing only by their action script
- * would collide, which census.test.ts's uniqueness assertion catches.
+ * id and the emulation disagree.
+ *
+ * `view` IS an identity field, and it had to become one. `actions` used to be
+ * declared as reserved capacity with the warning that two rows differing only
+ * by their action script would collide — which is exactly what census.test.ts's
+ * uniqueness assertion catches, and exactly what the first interaction row
+ * would have hit. So the thing an action produces gets a name, and the name is
+ * in the id; `actions` stays out of it, as the SCRIPT that reaches the view
+ * rather than the view itself.
+ *
+ * THE DEFAULT VIEW IS SPELLED BY OMISSION. `rest` formats to nothing, so every
+ * id this repo has ever committed still names the same row and every figure
+ * quoted against one still resolves. parseRowId accepts the four-part form and
+ * REJECTS the redundant `.rest` suffix, so the spelling stays one-to-one:
+ * format is injective and parse(format(r)) === r for every row.
  */
 
 export type Screen = 'landing' | 'app'
@@ -25,7 +38,16 @@ export type Theme = 'light' | 'dark'
  * (write nothing) IS the landing and a fixture IS the app. There is no other
  * lever — the gate reads storage, not a query string.
  */
-export type State = 'fresh' | 'seeded' | 'cold'
+export type State = 'fresh' | 'seeded' | 'cold' | 'day0' | 'dense'
+/**
+ * What the row has been driven to before capture. `rest` is the page as it
+ * loads; anything else names a disclosure the reader opened.
+ *
+ * A view is NOT a state: the fixture decides what the app knows, the view
+ * decides what it is showing. Folding the drawer into `State` would have
+ * claimed a storage fixture that does not exist.
+ */
+export type View = 'rest' | 'breakdown'
 
 export interface RowId {
   screen: Screen
@@ -33,19 +55,29 @@ export interface RowId {
   height: number
   theme: Theme
   state: State
+  view: View
 }
 
 /**
- * A CDP input event to dispatch before capture. Empty for every row today.
+ * One scripted interaction, dispatched after the page is quiet and before the
+ * capture. Empty for every row whose view is `rest`.
  *
- * It exists so a future round can census the keypad open, or a modal, without
- * bumping schemaVersion — the artifact would simply gain rows whose `actions`
- * is non-empty. Anything that uses it must re-verify the settle check: an
- * interaction is the most likely source of a row that will not hold still.
+ * A DOM CLICK, NOT A CDP MOUSE EVENT, and that is a measurement decision rather
+ * than a convenience. A synthesised mouse press leaves the pointer sitting on
+ * the control, so `.btn:hover:not(:focus-visible)` (tokens.css) paints into
+ * every subsequent shot and the row would be measuring a hover state nobody
+ * asked for. It would also need coordinates, which are a second copy of the
+ * layout. `element.click()` moves no pointer and takes no focus, so what gets
+ * measured is the drawer, not the cursor.
+ *
+ * `then` is the row's own proof the click landed: a selector that must exist
+ * afterwards. Without it a renamed class turns an interaction row into a
+ * silent duplicate of its `rest` twin — a row that measures the wrong thing
+ * and says nothing, which is the failure mode this whole tool exists to end.
  */
 export interface Action {
-  type: string
-  [key: string]: unknown
+  click: string
+  then: string
 }
 
 export interface MatrixRow extends RowId {
@@ -59,29 +91,47 @@ export function isMobileViewport(width: number): boolean {
   return width < MOBILE_MAX_WIDTH
 }
 
+/** The view every row is in unless a script drove it somewhere else. */
+export const DEFAULT_VIEW: View = 'rest'
+
 export function formatRowId(row: RowId): string {
-  return `${row.screen}.${row.width}x${row.height}.${row.theme}.${row.state}`
+  const base = `${row.screen}.${row.width}x${row.height}.${row.theme}.${row.state}`
+  return row.view === DEFAULT_VIEW ? base : `${base}.${row.view}`
 }
 
 const SCREENS: Screen[] = ['landing', 'app']
 const THEMES: Theme[] = ['light', 'dark']
-const STATES: State[] = ['fresh', 'seeded', 'cold']
+const STATES: State[] = ['fresh', 'seeded', 'cold', 'day0', 'dense']
+const VIEWS: View[] = ['rest', 'breakdown']
 
 export function parseRowId(id: string): RowId {
   const parts = id.split('.')
-  if (parts.length !== 4) throw new Error(`census: malformed row id "${id}"`)
-  const [screen, viewport, theme, state] = parts
+  if (parts.length !== 4 && parts.length !== 5) throw new Error(`census: malformed row id "${id}"`)
+  const [screen, viewport, theme, state, view] = parts
   const wh = /^(\d+)x(\d+)$/.exec(viewport)
   if (wh === null) throw new Error(`census: malformed viewport in row id "${id}"`)
   if (!SCREENS.includes(screen as Screen)) throw new Error(`census: unknown screen in "${id}"`)
   if (!THEMES.includes(theme as Theme)) throw new Error(`census: unknown theme in "${id}"`)
   if (!STATES.includes(state as State)) throw new Error(`census: unknown state in "${id}"`)
+  if (view !== undefined && !VIEWS.includes(view as View)) {
+    throw new Error(`census: unknown view in "${id}"`)
+  }
+  // ONE SPELLING PER ROW. `app.375x812.light.seeded.rest` names the same row as
+  // `app.375x812.light.seeded`, and two strings for one row is how an artifact
+  // ends up holding it twice — the collision the uniqueness assertion exists to
+  // catch, arriving through the parser instead of the matrix.
+  if (view === DEFAULT_VIEW) {
+    throw new Error(
+      `census: row id "${id}" spells the default view; ${DEFAULT_VIEW} is written by omission`,
+    )
+  }
   return {
     screen: screen as Screen,
     width: Number(wh[1]),
     height: Number(wh[2]),
     theme: theme as Theme,
     state: state as State,
+    view: (view as View) ?? DEFAULT_VIEW,
   }
 }
 
@@ -93,6 +143,7 @@ export function identityOf(row: MatrixRow): RowId {
     height: row.height,
     theme: row.theme,
     state: row.state,
+    view: row.view,
   }
 }
 
@@ -102,34 +153,79 @@ const row = (screen: Screen, width: number, height: number, theme: Theme, state:
   height,
   theme,
   state,
+  view: DEFAULT_VIEW,
   actions: [],
 })
 
 /**
- * TWELVE ROWS: screen x viewport x theme. About 3s each.
+ * THE HEALTH DRAWER, OPEN.
+ *
+ * `button.hero-why` is HeroCard's disclosure ("Why this stage?"); the drawer it
+ * controls is `#health-breakdown`, which is unmounted until the press — so the
+ * `then` selector is the one thing that could not be true if the click missed.
+ */
+const drawerOpen = (width: number, height: number, theme: Theme): MatrixRow => ({
+  screen: 'app',
+  width,
+  height,
+  theme,
+  state: 'seeded',
+  view: 'breakdown',
+  actions: [{ click: 'button.hero-why', then: '#health-breakdown' }],
+})
+
+/**
+ * EIGHTEEN ROWS: screen x viewport x theme, plus three phone pairs. ~2s each.
  *
  * Rounds 1-4 measured four and two of the gaps mattered — nobody had ever
  * censused the landing in dark, and the landing is the one surface the record
  * called "at law". A claim about a surface nobody measured in both themes is a
  * claim about one theme.
  *
+ * THE THREE PAIRS ADDED IN ROUND 7 ARE ALL AT 375, AND THAT IS THE FINDING, NOT
+ * A SAVING. Every defect the recon located lives in the phone column, because at
+ * 375 the column IS the composition; the desktop twins of all three were
+ * measured and cost between nothing and 0.8 mean-dev. Adding them would have
+ * bought six rows of confirmation that a defect is width-independent.
+ *
+ *   .day0      The screen every real user meets first, and nothing measured it.
+ *              `fresh` is the LANDING (the gate reads storage) and `cold` is
+ *              day-1-with-a-log; neither is the app with profile === null, an
+ *              empty ledger and ProfileCard's nine-field setup form open. The
+ *              fixture is literally defaultState() serialised, which is what
+ *              App's save effect writes on its first mount past the gate.
+ *   .dense     One day holding 24 rows. NOT "a big ledger": ArchiveCard windows
+ *              to WINDOW_DAYS = 3, so 900 transactions spread over 300 days
+ *              render eight rows and a SHORTER document than `seeded`. The card
+ *              bounds days and never rows, and the §2.1b stripe alternates per
+ *              `ledger-day` — so one dense day is one unbroken ground run, which
+ *              is the thing the run-length rule is about.
+ *   .breakdown The health drawer open. The only row here that needed tool work
+ *              (the `view` field above, and actions actually dispatched in
+ *              run.ts), and the only one that measures a surface a user reaches
+ *              by pressing something rather than by arriving.
+ *
  * The 'cold' fixture ships (scripts/census/fixtures/cold.json) but no row uses
- * it. A fixture costs nothing to keep; a row costs 3s on every run. The
+ * it. A fixture costs nothing to keep; a row costs ~2s on every run. The
  * staleness hash picks the fixture up either way — it is in PIXEL_INPUTS
  * regardless of whether a row reads it.
  *
- * BEFORE YOU UNCOMMENT THEM, KNOW THIS. Measured on the tree of commit a2d4e6d
- * (2026-08-04), both cold rows FAIL the settle check as the tool is written:
- * two captures 400ms apart differ, and so does the retry. Given a 5s pause
- * before capture they settle and read
+ * BEFORE YOU UNCOMMENT THEM, KNOW THIS — AND KNOW THAT THE DIAGNOSIS BELOW WAS
+ * WRONG. Measured on the tree of commit a2d4e6d (2026-08-04), both cold rows
+ * FAIL the settle check as the tool was then written: two captures 400ms apart
+ * differ, and so does the retry. Given a 5s pause before capture they settle and
+ * read
  *   app.375x812.dark.cold   F 54.1 / B 33.9 / G 9.8 / A 2.2   dev 11.8
  *   app.375x812.light.cold  F 52.9 / B 39.4 / G 5.6 / A 2.1   dev 19.0
- * so the page is not perpetually animating — something transient is draining.
- * The day-1 state has no persisted health snapshot, so the app finalises one on
- * mount, and the reward toasts that follow live ~1.8-2.6s (src/hooks/
- * useRewards.ts). The settle check is right to refuse the row rather than
- * average across a toast; whoever wants these rows has to decide first whether
- * "at rest" means "after the toast queue drains", and say so in the tool.
+ * The old text blamed "the reward toasts that follow live ~1.8-2.6s". It cannot
+ * be that: newlyEarnedIds(cold) is empty, its xpLog gains nothing on mount, and
+ * healthDate already equals the frozen day, so the cold state raises no toast at
+ * all. What actually differs between its first captures is the antialiased
+ * keyline of the mobile topbar's mute button, re-rastered over the first ~1.1s —
+ * tens of pixels, invisible at 2dp. Round 7's settle fix (run.ts: four attempts,
+ * `settleAttempts` recorded) is what these rows were waiting for, not a longer
+ * sleep. They stay commented out for the reason the recon gave: day-1 sits
+ * between day0 and seeded and carries no state either of those does not.
  */
 export const MATRIX: MatrixRow[] = [
   row('landing', 375, 812, 'light', 'fresh'),
@@ -167,6 +263,12 @@ export const MATRIX: MatrixRow[] = [
   row('app', 1280, 900, 'dark', 'seeded'),
   row('app', 1440, 900, 'light', 'seeded'),
   row('app', 1440, 900, 'dark', 'seeded'),
+  row('app', 375, 812, 'light', 'day0'),
+  row('app', 375, 812, 'dark', 'day0'),
+  row('app', 375, 812, 'light', 'dense'),
+  row('app', 375, 812, 'dark', 'dense'),
+  drawerOpen(375, 812, 'light'),
+  drawerOpen(375, 812, 'dark'),
   // row('app', 375, 812, 'light', 'cold'),
   // row('app', 375, 812, 'dark', 'cold'),
 ]

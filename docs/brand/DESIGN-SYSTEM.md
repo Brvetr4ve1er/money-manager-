@@ -92,11 +92,27 @@ each landing section, the OG image.
 
 An application document is not one composition. It is a sequence of them, and the
 whole-document average is a number nobody ever looks at. Measured — `app.375x812.light.seeded`
-in `docs/brand/census.json`, the artifact committed at `dc529fb`, which is what the rule below
-means by "comes from that file": the page averages **56.73% field / 34.05% Bone** over the whole
-document, while its **seven** viewport windows run 59.41, 49.05, 68.84, 53.43, 48.70, 44.92
+(PROVENANCE: `docs/brand/census.json`, the committed artifact, kept current by the staleness
+hash rather than by a commit hash that ages), which is what the rule below
+means by "comes from that file": the page averages **56.59% field / 34.29% Bone** over the whole
+document, while its **seven** viewport windows run 58.40, 49.05, 68.84, 53.43, 48.70, 44.92
 and 73.98 percent field. Those seven are all inside the band below; the average they
 produce is still a number that appears on no screen, which is the point.
+
+**AND THE FIRST OF THOSE SEVEN USED TO BE A CELEBRATION.** This paragraph quoted 56.73 / 34.05
+and a first window of 59.41 for three rounds, from the artifact committed at `dc529fb`, and both
+were readings of a page mid-announcement. The census fixture held five achievement unlocks and
+*qualified* for seven, so every mount unlocked `streak-7` and `boss-win`, and `useRewards` put a
+2.6-second Flare toast and a Marigold XP chip on screen — which the capture landed inside. The
+settle check could not see it: it compares two captures 400ms apart, and **a byte comparison
+cannot detect anything that changes more slowly than it samples**. The fixture now holds what it
+qualifies for, so the app is measured at rest; the tool records every painting live region per
+row (`announcements`, empty on all eighteen) so this class of error states itself instead of
+being inferred. The cost of the three rounds was not the 1.4pp on window `@0`. It was
+`div.hero-frame`, whose section reading at `9a42bd8` was **80.02% field / 8.82% Bone** — a
+recorded band breach on a 276px composition — against **77.03 / 13.61** at rest. Two-thirds of
+that breach was a banner. The Bone-floor half is real, is 1.39pp under, and is identical in both
+themes.
 
 It was not always inside the band, and the state that produced this rule is worth stamping.
 On the CLEAN TREE OF COMMIT `71b5608` the same row's **document** average was 41.70% field /
@@ -166,6 +182,14 @@ mean-of-windows vectors land at 57.82 / 33.01 (dark) and 56.90 / 33.96 (light) �
 to within a point, from a pair that were 21.70pp apart on the first screen. The check is cheap
 and it is the one this document asks for: **compare a row against its own theme twin before
 comparing it against the law.**
+
+Every figure in that paragraph is a toast figure — it was measured before the fixture was
+quiesced (see the correction above), and `66.01 / 25.28` and `59.41 / 30.30` in particular are
+window `@0` with a banner across it. The conclusion is unharmed, which is the only reason the
+paragraph stands: at rest the same pair reads **65.22 / 26.56** (dark) and **58.40 / 31.93**
+(light), and the mean-of-windows vectors are **57.70 / 33.20** and **56.76 / 34.18** — still the
+same page to within a point. (PROVENANCE: the toast figures are HISTORICAL, from the census
+committed at `12bbf5e`; the at-rest pair is `docs/brand/census.json`.)
 
 **A plate may be scoped by width, and its undo is `unset`.** A plate is a give-back, so it
 belongs only where the window it lands in is short of the ground it carries; both of the
@@ -243,6 +267,65 @@ The rule needs no landing-specific knowledge and runs on the app rows unchanged.
 the shell's grounds; those are all longer than a viewport, so the composition check does not
 fire and the app keeps being judged by its windows. That is the correct outcome, and it is why
 `scripts/census/composition.ts` contains no `screen === 'landing'` branch.
+
+#### 2.1b.2 What is in the matrix is a claim about what matters
+
+Three readings over twelve rows is still twelve rows, and **a screen nobody censuses is a screen
+nobody has a number for.** Rounds 1–6 measured the app in exactly one state — a user with 21
+transactions, a completed profile and 510 XP — and reported that every viewport window was inside
+the band. That sentence was true and it was about one fixture.
+
+Round 7 added three pairs, all at 375×812, and each one broke on arrival:
+
+```
+PROVENANCE: every figure in this block is docs/brand/census.json.
+.day0        the app's FIRST SCREEN — profile null, ledger empty, ProfileCard's
+             setup form open. Not `fresh` (that is the landing; the gate reads
+             storage) and not `cold` (day one, with a log). The fixture is
+             defaultState() verbatim.
+   app.375x812.light.day0   6 windows  meanDeviation 22.16  worst @3248 dev 64.42
+      SEVEN breaches.  window @2436 33.55 field / 55.60 bone
+                       window @3248 29.76 field / 59.99 bone
+                       mean field 49.32 and mean bone 40.39, both outside
+   app.375x812.dark.day0    6 windows  meanDeviation 16.28  worst @3248 dev 43.42
+      FOUR breaches.   window @3248 bone 10.25, window @3502 bone 14.23,
+                       both under the 15 floor;  mean bone 22.26, outside
+.dense       ONE DAY holding 24 rows. Not a big ledger: ArchiveCard windows to
+             WINDOW_DAYS = 3, so 900 rows over 300 days render eight rows and a
+             SHORTER page than `seeded`. The card bounds days, never rows, and
+             the stripe alternates per `ledger-day` — so one dense day is one
+             unbroken ground run.
+   app.375x812.light.dense  doc 6834  meanDeviation 20.59  worst @4872 dev 79.95
+      FIVE breaches.   window @4872 24.53 field / 69.98 bone — under the field
+                       floor AND over the 65 Bone HARD CAP
+   app.375x812.dark.dense   doc 6834  meanDeviation  3.92  worst @4872 dev 41.13
+      TWO breaches.    window @4872 field 80.56, over the 80 band — the same
+                       window, the other way round
+.breakdown   the health drawer OPEN. +195px of document, and it produces the
+             worst app window in the matrix.
+   app.375x812.light.seeded.breakdown  8 windows  meanDeviation 8.83
+      worst window @812 dev 44.71 — 39.62 field / 49.41 bone
+   app.375x812.dark.seeded.breakdown   8 windows  meanDeviation 8.18
+      worst window @1624 dev 33.78
+```
+
+`@4872` in the dense pair is the theme-twin check paying for itself in one line: **24.53% field
+in light and 80.56% in dark, the same window of the same DOM.** That is not two defects. It is
+one ground run measured through the swap, which is precisely what the twin rule is for.
+
+The fourth finding needed no new row, only the fixture correction: **`div.hero-frame` reads
+13.61% Bone against a 15% floor, in both themes, on every 375px app row.** The section reading
+found it as soon as the banner stopped inflating it. It is the app's own instance of the hero
+band §2 names.
+
+**What was deliberately NOT added, with the reason, because an absent row is a claim too.** The
+desktop twins of all three pairs: the drawer costs 0.8 mean-dev at 1440 and the dense day's
+defect is width-independent (at 1440 with 120 rows the same run reads 92.7% field, over the 85%
+cap — a worse number, from the same cause). The check-back prompt: already on screen in every
+seeded row, `d0` is due on the frozen day. A non-empty live region: already covered, by accident,
+and now covered on purpose by `announcements`. A heavy spread-out ledger: measures nothing, per
+the window above. And `cold`, which stays commented out because day one sits between day zero
+and seeded and carries no state either of them lacks.
 
 The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
 test fails when it stops describing the tree. Any figure quoted about this product's pixels
