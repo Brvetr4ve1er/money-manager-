@@ -373,6 +373,60 @@ Every `seeded` row is BYTE-IDENTICAL across the change, and that is the design r
 the block renders only while `profile` is null, so the twelve rows this section's earlier
 paragraphs quote measure exactly the same DOM they did before.
 
+#### 2.1b.3 A paragraph of copy is a composition change, and the grid phase will bill you for it
+
+Round 7's growth step put 178px of terms into `.lp-wall` on the phone — a mono stamp, one claim
+and three lines saying what the app will not do to the reader, above the fold and ahead of the
+mechanic. **No ground changed.** No plate was added or taken away, no token moved, and the only
+new paint is a 6px Graphite keyline standing where `.lp-share`'s Flare one already stood. It is
+copy. It moved every window on all four landing rows, and it is worth stamping BECAUSE it is
+only copy: the model §2.1b hands a designer works on paragraphs exactly as it works on plates.
+
+```
+PROVENANCE: BEFORE = the census committed at 83c9a9e (which stamps that sha with
+dirty:true — the carrier, per the naming rule below).  AFTER = docs/brand/census.json.
+landing.375x812.light.fresh   mean-of-windows dev 3.13 -> 5.50   doc field 58.82 -> 57.35
+landing.375x812.dark.fresh    mean-of-windows dev 2.67 -> 1.71   doc field 61.03 -> 59.44
+landing.1440x900.*.fresh      mean-of-windows dev 8.22 -> 8.07   doc field 61.34 -> 59.88
+```
+
+**The model, read backwards, priced the paragraph before it was written.** `.lp-wall`'s window
+`@0` held 66.48% field / 24.25% Bone in the census committed at tree `83c9a9e` — 6.5pp OVER the
+60 target. A Bone-grounded block inside an 812px window trades about 0.075pp of field per pixel
+of height on this page, measured across three drafts of the same block:
+
+```
+PROVENANCE: row landing.375x812.light.fresh. The 0px line is the census committed
+at 83c9a9e; the 178px line is docs/brand/census.json; the 229px line is a draft
+that was measured and discarded, so it is HISTORICAL and names no tree of its own.
+block height   wall height   window @0 field      window @4872 field
+     0px          1675           66.48                  73.51
+   178px          1869           51.57                  80.11
+   229px          1920           47.77                  78.25
+```
+
+Read the two columns differently, because they are different statistics. **`@0` is monotonic in
+the block's height and it is the real reading**: the block is IN that window, the trade is Bone
+for field one pixel at a time, and the 62-word draft (357px, not in the table — it also pushed
+`.lp-share`'s lead under the fold) would have overshot to the other side of the target as far as
+the page started on the near side of it. The 25-word form is the one that lands nearest 60. That
+is the whole of §2.1b's arithmetic applied to a paragraph, and it is why the block's length is
+recorded in Landing.tsx as a constraint rather than as an edit.
+
+**`@4872` is NOT monotonic, and that is §2.1b.1's arbitrary phase presenting its bill.** The
+block does not appear in that window at all; the window only moves over the `.lp-spec` →
+`.lp-shear` boundary as the wall above it changes length. 80.11 is a recorded breach — 0.11pp
+over the 80% field cap — and it is one grid sample of a run that was ALREADY measured worse: on
+the clean tree of `9a42bd8`, the sliding-window probe put `landing.375x812.dark` at 81.78% field
+/ 14.42% Bone at offset 4783, outside the band on both axes, at a phase the grid did not sample.
+The defect is `.lp-spec`'s bare-Espresso tail meeting `.lp-shear`'s bare-Espresso head with no
+plate between them — two sections that abut on the SAME ground, so the boundary the reader's eye
+is supposed to stop at is invisible to them and to the ratio law alike. It is a composition
+problem in the shear, it is not the paragraph, and **it must not be answered by relengthening the
+wall until the grid samples somewhere kinder**. Section 2.1b.1's sentence is the binding one:
+"any change that lengthens a section by 60px moves the reported number without improving one
+screen."
+
 The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
 test fails when it stops describing the tree. Any figure quoted about this product's pixels
 comes from that file or says which tree it came from — three rounds were steered by numbers

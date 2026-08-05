@@ -334,17 +334,21 @@ describe('the landing states what the app will not do to the reader', () => {
     // earn-only. So "nothing counts days in a row" is true of every surface and
     // "no streak exists" would be false. The page claims the first and must not
     // drift into the second.
+    // It is a RULE, not a term of the fold: it sits in the rules band with the
+    // other invariants (see RULES in Landing.tsx), which is also where it
+    // stopped costing the fold 54px of an 812px window.
     const { container } = render(<Landing onEnter={() => {}} />)
-    const body = grade(container).textContent ?? ''
-    expect(body).toContain('Days are counted, never chained')
-    expect(body).toContain('no run to break, no day to lose')
-    expect(body).not.toMatch(/no streak|streak-free|never a streak/i)
-    // AND IT MUST NOT PRINT THE REGISTER IN ORDER TO DENY IT. The first draft
-    // read "Nothing counts days in a row", which is true and which puts the
-    // retention vocabulary on the one page that promises none —
-    // noVerdict.test.tsx holds the landing to the same four registers as the
-    // app and caught it. Stated as an absence rather than a negation.
-    expect(body).not.toMatch(/\bstreak\b|\bin a row\b|\bconsecutive\b/i)
+    const rules = container.querySelector('.lp-rules')?.textContent ?? ''
+    expect(rules).toContain('Days are counted, never chained')
+    expect(rules).toContain('No run to break, no day to lose')
+    expect(rules).not.toMatch(/no streak|streak-free|never a streak/i)
+    // AND IT MUST NOT PRINT THE REGISTER IN ORDER TO DENY IT — anywhere on the
+    // page, not only in the rule. The first draft of the fold read "Nothing
+    // counts days in a row", which is true and which puts the retention
+    // vocabulary on the one page that promises none; noVerdict.test.tsx holds
+    // the landing to the same four registers as the app and caught it. Stated
+    // as an absence rather than as a negation.
+    expect(container.textContent ?? '').not.toMatch(/\bstreak\b|\bin a row\b|\bconsecutive\b/i)
   })
 
   it('states terms, and never softens into reassurance (§7.1)', () => {

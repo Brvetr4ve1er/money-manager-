@@ -172,6 +172,7 @@ describe('every number in the README is the number in the code', () => {
     // after the product dropped it would be caught there — and a README that
     // dropped the promise while the product kept it is caught here.
     expect(FLAT).toContain('Nothing here grades you')
+    // The rules band's own line, in the README's copy of it.
     expect(FLAT).toContain('Days are counted, never chained')
     expect(FLAT).toContain('no target line, no average and no projection')
     // …and the register itself, stated rather than implied: §7.1 bans the

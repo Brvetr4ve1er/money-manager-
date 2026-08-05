@@ -105,7 +105,8 @@ print.
   and stops: a day total is flat ink, no colour verdict and no comparison; the
   record card shows totals with no target line and no projection; the string
   "over budget" appears nowhere in the product; the score explains itself and
-  never advises.
+  never advises. `src/noVerdict.test.tsx` renders the app on a bad month and
+  holds the whole screen to that — see **Nothing here grades you** above.
 - You want your data to leave with you. One tap, full JSON, no account.
 
 **No, if —**
@@ -177,8 +178,10 @@ components you did fill in, with the card naming each one it left out.
 
 Around them: XP and levels for showing up — one strip, a level line and a bar —
 a 30-lesson codex counted on the lesson card, 9 earn-only badges whose reward is
-a cosmetic companion beside the score, and chiptune cues that never carry
-information alone.
+a cosmetic companion on card 01, and chiptune cues that never carry information
+alone. The companions stand on the card in both states, before setup and after:
+every badge reachable in week one is reachable before you have entered a number,
+and an app may not take back what it has already paid.
 
 **The daily quests are deleted, and so is the card they were on.** There were
 three, and before that four. The fourth — "look back over your recent
@@ -340,11 +343,11 @@ that, along with the shape and the byte ceiling of the PNGs.
 ### What the payload is
 
 `npm run build` prints the real numbers. Roughly: React, ReactDOM and the
-scheduler are 141 kB of the JS bundle — 61% of it, fixed, and not reducible
+scheduler are 141 kB of the JS bundle — 60% of it, fixed, and not reducible
 without changing the dependency line at the top of this section. The other
-89 kB is Ember. The largest STATIC asset is `og.png` at 75 kB, which every
+92 kB is Ember. The largest STATIC asset is `og.png` at 75 kB, which every
 share unfurl fetches; the JS bundle is three times its size uncompressed, and
-about the same size as it once gzipped (74 kB each), which is the honest
+about the same size as it once gzipped (75 kB each), which is the honest
 comparison because the PNG does not compress further. It is an indexed PNG
 rather than truecolour because the composition resolves to 206 colours, so the
 palette is lossless and costs a third of the bytes. `index.html` ships stripped

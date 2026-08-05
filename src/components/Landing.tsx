@@ -328,6 +328,22 @@ const RULES: ReadonlyArray<{ id: string; body: ReactNode }> = [
       </>
     ),
   },
+  {
+    // TRUST RULE 6, THE CLAUSE THAT HAD NO LINE. The rules band listed the two
+    // tracks, the absence of a purchase path, the honesty rule, the cold start
+    // and export — and said nothing about the one device every app in this
+    // category ships and this one refuses. It is an invariant like the rest:
+    // `daysLogged` (weekToDate) is a count and structurally cannot become a
+    // run, ArchiveCard refuses a day grid on the same grounds ("a binary grid
+    // is a streak calendar in a ledger's coat"), and the one badge that reads
+    // days (achievements.ts `streak-7`) is earned off the LONGEST run ever and
+    // is never taken back — a badge on the engagement track that nothing can
+    // revoke is not a debt the app can collect (Trust Rules 2 and 6).
+    // It arrived here from the fold, where it cost 54px of a 812px window;
+    // this is where the invariants are listed, so this is where it belongs.
+    id: 'no-clock',
+    body: 'Days are counted, never chained. No run to break, no day to lose.',
+  },
   { id: 'export', body: 'Full export, always. No account. Your data leaves when you do.' },
 ]
 
@@ -462,21 +478,27 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
               <div className="lp-grade">
                 <p className="lp-grade-tag">No verdict</p>
                 <p className="lp-grade-lead">Nothing here grades you.</p>
-                {/* FOUR CLAIMS AND A CLOSER, AND THE LENGTH IS A CONSTRAINT
-                    RATHER THAN AN EDIT. Measured at 375x812: this block is
-                    357px at 62 words and 253px at 40, and .lp-share sits
-                    directly under it — at 62 words the mechanic's lead crossed
-                    the fold, which is the exact cost the placement note above
-                    says this trade must not pay. So the EVIDENCE moved to the
-                    spec sheet, where evidence belongs on this page: badge 01/08
-                    quotes NO_SCORE_LINE verbatim, the same division of labour
-                    .lp-share and the product shot already run on. What stays
-                    here is the terms. */}
+                {/* TWO CLAIMS AND A CLOSER, AND THE LENGTH IS A CONSTRAINT
+                    RATHER THAN AN EDIT. Measured at 375x812, block height
+                    against word count: 357px at 62 words, 229px at 40, 175px at
+                    25. .lp-share sits directly under it, so at 62 words the
+                    mechanic's LEAD crossed the 812px fold — the exact cost the
+                    placement note above says this trade must not pay. The words
+                    that came out went to the two surfaces that already own
+                    them, rather than being deleted: the EVIDENCE to badge 01/08
+                    (which quotes NO_SCORE_LINE verbatim, the same division of
+                    labour .lp-share and the product shot run on) and the
+                    NO-RETENTION clause to the rules band, where the invariants
+                    are listed. And the pixels: at 40 words this block put window
+                    @0 at 47.77% field against a 60 target, having found it at
+                    66.48 — 229px of Bone inside an 812px window is worth about
+                    19pp of field, which is §2.1b's model read backwards. The
+                    25-word form is the one that lands the window near the
+                    target rather than overshooting it to the other side. */}
                 <p className="lp-grade-body">
                   No score until you enter your own numbers. Your last{' '}
-                  {WEEK_DAYS} days stand there instead. Days are counted, never
-                  chained: no run to break, no day to lose. Log the week you
-                  would rather not. It reads like any other.
+                  {WEEK_DAYS} days stand there instead. Log the week you would
+                  rather not. It reads like any other.
                 </p>
               </div>
               {/* THE HAND-OFF — the reason to send this to someone, above the
