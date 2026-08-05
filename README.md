@@ -415,8 +415,8 @@ prints what moved without writing. The whole matrix takes about 56 seconds —
 roughly 27 for the twelve rows it had before, 24 for the eight added, and 7 for
 the extra settle comparison every phone-width app row now needs.
 
-It reads each page **twice**. The document reading is the whole-page average and
-is comparable with every figure the project published before the tool existed.
+It reads each page **three ways**. The document reading is the whole-page average
+and is comparable with every figure the project published before the tool existed.
 The second reading, `scrollingForm`, cuts the document into viewport-height
 windows and measures each one, because a document average is not something
 anybody looks at: `app.375x812.light.seeded` averages 56.59% field over the
@@ -433,9 +433,11 @@ prints the per-screen table behind it.
 
 There is a **third** reading, `composition`, and it exists because the window
 grid has an arbitrary phase: it tiles from offset 0, while a reader scrolls
-continuously. Slide the window over every offset of `landing.375x812.light` and
-the worst-window deviation ranges from 30.48 to 67.58 — the grid reports one
-sample of that. So the census also asks the page where its own compositions are:
+continuously. Slide the window over every offset of `landing.375x812.light` on
+the clean tree of `9a42bd8` and the worst-window deviation ranges from 30.48 to
+67.58 — the grid reports one sample of that. (The stamp is not decoration: the
+landing has moved since, `.lp-wall` alone from 1675px to 1869px, so re-running
+that probe today would not reproduce the range.) So the census also asks the page where its own compositions are:
 one walk of the render tree picks out every opaque, full-bleed, in-flow ground
 whose colour differs from its nearest ground ancestor's, and §2 is applied to
 each **section** that is no taller than the viewport, because that is §2's own

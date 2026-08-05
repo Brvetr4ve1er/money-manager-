@@ -339,10 +339,23 @@ const RULES: ReadonlyArray<{ id: string; body: ReactNode }> = [
     // days (achievements.ts `streak-7`) is earned off the LONGEST run ever and
     // is never taken back — a badge on the engagement track that nothing can
     // revoke is not a debt the app can collect (Trust Rules 2 and 6).
-    // It arrived here from the fold, where it cost 54px of a 812px window;
+    // It arrived here from the fold, where it cost 51px of a 812px window
+    // (section.lp-wall 1920 -> 1869 in docs/brand/census.json across the move);
     // this is where the invariants are listed, so this is where it belongs.
+    //
+    // SCOPED, AND THE SCOPE MOVED WITH IT. At the fold this clause read "Days
+    // are counted, never chained", under a 20-line note recording that the
+    // wording was "scoped on purpose, twice over" because "claiming 'no streak
+    // anywhere' would be false". It is: `longestLogStreak` chains consecutive
+    // days and `streak-7` is earned on seven of them in a row. A band framed
+    // "These are invariants, not intentions" is a stronger frame than a block
+    // of terms, and it widened the claim past what the code supports — so the
+    // sentence that was only true under its scope is gone and the two that are
+    // true of the whole product stay. Nothing here RESETS (the streak is a max
+    // over the record, not a live counter) and nothing is TAKEN BACK (badges
+    // are earn-only). Do not put the first sentence back without the scope.
     id: 'no-clock',
-    body: 'Days are counted, never chained. No run to break, no day to lose.',
+    body: 'No run to break, no day to lose. Nothing resets and nothing is taken back.',
   },
   { id: 'export', body: 'Full export, always. No account. Your data leaves when you do.' },
 ]
@@ -425,10 +438,12 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                   WHY IT PRECEDES THE MECHANIC, given that the round before this
                   one moved the mechanic UP for the opposite reason. The
                   displaced block then was .lp-sub — sixty words of market
-                  argument. This is four lines of terms and it is short by
+                  argument. This is a tag, a lead and four sentences of terms,
+                  and it is short by
                   construction: it states absences, and an absence needs no
-                  mechanism to explain it. MEASURED, on this tree, at 375x812:
-                  .lp-share ran 452–976 with the fold at 812, so the mechanic's
+                  mechanism to explain it. MEASURED at 375x812 BEFORE this block
+                  landed: .lp-share ran 452–976 with the fold at 812, so the
+                  mechanic's
                   tag, lead and first lines were the last things on screen one.
                   A block of this height moves that run down by its own height
                   and leaves the lead on screen one; the census row
@@ -453,26 +468,17 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                     · the last-N-days line reads WEEK_DAYS; the disclosure
                       itself is quoted verbatim from HeroCard's NO_SCORE_LINE on
                       badge 01/08 below, the same binding RESIST_LABEL carries.
-                    · "Days are counted, never chained" — the week block's
-                      `daysLogged` is a count and structurally cannot become a
-                      run (weekToDate hands over no per-day array), and nothing
-                      in the product renders one. The one badge that reads days
-                      (achievements.ts `streak-7`) computes the LONGEST run ever
-                      over the whole ledger and is earn-only, so there is no
-                      counter to reset and nothing to take back (Trust Rule 2).
-                      Scoped on purpose, twice over: claiming "no streak
-                      anywhere" would be false, and PRINTING the retention
-                      register in order to deny it is the same defect one level
-                      down — noVerdict.test.ts holds this page to the same four
-                      registers as the app, and caught the first draft of this
-                      line doing exactly that.
-                    · "No target line on the record" — ArchiveCard is never
-                      handed the profile, so `budgeted` has no path to it; the
-                      card states the same scope in its own words inside the
-                      shot below.
                     · "It reads like any other" — Trust Rule 3. LOG_TX pays
                       XP_REWARDS.logExpense whatever the row says, and no
                       surface colours, ranks or compares a day.
+                  TWO CLAUSES LEFT THIS BLOCK AND THEIR ARGUMENTS WENT WITH
+                  THEM, which is the point of listing only what ships: the
+                  no-retention clause is a RULES entry now (see `no-clock`,
+                  where the scope note it needs travels with it) and the
+                  no-target-line clause is MECHANICS' archive badge ("No target
+                  line. No projection.", where `budgeted`'s absent path is
+                  argued). A reader checking why a claim is safe must find it
+                  argued on the surface still making it.
                   noVerdict.test.ts asserts the whole set against the rendered
                   app rather than against this comment. */}
               <div className="lp-grade">
@@ -480,7 +486,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                 <p className="lp-grade-lead">Nothing here grades you.</p>
                 {/* TWO CLAIMS AND A CLOSER, AND THE LENGTH IS A CONSTRAINT
                     RATHER THAN AN EDIT. Measured at 375x812, block height
-                    against word count: 357px at 62 words, 229px at 40, 175px at
+                    against word count: 357px at 62 words, 229px at 40, 178px at
                     25. .lp-share sits directly under it, so at 62 words the
                     mechanic's LEAD crossed the 812px fold — the exact cost the
                     placement note above says this trade must not pay. The words
@@ -492,9 +498,19 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                     are listed. And the pixels: at 40 words this block put window
                     @0 at 47.77% field against a 60 target, having found it at
                     66.48 — 229px of Bone inside an 812px window is worth about
-                    19pp of field, which is §2.1b's model read backwards. The
-                    25-word form is the one that lands the window near the
-                    target rather than overshooting it to the other side. */}
+                    19pp of field, which is §2.1b's model read backwards. Over
+                    all three drafts the trade is about 0.082pp of field per
+                    pixel of block height (§2.1b.3's table carries the three
+                    points and the same slope). The 25-word form is the one that
+                    lands the window near the target rather than overshooting it
+                    to the other side.
+                    THE HEIGHT IS THE LAW'S NUMBER, NOT A SECOND OPINION: 178 is
+                    what §2.1b.3's table records against wall 1869 in
+                    docs/brand/census.json (1869 - 1675 = 194 = 178 + the
+                    block's 16px margin), and it is what the block measures in
+                    Chromium at 375x812 on this tree. It read 175 here for a
+                    round, which put two heights for one shipped block in two
+                    documents of one commit. */}
                 <p className="lp-grade-body">
                   No score until you enter your own numbers. Your last{' '}
                   {WEEK_DAYS} days stand there instead. Log the week you would

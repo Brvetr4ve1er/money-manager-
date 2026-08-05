@@ -219,8 +219,16 @@ export function resolveProfile(data: ProfileData | null): ResolvedProfile {
  * demo placeholder and the user's own stated essentials alike. Logged
  * transactions in these categories are excluded from trailing spend: counting
  * them would charge essentials twice (stated monthly figure + log), deflating
- * SR/BA and punishing exactly the "log every purchase" behavior the daily
- * quest rewards. Only discretionary logging moves SR/BA.
+ * SR/BA and punishing exactly the log-every-purchase behaviour the ENGAGEMENT
+ * track pays for (XP_REWARDS.logExpense, granted on every LOG_TX in
+ * state/reducer.ts). A health input that got worse the more the user logged
+ * would be the engagement track reaching into the score — Trust Rule 1, §12.1.
+ * Only discretionary logging moves SR/BA.
+ *
+ * The mechanism named here used to be "the daily quest", which round 6 deleted
+ * outright (XpStrip and the reducer both state there is no quest anywhere in
+ * the tree). Naming a device that no longer exists in the one file whose job is
+ * keeping the two tracks apart reads to the next person as a live coupling.
  */
 export const ESSENTIAL_CATEGORIES: ReadonlySet<string> = new Set(['Food', 'Bills', 'Health'])
 

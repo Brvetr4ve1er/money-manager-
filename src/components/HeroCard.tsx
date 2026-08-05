@@ -114,12 +114,21 @@ function WeekBlock({ week }: { week: WeekSoFar }) {
     // tokens.css, and docs/brand/census.json for what it measures.
     // role="group" + a label: a bare div takes no accessible name, so the
     // window this block is about would be a loose run of numbers to AT.
-    <div className="week-block counter-plate" role="group" aria-labelledby="week-head">
+    // aria-LABEL, NOT aria-labelledby, AND THAT IS THE HOUSE PATTERN. Pointing
+    // the label at the visible <p> below made this the only group in the tree
+    // that names itself from one of its own rendered children: AT announced
+    // "LAST 7 DAYS" on entry and then read the identical string again as the
+    // group's first content. Every other group here uses a non-visible label
+    // (LogCard, SimCard twice). It also stops the accessible name inheriting
+    // the text-transform: uppercase Chrome bakes into a name computed from
+    // .week-head. The string is built from WEEK_DAYS, the same constant the
+    // paragraph prints, so the two cannot drift.
+    <div className="week-block counter-plate" role="group" aria-label={`Last ${WEEK_DAYS} days`}>
       {/* The window names itself. "Last 7 days", not "this week": the window
           is rolling and always WEEK_DAYS long (see weekToDate), and calling a
           rolling window a calendar week is the kind of imprecision §7 rule 3
           exists to stop. */}
-      <p className="week-head mono" id="week-head">Last {WEEK_DAYS} days</p>
+      <p className="week-head mono">Last {WEEK_DAYS} days</p>
       {week.daysLogged === 0 ? (
         // §7's empty-state register, and Trust Rule 5 taken literally: state
         // what the record holds, which is nothing, and stop. NO NUMERALS — a
@@ -352,12 +361,13 @@ export function HeroCard({
           user ever entered. The readout is withheld now (see hasScore), so
           this half no longer qualifies a number — it names the absence and
           what ends it, and the block above prints what the record does hold.
-          Then HOW MUCH HISTORY (historyDays) — the original line, and it
-          survives the swap unchanged. It is keyed separately because the two
-          states are independent: setup can land on day 3, and a user can log
-          90 days without ever completing setup. The 90-day clock runs on
-          logged history either way, so it is a fact about the record on both
-          sides of setup.
+          Then HOW MUCH HISTORY (historyDays) — the original line, and it now
+          waits for a score to qualify (see the clause's own note below). It
+          used to be keyed independently of the swap, which left it printing
+          "Day 0 / 90" beside a numeral this card had just withheld. Setup can
+          still land on day 3 and the clock still runs on logged history; what
+          changed is that the sentence only appears where the thing it
+          disclaims does.
           Deliberately not the words "demo profile": SimCard owns that phrase
           and a second copy of it would make the app say "demo" twice about
           two different things.
@@ -393,7 +403,7 @@ export function HeroCard({
           this box is unconditional even when the disclosure inside it is not —
           a user past calibration gets the plate around the control alone. */}
       <div className="hero-foot counter-plate">
-        {(isDemo || historyDays < CALIBRATION_DAYS) && (
+        {(isDemo || (hasScore && historyDays < CALIBRATION_DAYS)) && (
           <p className="calibrating">
             {/* NAMES THE ABSENCE, NOT A FAULT (Trust Rule 6). It states what
                 the card has not got and what supplies it, in two fragments,
@@ -403,7 +413,25 @@ export function HeroCard({
                 app's pre-setup ask on card 01, and it does not repeat, escalate
                 or return. */}
             {isDemo && `${NO_SCORE_LINE} `}
-            {historyDays < CALIBRATION_DAYS && (
+            {/* THE CALIBRATION CLAUSE QUALIFIES A SCORE, SO IT WAITS FOR ONE
+                (`hasScore`). The two halves used to be keyed independently, on
+                the argument that "the 90-day clock runs on logged history
+                either way, so it is a fact about the record on both sides of
+                setup". That argument was written while this card still printed
+                a demo-derived readout; the swap withheld the badge, the stage,
+                the rating and the numeral, and it left this clause qualifying
+                a quantity that is no longer on screen. Before setup the card
+                then read "No score yet. Your numbers turn it on. Score still
+                calibrating. Day 0 / 90" — a 0-of-90 progress readout for a
+                number the same card has just refused to render, which is the
+                exact device WeekBlock four elements up refuses to draw on
+                Trust Rule 6 grounds ("an empty bar here would draw a target
+                the user is short of"). Trust Rule 5 is carried before setup by
+                NO_SCORE_LINE, which is the stronger form of it: the app is not
+                projecting confidence it has not earned, it is printing no
+                score at all. The clause is unchanged the moment PROFILE_SET
+                lands, on day 3 or on day 89. */}
+            {hasScore && historyDays < CALIBRATION_DAYS && (
               <>
                 {/* Grotesk for the sentence, mono only for the index — the same
                     split .sim-note makes, and §11's "all numerals render in the

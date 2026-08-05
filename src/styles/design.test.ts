@@ -2040,7 +2040,7 @@ describe('§2.2 — the counter sheet re-grounds the archive without drifting', 
 describe('§5A — the landing badge stops being a slab on the phone', () => {
   it('drops the fill and keeps the keyline below 720px', () => {
     const phone =
-      /@media \(max-width: 719px\) \{\s*\.lp-badge:not\(:nth-child\(3n\)\) \{([^}]*)\}/.exec(
+      /@media \(max-width: 719px\) \{\s*\.lp-badge:not\(:nth-child\(3n\)\):not\(:last-child\) \{([^}]*)\}/.exec(
         LANDING,
       )?.[1] ?? ''
     expect(phone).not.toBe('')
@@ -2060,6 +2060,17 @@ describe('§5A — the landing badge stops being a slab on the phone', () => {
     // fill, so the longest keyline run is two badges. The :not() is the whole
     // mechanism; a bare .lp-badge here would reinstate the breach.
     expect(LANDING).toMatch(/\.lp-badge:not\(:nth-child\(3n\)\)/)
+    // AND THE LAST BADGE KEEPS ITS FILL, WHICH IS THE SECOND HALF OF THE SAME
+    // DERIVATION. The ~370px above prices a keyline run FLANKED by Bone; the
+    // roster's tail run is not flanked, because below the last badge there is
+    // no next badge — only .lp-spec's tail padding, the seam keyline,
+    // .lp-shear's head padding and its sign, all on the same Espresso ground.
+    // Measured at 375x812 on the tree of 44ff64a that run was 545px, and the
+    // window sampling it (@4872) read 80.11% field on both landing.375x812
+    // rows in the census committed at 44ff64a — over the 80 band. It reads
+    // 64.20 in docs/brand/census.json with this clause in place, and the rows
+    // record zero window breaches.
+    expect(LANDING).toMatch(/\.lp-badge:not\(:nth-child\(3n\)\):not\(:last-child\)/)
   })
 
   it('leaves the badge a filled plate at the width where it is an object', () => {

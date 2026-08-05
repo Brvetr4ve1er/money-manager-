@@ -22,6 +22,7 @@ import {
   type Transaction,
 } from './state/store.ts'
 import { XP_REWARDS } from './engine/xp.ts'
+import { audit } from '../scripts/testing/a11yAudit.ts'
 
 // Sounds are reinforcement only; jsdom has no AudioContext, so stub the module.
 vi.mock('./audio/chiptune.ts', () => ({
@@ -459,6 +460,18 @@ describe('health explainability drawer', () => {
     // Trust Rule 5. The disclosure is NOT behind the drawer and not inside
     // .hero-main (which app.css hides at >=1024px): a calibration state that
     // blinks out at a breakpoint, or waits for a tap, is not a disclosure.
+    //
+    // SEEDED, NOT PROFILE-LESS, AND THE ASSERTIONS ARE UNCHANGED. This case
+    // used to render <App /> cold. The clause is gated on `hasScore` now (see
+    // HeroCard): before setup the card withholds the badge, the stage, the
+    // rating and the numeral, so "Score still calibrating. Day 0 / 90" was
+    // qualifying a quantity that is not on screen — a 0-of-90 progress readout
+    // for a number the card refuses to print, which is the device WeekBlock
+    // refuses on Trust Rule 6 grounds. The claim asserted here is still the
+    // real one and is still made where the score exists; only the station
+    // moved. The profile-less side is covered by NO_SCORE_LINE in the case
+    // below.
+    seedSetup()
     render(<App />)
     // Scoped to the health card: the ledger now carries the SAME Day n / 90
     // index in its own disclosure, and this assertion is about the score's.
@@ -469,6 +482,23 @@ describe('health explainability drawer', () => {
     fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '900' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
     expect(within(hero()).getByText(/Day 1 \/ 90/)).toBeTruthy()
+  })
+
+  it('withholds the calibration clause while it has no score to qualify', () => {
+    // The other half of the case above, and the reason it moved. Trust Rule 5
+    // before setup is NO_SCORE_LINE — no score at all is the stronger form of
+    // "still calibrating" — and Trust Rule 6 forbids drawing a target the user
+    // is short of, which "Day 0 / 90" beside a withheld numeral is.
+    render(<App />)
+    const hero = () => screen.getByRole('main').querySelector('.hero-card') as HTMLElement
+    expect(within(hero()).getByText(/No score yet\. Your numbers turn it on\./)).toBeTruthy()
+    expect(within(hero()).queryByText(/Score still calibrating/)).toBeNull()
+    expect(within(hero()).queryByText(/Day 0 \/ 90/)).toBeNull()
+    // Logging a day does not summon it either: the gate is the profile, not
+    // the ledger.
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '900' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(within(hero()).queryByText(/Score still calibrating/)).toBeNull()
   })
 
   it('prints no score at all while the numbers are not the user’s (Trust Rule 5)', () => {
@@ -4151,115 +4181,12 @@ describe('every announcement surface is mounted, empty, and hidden by geometry',
  * did not exist was anything that would fail when the next one arrived. This
  * runs at ten stations of the first session, so it does.
  */
-const TABBABLE_SEL = 'a[href], button, input, select, textarea, [tabindex]'
-
-/** Elements a Tab press can reach. tabindex="-1" is excluded deliberately: it
-    is the app's own focus-handoff mechanism (<main>, the card sections), not a
-    tab stop, and aria-hidden over one is not a trap. */
-const tabbable = (): HTMLElement[] =>
-  ([...document.querySelectorAll(TABBABLE_SEL)] as HTMLElement[]).filter(
-    (el) => el.getAttribute('tabindex') !== '-1' && !el.hasAttribute('disabled'),
-  )
-
-/**
- * A deliberately CONSERVATIVE accessible-name computation — aria-label, then
- * aria-labelledby, then the native label association, then the element's own
- * text. It is not the full accname algorithm (no dependency exists for that
- * here, and adding one is a dependency change), so it can only ever be wrong in
- * the safe direction: it may name something a browser would not, never the
- * reverse. An empty return is therefore evidence, not a guess.
- */
-function accessibleName(el: Element): string {
-  const label = el.getAttribute('aria-label')
-  if (label !== null && label.trim() !== '') return label.trim()
-  const by = el.getAttribute('aria-labelledby')
-  if (by !== null) {
-    const text = by
-      .trim()
-      .split(/\s+/)
-      .map((id) => document.getElementById(id)?.textContent ?? '')
-      .join(' ')
-      .trim()
-    if (text !== '') return text
-  }
-  if (
-    el instanceof HTMLInputElement ||
-    el instanceof HTMLSelectElement ||
-    el instanceof HTMLTextAreaElement
-  ) {
-    const wrapping = el.closest('label')
-    if (wrapping !== null && (wrapping.textContent ?? '').trim() !== '') {
-      return wrapping.textContent!.trim()
-    }
-    if (el.id !== '') {
-      const associated = document.querySelector(`label[for="${el.id}"]`)
-      if (associated !== null) return (associated.textContent ?? '').trim()
-    }
-    return ''
-  }
-  return (el.textContent ?? '').trim()
-}
-
-/** Every mechanical failure the document currently holds, each stamped with the
-    station it was found at. An empty array is the passing state. */
-function audit(station: string): string[] {
-  const found: string[] = []
-  const fail = (what: string) => found.push(`${station}: ${what}`)
-
-  const h1s = document.querySelectorAll('h1')
-  if (h1s.length !== 1) fail(`${h1s.length} h1 elements, expected 1`)
-
-  const ids = [...document.querySelectorAll('[id]')].map((e) => e.id)
-  for (const dup of new Set(ids.filter((id, i) => ids.indexOf(id) !== i))) {
-    fail(`duplicate id "${dup}"`)
-  }
-
-  for (const attr of ['aria-labelledby', 'aria-describedby']) {
-    for (const el of document.querySelectorAll(`[${attr}]`)) {
-      for (const ref of el.getAttribute(attr)!.trim().split(/\s+/)) {
-        if (document.getElementById(ref) === null) {
-          fail(`${attr}="${ref}" resolves to nothing (<${el.tagName.toLowerCase()}>)`)
-        }
-      }
-    }
-  }
-  for (const el of document.querySelectorAll('[aria-controls]')) {
-    const ref = el.getAttribute('aria-controls')!
-    if (document.getElementById(ref) === null && el.getAttribute('aria-expanded') !== 'false') {
-      fail(`aria-controls="${ref}" resolves to nothing and is not collapsed`)
-    }
-  }
-  for (const a of document.querySelectorAll('a[href^="#"]')) {
-    const id = a.getAttribute('href')!.slice(1)
-    if (id === '') continue
-    const target = document.getElementById(id)
-    if (target === null) {
-      fail(`in-page link #${id} points at nothing`)
-      continue
-    }
-    const nativelyFocusable = /^(a|button|input|select|textarea)$/i.test(target.tagName)
-    if (!nativelyFocusable && target.getAttribute('tabindex') === null) {
-      fail(`in-page link #${id} points at a node that cannot take focus`)
-    }
-  }
-  for (const el of tabbable()) {
-    if (el.closest('[aria-hidden="true"]') !== null) {
-      fail(`tabbable <${el.tagName.toLowerCase()}> inside aria-hidden`)
-    }
-    if (accessibleName(el) === '') {
-      fail(`unnamed tabbable <${el.tagName.toLowerCase()} class="${el.className}">`)
-    }
-  }
-  let previous = 0
-  for (const h of document.querySelectorAll('h1,h2,h3,h4,h5,h6')) {
-    const level = Number(h.tagName[1])
-    if (previous !== 0 && level > previous + 1) {
-      fail(`heading skips h${previous} -> h${level} ("${h.textContent?.slice(0, 30)}")`)
-    }
-    previous = level
-  }
-  return found
-}
+/* The walker itself lives in scripts/testing/a11yAudit.ts. It moved out of
+   this file so the poster suite can run the same eight checks — Root.test.tsx
+   walks <Root /> at two stations — rather than the app owning a guard the
+   first screen a stranger meets had no copy of. It is outside src/ on purpose:
+   scripts/census/inputs.ts hashes all of src/ as a pixel input, and a test
+   walker changes no pixels. */
 
 describe('the first session, walked by accessibility tree', () => {
   it('holds at every station from the empty app to the first export', () => {

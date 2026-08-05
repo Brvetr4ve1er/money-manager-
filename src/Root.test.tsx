@@ -17,6 +17,7 @@ import { NOTE_DENOMINATIONS_DA } from './engine/keypad.ts'
 import { CALIBRATION_DAYS } from './engine/profile.ts'
 import { WEEK_DAYS } from './engine/ledger.ts'
 import { NO_SCORE_LINE } from './components/HeroCard.tsx'
+import { audit } from '../scripts/testing/a11yAudit.ts'
 
 // Same stub as App.test: sounds are reinforcement only and jsdom has no
 // AudioContext. Root mounts App, so the module is in the graph either way.
@@ -107,6 +108,26 @@ describe('cold-start gate', () => {
     fireEvent.click(enterButtons()[0])
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Ember')
+  })
+
+  it('holds the mechanical accessibility checks on the poster and past the gate', () => {
+    // THE GUARD THE APP HAD AND THE POSTER DID NOT. App.test.tsx runs this
+    // exact walker at thirteen stations of the app; the landing — the first
+    // screen a stranger meets — had three hand-picked mechanical facts (one
+    // h1 above, #spec focusable below, no focusable in the shot below) and
+    // nothing standing between it and the other eight failure classes.
+    //
+    // IT PASSES TODAY, WHICH IS THE REASON TO COMMIT IT RATHER THAN A REASON
+    // NOT TO. Nothing here fails if a later edit adds a second h1 to
+    // .lp-object, collides an id between the poster and the aria-hidden
+    // <ArchiveCard> shot (which already carries #ledger-days), renames a
+    // heading and strands an aria-labelledby, skips h2 -> h4 in the badge
+    // grid, or lands a control inside .lp-shot-frame — unless something is
+    // looking. See scripts/testing/a11yAudit.ts for what each check is for.
+    render(<Root />)
+    expect(audit('landing')).toEqual([])
+    fireEvent.click(enterButtons()[0])
+    expect(audit('landing→day0')).toEqual([])
   })
 })
 
@@ -336,11 +357,23 @@ describe('the landing states what the app will not do to the reader', () => {
     // drift into the second.
     // It is a RULE, not a term of the fold: it sits in the rules band with the
     // other invariants (see RULES in Landing.tsx), which is also where it
-    // stopped costing the fold 54px of an 812px window.
+    // stopped costing the fold 51px of an 812px window.
+    //
+    // AND THE MOVE COST THE CLAUSE ITS SCOPE, WHICH IS WHAT THIS CASE NOW
+    // PINS. At the fold the line read "Days are counted, never chained" under
+    // a note recording that the wording was scoped on purpose. The rules band
+    // is framed "These are invariants, not intentions", which is a stronger
+    // frame — and under it that sentence asserts of the whole product
+    // something only the SURFACES do: longestLogStreak chains consecutive days
+    // and `streak-7` wants seven in a row. So the band carries only the two
+    // sentences that are true everywhere, and this asserts the chaining claim
+    // is NOT in the band. (README.md keeps it, scoped in place, one clause
+    // later — README.test.ts holds that copy.)
     const { container } = render(<Landing onEnter={() => {}} />)
     const rules = container.querySelector('.lp-rules')?.textContent ?? ''
-    expect(rules).toContain('Days are counted, never chained')
     expect(rules).toContain('No run to break, no day to lose')
+    expect(rules).toContain('Nothing resets and nothing is taken back')
+    expect(rules).not.toMatch(/never chained|counted, never/i)
     expect(rules).not.toMatch(/no streak|streak-free|never a streak/i)
     // AND IT MUST NOT PRINT THE REGISTER IN ORDER TO DENY IT — anywhere on the
     // page, not only in the rule. The first draft of the fold read "Nothing

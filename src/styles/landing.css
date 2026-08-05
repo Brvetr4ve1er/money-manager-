@@ -941,9 +941,31 @@
    "a Bone plate like the badges below it", so taking the badges' phone
    construction was the obvious move — and it dropped window @2436 to 12.97%
    Bone in dark, under the 15 floor, because that window is the shot's tail and
-   the strip is the only Bone in it. It keeps its fill. */
+   the strip is the only Bone in it. It keeps its fill.
+   AND THE LAST BADGE KEEPS ITS FILL TOO, BECAUSE THE RUN BELOW IT IS NOT A
+   BADGE. The `~370px` derivation above prices a keyline run the way the stripe
+   assumes it: FLANKED BY BONE on both sides. The roster's tail is the one run
+   that is not. Under the last badge there is no next badge — there is
+   `.lp-spec`'s `--s5` tail padding, the Bone seam keyline, `.lp-shear`'s `--s5`
+   head padding and its d2 sign, all on the SAME Espresso ground, and the two
+   sections abut on it. Measured in Chromium at 375x812 on the tree of 44ff64a:
+   badge 08 ended at 4838 and the next Bone was `.lp-rules-lede`'s Sand plate at
+   5383 — 545px of one ground, half again the two-badge run this rule was
+   derived for, and it straddles a section boundary so neither section's own
+   reading can see it. The grid window that samples it, `@4872`, read 80.11%
+   field in BOTH landing.375x812 rows in the census committed at 44ff64a: a
+   recorded band breach, 0.11 over §2.1b's 80.
+   `:not(:last-child)` gives the tail run the Bone flank the derivation already
+   assumed. It moves no box — a fill is not a length — so §2.1b.1's "any change
+   that lengthens a section by 60px moves the reported number without improving
+   one screen" is not being spent here; the ground changed, which is the unit
+   §2.1b says is the right one. It is also roster-proof: when the roster's
+   length is a multiple of three the last badge is already `3n` and this clause
+   is a no-op, and the longest keyline run stays two badges either way.
+   CONSTRAINT §2.1b: window band, field 35-80. Contrast is the base rule's own
+   pair, Graphite on Bone 11.4:1 — no new pair. */
 @media (max-width: 719px) {
-  .lp-badge:not(:nth-child(3n)) {
+  .lp-badge:not(:nth-child(3n)):not(:last-child) {
     background: none;
     color: var(--lp-counter);
     border-color: var(--lp-counter);

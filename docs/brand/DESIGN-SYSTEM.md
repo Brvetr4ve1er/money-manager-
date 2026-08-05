@@ -114,6 +114,23 @@ recorded band breach on a 276px composition — against **77.03 / 13.61** at res
 that breach was a banner. The Bone-floor half is real, is 1.39pp under, and is identical in both
 themes.
 
+**THE SETTLE PROTOCOL IS FOUR ATTEMPTS, NOT TWO, AND HALF THE MATRIX DEPENDS ON IT.** The
+sentence above describes the check as it was; the admission rule moved in the round that admitted
+five previously-refused pairs, and a rule that decides whether a row gets measured at all is not a
+driver detail. As it now stands: up to **four** two-capture comparisons per row, each pair 400ms
+apart, **byte-exact and never toleranced**, and the attempt count is recorded per row
+(`settleAttempts`) so "needed three tries" is a fact in the artifact rather than something the
+loop swallowed. Two attempts refused every quiet 375px app row on this container, behind a
+diagnosis about reward toasts that was measurably false — the real difference between a phone
+row's first two captures is the antialiased keyline of the topbar's mute button, re-rastered over
+the first ~1.1s. **Tolerancing the comparison was the obvious fix and was rejected**: byte
+exactness is precisely what stops a 2600ms toast from being averaged into a row, and a per-pixel
+epsilon would blind the instrument in the one direction it cannot afford. More attempts cost only
+wall clock; a row that is genuinely animating still fails and still writes nothing. The change is
+load-bearing and it is also self-checking, because the rows it admitted ADD breaches rather than
+removing them. Read `settleAttempts` in `docs/brand/census.json` for how many rows currently need
+more than one; every 375px app row does.
+
 It was not always inside the band, and the state that produced this rule is worth stamping.
 On the CLEAN TREE OF COMMIT `71b5608` the same row's **document** average was 41.70% field /
 47.32% Bone, and its **mean of windows** — a different statistic, which is the whole subject of
@@ -225,9 +242,16 @@ GROUND(el)  := background alpha === 1
             AND rect.height > 0                       (<html> and <body> excluded)
 
 PAGE_GROUND := the outermost GROUND whose box spans the whole document
-SECTION     := a GROUND whose only GROUND ancestor is PAGE_GROUND
+SECTION     := a GROUND whose only GROUND ancestor is PAGE_GROUND, or which
+               has none at all when no ground spans the document
 NESTED      := every other GROUND
 ```
+
+**The null case is not a corner: it is the case every app row takes.** `composition.ts` has
+always stated it (`classifyGrounds`: `g.parent === -1 || g.parent === page`); this block did not,
+and the block is the published law. On every app row in `docs/brand/census.json` `pageGround` is
+`null` — the app's shell paints no single ground over the whole document — and the walk's one
+qualifying ground is therefore a SECTION with no page ground above it.
 
 ```
 Every SECTION   field 35–80% · Bone 15–55% · caps 85 field / 65 Bone
@@ -245,12 +269,35 @@ Every NESTED    height <= one viewport
 Accent          not re-checked. Accent stays a document property.
 ```
 
-**Accent must stay document-scoped or §5C becomes illegal.** `.lp-foot` reads accent 31.02% at
-375 and 27.98% at 1440 under a naive per-section count — because §5C names *"THE PLATE —
+**Accent must stay document-scoped or §5C becomes illegal.** `.lp-foot` reads accent 30.80% at
+375 and 27.98% at 1440 under a naive per-section count (PROVENANCE: `docs/brand/census.json`) — because §5C names *"THE PLATE —
 horizontal lockup on marigold/cobalt"* as a signature layout and §2 lists `Marigold + Cobalt +
 Bone` as an approved pairing. In that composition Marigold **is** a field, not an accent. §2.1b
 already draws exactly this line between window-scoped budgets and document-scoped ones; the
 section reading inherits it unchanged.
+
+**AND THE SAME ARGUMENT DISPOSES OF `.lp-foot`'s BONE FLOOR, WHICH IS THE WORST SECTION READING
+IN THE ARTIFACT AND HAS BEEN OPEN, UNARGUED, SINCE THE THIRD READING LANDED.**
+(PROVENANCE: `docs/brand/census.json`.) The section reads
+**61.58% field / 2.85% Bone / 4.76% Graphite / 30.80% accent, deviation 60.78** at 375 and
+**67.41 / 2.52 / 2.09 / 27.98, deviation 66.78** at 1440, and
+`section footer.lp-foot: bone 2.85 under the 15 band` is recorded on all four landing rows of
+every census since the one committed at `83c9a9e`. The paragraph above exempts that section's
+ACCENT and then stops,
+which left the field/Bone split — the same buckets, the same composition, the same §5C argument —
+with no disposition anywhere in this document. Carried through: in an approved
+`Marigold + Cobalt + Bone` plate the accent bucket is holding the COUNTER'S ROLE, not an accent's.
+A 31% Marigold lockup standing on 61% Espresso is §2's 60/30 read exactly, with the counter
+painted in the third colour of an approved triad. The band is measuring the wrong two buckets for
+this one composition, and a Bone band added to satisfy it would be designing around a
+classification artefact — which §2.1 forbids by name.
+**THE BREACH STAYS IN THE ARTIFACT, AND THAT IS DELIBERATE.** No exemption is carved into
+`compositionBreaches`. It could only be carved by naming a selector or by inventing a heuristic,
+and §2.1b.1's whole construction is that the walk holds no per-page knowledge; a reading that got
+KINDER by special case would stop being the harsher reading that is the argument for it. So the
+disposition lives here and in the test: `census.test.ts` carries a per-row waiver list, each entry
+quoting the breach verbatim with the paragraph that argues it, so this breach cannot grow, cannot
+multiply and cannot be joined by an unargued one without the suite going red.
 
 **This reading is the harsher one, and that is the argument for it.** It was adopted because it
 *adds* breaches and removes none. On the tree of `9a42bd8`, `landing.1440x900.*` `.lp-shear` was
@@ -263,10 +310,18 @@ structurally cannot see. The run-length check found the second one in the same w
 `.lp-shot-frame`, a full-bleed Bone mat 1911–2918 = **1007px** on an 812px phone, the run that
 produced the @1992 window above.
 
-The rule needs no landing-specific knowledge and runs on the app rows unchanged. There it finds
-the shell's grounds; those are all longer than a viewport, so the composition check does not
-fire and the app keeps being judged by its windows. That is the correct outcome, and it is why
-`scripts/census/composition.ts` contains no `screen === 'landing'` branch.
+The rule needs no landing-specific knowledge and runs on the app rows unchanged, and **it fires
+there.** This paragraph used to say the opposite — that the app's grounds "are all longer than a
+viewport, so the composition check does not fire and the app keeps being judged by its windows" —
+and that was false in the artifact of the round that wrote it. Read the rows: every app row
+records `pageGround: null`, exactly one section, `div.hero-frame` @0, 276px and therefore
+`held: true`, and one composition breach —
+`section div.hero-frame @0: bone 13.61 under the 15 band` — on **every** 375px app row, in both
+themes. §2.1b.2 states the same finding four hundred words further down; the two halves of one
+document disagreed about whether the third reading applies to the app at all. It does. What is
+true, and is the point that sentence was reaching for, is that the walk needs no per-page
+knowledge to do it: `scripts/census/composition.ts` contains no `screen === 'landing'` branch,
+and it never gains one.
 
 #### 2.1b.2 What is in the matrix is a claim about what matters
 
@@ -285,23 +340,26 @@ PROVENANCE: every figure in this block is docs/brand/census.json.
              setup form open. Not `fresh` (that is the landing; the gate reads
              storage) and not `cold` (day one, with a log). The fixture is
              defaultState() verbatim.
-   app.375x812.light.day0   6 windows  meanDeviation 22.16  worst @3248 dev 64.42
-      SEVEN breaches.  window @2436 33.55 field / 55.60 bone
-                       window @3248 29.76 field / 59.99 bone
-                       mean field 49.32 and mean bone 40.39, both outside
-   app.375x812.dark.day0    6 windows  meanDeviation 16.28  worst @3248 dev 43.42
-      FOUR breaches.   window @3248 bone 10.25, window @3502 bone 14.23,
-                       both under the 15 floor;  mean bone 22.26, outside
+   (Counts below are BAND breaches — `breaches` minus the two-accent advisory
+    every app row carries. The array length is one higher on each of them.)
+   app.375x812.light.day0   6 windows  meanDeviation 19.89  worst @2436 dev 65.74
+      FOUR breaches.   window @2436 27.13 field / 61.49 bone — under the field
+                       floor and over the 55 Bone band;
+                       mean field 50.79 and mean bone 39.30, both outside
+   app.375x812.dark.day0    6 windows  meanDeviation 15.64  worst @3398 dev 35.44
+      THREE breaches.  window @3248 bone 14.84 and window @3398 bone 14.23,
+                       both under the 15 floor;  mean bone 22.92, outside
 .dense       ONE DAY holding 24 rows. Not a big ledger: ArchiveCard windows to
              WINDOW_DAYS = 3, so 900 rows over 300 days render eight rows and a
              SHORTER page than `seeded`. The card bounds days, never rows, and
              the stripe alternates per `ledger-day` — so one dense day is one
              unbroken ground run.
    app.375x812.light.dense  doc 6834  meanDeviation 20.59  worst @4872 dev 79.95
-      FIVE breaches.   window @4872 24.53 field / 69.98 bone — under the field
-                       floor AND over the 65 Bone HARD CAP
+      FOUR breaches.   window @4872 24.53 field / 69.98 bone — under the field
+                       floor AND over the 65 Bone HARD CAP;  mean field 51.51
+                       and mean bone 40.29, both outside
    app.375x812.dark.dense   doc 6834  meanDeviation  3.92  worst @4872 dev 41.13
-      TWO breaches.    window @4872 field 80.56, over the 80 band — the same
+      ONE breach.      window @4872 field 80.56, over the 80 band — the same
                        window, the other way round
 .breakdown   the health drawer OPEN. +195px of document, and it produces the
              worst app window in the matrix.
@@ -341,15 +399,15 @@ five days, pre-setup, one of them a resist) and the pair was uncommented.
 
 ```
 PROVENANCE: docs/brand/census.json, the artifact this paragraph ships with.
-   app.375x812.light.cold   doc 4972   7 windows  meanDeviation 15.83  worst @3248 dev 66.24
-      TWO band breaches + one mean.  window @3248 27.04 field / 59.75 bone
-                                     mean bone 37.91, outside 30±6
-   app.375x812.dark.cold    doc 4972   7 windows  meanDeviation  3.61  worst @3248 dev 43.42
-      ONE band breach.               window @3248 bone 8.46, under the 15 floor
+   app.375x812.light.cold   doc 4952   7 windows  meanDeviation 15.84  worst @3248 dev 65.86
+      TWO band breaches + one mean.  window @3248 27.12 field / 59.80 bone
+                                     mean bone 37.92, outside 30±6
+   app.375x812.dark.cold    doc 4952   7 windows  meanDeviation  4.01  worst @3248 dev 43.40
+      ONE band breach.               window @3248 bone 8.35, under the 15 floor
 ```
 
 `@3248` is the theme-twin check paying for itself again, and it is the SAME defect `day0` already
-records one window earlier (`@2436`, 28.82 / 60.09 light against 65.62 / 16.61 dark): before
+records one window earlier (`@2436`, 27.13 / 61.49 light against 66.82 / 15.16 dark): before
 setup, `ProfileCard`'s open form is one unbroken ground taller than a viewport, and neither the
 day list nor the decision record — the two surfaces whose stripe breaks a run on the seeded page
 — has anything in it to stripe. It is a pre-setup structural run, it is not the week block, and
@@ -358,20 +416,39 @@ this section makes about it.
 
 **The week block moved `day0` toward the band on both axes and in both themes**, which is what a
 counter plate in `.hero-main`'s slot is supposed to do — a plate is the ground's OPPOSITE, so one
-block moves the two themes the right way at once (§2.1b). Measured against the artifact
-committed at `ec3aa0c`:
+block moves the two themes the right way at once (§2.1b). Three artifacts, because two changes
+landed on this row and pretending they were one would be the mislabel this section keeps paying
+for:
 
 ```
-BEFORE: the census committed at ec3aa0c. AFTER: docs/brand/census.json.
-app.375x812.light.day0   mean-of-windows dev 22.16 -> 20.05   breaches 7 -> 5
-                         field 50.85 -> 51.69   bone 38.80 -> 38.26
-app.375x812.dark.day0    mean-of-windows dev 16.28 -> 15.19   breaches 4 -> 3
-                         field 63.41 -> 63.23   bone 23.62 -> 24.06
+BEFORE = the census committed at 83c9a9e, which stamps tree ec3aa0c, dirty.
+         No week block.  (The carrier is named the way §2.1b's closing rule
+         asks: the census committed AT ec3aa0c has twelve rows and no `day0`
+         row at all, so it cannot be the source of any figure on this line.)
+MIDDLE = the census committed at c3c6c3b, which stamps tree 83c9a9e, dirty.
+         Week block in; HeroCard still printed the calibration clause here.
+AFTER  = docs/brand/census.json.  The calibration clause is withheld before
+         setup (it qualified a score this card had already refused to render —
+         see HeroCard), which is 20px off the document.
+Counts are the `breaches` ARRAY LENGTH, so each includes the two-accent advisory.
+app.375x812.light.day0   mean-of-windows dev 22.16 -> 20.05 -> 19.89
+                         breaches 7 -> 5 -> 5
+                         field 50.85 -> 51.69 -> 51.57   bone 38.80 -> 38.26 -> 38.36
+app.375x812.dark.day0    mean-of-windows dev 16.28 -> 15.19 -> 15.64
+                         breaches 4 -> 3 -> 4
+                         field 63.41 -> 63.23 -> 63.37   bone 23.62 -> 24.06 -> 23.91
 ```
 
-Every `seeded` row is BYTE-IDENTICAL across the change, and that is the design rather than luck:
-the block renders only while `profile` is null, so the twelve rows this section's earlier
-paragraphs quote measure exactly the same DOM they did before.
+The dark row went one breach BACK at the last step and the entry stays in because of it: shrinking
+the document by 20px re-phased the grid, and `@3248` — which read 15.07% Bone in MIDDLE, 0.07 over
+the floor — came in at 14.84, 0.16 under it. That is §2.1b.1's arbitrary phase again, on a change
+that removed a line of type. It is recorded, not corrected; the correction would be to move a
+boundary until the grid samples somewhere kinder, which the same section forbids.
+
+Every `seeded` row is BYTE-IDENTICAL across both changes, and that is the design rather than luck:
+the week block renders only while `profile` is null and the calibration gate only fires where
+`hasScore` is false, so the twelve rows this section's earlier paragraphs quote measure exactly
+the same DOM they did before.
 
 #### 2.1b.3 A paragraph of copy is a composition change, and the grid phase will bill you for it
 
@@ -383,49 +460,78 @@ copy. It moved every window on all four landing rows, and it is worth stamping B
 only copy: the model §2.1b hands a designer works on paragraphs exactly as it works on plates.
 
 ```
-PROVENANCE: BEFORE = the census committed at 83c9a9e (which stamps that sha with
-dirty:true — the carrier, per the naming rule below).  AFTER = docs/brand/census.json.
+PROVENANCE, and the two ends of this comparison are BOTH historical now — the
+step it records is two changes old.
+BEFORE = the census committed at 83c9a9e, which stamps tree ec3aa0c, dirty.
+         No block.
+AFTER  = the census committed at 44ff64a, which stamps tree c3c6c3b, dirty.
+         The 178px block, before the badge stripe's tail was fixed.
 landing.375x812.light.fresh   mean-of-windows dev 3.13 -> 5.50   doc field 58.82 -> 57.35
 landing.375x812.dark.fresh    mean-of-windows dev 2.67 -> 1.71   doc field 61.03 -> 59.44
 landing.1440x900.*.fresh      mean-of-windows dev 8.22 -> 8.07   doc field 61.34 -> 59.88
+NOW (docs/brand/census.json), after the last badge took its fill back and the
+no-retention rule grew a clause — mean-of-windows dev rises because doc field
+falls further below the 60 target, and every row is inside the band with zero
+window breaches, which is the reading the band actually makes:
+landing.375x812.light.fresh   mean-of-windows dev 9.16   doc field 55.45
+landing.375x812.dark.fresh    mean-of-windows dev 5.37   doc field 57.53
+landing.1440x900.*.fresh      mean-of-windows dev 8.06   doc field 59.88
 ```
 
 **The model, read backwards, priced the paragraph before it was written.** `.lp-wall`'s window
-`@0` held 66.48% field / 24.25% Bone in the census committed at tree `83c9a9e` — 6.5pp OVER the
-60 target. A Bone-grounded block inside an 812px window trades about 0.075pp of field per pixel
-of height on this page, measured across three drafts of the same block:
+`@0` held 66.48% field / 24.25% Bone in the census committed at `83c9a9e`, which stamps tree
+`ec3aa0c`, dirty — 6.5pp OVER the 60 target. A Bone-grounded block inside an 812px window trades
+about **0.082pp of field per pixel** of height on this page — the least-squares slope across all
+three drafts of the same block, which is also the figure Landing.tsx quotes for the same page.
+(The pairwise slopes are 0.084 from 0 to 178 and 0.075 from 178 to 229; this line used to quote
+0.075 and call it the three-draft figure, which is the one of the three least representative of
+the set.)
 
 ```
-PROVENANCE: row landing.375x812.light.fresh. The 0px line is the census committed
-at 83c9a9e; the 178px line is docs/brand/census.json; the 229px line is a draft
-that was measured and discarded, so it is HISTORICAL and names no tree of its own.
+PROVENANCE, one carrier per line, per this section's own closing rule.
+row landing.375x812.light.fresh.
+  0px  — the census committed at 83c9a9e, which stamps tree ec3aa0c, dirty.
+178px  — docs/brand/census.json, the artifact this document ships with.
+229px  — the census committed at c3c6c3b, which stamps tree 83c9a9e, dirty.
+         NOT an unmeasured draft: it shipped, it is in the history, and the
+         three figures on its line are that file read verbatim.
 block height   wall height   window @0 field      window @4872 field
      0px          1675           66.48                  73.51
-   178px          1869           51.57                  80.11
+   178px          1869           51.57                  64.20
    229px          1920           47.77                  78.25
 ```
 
-Read the two columns differently, because they are different statistics. **`@0` is monotonic in
-the block's height and it is the real reading**: the block is IN that window, the trade is Bone
-for field one pixel at a time, and the 62-word draft (357px, not in the table — it also pushed
-`.lp-share`'s lead under the fold) would have overshot to the other side of the target as far as
-the page started on the near side of it. The 25-word form is the one that lands nearest 60. That
-is the whole of §2.1b's arithmetic applied to a paragraph, and it is why the block's length is
-recorded in Landing.tsx as a constraint rather than as an edit.
+**The two columns are different statistics and the right-hand one is no longer even a series.**
+`@0` is: all three of its readings are the same page with a different block in it. The `@4872`
+column is not, because the tail of the badge grid changed under it AFTER all three drafts were
+measured (see `.lp-badge`'s `:not(:last-child)` in landing.css). 64.20 is this tree with the
+178px block in it; 73.51 and 78.25 are the construction that preceded it, and the 178px line read
+80.11 under that construction. Read down that column for history, never for a trend.
 
-**`@4872` is NOT monotonic, and that is §2.1b.1's arbitrary phase presenting its bill.** The
-block does not appear in that window at all; the window only moves over the `.lp-spec` →
-`.lp-shear` boundary as the wall above it changes length. 80.11 is a recorded breach — 0.11pp
-over the 80% field cap — and it is one grid sample of a run that was ALREADY measured worse: on
-the clean tree of `9a42bd8`, the sliding-window probe put `landing.375x812.dark` at 81.78% field
-/ 14.42% Bone at offset 4783, outside the band on both axes, at a phase the grid did not sample.
-The defect is `.lp-spec`'s bare-Espresso tail meeting `.lp-shear`'s bare-Espresso head with no
-plate between them — two sections that abut on the SAME ground, so the boundary the reader's eye
-is supposed to stop at is invisible to them and to the ratio law alike. It is a composition
-problem in the shear, it is not the paragraph, and **it must not be answered by relengthening the
-wall until the grid samples somewhere kinder**. Section 2.1b.1's sentence is the binding one:
-"any change that lengthens a section by 60px moves the reported number without improving one
-screen."
+**`@0` is monotonic in the block's height and it is the real reading**: the block is IN that
+window, the trade is Bone for field one pixel at a time, and the 62-word draft (357px, not in the
+table — it also pushed `.lp-share`'s lead under the fold) would have overshot to the other side of
+the target as far as the page started on the near side of it. The 25-word form is the one that
+lands nearest 60. That is the whole of §2.1b's arithmetic applied to a paragraph, and it is why
+the block's length is recorded in Landing.tsx as a constraint rather than as an edit.
+
+**`@4872` WAS NOT MONOTONIC, IT WAS A BREACH, AND IT IS PAID.** The block does not appear in that
+window at all; the window only moves over the `.lp-spec` → `.lp-shear` boundary as the wall above
+it changes length. At the 178px draft it read 80.11 — a recorded band breach, 0.11pp over the 80%
+field cap, on both `landing.375x812` rows — and it was one grid sample of a run that had ALREADY
+been measured worse: on the clean tree of `9a42bd8` the sliding-window probe put
+`landing.375x812.dark` at 81.78% field / 14.42% Bone at offset 4783, outside the band on both
+axes, at a phase the grid does not sample.
+**The cause was the run, not the paragraph, and the run is what was cut.** `.lp-spec`'s tail meets
+`.lp-shear`'s head on the SAME Espresso ground, and the badge stripe's derivation ("the longest
+keyline run is two badges, ~370px") silently assumed every keyline run is flanked by Bone. The
+last one is not: below the last badge there is no next badge, only two sections' padding and a
+d2 sign, and the run measured 545px in Chromium at 375×812 on the tree of `44ff64a`. Filling the
+last badge gives that run the flank the derivation already assumed. It moves no box — a fill is
+not a length — so §2.1b.1's binding sentence is not being spent: **the answer was not to
+relengthen the wall until the grid sampled somewhere kinder.** `@4872` now reads 64.20 field /
+30.31 Bone, deviation 9.01, and both `landing.375x812` rows record zero window breaches. The bill
+was paid in Bone, not in phase.
 
 The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
 test fails when it stops describing the tree. Any figure quoted about this product's pixels

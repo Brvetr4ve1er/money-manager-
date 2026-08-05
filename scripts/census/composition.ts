@@ -51,10 +51,16 @@
  * and a per-section accent budget would make §5C permanently illegal.
  *
  * The walk needs no landing-specific knowledge and runs on the app rows
- * unchanged. There it finds the shell's grounds; those run longer than a
- * viewport, so the composition check does not fire and the app keeps being
- * judged by its windows. That is the correct outcome, and it is why there is no
- * `screen === 'landing'` branch anywhere in this file.
+ * unchanged, AND IT FIRES THERE. This paragraph used to claim the opposite —
+ * that the app's grounds all run longer than a viewport so the check never
+ * fires — and the artifact of the round that wrote it said otherwise. Every app
+ * row records `pageGround: null` (the shell paints no ground over the whole
+ * document, which is the branch classifyGrounds states below and the published
+ * rule block in §2.1b.1 did not), exactly one section — `div.hero-frame` @0,
+ * 276px, held — and one breach: `bone 13.61 under the 15 band`, on every 375px
+ * app row in both themes. What is true is the half that matters: the walk needs
+ * no per-page knowledge to find it, and there is no `screen === 'landing'`
+ * branch anywhere in this file.
  */
 
 import { deviation, SCROLLING_FORM, type Bucket, type Token } from './palette.ts'

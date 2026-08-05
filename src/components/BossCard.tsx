@@ -36,7 +36,9 @@ export function BossCard({
       <div className="boss-head">
         <h2>Weekly boss</h2>
         {/* Persistent marker for a claimed win — the fanfare/toast's visible
-            counterpart, same family as the quest all-done chip. */}
+            counterpart, and the same chip family .kept-chip and .boss-won use
+            on the other cards. (It used to name "the quest all-done chip",
+            which round 6 deleted along with the quest card.) */}
         {wonLastWeek && <span className="boss-won">Beaten last week +{XP_REWARDS.weeklyBoss} XP</span>}
       </div>
       {battle.kind === 'sizing-up' ? (

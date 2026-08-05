@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { deflateSync } from 'node:zlib'
 /* The PNG WRITER, imported to test the READER against. No fixture to keep in
@@ -929,6 +930,58 @@ describe('the window reading measures screens, not documents', () => {
     expect(self).toContain(spoken.replace(/\.00\b/g, ''))
   })
 
+  it("binds §2.1b.3's copy-height table to the rows and files it names", () => {
+    // §2.1b.3 IS THE SECTION THAT ESTABLISHES "quote the row id, or stamp the
+    // tree", and none of its dozen figures was bound to anything — which is how
+    // three of them came to be wrong with a green suite, including a committed
+    // artifact relabelled as "a draft that was measured and discarded". The
+    // table has three lines from three different files, so each line is checked
+    // against the file it names. Two of them are historical and live in git, so
+    // this reads them out of git rather than trusting the prose.
+    const flat = (s: string) => s.replace(/\s+/g, ' ')
+    const doc = flat(readFileSync(new URL('docs/brand/DESIGN-SYSTEM.md', REPO_ROOT), 'utf8'))
+    const committed = (sha: string): Census =>
+      JSON.parse(
+        execFileSync('git', ['show', `${sha}:docs/brand/census.json`], {
+          cwd: REPO_ROOT,
+          encoding: 'utf8',
+          maxBuffer: 32 * 1024 * 1024,
+        }),
+      ) as Census
+
+    /** One row of the table: [block height, carrier commit or null for HEAD's artifact]. */
+    const TABLE: Array<[string, string | null]> = [
+      ['0px', '83c9a9e'],
+      ['178px', null],
+      ['229px', 'c3c6c3b'],
+    ]
+    for (const [block, sha] of TABLE) {
+      const census = sha === null ? ARTIFACT : committed(sha)
+      const row = census.rows['landing.375x812.light.fresh']
+      const wall = row.composition.sections.find((s) => s.label === 'section.lp-wall')!
+      const at = (top: number) => row.scrollingForm.windows.find((w) => w.top === top)!
+      // Whitespace-collapsed so the table's column padding is not part of the
+      // assertion; the numbers and their order are.
+      expect(`${block} ${doc.includes(
+        `${block} ${wall.height} ${at(0).pct.field.toFixed(2)} ${at(4872).pct.field.toFixed(2)}`,
+      )}`).toBe(`${block} true`)
+      // The carrier line, in the form §2.1b's naming rule requires: the commit
+      // the file was committed AT, and the tree it STAMPS, which differ on
+      // every census this repo has ever committed.
+      if (sha !== null) {
+        expect(`${block}: ${doc}`.includes(
+          `the census committed at ${sha}, which stamps tree ${census.tree.sha.slice(0, 7)}, dirty`,
+        )).toBe(true)
+      }
+    }
+    // The block height the table prices is the one Landing.tsx records as its
+    // constraint. Two documents in one commit gave two heights for one shipped
+    // block for a round; this is what stops the third.
+    const landing = flat(readFileSync(new URL('src/components/Landing.tsx', REPO_ROOT), 'utf8'))
+    expect(landing).toContain('178px at')
+    expect(doc).toContain('put 178px of terms into `.lp-wall`')
+  })
+
   it("keeps every committed row's window arithmetic self-consistent", () => {
     for (const [id, row] of Object.entries(ARTIFACT.rows)) {
       const form = row.scrollingForm
@@ -951,6 +1004,121 @@ describe('the window reading measures screens, not documents', () => {
       expect(`${id}: ${form.breaches.join(' | ')}`).toBe(
         `${id}: ${scrollingFormBreaches(form.windows, form.mean, form.inkOnPaper, row.buckets, row.tokens, ARTIFACT.law.declaredAccents).join(' | ')}`,
       )
+    }
+  })
+
+  /**
+   * THE BAND, DEFENDED — the one assertion the artifact-wide checks did not
+   * make.
+   *
+   * Everything above RE-DERIVES each row's verdict from that row's own numbers.
+   * That catches a hand-edited breach list and nothing else: it is green with
+   * any number of honest breaches, and it was green while window band breaches
+   * went 0 (9a42bd8, 12 rows) -> 0 (ec3aa0c) -> 14 (83c9a9e, 18 rows) -> 15
+   * (c3c6c3b, 20 rows) at every step. The one `toEqual([])` in this file runs on
+   * a synthetic banded raster, never on ARTIFACT.rows. So the band was measured
+   * and not defended, and "zero band breaches" survived four rounds as a
+   * premise after it stopped being true.
+   *
+   * AN ALLOWLIST, NOT A BARE `toEqual([])`, FOR TWO REASONS. The two-accent
+   * advisory is legal and is filtered out by name — Marigold and acid paint one
+   * surface because they are the two TRACKS (Trust Rule 1, tokens.css
+   * --reward/--data), and §12 outranks §2. And a breach that is argued in the
+   * design system is a different object from one nobody has looked at: this
+   * list is where the argument is pinned to the exact string. Every entry names
+   * the paragraph that disposes of it.
+   *
+   * IT IS EXACT IN BOTH DIRECTIONS ON PURPOSE. A new breach fails it. So does
+   * a waived breach that has been CLOSED, or one whose number has drifted —
+   * because a waiver is a claim about a specific measured state, and a stale
+   * waiver is the same rot as a stale figure in prose. Closing one means
+   * deleting its line here, which is the smallest possible ceremony for the
+   * only good news this list can carry.
+   */
+  const HERO_FRAME = 'section div.hero-frame @0: bone 13.61 under the 15 band'
+  const PHONE_APP_ROWS = [
+    'app.375x812.dark.cold',
+    'app.375x812.dark.day0',
+    'app.375x812.dark.dense',
+    'app.375x812.dark.seeded',
+    'app.375x812.dark.seeded.breakdown',
+    'app.375x812.light.cold',
+    'app.375x812.light.day0',
+    'app.375x812.light.dense',
+    'app.375x812.light.seeded',
+    'app.375x812.light.seeded.breakdown',
+  ]
+
+  /** Window/mean band breaches that are recorded and argued. Row id -> verbatim. */
+  const WINDOW_WAIVERS: Record<string, string[]> = {
+    // §2.1b.2: before setup ProfileCard's open form is one unbroken ground
+    // taller than a viewport, and neither the day list nor the decision record
+    // has anything in it to stripe. Named there as a pre-setup structural run,
+    // measured on two pairs, and explicitly "not fixed here".
+    'app.375x812.light.day0': [
+      'window @2436: field 27.13 under the 35 band',
+      'window @2436: bone 61.49 over the 55 band',
+      'mean field 50.79 outside 60±8',
+      'mean bone 39.30 outside 30±6',
+    ],
+    'app.375x812.dark.day0': [
+      'window @3248: bone 14.84 under the 15 band',
+      'window @3398: bone 14.23 under the 15 band',
+      'mean bone 22.92 outside 30±6',
+    ],
+    'app.375x812.light.cold': [
+      'window @3248: field 27.12 under the 35 band',
+      'window @3248: bone 59.80 over the 55 band',
+      'mean bone 37.92 outside 30±6',
+    ],
+    'app.375x812.dark.cold': ['window @3248: bone 8.35 under the 15 band'],
+    // §2.1b.2: one dense day is one unbroken ground run — ArchiveCard's stripe
+    // alternates per `ledger-day`, so a day with 24 rows in it has nothing to
+    // alternate. @4872 is the theme-twin check paying for itself: 24.53% field
+    // in light and 80.56% in dark, the same window of the same DOM, one defect.
+    'app.375x812.light.dense': [
+      'window @4872: field 24.53 under the 35 band',
+      'window @4872: bone 69.98 over the 65 cap',
+      'mean field 51.51 outside 60±8',
+      'mean bone 40.29 outside 30±6',
+    ],
+    'app.375x812.dark.dense': ['window @4872: field 80.56 over the 80 band'],
+  }
+
+  /** Section/run breaches that are recorded and argued. Row id -> verbatim. */
+  const COMPOSITION_WAIVERS: Record<string, string[]> = {
+    // §2.1b.1's closing paragraph: `.lp-foot` is §5C's PLATE, an approved
+    // Marigold + Cobalt + Bone lockup, so its ACCENT bucket is holding the
+    // counter's role and the Bone floor is reading the wrong two buckets. No
+    // exemption is carved into compositionBreaches — that would need a selector
+    // or a heuristic, and the walk holds no per-page knowledge — so the breach
+    // stays recorded and the disposition lives in the law and here.
+    'landing.375x812.light.fresh': ['section footer.lp-foot @7129: bone 2.85 under the 15 band'],
+    'landing.375x812.dark.fresh': ['section footer.lp-foot @7129: bone 2.85 under the 15 band'],
+    'landing.1440x900.light.fresh': ['section footer.lp-foot @4718: bone 2.52 under the 15 band'],
+    'landing.1440x900.dark.fresh': ['section footer.lp-foot @4718: bone 2.52 under the 15 band'],
+    // §2.1b.2's fourth finding: the app's own instance of the hero band §2
+    // names, 1.39pp under the floor, identical in both themes. Open, argued,
+    // not closed.
+    ...Object.fromEntries(PHONE_APP_ROWS.map((id) => [id, [HERO_FRAME]])),
+  }
+
+  it('admits no band breach that is not argued in the design system', () => {
+    for (const [id, row] of Object.entries(ARTIFACT.rows)) {
+      // The two-accent advisory is filtered by name, not waived per row: it is
+      // legal everywhere it appears (§12 over §2) and it is the one entry in
+      // this array that is not a band verdict at all.
+      const band = row.scrollingForm.breaches.filter((b) => !b.startsWith('accents painting'))
+      expect(`${id}: ${band.join(' | ')}`).toBe(
+        `${id}: ${(WINDOW_WAIVERS[id] ?? []).join(' | ')}`,
+      )
+      expect(`${id}: ${row.composition.breaches.join(' | ')}`).toBe(
+        `${id}: ${(COMPOSITION_WAIVERS[id] ?? []).join(' | ')}`,
+      )
+    }
+    // A waiver for a row that no longer exists is a waiver nobody is reading.
+    for (const id of [...Object.keys(WINDOW_WAIVERS), ...Object.keys(COMPOSITION_WAIVERS)]) {
+      expect(`${id}: ${id in ARTIFACT.rows}`).toBe(`${id}: true`)
     }
   })
 })
