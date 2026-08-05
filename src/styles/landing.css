@@ -507,10 +507,18 @@
    4-up grid of badges on Espresso, captioned with mono index labels. Bone on
    Espresso is 13.4:1 — the strongest pair in the table — so this is the
    surface that carries the product explanation. */
+/* THE BOTTOM KEYLINE IS BONE BECAUSE THE SECTION BELOW IS NOW ESPRESSO TOO.
+   .lp-shear inverted to an Espresso ground (see §5D below), so this seam stopped
+   being a colour offset and became two identical grounds meeting. A Graphite
+   rule between them is 1.16:1 — the same invisible stroke .lp-spec:focus-visible
+   already had to be rescued from. Bone is 13.4:1 on both sides, so §5's "depth
+   comes from colour offset + keylines" is carried here by the keyline alone,
+   which is the half of that sentence the offset can no longer spend.
+   CONSTRAINT §2.1 rule 3: Bone on Espresso is in the table at 13.4:1. */
 .lp-spec {
   background: var(--lp-espresso);
   color: var(--lp-counter);
-  border-bottom: var(--keyline-w) solid var(--lp-form);
+  border-bottom: var(--keyline-w) solid var(--lp-counter);
   padding: var(--s5) var(--s3);
 }
 .lp-spec-lede {
@@ -566,11 +574,23 @@
    arrangement the dark theme already shipped. Every pair INSIDE the card is
    the app's own, unchanged; nothing here repaints it. */
 .lp-shot { margin: 0 0 var(--s3); }
-/* Phone width, held at every viewport. The shot is a specimen: a card stretched
-   to a 1080px measure is not the card anyone will use, and the target device is
-   the phone. */
+/* CONSTRAINT §2.1b — THE MOUNT TAKES THE MEASURE; THE SPECIMEN KEEPS THE CAP.
+   The 560px limit belongs to the CARD — "a card stretched to a 1080px measure
+   is not the card anyone will use, and the target device is the phone" — and it
+   was being enforced by shrinking the MAT, which is a different element with a
+   different job. On a 1440px page that left a 560px mount adrift in 880px of
+   bare Espresso for 935 unbroken rows: 61% of every one of those rows in the
+   field bucket, on the section that already had the least paper in it.
+   Measured on the tree of 9a42bd8 plus this round's shear inversion,
+   landing.1440x900 read mean-of-windows field 68.22 against §2.1b's 60±8 — a
+   breach the phone rows do not have, because on the phone the mat already runs
+   the full measure. Handing the mount the 1080 measure the note strip and the
+   badge grid already take is the same give-back, spent on the one plate that
+   was refusing it, and it needs no breakpoint: below 560px of measure the cap
+   below never binds and nothing moves.
+   The specimen does not change. It is still 560px, still centred, still the
+   app's own card with nothing repainted on it. */
 .lp-shot-frame {
-  max-width: 560px;
   margin: 0 auto;
   /* The app's own card rhythm (.main-stack's gap). The frame holds ONE card
      today (Root.test asserts exactly that) and .card carries no margin, so the
@@ -631,20 +651,49 @@
    is the first thing in its figure. Zeroed rather than left alone because that
    --s4 step would otherwise print as a hanging gap above the shot. */
 .lp-shot-frame .archive-card { margin-top: 0; }
-/* THE MAT IS PAID FOR OUT OF THE SECTION'S GUTTER, NOT OUT OF THE SPECIMEN.
-   .lp-spec already insets --s3 either side, so on a 375px phone the card was
-   327px wide; the mat's --s2 would have taken it to 295, narrower than any
-   phone this product is built for, and a specimen that narrow is no longer
-   "the card anyone will use" (see the max-width above). Full-bleeding the
-   frame out of that gutter gives the mat the margin instead: the card comes
-   back at 343px — WIDER than it was before the mat — and the paper runs to the
-   edges, which is §8's "let the container touch the frame edge in one place
-   per layout" spent on the one element that is a photograph of the product.
+/* THE SPECIMEN'S CAP, moved here off the mount (see the block above). Geometry
+   only — no fill, no stroke, no ink, no type size — so the shot is still
+   exactly what the app renders. `margin-inline` rather than `margin: 0 auto`
+   because .archive-card's own top margin is zeroed one line up and a shorthand
+   here would silently take it back. */
+.lp-shot-frame .card {
+  max-width: 560px;
+  margin-inline: auto;
+}
+/* CONSTRAINT §2.1b — THE MAT TAKES THE SECTION'S MEASURE, AND THE FULL BLEED
+   IS WHAT PAID FOR IT.
+   THE DEFECT, and it is one the committed artifact could not report. Bled out
+   of the section gutter, the mat was a full-bleed opaque Bone ground running
+   1911–2918 = 1007px against an 812px viewport — the only run on this page over
+   §2.1b's "no single ground may run longer than one viewport", and 195px over
+   it. What that costs shows up only if you slide the window instead of tiling
+   it from zero: measured on the tree of 9a42bd8, landing.375x812.light holds a
+   window at @1992 reading 27.84% field / 63.79% Bone — 7.2pp under the 35 floor
+   and over the 55 Bone ceiling — while the grid windows either side of it
+   (@1624 F 40.28, @2436 F 64.53) both pass and the row recorded no breach at
+   all. In light the mat and the card's Bone .reading-plate interiors are one
+   Bone mass; in dark those interiors are Espresso, so the same DOM read
+   F 46.75 / B 45.53 there against F 30.71 / B 61.23 in light — §2.1b's
+   theme-twin check, 16pp apart.
+   INSETTING IT IS THE FIX AND IT IS ARITHMETIC, not taste: a 327px mat on a
+   375px page leaves the section's own 12.8% Flare/Espresso gutter on EVERY mat
+   row, which is round 6's model constant `field% = 12.8 + 76.7·rho` spent on
+   the one region that was refusing to pay it. It also ends the over-length run,
+   because the mat stops being full-bleed and stops being a ground at all.
+   THE SPECIMEN IS NOT WHAT PAYS. The block this replaces was right that a card
+   narrowed to 295px is no longer "the card anyone will use", so the mat's
+   INLINE padding drops to --s1 on the phone and the card comes back at 311px —
+   16px off the 327 it had before the mat existed, and still wider than the app's
+   own card at the narrowest width this product supports. The vertical padding
+   is untouched: nothing is competing for the height.
+   §8's "let the container touch the frame edge in one place per layout" is now
+   spent where §5B actually breaks its frame — .lp-object-mark crossing the top
+   edge of its own section — rather than on a mount.
    Phone only: from 720px up the frame is inside its 560px measure with the
-   section's gutter to spare, and there is nothing to reclaim. */
+   section's gutter to spare, and there was never a bleed to undo. */
 @media (max-width: 719px) {
   .lp-shot-frame {
-    margin-inline: calc(-1 * var(--s3));
+    padding-inline: var(--s1);
   }
 }
 /* The caption is the shot's alt text (the shot is aria-hidden), so it is real
@@ -867,12 +916,43 @@
 .lp-badge-body { margin: 0; font-size: var(--fs-body); }
 
 /* ── D. THE SHEAR (§5D) ───────────────────────────────────────────────────
-   One 38° Flare band splits the canvas. Sand ground (aged paper, spec sheets)
-   — Graphite on Sand is 9.4:1, so the rules below read at full body weight. */
+   One 38° Flare band splits the canvas, on Espresso ground with Sand plates.
+
+   CONSTRAINT §2 / §2.1b — SAND IS A COUNTER, SO IT CANNOT BE A SECTION'S
+   GROUND, and this section was standing on it. §2's own sentence is "60% Flare
+   or Espresso"; Sand is filed in the Bone family (paper — palette.ts's bucket
+   note, §2's "sand: aged paper, spec sheets", §1 trait 07). A Sand-grounded
+   section therefore contributes NOTHING to the 60% field budget, and the only
+   field it can ever show is whatever its plates and its band cover.
+
+   The arithmetic, measured rather than argued. Round 6's model reads
+   `field% = g + (c - g)·rho`, where g is the ground's own field value, c the
+   plate's and rho the plate's coverage. On .lp-spec, g = 100 and c = 12.8 (the
+   Flare gutter beside a 327px card). On this section g was 0 — Sand is
+   full-bleed, so there is no gutter, because Sand IS the gutter. At 100% plate
+   coverage it topped out at 86.13% field and it ran about 40%.
+
+   What that measured, in the artifact committed at 9a42bd8, per the SECTION
+   reading this round adds (see §2.1b): landing.1440x900 `.lp-shear` is 627px
+   against a 900px viewport — a composition the eye holds ENTIRE, which is §2's
+   own precondition for itself — and it read 30.40% field / 66.45% Bone. Under
+   §2.1b that is below the 35 floor AND over the 65 Bone HARD CAP, in both
+   themes. No window in that row isolates it, so the window reading structurally
+   could not see it and the artifact recorded zero breaches for the row.
+
+   INVERTING IS THE FIX, and it costs no new pair: Espresso ground takes Bone
+   copy at 13.4:1 (better than the 9.4:1 Graphite-on-Sand it replaces), and the
+   plates become Sand with Graphite ink at 9.4:1 — the pair landing.css already
+   defends. §2's approved pairing `Espresso + Sand + Coral` names Espresso
+   first; this section now spends it in that order.
+
+   The bottom keyline stays Graphite: it delimits this section from .lp-object's
+   Flare below, where Graphite is 3.79:1 (non-text, over the 3:1 minimum). The
+   seam ABOVE is the one that moved — see .lp-spec's border-bottom. */
 .lp-shear {
   position: relative;
-  background: var(--lp-sand);
-  color: var(--lp-form);
+  background: var(--lp-espresso);
+  color: var(--lp-counter);
   border-bottom: var(--keyline-w) solid var(--lp-form);
   padding: var(--s5) var(--s3);
   overflow: hidden;
@@ -993,8 +1073,19 @@
   margin: 0;
   transform: translateY(-50%) rotate(-38deg);
   background: var(--lp-flare);
-  border-top: var(--keyline-w) solid var(--lp-form);
-  border-bottom: var(--keyline-w) solid var(--lp-form);
+  /* CONSTRAINT §2.1 — THE BAND'S KEYLINE IS BONE BECAUSE ITS GROUND IS NOW
+     ESPRESSO. It was Graphite, delimiting Flare from the Sand this section used
+     to stand on at 9.4:1. Against Espresso a Graphite stroke is 1.16:1 and dies.
+     Bone is 13.4:1 on the Espresso outside and 3.01:1 on the Flare inside —
+     non-text, so the 3:1 minimum applies and it clears it, which is the same
+     bar .lp-object-mark's 3.79:1 is judged against.
+     The offset does not depend on it either way: Flare on Espresso computes
+     4.43:1, against the 2.52:1 Flare-on-Sand it replaces, so §5's "depth comes
+     from colour offset + keylines" is now carried BETTER by the offset than it
+     was before, and the keyline is the second contour rather than the only edge.
+     The marks inside are unchanged — Graphite on Flare, 3.79:1, ≥24px/700. */
+  border-top: var(--keyline-w) solid var(--lp-counter);
+  border-bottom: var(--keyline-w) solid var(--lp-counter);
   pointer-events: none;
   /* The marks are children, so they inherit the rotation and are parallel BY
      CONSTRUCTION — there is no second angle to keep in sync with the first.
@@ -1063,31 +1154,40 @@
 .lp-band-mark { display: none; flex-shrink: 0; }
 .lp-band-mark:nth-child(-n + 3) { display: block; }
 .lp-rules-body { position: relative; z-index: 1; }
-/* THE SECTION'S SENTENCE TAKES THE SAME PLATE ITS LIST DOES, and it is the
-   §2.1b give-back for this section's head.
-   The rules below were moved onto Espresso plates when this section measured
-   9.18% field at tree 71b5608; the HEAD was left on Sand, and the head is
-   252px of it (heading + this line) before the band lane starts. In the
-   artifact AT COMMIT 80f643d, landing.375x812 window @4872 read 33.65% field /
-   61.50% Bone in both themes — the page's worst window, breaching the 35 floor
-   and the 55 cap at once — and a layout probe over that tree puts exactly this
-   region in it: shear head 4890–5142, band lane 5142–5435, first rule at 5475,
-   window ending 5684.
+/* THE SECTION'S SENTENCE TAKES THE SAME PLATE ITS LIST DOES — same rule as
+   before the inversion, same reason, opposite colours (see .lp-rule).
+   RENAMED. It was `.lp-spec-lede-dark`, and the name was the state rather than
+   the role: a Sand plate called "dark" is a comment that has stopped being
+   true, and this file has already paid for one of those. `.lp-rules-lede` says
+   which section's lede it is, which does not change when the section's ground
+   does.
    NOT THE HEADING TOO: §5D's sign is the one mark on this section that belongs
-   on the paper, and a d2 brick at 9.4:1 on Sand is legal where 17px body copy
-   is the marginal case this plate improves (13.4:1 on Espresso).
-   AT EVERY WIDTH, unlike the wall's two plates: the 1440 row's @2700 window is
-   Bone-heavy as well (41.43% field / 53.90% Bone at the same commit), so this
-   plate moves both viewports the same direction. */
-.lp-spec-lede-dark {
+   on the ground. A d2 brick in Bone on Espresso is 13.4:1, where 17px body copy
+   is the marginal case this plate exists for. */
+.lp-rules-lede {
   max-width: 46ch;
-  background: var(--lp-espresso);
-  color: var(--lp-counter);
-  border: var(--keyline-w) solid var(--lp-counter);
+  background: var(--lp-sand);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
   border-radius: var(--r-lg);
   corner-shape: squircle;
   corner-shape: superellipse(2.07);
   padding: var(--s2);
+}
+/* CONSTRAINT §2.1b — THE PLATE TAKES THE POSTER'S FULL MEASURE ON THE DESKTOP,
+   and it is the MEAN of windows that asks for it, not any single one.
+   Inverting this section moved 1440's `.lp-shear` from 30.40% field to 72.0 —
+   the section breach is closed, but the row's mean-of-windows field went to
+   68.42 against §2.1b's 60±8, which is a breach the phone rows do not have
+   because the phone's plates already run the full measure. A 563px plate on a
+   1440px page leaves 61% of its own rows in the field bucket; at 1080 it leaves
+   25. Same plate, same copy, same pair — 36 percentage points of Bone bought
+   back on the rows that were furthest over.
+   Scoped like .lp-spec .lp-spec-lede's plate, at the same breakpoint and for
+   the mirror-image reason: below 1024 the measure and the viewport are close
+   enough that there is nothing to give back. */
+@media (min-width: 1024px) {
+  .lp-rules-lede { max-width: none; }
 }
 .lp-rules {
   list-style: none;
@@ -1101,22 +1201,29 @@
   grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: var(--s2);
 }
-/* ESPRESSO plates over the band, and they were Bone until §2.1b was measured
-   over this section. The plates are what interrupt the diagonal — and where a
-   rule crosses the Flare band, the plate is the only thing keeping 17px type
-   off a 3.79:1 field — but §5D stands the whole section on Sand, which is the
-   Bone family, so Bone plates on it were a 1175px stretch with no field in it
-   at all except the band lane. Measured at tree 71b5608: window @4872 read
-   9.18% field / 83.30% Bone, the worst window in the entire matrix at deviation
-   106.60. Espresso is the counter of the ground it stands on and the copy reads
-   BETTER on it: Bone on Espresso is 13.4:1 against the 9.4:1 Graphite on Sand
-   this replaces. The plate is delimited by its own fill at 9.4:1 against the
-   Sand section, so the 2px keyline moves to Bone with the ink rather than
-   staying a Graphite stroke nothing can see. */
+/* SAND plates on the Espresso ground, and this rule has now been round the
+   whole loop: Bone plates on Sand (tree 71b5608 — window @4872 read 9.18% field
+   / 83.30% Bone, deviation 106.60, the worst window in that matrix), then
+   Espresso plates on Sand (tree 9a42bd8 — the section itself read 30.40 / 66.45
+   at 1440, over the Bone hard cap), now Sand plates on Espresso.
+
+   THE TWO EARLIER STATES WERE THE SAME MISTAKE AT DIFFERENT DEPTHS: a section
+   whose GROUND is in the Bone family spends its whole area against the 30%
+   budget and can only buy field back a plate at a time. Swapping which of the
+   pair is the ground fixes it once, everywhere in the section, instead of once
+   per plate. See .lp-shear for the arithmetic and the measurement.
+
+   The plates still do the two jobs they were given: they interrupt the
+   diagonal, and where a rule crosses the Flare band the plate is the only thing
+   keeping 17px type off a 3.79:1 field. Graphite on Sand is 9.4:1 — full body
+   weight, and the pair the section already shipped before the plates existed.
+   The keyline moves back to Graphite WITH the ink: on the Espresso ground a
+   Sand fill is a 9.4:1 offset by itself, so the stroke is the second contour
+   (§1 trait 05) rather than the only edge. */
 .lp-rule {
-  background: var(--lp-espresso);
-  color: var(--lp-counter);
-  border: var(--keyline-w) solid var(--lp-counter);
+  background: var(--lp-sand);
+  color: var(--lp-form);
+  border: var(--keyline-w) solid var(--lp-form);
   border-radius: var(--r-lg);
   corner-shape: squircle;
   corner-shape: superellipse(2.07);

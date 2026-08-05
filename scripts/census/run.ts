@@ -50,6 +50,12 @@ import {
 } from './artifact.ts'
 import { launchChrome, type Cdp } from './chrome.ts'
 import {
+  COMPOSITION_NOTE,
+  COMPOSITION_SCRIPT,
+  censusComposition,
+  type Ground,
+} from './composition.ts'
+import {
   CENSUS_EPOCH_ISO,
   CENSUS_EPOCH_MS,
   CENSUS_LOCALE,
@@ -70,6 +76,7 @@ import {
   SCROLLING_FORM,
   STRAY_DELTA_E,
   TARGETS,
+  makeClassifier,
   readDeclaredAccents,
   readPalette,
 } from './palette.ts'
@@ -149,6 +156,16 @@ const FONT_PROBE = `(() => {
 interface Measured {
   record: RowRecord
   png: Uint8Array
+}
+
+/** The bucket that holds every pixel, or null when more than one is painting.
+    Exported shape kept trivial on purpose: the guard that uses it has to be
+    impossible to misread. */
+function BUCKETS_AT_100(buckets: Record<string, { pct: number }>): string | null {
+  for (const [name, stat] of Object.entries(buckets)) {
+    if (stat.pct >= 100) return name
+  }
+  return null
 }
 
 async function measureRow(
@@ -239,6 +256,16 @@ async function measureRow(
       widths: Record<string, number>
     }
 
+    // THE COMPOSITION BOUNDARIES ARE READ FROM THE LIVE DOM, BEFORE THE SHOT.
+    // They cannot be derived from the PNG: two adjacent sections that happen to
+    // share a ground colour are one band of pixels and two compositions, and a
+    // raster cannot tell them apart. This is the only measurement in the census
+    // that asks the page a question rather than counting what it painted, which
+    // is why the rule it asks is written out in full in composition.ts.
+    const grounds = JSON.parse(
+      await evaluate<string>(cdp, sessionId, COMPOSITION_SCRIPT),
+    ) as Ground[]
+
     // FULL PAGE, not viewport. That is what rounds 1-4 measured, and
     // comparability with those figures is the whole point of reproducing the
     // metric rather than inventing a better one.
@@ -283,6 +310,26 @@ async function measureRow(
     const decoded = decodePng(bytes)
     const counted = censusPixels(decoded.rgb, palette)
 
+    // A ROW THAT RENDERED NOTHING IS NOT A MEASUREMENT, and the settle check
+    // cannot say so: two captures of a blank page settle perfectly. Observed
+    // once on this container — the first target of a run came back 1024x900,
+    // 100% graphite, with the font probe resolving unknown/unknown/unknown, and
+    // what stopped the write was the FINGERPRINT guard, which reported it as a
+    // type-stack disagreement. That is the right outcome reached by the wrong
+    // sentence: the next round would have gone looking for a colour regression.
+    // A single-bucket page is the cheap, unambiguous statement of the same
+    // fact. It cannot fire on a real screen — no row in this matrix has ever
+    // been within 6pp of a single bucket, and §2 forbids a surface that is.
+    const single = BUCKETS_AT_100(counted.buckets)
+    if (single !== null) {
+      throw new Error(
+        `census: ${formatRowId(identityOf(row))} captured ${decoded.width}x${decoded.height} at ` +
+          `100% ${single} — every pixel one bucket. That is an unpainted page, not a colour. ` +
+          'Nothing written for this row; re-run, and if it repeats look at the navigation rather ' +
+          'than at the stylesheets.',
+      )
+    }
+
     const record: RowRecord = {
       screen: row.screen,
       viewport: { width: row.width, height: row.height, mobile: isMobileViewport(row.width) },
@@ -306,6 +353,15 @@ async function measureRow(
         counted.buckets,
         counted.tokens,
         declaredAccents,
+      ),
+      composition: censusComposition(
+        decoded.rgb,
+        decoded.width,
+        decoded.height,
+        row.height,
+        palette,
+        grounds,
+        makeClassifier(palette),
       ),
       externalRequests,
     }
@@ -415,6 +471,7 @@ async function main(): Promise<void> {
       }
       const r = result.measured.record
       const f = r.scrollingForm
+      const c = r.composition
       console.log(
         `  ${id.padEnd(30)} ${r.dimensions.width}x${r.dimensions.height}  ` +
           `F ${r.buckets.field.pct.toFixed(1)} / B ${r.buckets.bone.pct.toFixed(1)} / ` +
@@ -424,7 +481,10 @@ async function main(): Promise<void> {
           `  ${' '.repeat(30)} ${f.count} windows  mean F ${f.mean.field.toFixed(1)} / ` +
           `B ${f.mean.bone.toFixed(1)}  mean-dev ${f.meanDeviation.toFixed(1)}  ` +
           `worst @${f.worst.top} dev ${f.worst.deviation.toFixed(1)}  ` +
-          `ink/paper ${f.inkOnPaper.toFixed(1)}%  breaches ${f.breaches.length}`,
+          `ink/paper ${f.inkOnPaper.toFixed(1)}%  breaches ${f.breaches.length}\n` +
+          `  ${' '.repeat(30)} ${c.sections.length} sections ` +
+          `(${c.sections.filter((s) => s.held).length} held) on ${c.pageGround ?? '<none>'}, ` +
+          `${c.nested.length} nested  breaches ${c.breaches.length}`,
       )
       if (options.windows) {
         for (const w of f.windows) {
@@ -435,6 +495,15 @@ async function main(): Promise<void> {
           )
         }
         for (const b of f.breaches) console.log(`      ! ${b}`)
+        for (const s of [...c.sections, ...c.nested]) {
+          console.log(
+            `      ${s.held ? 'HELD ' : '     '}${s.label.padEnd(22)} @${String(s.top).padStart(5)} ` +
+              `h${String(s.height).padStart(5)}  F ${s.pct.field.toFixed(1).padStart(5)} / ` +
+              `B ${s.pct.bone.toFixed(1).padStart(5)} / G ${s.pct.graphite.toFixed(1).padStart(4)} / ` +
+              `A ${s.pct.accent.toFixed(1).padStart(4)}  dev ${s.deviation.toFixed(1)}`,
+          )
+        }
+        for (const b of c.breaches) console.log(`      ! ${b}`)
       }
     }
   } finally {
@@ -534,6 +603,9 @@ async function main(): Promise<void> {
       buckets: BUCKETS,
       declaredAccents,
       scrollingForm: { ...SCROLLING_FORM, note: SCROLLING_FORM_NOTE },
+      // No bounds of its own: the section check spends scrollingForm's band and
+      // caps. §2.1b is one law read over three sets of boundaries.
+      composition: { note: COMPOSITION_NOTE },
     },
     // Sorted: `rows` is the block a diff scans, and an insertion-ordered map
     // would reflow the whole file when a row is added.

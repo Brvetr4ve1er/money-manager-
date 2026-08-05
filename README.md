@@ -377,6 +377,21 @@ mark, the hero band, each landing section). For a scrolling application document
 the second reading is the one that is true, and `npm run census -- --windows`
 prints the per-screen table behind it.
 
+There is a **third** reading, `composition`, and it exists because the window
+grid has an arbitrary phase: it tiles from offset 0, while a reader scrolls
+continuously. Slide the window over every offset of `landing.375x812.light` and
+the worst-window deviation ranges from 30.48 to 67.58 — the grid reports one
+sample of that. So the census also asks the page where its own compositions are:
+one walk of the render tree picks out every opaque, full-bleed, in-flow ground
+whose colour differs from its nearest ground ancestor's, and §2 is applied to
+each **section** that is no taller than the viewport, because that is §2's own
+precondition. Grounds nested inside a section get §2.1b's other sentence
+instead — *no single ground may run longer than one viewport* — which nothing
+checked until now. There is no selector list and no per-page knowledge; the same
+walk runs on the app rows and finds the hero band, which is one of the surfaces
+§2 already names. See §2.1b.1 in `docs/brand/DESIGN-SYSTEM.md` for the rule and
+the two breaches it found that no phase of the window grid could see.
+
 It exists because the numbers used to live in an agent's recollection. One round
 shot its screenshots at 07:52, committed at 10:08, and published the 07:52
 figures as a description of the committed tree; the next round inherited them
@@ -478,8 +493,9 @@ image, or a row that will not hold still, reports rather than blocks.
 - `scripts/census/` — the colour census: the row matrix, the tokens.css palette
   parser and CIELAB classifier, a PNG decoder that is the inverse of
   `raster.ts`'s writer, the CDP driver, the viewport-window reading of the ratio
-  law, and the staleness hash that keeps `docs/brand/census.json` from
-  outliving the tree it describes
+  law, the DOM-derived composition reading in `composition.ts`, and the
+  staleness hash that keeps `docs/brand/census.json` from outliving the tree it
+  describes
 
 ## License
 

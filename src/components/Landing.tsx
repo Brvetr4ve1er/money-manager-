@@ -648,7 +648,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
             <h2 id="lp-rules-h" className="lp-section-h">
               The rules
             </h2>
-            <p className="lp-spec-lede lp-spec-lede-dark">
+            <p className="lp-spec-lede lp-rules-lede">
               {/* The band is aria-hidden decoration, so its sentence is
                   restated here — a screen-reader user must not lose the line
                   the whole section is built around. */}

@@ -409,6 +409,10 @@
   },
   "achievements": [
     {
+      "id": "boss-win",
+      "date": "2025-03-06"
+    },
+    {
       "id": "codex-5",
       "date": "2025-03-10"
     },
@@ -423,6 +427,10 @@
     {
       "id": "first-sim",
       "date": "2025-03-03"
+    },
+    {
+      "id": "streak-7",
+      "date": "2025-03-09"
     },
     {
       "id": "ten-logs",

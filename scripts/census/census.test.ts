@@ -47,6 +47,15 @@ import {
   type WindowStat,
 } from './artifact.ts'
 import {
+  COMPOSITION_NOTE,
+  COMPOSITION_SCRIPT,
+  censusComposition,
+  classifyGrounds,
+  compositionBreaches,
+  type Ground,
+  type RegionStat,
+} from './composition.ts'
+import {
   CENSUS_EPOCH_MS,
   CENSUS_LOCALE,
   CENSUS_TIMEZONE,
@@ -851,6 +860,288 @@ describe('the window reading measures screens, not documents', () => {
   })
 })
 
+describe('the composition reading measures what the page authored', () => {
+  const palette = readPalette()
+  const classify = makeClassifier(palette)
+
+  /** A page `width` px wide made of horizontal bands of one hex each. */
+  const banded = (width: number, bands: [string, number][]): Uint8Array => {
+    const height = bands.reduce((n, [, h]) => n + h, 0)
+    const out = new Uint8Array(width * height * 3)
+    let y = 0
+    for (const [hex, h] of bands) {
+      const r = parseInt(hex.slice(1, 3), 16)
+      const g = parseInt(hex.slice(3, 5), 16)
+      const b = parseInt(hex.slice(5, 7), 16)
+      for (let row = 0; row < h; row++, y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 3
+          out[i] = r
+          out[i + 1] = g
+          out[i + 2] = b
+        }
+      }
+    }
+    return out
+  }
+
+  it('separates the page ground from its sections and from what nests inside them', () => {
+    // The landing's shape: a Bone page ground wrapping four sections, one of
+    // which contains a full-bleed mat.
+    const grounds: Ground[] = [
+      { label: 'div.landing', top: 0, bottom: 1000, parent: -1 },
+      { label: 'section.a', top: 0, bottom: 300, parent: 0 },
+      { label: 'section.b', top: 300, bottom: 800, parent: 0 },
+      { label: 'div.mat', top: 400, bottom: 700, parent: 2 },
+      { label: 'footer.c', top: 800, bottom: 1000, parent: 0 },
+    ]
+    const { page, sections, nested } = classifyGrounds(grounds, 1000)
+    expect(grounds[page].label).toBe('div.landing')
+    expect(sections.map((i) => grounds[i].label)).toEqual(['section.a', 'section.b', 'footer.c'])
+    // The mat is NOT a composition. §5's note 3: without the depth restriction
+    // it splits section.b into three fragments and a 100px strip of section
+    // padding gets flagged as an over-field composition nobody designed.
+    expect(nested.map((i) => grounds[i].label)).toEqual(['div.mat'])
+  })
+
+  it('falls back to top-level grounds when nothing wraps the document', () => {
+    // No single ground spans 0..docHeight, so there is no page ground and the
+    // top-level grounds ARE the compositions. This is the shape a page has when
+    // its sections are siblings under a transparent root — the rule must not
+    // silently report zero sections for it.
+    const grounds: Ground[] = [
+      { label: 'section.a', top: 0, bottom: 400, parent: -1 },
+      { label: 'section.b', top: 400, bottom: 900, parent: -1 },
+      { label: 'div.inner', top: 500, bottom: 600, parent: 1 },
+    ]
+    const { page, sections, nested } = classifyGrounds(grounds, 900)
+    expect(page).toBe(-1)
+    expect(sections.map((i) => grounds[i].label)).toEqual(['section.a', 'section.b'])
+    expect(nested.map((i) => grounds[i].label)).toEqual(['div.inner'])
+  })
+
+  it('finds the breach no phase of the window grid can see', () => {
+    /**
+     * THE CASE THAT PRODUCED THIS READING, in miniature, and the fixture is
+     * built so the window reading is CLEAN. A 900px page on a 300px viewport,
+     * 100px wide: 500px of a 70-field/30-Bone section, then a 200px section
+     * that is pure Bone, then 200px back at 70/30.
+     *
+     * The three grid windows read 70.0, 46.7 and 46.7 percent field and 30.0,
+     * 53.3 and 53.3 Bone — all inside the band, no window breach. The middle
+     * section is a composition the eye holds ENTIRE and it is 100% Bone: over
+     * §2.1b's 65 hard cap and under its 35 field floor. No 300px window can
+     * isolate it, because every window that contains it also contains enough of
+     * its neighbours to pass. That is exactly why the landing carried
+     * `breaches: []` beside `.lp-shear` reading 30.40 / 66.45.
+     */
+    const mixed = (width: number, bands: [number, string, string, number][]): Uint8Array => {
+      const height = bands.reduce((n, b) => n + b[3], 0)
+      const out = new Uint8Array(width * height * 3)
+      const rgbOf = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+      let y = 0
+      for (const [split, left, right, rows] of bands) {
+        const [lr, lg, lb] = rgbOf(left)
+        const [rr, rg, rb] = rgbOf(right)
+        for (let row = 0; row < rows; row++, y++) {
+          for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 3
+            out[i] = x < split ? lr : rr
+            out[i + 1] = x < split ? lg : rg
+            out[i + 2] = x < split ? lb : rb
+          }
+        }
+      }
+      return out
+    }
+    const rgb = mixed(100, [
+      [70, '#f93e06', '#f5e6e0', 500],
+      [0, '#f93e06', '#f5e6e0', 200],
+      [70, '#f93e06', '#f5e6e0', 200],
+    ])
+    const doc = censusPixels(rgb, palette)
+    const windows = censusScrollingForm(
+      rgb, 100, 900, 300, palette, doc.buckets, doc.tokens, readDeclaredAccents(),
+    )
+    // The window reading is clean: every 300px window straddles the section.
+    expect(windows.windows.map((w) => w.top)).toEqual([0, 300, 600])
+    expect(windows.windows.map((w) => w.pct.field)).toEqual([70, 46.67, 46.67])
+    expect(windows.breaches.filter((b) => b.startsWith('window'))).toEqual([])
+
+    const grounds: Ground[] = [
+      { label: 'div.page', top: 0, bottom: 900, parent: -1 },
+      { label: 'section.top', top: 0, bottom: 500, parent: 0 },
+      { label: 'section.middle', top: 500, bottom: 700, parent: 0 },
+      { label: 'section.bottom', top: 700, bottom: 900, parent: 0 },
+    ]
+    const comp = censusComposition(rgb, 100, 900, 300, palette, grounds, classify)
+    expect(comp.pageGround).toBe('div.page')
+    expect(comp.sections.map((s) => s.label)).toEqual(['section.top', 'section.middle', 'section.bottom'])
+    const middle = comp.sections[1]
+    expect(middle.height).toBe(200)
+    expect(middle.held).toBe(true)
+    expect(middle.pct.bone).toBe(100)
+    expect(comp.breaches).toEqual([
+      'section section.middle @500: field 0.00 under the 35 band',
+      'section section.middle @500: bone 100.00 over the 65 cap',
+    ])
+    // The 500px section is longer than the viewport, so it is a sequence and
+    // the windows own it — no verdict, even though it too is off target.
+    expect(comp.sections[0].held).toBe(false)
+    // The 200px tail is a held composition inside the band: not every section
+    // is a breach, or this reading would say nothing.
+    expect(comp.sections[2].held).toBe(true)
+    expect(comp.sections[2].pct.field).toBe(70)
+  })
+
+  it('exempts a section taller than the viewport — that is a sequence, not a composition', () => {
+    // §2 states its own precondition: "anything the eye holds at once". A
+    // 400px section on a 300px viewport is read in two goes, and the windows
+    // already own it. Same pixels as the case above, one boundary moved.
+    const rgb = banded(10, [
+      ['#f93e06', 100],
+      ['#f5e6e0', 400],
+      ['#f93e06', 400],
+    ])
+    const grounds: Ground[] = [
+      { label: 'div.page', top: 0, bottom: 900, parent: -1 },
+      { label: 'section.top', top: 0, bottom: 100, parent: 0 },
+      { label: 'section.long', top: 100, bottom: 500, parent: 0 },
+      { label: 'section.bottom', top: 500, bottom: 900, parent: 0 },
+    ]
+    const comp = censusComposition(rgb, 10, 900, 300, palette, grounds, classify)
+    const long = comp.sections[1]
+    expect(long.pct.bone).toBe(100)
+    expect(long.held).toBe(false)
+    // Its numbers are still recorded — the reading is not suppressed, only the
+    // verdict — so a future round can see the shape without re-measuring.
+    expect(long.deviation).toBeGreaterThan(100)
+    expect(comp.breaches.some((b) => b.includes('section.long'))).toBe(false)
+  })
+
+  it('applies the run-length rule to nested grounds only, and by length alone', () => {
+    // §2.1b: "No single ground may run longer than one viewport." A section
+    // boundary is authored, so scrolling out of a long section lands somewhere
+    // the designer chose; a nested ground longer than a viewport is a run with
+    // no authored exit. That is the distinction, and it is the whole reason the
+    // walk emits two lists.
+    const sections: RegionStat[] = [
+      {
+        label: 'section.long',
+        top: 0,
+        height: 2000,
+        pct: { field: 100, bone: 0, graphite: 0, accent: 0 },
+        deviation: 0,
+        held: false,
+      },
+    ]
+    const nested: RegionStat[] = [
+      {
+        label: 'div.mat',
+        top: 100,
+        height: 1007,
+        // Perfectly at law on ratio, and still a breach: the rule is length.
+        pct: { field: 60, bone: 30, graphite: 8, accent: 2 },
+        deviation: 0,
+        held: false,
+      },
+      {
+        label: 'div.short',
+        top: 1200,
+        height: 400,
+        pct: { field: 0, bone: 100, graphite: 0, accent: 0 },
+        deviation: 0,
+        held: true,
+      },
+    ]
+    const out = compositionBreaches(sections, nested, 812)
+    expect(out).toEqual([
+      'ground run div.mat @100: 1007px inside a 812px viewport ' +
+        '(§2.1b — no single ground may run longer than one viewport)',
+    ])
+  })
+
+  it('keeps the DOM rule stating the three edges it earned', () => {
+    /**
+     * THESE ARE NOT STYLE ASSERTIONS. Each guards a case the rule got wrong
+     * before it was written down, and each failure mode is silent:
+     *
+     *  - WITHOUT THE `position` FILTER, the landing's `.lp-band` qualifies (it
+     *    is full-bleed and opaque). At 1440 its box is 2880-4203 while its
+     *    section is 3229-3856, so it emits a boundary 349px above its own
+     *    parent's top and the regions overlap. It is rotated 38° besides, so
+     *    its box is not what it paints.
+     *  - WITHOUT SKIPPING `body`, body's own Flare spans the document, is taken
+     *    as the page ground, and `div.landing` becomes the only section — the
+     *    reading collapses to one region and reports nothing.
+     *  - WITHOUT THE HEIGHT GUARD, a collapsed opaque wrapper emits an empty
+     *    region and the percentage divides by zero.
+     */
+    expect(COMPOSITION_SCRIPT).toContain("cs.position === 'static' || cs.position === 'relative'")
+    expect(COMPOSITION_SCRIPT).toContain("el.tagName !== 'BODY'")
+    expect(COMPOSITION_SCRIPT).toContain('bottom > top')
+    // And the two that define the ground itself.
+    expect(COMPOSITION_SCRIPT).toContain('rect.width >= docWidth - 1')
+    expect(COMPOSITION_SCRIPT).toContain('bg !== parentBg')
+  })
+
+  it('says the same thing the design system says, in the design system', () => {
+    // Same discipline §2.1b's window bounds already follow: a code-only
+    // amendment leaves the binding document describing a rule the tool no
+    // longer applies, and a future round re-derives the whole finding.
+    // Whitespace-collapsed, like the worked-example binding above: the rule
+    // block wraps, and reflowing a paragraph must not fail this test.
+    const doc = readFileSync(new URL('docs/brand/DESIGN-SYSTEM.md', REPO_ROOT), 'utf8').replace(
+      /\s+/g,
+      ' ',
+    )
+    expect(doc).toContain('#### 2.1b.1 The third reading — sections, and the runs inside them')
+    // The precondition is the half most likely to be dropped, because it is the
+    // half that makes the reading survivable on a long page.
+    expect(doc).toMatch(/enforced only where the section is no taller than the viewport/i)
+    // And the line that keeps §5C legal.
+    expect(doc).toMatch(/accent stays a document property/i)
+    // The DOM rule itself, so the document states the boundary it is judging by
+    // rather than pointing at a file.
+    expect(doc).toContain('PAGE_GROUND := the outermost GROUND whose box spans the whole document')
+  })
+
+  it('carries its scope note into the artifact, and re-derives every verdict', () => {
+    expect(ARTIFACT.law.composition.note).toBe(COMPOSITION_NOTE)
+    for (const [id, row] of Object.entries(ARTIFACT.rows)) {
+      const comp = row.composition
+      // Recomputing the verdict from the committed numbers must reproduce it
+      // exactly — a hand-edited breach list cannot survive.
+      expect(`${id}: ${comp.breaches.join(' | ')}`).toBe(
+        `${id}: ${compositionBreaches(comp.sections, comp.nested, row.viewport.height).join(' | ')}`,
+      )
+      // `held` is a fact about the geometry, not a stored opinion.
+      for (const region of [...comp.sections, ...comp.nested]) {
+        expect(`${id} ${region.label}: ${region.held}`).toBe(
+          `${id} ${region.label}: ${region.height > 0 && region.height <= row.viewport.height}`,
+        )
+        // Every region is inside the raster it was cut from.
+        expect(`${id} ${region.label}: ${region.top + region.height <= row.dimensions.height}`).toBe(
+          `${id} ${region.label}: true`,
+        )
+      }
+      // Sections tile in document order and never overlap: an overlap would
+      // mean the walk had emitted a ground above its own parent's top, which is
+      // the `position` failure the previous test guards.
+      const tops = comp.sections.map((s) => s.top)
+      expect(`${id}: ${tops.join()}`).toBe(`${id}: ${[...tops].sort((a, b) => a - b).join()}`)
+      for (let i = 1; i < comp.sections.length; i++) {
+        const prev = comp.sections[i - 1]
+        expect(`${id}: ${prev.top + prev.height <= comp.sections[i].top}`).toBe(`${id}: true`)
+      }
+      // ACCENT IS NEVER RE-CHECKED PER SECTION. §5C's PLATE is a Marigold
+      // lockup; scoring accent per composition would make a signature layout
+      // permanently illegal, and §2.1b already scopes scarcity to the document.
+      expect(`${id}: ${comp.breaches.some((b) => b.includes('accent'))}`).toBe(`${id}: false`)
+    }
+  })
+})
+
 describe('serialisation is byte-stable', () => {
   it('serialises the same input to the same bytes', () => {
     // A diff full of key-order churn is a diff nobody reads.
@@ -1038,6 +1329,10 @@ describe('THE STALENESS TEST', () => {
       'scripts/census/palette.ts',
       'scripts/census/matrix.ts',
       'scripts/census/determinism.ts',
+      // The third reading's boundary rule. It is not a driver file: changing
+      // which DOM nodes count as grounds re-cuts every section in the artifact,
+      // the same way changing the bucket map re-buckets every pixel.
+      'scripts/census/composition.ts',
       'scripts/census/fixtures/seeded.json',
     ]) {
       expect(`${required}: ${inputs.includes(required)}`).toBe(`${required}: true`)

@@ -175,6 +175,75 @@ inherited, so that is `inherit` — rather than spelling the fallback out. A spe
 fallback is a second copy of `:root`'s or `.spec-sheet`'s arithmetic, and a drifted copy is a
 contrast bug on one branch, in one theme, at one width.
 
+#### 2.1b.1 The third reading — sections, and the runs inside them
+
+**The window grid has a phase, and the phase is arbitrary.** `windowTops()` starts at offset 0
+and steps by the viewport. A reader does not: they scroll continuously, so **every** offset is a
+screen somebody holds. Slide the window over all 812 offsets of `landing.375x812.light` on the
+clean tree of `9a42bd8` and the row's worst-window deviation ranges from **30.48 to 67.58**,
+average 50.72, against the 45.85 that tree's artifact reported. The committed figure was one
+sample of a statistic with a 37-point spread, and the true worst — @1992, **27.84% field /
+63.79% Bone**, outside the band on both axes — sat between two grid windows that both passed
+(@1624 field 40.28, @2436 field 64.53). The row recorded `breaches: []`. Any change that
+lengthens a section by 60px moves the reported number without improving one screen.
+
+**An application document has no authored composition boundaries. That is why §2.1b substitutes
+a window for one. A marketing page has them.** They are in the DOM, they are opaque grounds, and
+the reader's eye stops at them. So the landing is measured a third way, and the boundaries are
+derived **mechanically from the render tree** — no selector list, no offset table, nothing to
+keep in sync with a stylesheet:
+
+```
+GROUND(el)  := background alpha === 1
+            AND position is static or relative        (in flow)
+            AND rect.left <= 0 AND rect.width >= document width
+            AND its painted colour differs from its nearest GROUND ancestor's
+            AND rect.height > 0                       (<html> and <body> excluded)
+
+PAGE_GROUND := the outermost GROUND whose box spans the whole document
+SECTION     := a GROUND whose only GROUND ancestor is PAGE_GROUND
+NESTED      := every other GROUND
+```
+
+```
+Every SECTION   field 35–80% · Bone 15–55% · caps 85 field / 65 Bone
+                — the same band and the same caps as a window, and
+                  enforced only where the section is no taller than the
+                  viewport, because "anything the eye holds at once" is
+                  §2's own precondition. Longer is a SEQUENCE and the
+                  windows already own it.
+Every NESTED    height <= one viewport
+                — §2.1b's "no single ground may run longer than one
+                  viewport", finally checked. A section boundary is
+                  authored, so scrolling out of a long section lands
+                  somewhere a designer chose; a nested ground longer than
+                  a viewport is a run with no authored exit.
+Accent          not re-checked. Accent stays a document property.
+```
+
+**Accent must stay document-scoped or §5C becomes illegal.** `.lp-foot` reads accent 31.02% at
+375 and 27.98% at 1440 under a naive per-section count — because §5C names *"THE PLATE —
+horizontal lockup on marigold/cobalt"* as a signature layout and §2 lists `Marigold + Cobalt +
+Bone` as an approved pairing. In that composition Marigold **is** a field, not an accent. §2.1b
+already draws exactly this line between window-scoped budgets and document-scoped ones; the
+section reading inherits it unchanged.
+
+**This reading is the harsher one, and that is the argument for it.** It was adopted because it
+*adds* breaches and removes none. On the tree of `9a42bd8`, `landing.1440x900.*` `.lp-shear` was
+627px against a 900px viewport — a composition the eye holds entire — and read **30.40% field /
+66.45% Bone**: under the 35 floor and over the 65 Bone HARD CAP, in both themes, on the widest
+screen in the matrix. The row's window reading recorded zero breaches, because no window
+isolates that section: @2700 covers its first 371px mixed with 529px of badge grid, @3600 its
+last 256px mixed with `.lp-object`. The section reading finds a cap breach the window reading
+structurally cannot see. The run-length check found the second one in the same walk:
+`.lp-shot-frame`, a full-bleed Bone mat 1911–2918 = **1007px** on an 812px phone, the run that
+produced the @1992 window above.
+
+The rule needs no landing-specific knowledge and runs on the app rows unchanged. There it finds
+the shell's grounds; those are all longer than a viewport, so the composition check does not
+fire and the app keeps being judged by its windows. That is the correct outcome, and it is why
+`scripts/census/composition.ts` contains no `screen === 'landing'` branch.
+
 The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
 test fails when it stops describing the tree. Any figure quoted about this product's pixels
 comes from that file or says which tree it came from — three rounds were steered by numbers

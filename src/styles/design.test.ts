@@ -1153,20 +1153,148 @@ describe('§2.2 — the product shot is themed, not pinned', () => {
      * WHAT IT MAY NOT DO. A `border` on the mount would be a third contour
      * 16px outside a card that already carries §11's 2px keyline and §1 trait
      * 05's second contour — a frame the product does not have. A `font-size`
-     * would resize type that belongs to the app. And the mat is paid for out
-     * of the section gutter on the phone (margin-inline), never out of the
-     * specimen's width: a card narrower than the narrowest phone is not "the
-     * card anyone will use".
+     * would resize type that belongs to the app.
      */
     const frame = /\n\.lp-shot-frame \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
     expect(frame).toMatch(/background: var\(--lp-counter\)/)
     expect(frame).toMatch(/padding: var\(--s2\)/)
     expect(frame).not.toMatch(/border:/)
     expect(frame).not.toMatch(/font-size/)
-    // The gutter give-back, phone-scoped, and paint-free.
-    const bleed = /@media \(max-width: 719px\) \{\s*\.lp-shot-frame \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
-    expect(bleed).toMatch(/margin-inline: calc\(-1 \* var\(--s3\)\)/)
-    expect(bleed).not.toMatch(/background|border|color|font-size/)
+  })
+
+  it('keeps the mat inside the section measure, so it is not a ground of its own', () => {
+    /**
+     * CONSTRAINT §2.1b — "no single ground may run longer than one viewport".
+     * The mat used to be bled out of .lp-spec's gutter with
+     * `margin-inline: calc(-1 * var(--s3))`, which made it a full-bleed opaque
+     * Bone GROUND 1007px long against an 812px phone — the only such run on the
+     * page. Measured on the tree of 9a42bd8, a window slid to @1992 reads
+     * 27.84% field / 63.79% Bone in light, outside the band on both axes, while
+     * the census's phase-0 grid windows either side of it pass. Inset to the
+     * section's 327px measure, every mat row picks up the section's 12.8%
+     * gutter and the mat stops being a ground at all.
+     *
+     * THE PHONE PAYS THE PADDING, NOT THE SPECIMEN. Insetting alone would take
+     * the card to 295px; --s1 inline padding brings it back to 311px. The
+     * assertion is on the inline axis specifically, because the vertical --s2
+     * from the base rule is what makes the mount read as a mount.
+     */
+    const phone = /@media \(max-width: 719px\) \{\s*\.lp-shot-frame \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
+    expect(phone).toMatch(/padding-inline: var\(--s1\)/)
+    // The bleed is gone, and it must not come back by another name.
+    expect(phone).not.toMatch(/margin/)
+    expect(LANDING).not.toMatch(/\.lp-shot-frame \{[^}]*margin-inline/)
+    // Still paint-free: the mount's colour is stated once, in the base rule.
+    expect(phone).not.toMatch(/background|border|color|font-size/)
+  })
+
+  it('caps the specimen, not the mount — the 560px belongs to the card', () => {
+    /**
+     * CONSTRAINT §2.1b. The 560px limit is a statement about the SPECIMEN ("a
+     * card stretched to a 1080px measure is not the card anyone will use"), and
+     * it was being enforced on the MAT, which is a different element with a
+     * different job. On a 1440px page that left the mount adrift in 880px of
+     * bare Espresso for 935 unbroken rows — 61% of every one of those rows in
+     * the field bucket, on the section with the least paper on it. With this
+     * round's shear inversion in place and the mount still capped,
+     * landing.1440x900 read mean-of-windows field 68.22 against §2.1b's 60±8;
+     * handing the mount the same 1080 measure .lp-note-strip and .lp-grid
+     * already take dropped the row to 62.39 with no window outside the band.
+     *
+     * The rule the assertion defends: the cap lives on the card and the mount
+     * takes whatever measure it is given. No breakpoint — below 560px of
+     * measure the cap never binds.
+     */
+    const frame = /\n\.lp-shot-frame \{([\s\S]*?)\n\}/.exec(LANDING)?.[1] ?? ''
+    expect(frame).not.toMatch(/max-width/)
+    expect(LANDING).toMatch(/\.lp-shot-frame \.card \{[\s\S]*?max-width: 560px/)
+    // Geometry only. Repainting the shot is as much of a lie about the product
+    // as repainting its fill — the descendant rule above is checked for that in
+    // its own case, and this states the same bar at the one site that moved.
+    const card = /\n\.lp-shot-frame \.card \{([^}]*)\}/.exec(LANDING)?.[1] ?? ''
+    expect(card).not.toMatch(/background|border|color|font-size/)
+    // `margin-inline`, not the `margin` shorthand: .archive-card's top margin
+    // is zeroed one rule up and a shorthand here would silently take it back.
+    expect(card).toMatch(/margin-inline: auto/)
+    expect(card).not.toMatch(/margin: /)
+  })
+})
+
+describe('§5D / §2 — the shear stands on the field, not on the paper', () => {
+  const block = (sel: string) =>
+    new RegExp(`\\n\\.${sel} \\{([\\s\\S]*?)\\n\\}`).exec(LANDING)?.[1] ?? ''
+
+  it('grounds the section in Espresso and plates it in Sand', () => {
+    /**
+     * SAND IS A COUNTER, SO IT CANNOT BE A SECTION'S GROUND. §2's own sentence
+     * is "60% Flare or Espresso"; scripts/census/palette.ts files Sand in the
+     * BONE bucket on §2's own words ("sand: aged paper, spec sheets") and §1
+     * trait 07. A Sand-grounded section therefore contributes nothing to the
+     * 60% field budget and can only buy field back one plate at a time.
+     *
+     * MEASURED, not argued. In the artifact at 9a42bd8 — read per SECTION,
+     * which is the reading §2.1b.1 adds — landing.1440x900 `.lp-shear` was
+     * 627px against a 900px viewport, a composition the eye holds ENTIRE, and
+     * it read 30.40% field / 66.45% Bone: under §2.1b's 35 floor and over its
+     * 65 Bone HARD CAP, in both themes. The row recorded `breaches: []`,
+     * because no window isolates that section.
+     *
+     * This block has now been round the whole loop — Bone plates on Sand (tree
+     * 71b5608, window @4872 at 9.18% field), then Espresso plates on Sand
+     * (9a42bd8, the cap breach above), now Sand plates on Espresso. The first
+     * two were the same mistake at different depths.
+     */
+    expect(block('lp-shear')).toMatch(/background: var\(--lp-espresso\)/)
+    expect(block('lp-shear')).toMatch(/color: var\(--lp-counter\)/)
+    for (const plate of ['lp-rule', 'lp-rules-lede']) {
+      expect(`${plate}: ${block(plate)}`).toMatch(/background: var\(--lp-sand\)/)
+      // §2.1's table: Graphite on Sand is 9.4:1 — full body weight, and the
+      // pair this file already defends. Never Bone, which is 1.4:1 on Sand.
+      expect(`${plate}: ${block(plate)}`).toMatch(/color: var\(--lp-form\)/)
+      expect(`${plate}: ${block(plate)}`).toMatch(/border: var\(--keyline-w\) solid var\(--lp-form\)/)
+    }
+    // The name follows the role, not the state. It was `.lp-spec-lede-dark`,
+    // which stopped being true the moment the plate stopped being dark.
+    expect(LANDING).not.toContain('lp-spec-lede-dark')
+  })
+
+  it('keeps both seams visible when the offset stops carrying them', () => {
+    /**
+     * CONSTRAINT §2.1 / §5 ("depth comes from colour offset + keylines only").
+     * Inverting the shear made two strokes stand on Espresso that used to stand
+     * on Sand, and Graphite on Espresso is 1.16:1 — the same invisible stroke
+     * .lp-spec:focus-visible had to be rescued from.
+     *
+     *  - .lp-spec's BOTTOM keyline now separates Espresso from Espresso, so the
+     *    offset carries nothing at all there and the keyline is the whole seam.
+     *    Bone is 13.4:1 on both sides.
+     *  - .lp-band's keyline delimits the Flare band from the section around it.
+     *    Bone is 13.4:1 on the Espresso outside and 3.01:1 on the Flare inside,
+     *    non-text, over the 3:1 minimum. The offset improved with the
+     *    inversion besides: Flare on Espresso is 4.43:1 against Flare on Sand's
+     *    2.52:1, so the keyline is the second contour rather than the only edge.
+     */
+    expect(block('lp-spec')).toMatch(/border-bottom: var\(--keyline-w\) solid var\(--lp-counter\)/)
+    expect(block('lp-band')).toMatch(/border-top: var\(--keyline-w\) solid var\(--lp-counter\)/)
+    expect(block('lp-band')).toMatch(/border-bottom: var\(--keyline-w\) solid var\(--lp-counter\)/)
+    // The shear's own bottom edge is the one seam that did NOT move: below it
+    // is .lp-object's Flare, where Graphite is 3.79:1 and Bone only 3.01:1.
+    expect(block('lp-shear')).toMatch(/border-bottom: var\(--keyline-w\) solid var\(--lp-form\)/)
+    // And the marks on the band are unchanged: Graphite on Flare, 3.79:1 at
+    // ≥24px/700. Bone there would be 3.01:1, which is not legal for type.
+    expect(block('lp-band')).toMatch(/color: var\(--lp-form\)/)
+  })
+
+  it('gives the section lede the poster measure where the page is widest', () => {
+    // CONSTRAINT §2.1b. A 563px plate on a 1440px page leaves 61% of its own
+    // rows in the field bucket; at the 1080 measure it leaves 25. Scoped like
+    // .lp-spec .lp-spec-lede's plate, at the same breakpoint, for the
+    // mirror-image reason — below 1024 the measure and the viewport are close
+    // enough that there is nothing to give back.
+    expect(block('lp-rules-lede')).toMatch(/max-width: 46ch/)
+    const wide = /@media \(min-width: 1024px\) \{([\s\S]*?)\n\}/g
+    const blocks = [...LANDING.matchAll(wide)].map((m) => m[1])
+    expect(blocks.some((b) => /\.lp-rules-lede \{ max-width: none/.test(b))).toBe(true)
   })
 })
 

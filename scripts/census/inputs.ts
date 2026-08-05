@@ -65,9 +65,17 @@ const RULES: Rule[] = [
   { dir: 'scripts/census/fixtures', extensions: ['.json'], recursive: false },
 ]
 
-/** Named one by one because only these three of the census's own files can
-    move a measured number. See the header. */
+/** Named one by one because only these four of the census's own files can
+    move a measured number. See the header.
+
+    composition.ts is here because it decides WHERE the third reading's
+    boundaries fall — its COMPOSITION_SCRIPT is a rule about which DOM nodes are
+    grounds, and changing that rule re-cuts every section in the artifact
+    exactly as surely as changing the bucket map re-buckets every pixel. It is
+    not a driver file: chrome.ts and png.ts carry a measurement out, this one
+    defines it. */
 const CENSUS_INPUTS = [
+  'scripts/census/composition.ts',
   'scripts/census/determinism.ts',
   'scripts/census/matrix.ts',
   'scripts/census/palette.ts',

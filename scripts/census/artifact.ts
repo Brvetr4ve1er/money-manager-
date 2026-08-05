@@ -14,6 +14,7 @@
  * answer.
  */
 
+import type { CompositionRecord } from './composition.ts'
 import {
   BUCKETS,
   BUCKET_ORDER,
@@ -95,6 +96,10 @@ export interface RowRecord {
   strays: Strays
   /** The second reading: §2 over the screens rather than over the pixels. */
   scrollingForm: ScrollingFormRecord
+  /** The third reading: §2 over the compositions the page authored, plus
+   *  §2.1b's run-length rule. See composition.ts for why it is not a fourth
+   *  bucket set but a different set of BOUNDARIES over the same pixels. */
+  composition: CompositionRecord
   externalRequests: number
 }
 
@@ -138,6 +143,11 @@ export interface Census {
      *  read without re-deriving it. */
     declaredAccents: string[]
     scrollingForm: ScrollingFormLaw & { note: string }
+    /** The third reading's scope note. The BOUNDS are scrollingForm's — the
+     *  section check spends the same band and the same caps, which is the
+     *  point: §2.1b is one law read over three sets of boundaries, not three
+     *  laws. */
+    composition: { note: string }
   }
   rows: Record<string, RowRecord>
 }
@@ -703,6 +713,28 @@ export function formatDiff(committed: Census | null, measured: Census): string[]
           `${pad(id, 30)} ${pad('windows', 9)} mean-dev ${wasForm.meanDeviation.toFixed(2)} -> ` +
             `${nowForm.meanDeviation.toFixed(2)}  (${signed(nowForm.meanDeviation - wasForm.meanDeviation)})   ` +
             `breaches ${wasForm.breaches.length} -> ${nowForm.breaches.length}`,
+        )
+      }
+    }
+    // The third reading gets its own line for the same reason the second does:
+    // a change that re-grounds a SECTION can leave both the document average
+    // and every window vector where they were and still be the whole point of
+    // the round. Section count is reported alongside the breach count because
+    // a section appearing or disappearing changes what the breach count means.
+    const wasComp = was.composition
+    const nowComp = now.composition
+    if (wasComp && nowComp) {
+      const sectionsMoved = nowComp.sections.length !== wasComp.sections.length
+      const breachesMoved = nowComp.breaches.length !== wasComp.breaches.length
+      const worst = (c: CompositionRecord) =>
+        c.sections.reduce((n, s) => (s.held && s.deviation > n ? s.deviation : n), 0)
+      const devMoved = Math.abs(worst(nowComp) - worst(wasComp)) >= 0.005
+      if (sectionsMoved || breachesMoved || devMoved) {
+        out.push(
+          `${pad(id, 30)} ${pad('sections', 9)} worst held dev ${worst(wasComp).toFixed(2)} -> ` +
+            `${worst(nowComp).toFixed(2)}  (${signed(worst(nowComp) - worst(wasComp))})   ` +
+            `sections ${wasComp.sections.length} -> ${nowComp.sections.length}   ` +
+            `breaches ${wasComp.breaches.length} -> ${nowComp.breaches.length}`,
         )
       }
     }
