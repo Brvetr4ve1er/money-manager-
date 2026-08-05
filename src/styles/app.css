@@ -630,6 +630,114 @@
   font-size: var(--fs-spec);
   padding: var(--s1) var(--s2);
 }
+/* PRE-SETUP CONTROL, same slot and same register as .hero-why: it opens
+   nothing and grants nothing, it goes somewhere. An ANCHOR wearing .btn, so
+   the three things a .btn gives a <button> and an <a> does not get free have
+   to be spelled out — inline-flex (an inline box ignores min-height, and §11's
+   48px floor is not optional), the vertical centring that comes with it, and
+   killing the underline the .btn face has no room for. Everything else —
+   keyline, radius, THE PRESS, the focus ring, the hover contour — is inherited
+   from .btn in tokens.css, because a control that looks like the family and
+   behaves differently is worse than one that does neither. */
+.hero-setup {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--s1);
+  font-size: var(--fs-spec);
+  padding: var(--s1) var(--s2);
+  text-decoration: none;
+}
+
+/* ── THE WEEK BLOCK (HeroCard) ─────────────────────────────────────────────
+   What card 01 prints while it has no score to print. It occupies the slot
+   .hero-main had, so the plate that was on .stage-info is on this box (see
+   .counter-plate in tokens.css) — CONSTRAINT §2.1b, and the day0 rows in
+   docs/brand/census.json are what say whether it lands. Box only; the ground
+   and the padding are the plate's. */
+.week-block.counter-plate { margin-top: var(--s1); }
+/* The window's name, in the spec register (§1 trait 10 / §3 tier 3): it labels
+   the figures below it, it is not one of them. --spec ink on the counter
+   plate, like .month-index on the archive's head. */
+.week-head {
+  margin: 0 0 var(--s1);
+  font-size: var(--fs-spec);
+  font-weight: 700;
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+  color: var(--spec);
+}
+/* §7's empty-state register, and the same quiet ink every other stated state
+   in the app uses (.month-note, .calibrating, .profile-unset). It is not a
+   warning and it must never look like one. */
+.week-empty {
+  margin: 0;
+  font-size: var(--fs-cap);
+  color: var(--spec);
+}
+/* One flex row of stated figures, wrapping — the shape .month-facts already
+   has on the archive, because they are the same kind of line and two layouts
+   for one idea is how a page stops reading as one page. */
+.week-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s1) var(--s2);
+  margin: 0;
+  font-size: var(--fs-cap);
+}
+/* The two figures the record states outright, in plain ink at full weight —
+   11.4:1 on the counter plate in light (Bone on Espresso 13.4:1 in the plate's
+   own pair) and the same swap in dark. Weight is the only emphasis they get:
+   there is no accent on this block, and §1 trait 06's "a 4th color is an
+   event" has no event here. */
+.week-days,
+.week-spend { font-weight: 700; }
+/* The resisted mirror in the quiet register, matching .month-left rather than
+   the archive's Acid .kept-chip: a chip is an accent, and this block is on a
+   counter plate, which may carry no accent INK at all (§2.1 rule 2). It is
+   also the smaller claim — the user's own tally of taps, not money observed
+   to have moved (Trust Rule 1) — so it reads after the two above it. */
+.week-resisted { color: var(--spec); }
+/* THE REPEATS. A real <ul>, because they are a list and §12.8's structure rule
+   does not stop at the ledger. One row per category, three columns, no
+   separator glyphs — the gap and the mono/Grotesk contrast do that work, the
+   same way .month-facts sets its figures apart. */
+.week-repeats {
+  list-style: none;
+  margin: var(--s1) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--keyline-w);
+}
+.week-repeat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s1);
+  font-size: var(--fs-cap);
+}
+/* The category is the subject of the row, so it takes the weight and the
+   remaining width; the two figures beside it are fixed-content and quiet.
+   min-width 0 so a long hand-typed category wraps inside the plate instead of
+   running its tail onto the card's own fill — the contrast failure documented
+   at .stage-name, which is the same plate and the same 1.00:1 / 1.16:1 pair. */
+.week-cat {
+  font-weight: 700;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.week-rows { color: var(--spec); }
+.week-total { font-weight: 700; }
+/* What a repeat is, defined once. Spec register: it is the smallest print on
+   the block because it is the least of the claims — a note on how the rows
+   above were selected, never a suggestion about them. */
+.week-note {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-spec);
+  color: var(--spec);
+}
 .health-breakdown { margin-top: var(--s1); }
 .health-bars {
   list-style: none;
@@ -697,6 +805,15 @@
   /* 96px = 12 baseline steps, matching .stage-badge exactly (§5). */
   max-width: 96px;
   line-height: 1.2;
+}
+/* THE STANDALONE PLACEMENT — the strip with no badge above it, which is what
+   card 01 renders before setup (see PetStrip in HeroCard). The 96px cap is the
+   badge's width and there is no badge here, so the shelf takes the card's
+   measure and starts at the reading edge instead of centring under nothing. */
+.pet-strip.is-loose {
+  max-width: none;
+  justify-content: flex-start;
+  margin-top: var(--s1);
 }
 /* Stage mark container. The fill AND its foreground both arrive inline from
    STAGE_META (see HeroCard) — every pair in that table is checked against
@@ -2368,7 +2485,16 @@ form > .profile-note { margin-top: var(--s1); }
      reason the badge leaves: at ≥1024 the head of the document is 900px of
      Flare hero, not this card. See "WHERE THE TWO NEW PLATES STOP" at the top
      of this file. */
-  .hero-foot.counter-plate {
+  /* …and the week block sheds its plate with it, for the identical reason and
+     in the identical form. It occupies .hero-main's slot on the card, so a
+     plate that stopped at one of the two and not the other would put a
+     counter ground on this card in one state and not the other at a width
+     where neither belongs. The undo is `unset` on every token the plate
+     declares (custom properties inherit, so that is `inherit`) rather than a
+     spelled-out fallback — see §2.1b: a spelled copy of :root's arithmetic is
+     a contrast bug waiting on one branch, in one theme, at one width. */
+  .hero-foot.counter-plate,
+  .week-block.counter-plate {
     --ground: unset;
     --field: unset;
     --sunken: unset;

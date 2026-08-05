@@ -21,10 +21,10 @@ LOGGED BY HAND  ·  PRICED IN DA  ·  NO ACCOUNT  ·  NO BANK LINK  ·  EXPORT A
 A money tracker for people whose money problem is friction, memory and
 impulse — not arithmetic. You log what you spend, by hand, in Algerian dinars.
 Ember groups the log by day, shows you where you are in the month, scores your
-financial reality from five weighted components — running on placeholder
-numbers until you enter your own in **My numbers**, and redistributing the
-weight of any component you leave blank once you have — and states the tradeoff
-when you are deciding on a purchase.
+financial reality from five weighted components — once you have entered your
+own figures in **My numbers**, and redistributing the weight of any component
+you leave blank — and states the tradeoff when you are deciding on a purchase.
+Before that it prints no score at all, and prints your last seven days instead.
 
 It runs in a browser tab with nothing behind it. No account, no server, no
 bank link, no purchase path — `src/` contains no `fetch`, no socket and no
@@ -32,6 +32,38 @@ auth. Every byte lives in that browser's local storage. Close the tab and
 Ember has nothing on you.
 
 A purchase is two taps: one cash key, then Log.
+
+## Nothing here grades you
+
+The landing page says this above the fold, and it is a claim about what the
+product will not do, so it is worth stating in full where there is room.
+
+There is no score until you enter your own numbers. Before that the health card
+prints your last 7 days — days logged, what they came to, what you resisted,
+any category with more than one row — and names the gap exactly once: *"No score
+yet. Your numbers turn it on."* No stage, no rating, no numeral computed off a
+demo profile's salary. Days are counted, never chained: the day figure is a
+count, it cannot become a run, and there is no grid of days to read as hits and
+misses. The record carries no target line, no average and no projection — the
+component is never handed your profile, which is the structural reason a budget
+bar cannot appear on it. Tick **"I bought it anyway"** and the row logs at full
+XP with a quiet marker and no colour.
+
+That last one is the whole register. `docs/brand/DESIGN-SYSTEM.md` §7.1 prints
+the two failures side by side — *"You blew the budget again"* and *"It's okay!
+Everyone slips sometimes"* — and bans them as one rule, because the second
+presumes the slip and then comforts you for it. What ships instead is *"Over by
+4,200 DA. Logged."* The dryness is the respect.
+
+`src/noVerdict.test.tsx` is that paragraph as a test. It renders the app on a
+month that spent four times its own essentials figure, with impulses ticked, and
+asserts the whole rendered document — cards, drawer, toasts, live regions —
+matches none of four registers: punitive, comforting, retention and projection.
+It reads the RENDER rather than the source on purpose: `budgetAdherenceScore`
+and `longestLogStreak` are real identifiers in a real engine, and what the page
+promises is about what a person reads. The landing is held to the same four,
+which is what stopped its own copy from printing the retention vocabulary in
+order to deny it.
 
 ## Send it to a friend who overspends
 
@@ -99,7 +131,7 @@ it.
 ## The eight mechanics
 
 ```
-01/08  HEALTH SCORE     Five components. Shrunk for thin data. It explains; it never advises.
+01/08  HEALTH SCORE     No score until your own numbers are in. Your last 7 days stand there, and the card says so: "No score yet. Your numbers turn it on." Then: five components, shrunk for thin data. It explains; it never advises.
 02/08  THE RESIST       Resisted, not spent. Summed for the month. The total is not a score input.
 03/08  THE SIMULATOR    Baseline against scenario. States the tradeoff. Never the verdict.
 04/08  THE RECORD       The last 60 runs kept, with the line each printed. Bought it · Waited · Resisted it. Answers, never a tally.
@@ -117,17 +149,30 @@ is always the one that rots.
 "Resisted", not "kept": the app observed the tap, not the outcome. It sums the
 prices of things you say you did not buy, and it says so in those words.
 
-**Whose numbers the score is on.** Before you fill in **My numbers**, the score
-runs on a demo profile — an invented income, essentials figure and emergency
-fund — so the card has something to show on day one. It is not yours and the
-app never pretends otherwise: the health card prints *"Placeholder numbers
-until setup."*, the desktop hero prints *"Placeholder until setup"*, and the
-simulator prints *"Projected on the demo profile"*. Impulse Control is the one
-component that reads nothing but rows you logged, so it is yours from the first
-tap; the other four are measured against the placeholder figures until you
-replace them, and the whole score carries a reduced confidence while they
-stand. Once you have entered your numbers, anything you leave blank — no
-emergency fund, no debt — is dropped and its weight redistributed across the
+**Whose numbers the score is on — and what the card shows before there are
+any.** Until you fill in **My numbers** there is no score on screen. Not a
+qualified one, not a greyed one: no stage, no rating, no number, on the card and
+on the desktop hero alike. The engine still needs an income and an essentials
+figure to compute anything, and the ones it would use before setup are a demo
+profile's — an invented income, essentials figure and emergency fund. A rating
+off a stranger's salary is a claim about nobody, and a disclaimer under it is an
+admission rather than a fix.
+
+What card 01 prints instead is **the last seven days of your own record**: how
+many days you logged on, what those rows came to, what you resisted, and any
+category the week holds more than one row for — *"Food · 4 rows · 1,920 DA"*.
+Sums over rows you typed, exact from the first one. It is not a streak: the day
+figure is a count and never a run, nothing resets, no gap is named, and there is
+no grid of days to read as hits and misses. The card names what is missing once
+— *"No score yet. Your numbers turn it on."* — with a link to the card that
+supplies it, and never asks again.
+
+Once your numbers are in, the score, the stage, the rating and the *"Why this
+stage?"* breakdown all arrive and the week block stands down. The simulator says
+its own half while it is still projecting on placeholders (*"Projected on the
+demo profile"*). Impulse Control is the one component that reads nothing but
+rows you logged, so it is yours from the first tap. Anything you leave blank —
+no emergency fund, no debt — is dropped and its weight redistributed across the
 components you did fill in, with the card naming each one it left out.
 
 Around them: XP and levels for showing up — one strip, a level line and a bar —
@@ -245,12 +290,13 @@ Product invariants. They outrank the design system and they outrank a feature.
   path exists.
 - **Honesty is never punished.** "I bought it anyway" logs at full XP, framed
   neutrally, and is what makes Impulse Control a real two-sided ratio.
-- **Honest cold start.** Before setup the score says it is running on
-  placeholder numbers — it is scoring a demo profile, not you, and every
-  surface that reads it says so. Under 90 days it says it is still calibrating
-  rather than projecting confidence it has not earned — the horizon is
-  `CALIBRATION_DAYS` in `src/engine/profile.ts`, and the landing page reads it
-  rather than typing it.
+- **Honest cold start.** Before setup there is no score — the card prints your
+  last seven days instead of a rating computed off a demo profile, and the
+  desktop hero withholds the stage with it. Under 90 days it says it is still
+  calibrating rather than projecting confidence it has not earned — the
+  horizon is `CALIBRATION_DAYS` in `src/engine/profile.ts`, and the landing page
+  reads it rather than typing it. Nothing here is a retention device: no streak
+  to lose, no missed day, no reminder that escalates.
 - **Your data leaves when you do.** Full JSON export, always, one tap, no
   account.
 
@@ -356,12 +402,15 @@ why every string under 24px in this product sits on a plate.
 `docs/brand/census.json` is the committed answer to "what colour is this app".
 `npm run census` builds the production bundle, serves it, drives a headless
 Chromium over the DevTools protocol with no dependency added, screenshots
-eighteen full pages (landing at 375/1440, app at 375/1024/1280/1440, each in
-both themes, plus three phone-width pairs: the app's first screen before any
-setup, a ledger day holding 24 rows, and the health drawer open), classifies
+twenty full pages (landing at 375/1440, app at 375/1024/1280/1440, each in
+both themes, plus four phone-width pairs: the app's first screen before any
+setup, the pre-setup app with a week of rows on it, a ledger day holding 24
+rows, and the health drawer open), classifies
 every pixel to its nearest palette token in CIELAB, and folds the twelve tokens
 into the four terms of the ratio law (§2's 60/30/8/2). `npm run census -- --diff`
-prints what moved without writing. The whole matrix takes about 45 seconds.
+prints what moved without writing. The whole matrix takes about 56 seconds —
+roughly 27 for the twelve rows it had before, 24 for the eight added, and 7 for
+the extra settle comparison every phone-width app row now needs.
 
 It reads each page **twice**. The document reading is the whole-page average and
 is comparable with every figure the project published before the tool existed.
@@ -401,9 +450,9 @@ it samples. App's reward toast lives 2,600ms, and for three rounds the census
 fixture qualified for two achievements it had not persisted — so every app row
 was captured mid-celebration and the design system's worked example quoted a
 banner as the app's reading at rest. `announcements` now lists every live region
-that was painting text at capture (empty on all eighteen rows, and a test says
+that was painting text at capture (empty on every row, and a test says
 so), and `settleAttempts` records how many comparisons a row needed rather than
-swallowing the retries. See §2.1b.2 for the three row pairs added on the back of
+swallowing the retries. See §2.1b.2 for the four row pairs added on the back of
 that, and for the band breaches they found on screens nothing was measuring —
 the app's first screen before setup breaches in both themes.
 
@@ -454,7 +503,10 @@ image, or a row that will not hold still, reports rather than blocks.
 - `src/engine/boss.ts` — weekly boss battle engine
 - `src/engine/achievements.ts` — badge roster and pixel pets
 - `src/engine/ledger.ts` — day grouping, day totals, the day headings,
-  `monthToDate` (the month's per-day totals, day index and record window) and
+  `monthToDate` (the month's per-day totals, day index and record window),
+  `weekToDate` (the last 7 days as a count of days logged, two totals and the
+  categories holding more than one row — what card 01 prints while it is
+  withholding the score) and
   `resistedThisMonthDA` — the month's resisted total, in the engine because the
   record card and the landing page's pitch both state it
 - `src/engine/keypad.ts` — cash denominations and the amount composition
@@ -470,6 +522,9 @@ image, or a row that will not hold still, reports rather than blocks.
 - `src/localFirst.test.ts` — "no server, no account, nothing for sale" as an
   assertion over the source tree, because an absence is the one claim no
   feature test defends
+- `src/noVerdict.test.tsx` — "nothing here grades you" as an assertion over the
+  rendered product, on the month a reader would be ashamed to show an app. Four
+  banned registers, the landing held to the same four as the app it describes
 - `src/shareCard.test.ts` — the unfurl copy in `index.html` as assertions, for
   the same reason: a forwarded link's card is the first surface most people in
   the target market see and the last one anybody re-reads

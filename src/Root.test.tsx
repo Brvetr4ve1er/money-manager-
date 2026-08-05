@@ -15,6 +15,8 @@ import { resistedChipLabel } from './components/ArchiveCard.tsx'
 import { groupTransactionsByDay, monthToDate, resistedThisMonthDA } from './engine/ledger.ts'
 import { NOTE_DENOMINATIONS_DA } from './engine/keypad.ts'
 import { CALIBRATION_DAYS } from './engine/profile.ts'
+import { WEEK_DAYS } from './engine/ledger.ts'
+import { NO_SCORE_LINE } from './components/HeroCard.tsx'
 
 // Same stub as App.test: sounds are reinforcement only and jsdom has no
 // AudioContext. Root mounts App, so the module is in the graph either way.
@@ -242,6 +244,128 @@ describe('landing honesty (Trust Rule 5)', () => {
     }
     expect(onEnter).toHaveBeenCalledTimes(
       screen.getAllByRole('button', { name: /start logging/i }).length,
+    )
+  })
+})
+
+/**
+ * THE TERMS THE READER IS ON — the stranger test, as assertions.
+ *
+ * The person this product is built for is bad with money and slightly ashamed
+ * of it. Every other block on the wall answers "what can it do"; this one
+ * answers "what will it do to me", and until this round the page answered that
+ * nowhere a reader would reach before deciding to leave.
+ *
+ * Two failure modes, and both are asserted against here. The block can OVERSTATE
+ * — an absence is the easiest thing on a marketing page to claim one notch wider
+ * than the code supports, and "no streak anywhere" would be exactly that (there
+ * is a Seven-Day Flame badge, it just cannot be lost). Or it can SOFTEN — §7.1
+ * bans the coddling register as hard as the punitive one, and a page that tells
+ * an ashamed reader "it's okay, everyone slips" has presumed the slip and
+ * comforted them for it in the same breath. The register is dry respect.
+ */
+describe('the landing states what the app will not do to the reader', () => {
+  const grade = (c: HTMLElement) => c.querySelector('.lp-grade') as HTMLElement
+
+  it('carries the terms in the wall, ahead of the mechanic', () => {
+    // "Above the fold" is structural on this page, exactly as the hand-off
+    // case defines it: .lp-wall is the first full-bleed section. This block is
+    // in it, and it is in it BEFORE the mechanic — the position is the claim
+    // (see .lp-grade in Landing.tsx), so a later edit that demotes it below
+    // the market argument fails here rather than quietly costing the fold.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const block = grade(container)
+    expect(block).not.toBeNull()
+    expect(container.querySelector('.lp-wall .lp-grade')).toBe(block)
+    expect([...block.children].map((n) => n.className)).toEqual([
+      'lp-grade-tag',
+      'lp-grade-lead',
+      'lp-grade-body',
+    ])
+    // The claim itself, in one short sentence, leading with the object (§7
+    // rules 1 and 2). Not a question, not a promise, not a mood.
+    const lead = block.querySelector('.lp-grade-lead')?.textContent ?? ''
+    expect(lead).toBe('Nothing here grades you.')
+    expect(lead.trim().split(/\s+/).length).toBeLessThan(9)
+  })
+
+  it('quotes the app’s own pre-setup disclosure instead of paraphrasing it', () => {
+    // THE BINDING, and it is the one this block most needs. The page tells a
+    // stranger that the app prints no rating off numbers that are not theirs,
+    // and it proves it by printing the sentence the app actually shows —
+    // HeroCard's NO_SCORE_LINE, the same treatment RESIST_LABEL gets in the
+    // hand-off. Reword the disclosure and the pitch rewords itself.
+    //
+    // ON BADGE 01/08 AND NOT IN THE FOLD, and the reason is measured: the fold
+    // block is 253px at 40 words and 357px at 62, .lp-share sits directly under
+    // it, and at 62 the mechanic's lead crossed the 812px fold. Evidence goes
+    // to the spec sheet on this page; the fold carries the claim.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const badge = [...container.querySelectorAll('.lp-badge')].find((b) =>
+      /health score/i.test(b.querySelector('.lp-badge-h')?.textContent ?? ''),
+    )
+    expect(badge?.textContent).toContain(NO_SCORE_LINE)
+    // …and the fold states the same absence without needing the quotation.
+    expect(grade(container).textContent).toContain('No score until you enter your own numbers')
+    // …and the app end of the same string: card 01 prints it on a fresh
+    // install, which is the state a stranger who presses the CTA lands in.
+    cleanup()
+    render(<Root />)
+    fireEvent.click(enterButtons()[0])
+    expect(screen.getByText(new RegExp(NO_SCORE_LINE.replace(/\./g, '\\.')))).toBeTruthy()
+  })
+
+  it('reads the week window from the engine, never a typed seven', () => {
+    // Same rule as the note cap and the calibration horizon: a number is a
+    // value, so it is read. Both places on the page that name the window — the
+    // terms block and the first spec-sheet badge — read WEEK_DAYS.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    expect(grade(container).textContent).toContain(`last ${WEEK_DAYS} days`)
+    const badge = [...container.querySelectorAll('.lp-badge')].find((b) =>
+      /health score/i.test(b.querySelector('.lp-badge-h')?.textContent ?? ''),
+    )
+    expect(badge?.textContent).toContain(`Your last ${WEEK_DAYS} days`)
+  })
+
+  it('scopes the streak claim to the absence that is actually there', () => {
+    // THE OVERSTATEMENT THIS BLOCK IS ONE WORD AWAY FROM. Nothing in the
+    // product renders a run — but achievements.ts ships `streak-7`, and it is
+    // earned off longestLogStreak, the LONGEST run ever over the whole ledger,
+    // earn-only. So "nothing counts days in a row" is true of every surface and
+    // "no streak exists" would be false. The page claims the first and must not
+    // drift into the second.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const body = grade(container).textContent ?? ''
+    expect(body).toContain('Days are counted, never chained')
+    expect(body).toContain('no run to break, no day to lose')
+    expect(body).not.toMatch(/no streak|streak-free|never a streak/i)
+    // AND IT MUST NOT PRINT THE REGISTER IN ORDER TO DENY IT. The first draft
+    // read "Nothing counts days in a row", which is true and which puts the
+    // retention vocabulary on the one page that promises none —
+    // noVerdict.test.tsx holds the landing to the same four registers as the
+    // app and caught it. Stated as an absence rather than a negation.
+    expect(body).not.toMatch(/\bstreak\b|\bin a row\b|\bconsecutive\b/i)
+  })
+
+  it('states terms, and never softens into reassurance (§7.1)', () => {
+    // §7.1 names both failure modes and bans both: "You blew the budget again"
+    // and "It's okay! Everyone slips sometimes" are one rule apart. The block
+    // is checked, and so is the whole page — the coddling register is exactly
+    // what a later editor reaches for when asked to make a page kinder.
+    const { container } = render(<Landing onEnter={() => {}} />)
+    const page = container.textContent ?? ''
+    const SOFT =
+      /don'?t worry|no judg|no shame|guilt|you'?ve got this|it'?s ok|we get it|everyone (slips|does)|be kind to yourself|small steps/i
+    const PUNITIVE =
+      /you (blew|wasted|overspent|failed)|\btoo much\b|\bshould have\b|\bbad habit\b|\bdiscipline\b/i
+    expect(grade(container).textContent).not.toMatch(SOFT)
+    expect(grade(container).textContent).not.toMatch(PUNITIVE)
+    expect(page).not.toMatch(SOFT)
+    expect(page).not.toMatch(PUNITIVE)
+    // The one line that carries the reader's bad week is an instruction and a
+    // fact, in that order, with no adjective between them.
+    expect(grade(container).textContent).toContain(
+      'Log the week you would rather not. It reads like any other.',
     )
   })
 })
@@ -585,11 +709,23 @@ describe('the landing states why anyone would pass it on', () => {
     expect([...plate!.children].map((n) => n.className)).toEqual([
       'lp-thesis',
       'lp-lede',
+      // The terms block (below) took the third slot. The claim this case was
+      // written for is untouched and is re-asserted underneath: the market
+      // argument still reads AFTER the mechanic, which is the pair the round-5
+      // reorder was about. What moved is a four-line block of terms, not sixty
+      // words of argument — see .lp-grade in Landing.tsx for why that trade
+      // pays and what to measure if it stops paying.
+      'lp-grade',
       'lp-share',
       'lp-sub',
       'lp-terms',
       'lp-actions',
     ])
+    // The pair the assertion above exists for, stated as itself so a future
+    // insertion cannot quietly satisfy the list while inverting the two blocks
+    // it was written about.
+    const order = [...plate!.children].map((n) => n.className)
+    expect(order.indexOf('lp-share')).toBeLessThan(order.indexOf('lp-sub'))
   })
 
   it('names hand entry as what makes the resist row possible', () => {

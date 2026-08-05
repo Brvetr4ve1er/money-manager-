@@ -740,13 +740,21 @@ describe('§2 — the ratio law and the palette budget', () => {
         media block of that width rather than the first one: app.css carries
         several at 768 and 1024, and "the first" is a fact about typing order,
         not about the rule — the same proxy that made the shear test above go
-        red for an unrelated edit. */
+        red for an unrelated edit.
+
+        THE SELECTOR MAY BE ONE OF A GROUP, and that is `[^{}]*` rather than a
+        literal space. Two plates now shed at 1024 — the hero's foot and the
+        week block that shares its slot on card 01 — and they shed the identical
+        eight tokens, so they are one rule with two selectors. Insisting on a
+        rule of its own would have forced a second copy of the undo into
+        app.css, which is the exact defect the case below this one exists to
+        forbid. Either selector finds the group. */
     const undo = (width: number, cls: string) => {
       const blocks = [
         ...APP.matchAll(new RegExp(`@media \\(min-width: ${width}px\\) \\{([\\s\\S]*?)\\n\\}`, 'g')),
       ]
       for (const block of blocks) {
-        const body = new RegExp(`\\.${cls} \\{([\\s\\S]*?)\\n  \\}`).exec(block[1])?.[1]
+        const body = new RegExp(`\\.${cls}[^{}]*\\{([\\s\\S]*?)\\n  \\}`).exec(block[1])?.[1]
         if (body !== undefined) return body
       }
       return ''
@@ -770,6 +778,10 @@ describe('§2 — the ratio law and the palette budget', () => {
       // red rather than the app going quietly illegible on the desktop.
       for (const [width, cls, plateName] of [
         [1024, 'hero-foot\\.counter-plate', 'counter-plate'],
+        // The week block occupies .hero-main's slot on card 01 before setup
+        // (see HeroCard), so it takes the counter plate and sheds it at the
+        // same width and in the same rule as the foot above it.
+        [1024, 'week-block\\.counter-plate', 'counter-plate'],
         [768, 'month-block\\.reading-plate', 'reading-plate'],
       ] as Array<[number, string, string]>) {
         const body = undo(width, cls)
@@ -789,6 +801,7 @@ describe('§2 — the ratio law and the palette budget', () => {
       // and the copy going away is what actually fixed it.
       for (const [width, cls] of [
         [1024, 'hero-foot\\.counter-plate'],
+        [1024, 'week-block\\.counter-plate'],
         [768, 'month-block\\.reading-plate'],
       ] as Array<[number, string]>) {
         const body = undo(width, cls)
@@ -1384,6 +1397,75 @@ describe('§1 trait 05 — every container carries the second contour', () => {
     // No literal px anywhere in the rule: a hard-coded 4px/24px here is exactly
     // how the derivation silently decouples from --keyline-w.
     expect(ring()).not.toMatch(/\d+px/)
+  })
+})
+
+describe('§11 / Trust Rule 8 — the 48px floor survives the element it is spent on', () => {
+  /**
+   * §11's 48px target floor, on the two controls that do not get it free.
+   *
+   * `.btn` spends `min-height: 48px` to reach the floor, because a 13px cap
+   * label in 8px padding only makes ~40px. MIN-HEIGHT IS IGNORED ON AN INLINE
+   * BOX, and <a> is inline by default — so an anchor wearing .btn is a control
+   * that looks exactly like the family, is styled by every other .btn rule, and
+   * silently misses the one rule that is a WCAG obligation rather than a taste.
+   * Nothing about the rendered result says so: the button is simply 8px short.
+   *
+   * Two anchors wear .btn today and both declare `inline-flex` — Landing's
+   * `.lp-cta` (the "Spec sheet" jump link) and, since round 7, HeroCard's
+   * `.hero-setup`, which is the ONLY in-page route to another card below
+   * 1024px (app.css hides .hero-nav, .hero-side and .hero-stage-line there).
+   * Neither had anything enforcing it, and the second one's rule spells the
+   * requirement out in a comment — a comment being the whole of the guard is
+   * the situation this file exists to end. It reads the anchors out of the
+   * SOURCE rather than listing them, so a third one fails here on the day it
+   * is written rather than the day someone measures it.
+   */
+  it('keeps every anchor wearing .btn off the inline box that voids the 48px floor', () => {
+    // The floor itself, first: if this line ever moves the rule below is
+    // guarding nothing.
+    expect(/\n\.btn \{[^}]*min-height:\s*48px/.test(TOKENS)).toBe(true)
+
+    // Both directories that render markup: a control is not exempt because it
+    // was written in App.tsx instead of a component file.
+    const anchors: Array<{ file: string; classes: string[] }> = []
+    for (const dir of ['../', '../components/']) {
+      const base = new URL(dir, import.meta.url)
+      const files = readdirSync(base).filter(
+        (f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'),
+      )
+      for (const file of files) {
+        const tsx = readFileSync(new URL(file, base), 'utf8')
+        // <a ... className="btn ..."> — the literal form, which is the only
+        // form in this codebase and the only one a source scan can be honest
+        // about.
+        for (const m of tsx.matchAll(/<a\b[^>]*className="([^"]*\bbtn\b[^"]*)"/g)) {
+          anchors.push({
+            file,
+            classes: m[1].split(/\s+/).filter((c) => c !== 'btn' && c !== ''),
+          })
+        }
+      }
+    }
+    // If the scan ever finds nothing, every assertion below passes vacuously.
+    expect(anchors.length).toBeGreaterThanOrEqual(2)
+
+    const BLOCKISH = /display:\s*(inline-)?(flex|block|grid)/
+    for (const { file, classes } of anchors) {
+      const carries = classes.some((cls) => {
+        const rule = new RegExp(`(?:^|\\n)\\.${cls}\\s*\\{([^}]*)\\}`)
+        for (const css of [APP, LANDING, TOKENS]) {
+          const m = rule.exec(css)
+          if (m !== null && BLOCKISH.test(m[1])) return true
+        }
+        return false
+      })
+      expect(
+        carries,
+        `<a class="btn ${classes.join(' ')}"> in ${file} is an inline box: ` +
+          '.btn’s min-height: 48px does not apply to it (§11)',
+      ).toBe(true)
+    }
   })
 })
 

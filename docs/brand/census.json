@@ -1,22 +1,35 @@
 {
   "schemaVersion": 1,
   "tool": "scripts/census/run.ts",
-  "capturedAt": "2026-08-05T01:06:47.414Z",
+  "capturedAt": "2026-08-05T02:38:27.850Z",
   "tree": {
-    "sha": "ec3aa0c008148b37cdcac0d8f0bb715a6a868804",
+    "sha": "83c9a9e4d0182212013b9bd854da1935ea9df676",
     "branch": "claude/money-app-market-analysis-oi2pht",
     "dirty": true,
     "dirtyPaths": [
+      "README.md",
+      "docs/brand/DESIGN-SYSTEM.md",
       "docs/brand/census.json",
-      "scripts/census/artifact.ts",
-      "scripts/census/census.test.ts",
-      "scripts/census/fixtures/day0.json",
-      "scripts/census/fixtures/dense.json",
+      "scripts/census/fixtures/cold.json",
       "scripts/census/matrix.ts",
-      "scripts/census/run.ts"
+      "scripts/census/run.ts",
+      "src/App.test.tsx",
+      "src/App.tsx",
+      "src/README.test.ts",
+      "src/Root.test.tsx",
+      "src/components/HeroCard.tsx",
+      "src/components/HeroShell.tsx",
+      "src/components/Landing.tsx",
+      "src/components/ProfileCard.tsx",
+      "src/engine/ledger.test.ts",
+      "src/engine/ledger.ts",
+      "src/noVerdict.test.tsx",
+      "src/styles/app.css",
+      "src/styles/design.test.ts",
+      "src/styles/landing.css"
     ]
   },
-  "inputsHash": "sha256:e3d3b201365ba559f7431daf6d4c82e22be9d50cef8ef0241ca3429ef9f80e3f",
+  "inputsHash": "sha256:fde9a143446e6d09b5dd1f833ec8ce2586b9175c5915a1db8329521ea5603d43",
   "env": {
     "node": "v22.22.2",
     "chrome": "Chrome/141.0.7390.37",
@@ -1436,7 +1449,7 @@
       "settleAttempts": 1,
       "announcements": []
     },
-    "app.375x812.dark.day0": {
+    "app.375x812.dark.cold": {
       "screen": "app",
       "viewport": {
         "width": 375,
@@ -1444,57 +1457,57 @@
         "mobile": true
       },
       "theme": "dark",
-      "state": "day0",
+      "state": "cold",
       "view": "rest",
       "dimensions": {
         "width": 375,
-        "height": 4314
+        "height": 4972
       },
       "pixels": {
-        "total": 1617750
+        "total": 1864500
       },
       "buckets": {
         "field": {
-          "pixels": 1025773,
-          "pct": 63.41
+          "pixels": 1133944,
+          "pct": 60.82
         },
         "bone": {
-          "pixels": 382189,
-          "pct": 23.62
+          "pixels": 505343,
+          "pct": 27.10
         },
         "graphite": {
-          "pixels": 180724,
-          "pct": 11.17
+          "pixels": 192516,
+          "pct": 10.33
         },
         "accent": {
-          "pixels": 29064,
-          "pct": 1.80
+          "pixels": 32697,
+          "pct": 1.75
         }
       },
-      "deviation": 13.16,
+      "deviation": 6.29,
       "tokens": {
-        "flare": 25.83,
-        "graphite": 2.55,
-        "bone": 20.22,
-        "espresso": 37.58,
-        "sand": 3.41,
+        "flare": 24.10,
+        "graphite": 2.52,
+        "bone": 20.40,
+        "espresso": 36.72,
+        "sand": 6.70,
         "fog": 0.00,
-        "void": 5.52,
-        "acid": 0.78,
-        "marigold": 0.92,
+        "void": 4.79,
+        "acid": 0.63,
+        "marigold": 1.03,
         "cobalt": 0.00,
-        "signal": 0.05,
-        "moss": 0.04,
-        "spec:676562": 0.86,
-        "spec-sunken:535250": 0.24,
-        "spec:b8aaa4": 1.00,
-        "spec-sunken:ccbeb8": 0.55,
+        "signal": 0.04,
+        "moss": 0.05,
+        "spec:676562": 0.85,
+        "spec-sunken:535250": 0.23,
+        "spec:b8aaa4": 0.98,
+        "spec-sunken:ccbeb8": 0.52,
         "spec:4e4f49": 0.09,
-        "spec-sunken:40413d": 0.35
+        "spec-sunken:40413d": 0.33
       },
       "strays": {
-        "pctOverDeltaE12": 0.43,
-        "meanDeltaE": 0.30,
+        "pctOverDeltaE12": 0.42,
+        "meanDeltaE": 0.29,
         "top": [
           {
             "hex": "#8e8885",
@@ -1530,31 +1543,273 @@
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 2.32,
+            "pct": 2.01,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 1.23,
+            "pct": 1.07,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 0.87,
+            "pct": 0.75,
             "nearest": "flare",
             "deltaE": 1.21
           },
           {
             "hex": "#f53e06",
-            "pct": 0.15,
+            "pct": 0.13,
             "nearest": "flare",
             "deltaE": 1.61
           },
           {
             "hex": "#f73d06",
-            "pct": 0.10,
+            "pct": 0.09,
+            "nearest": "flare",
+            "deltaE": 0.72
+          }
+        ]
+      },
+      "scrollingForm": {
+        "viewportHeight": 812,
+        "count": 7,
+        "mean": {
+          "field": 60.08,
+          "bone": 28.68,
+          "graphite": 9.71,
+          "accent": 1.54
+        },
+        "meanDeviation": 3.57,
+        "inkOnPaper": 27.59,
+        "worst": {
+          "top": 3248,
+          "deviation": 43.35
+        },
+        "breaches": [
+          "window @3248: bone 8.46 under the 15 band",
+          "accents painting: marigold 1.03, acid 0.63 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+        ],
+        "windows": [
+          {
+            "top": 0,
+            "pct": {
+              "field": 55.17,
+              "bone": 38.49,
+              "graphite": 6.21,
+              "accent": 0.13
+            },
+            "deviation": 16.98
+          },
+          {
+            "top": 812,
+            "pct": {
+              "field": 51.80,
+              "bone": 31.02,
+              "graphite": 13.25,
+              "accent": 3.93
+            },
+            "deviation": 16.39
+          },
+          {
+            "top": 1624,
+            "pct": {
+              "field": 64.54,
+              "bone": 27.86,
+              "graphite": 5.05,
+              "accent": 2.55
+            },
+            "deviation": 10.18
+          },
+          {
+            "top": 2436,
+            "pct": {
+              "field": 63.19,
+              "bone": 23.94,
+              "graphite": 10.63,
+              "accent": 2.25
+            },
+            "deviation": 12.13
+          },
+          {
+            "top": 3248,
+            "pct": {
+              "field": 67.35,
+              "bone": 8.46,
+              "graphite": 22.33,
+              "accent": 1.87
+            },
+            "deviation": 43.35
+          },
+          {
+            "top": 4060,
+            "pct": {
+              "field": 58.68,
+              "bone": 35.87,
+              "graphite": 5.44,
+              "accent": 0.01
+            },
+            "deviation": 11.74
+          },
+          {
+            "top": 4160,
+            "pct": {
+              "field": 59.83,
+              "bone": 35.13,
+              "graphite": 5.03,
+              "accent": 0.01
+            },
+            "deviation": 10.26
+          }
+        ]
+      },
+      "composition": {
+        "pageGround": null,
+        "sections": [
+          {
+            "label": "div.hero-frame",
+            "top": 0,
+            "height": 276,
+            "pct": {
+              "field": 77.03,
+              "bone": 13.61,
+              "graphite": 9.00,
+              "accent": 0.36
+            },
+            "deviation": 36.06,
+            "held": true
+          }
+        ],
+        "nested": [],
+        "breaches": [
+          "section div.hero-frame @0: bone 13.61 under the 15 band"
+        ]
+      },
+      "externalRequests": 0,
+      "settleAttempts": 3,
+      "announcements": []
+    },
+    "app.375x812.dark.day0": {
+      "screen": "app",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "mobile": true
+      },
+      "theme": "dark",
+      "state": "day0",
+      "view": "rest",
+      "dimensions": {
+        "width": 375,
+        "height": 4230
+      },
+      "pixels": {
+        "total": 1586250
+      },
+      "buckets": {
+        "field": {
+          "pixels": 1002928,
+          "pct": 63.23
+        },
+        "bone": {
+          "pixels": 381725,
+          "pct": 24.06
+        },
+        "graphite": {
+          "pixels": 178760,
+          "pct": 11.27
+        },
+        "accent": {
+          "pixels": 22837,
+          "pct": 1.44
+        }
+      },
+      "deviation": 12.99,
+      "tokens": {
+        "flare": 26.08,
+        "graphite": 2.48,
+        "bone": 20.59,
+        "espresso": 37.14,
+        "sand": 3.47,
+        "fog": 0.00,
+        "void": 5.63,
+        "acid": 0.41,
+        "marigold": 0.94,
+        "cobalt": 0.00,
+        "signal": 0.05,
+        "moss": 0.04,
+        "spec:676562": 0.88,
+        "spec-sunken:535250": 0.24,
+        "spec:b8aaa4": 1.03,
+        "spec-sunken:ccbeb8": 0.57,
+        "spec:4e4f49": 0.09,
+        "spec-sunken:40413d": 0.35
+      },
+      "strays": {
+        "pctOverDeltaE12": 0.42,
+        "meanDeltaE": 0.30,
+        "top": [
+          {
+            "hex": "#8e8885",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 13.91
+          },
+          {
+            "hex": "#90827c",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 13.58
+          },
+          {
+            "hex": "#988a84",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.09
+          },
+          {
+            "hex": "#92847e",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 14.29
+          },
+          {
+            "hex": "#8c7f79",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 12.28
+          }
+        ],
+        "nearMisses": [
+          {
+            "hex": "#f73e06",
+            "pct": 2.36,
+            "nearest": "flare",
+            "deltaE": 0.80
+          },
+          {
+            "hex": "#f83e06",
+            "pct": 1.26,
+            "nearest": "flare",
+            "deltaE": 0.40
+          },
+          {
+            "hex": "#f63e06",
+            "pct": 0.88,
+            "nearest": "flare",
+            "deltaE": 1.21
+          },
+          {
+            "hex": "#f53e06",
+            "pct": 0.16,
+            "nearest": "flare",
+            "deltaE": 1.61
+          },
+          {
+            "hex": "#f73d06",
+            "pct": 0.11,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -1564,83 +1819,82 @@
         "viewportHeight": 812,
         "count": 6,
         "mean": {
-          "field": 64.76,
-          "bone": 22.26,
-          "graphite": 11.38,
-          "accent": 1.60
+          "field": 64.17,
+          "bone": 23.15,
+          "graphite": 11.43,
+          "accent": 1.26
         },
-        "meanDeviation": 16.28,
-        "inkOnPaper": 32.11,
+        "meanDeviation": 15.19,
+        "inkOnPaper": 31.89,
         "worst": {
-          "top": 3248,
-          "deviation": 43.42
+          "top": 3418,
+          "deviation": 35.44
         },
         "breaches": [
-          "window @3248: bone 10.25 under the 15 band",
-          "window @3502: bone 14.23 under the 15 band",
-          "mean bone 22.26 outside 30±6",
-          "accents painting: marigold 0.92, acid 0.78 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+          "window @3418: bone 14.23 under the 15 band",
+          "mean bone 23.15 outside 30±6",
+          "accents painting: marigold 0.94, acid 0.41 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 63.94,
-              "bone": 27.97,
-              "graphite": 5.90,
-              "accent": 2.18
+              "field": 61.15,
+              "bone": 33.20,
+              "graphite": 5.51,
+              "accent": 0.14
             },
-            "deviation": 8.25
+            "deviation": 8.70
           },
           {
             "top": 812,
             "pct": {
-              "field": 47.39,
-              "bone": 34.98,
-              "graphite": 13.70,
-              "accent": 3.92
+              "field": 51.79,
+              "bone": 30.53,
+              "graphite": 13.76,
+              "accent": 3.93
             },
-            "deviation": 25.22
+            "deviation": 16.43
           },
           {
             "top": 1624,
             "pct": {
-              "field": 68.95,
-              "bone": 24.77,
-              "graphite": 5.13,
+              "field": 63.97,
+              "bone": 29.25,
+              "graphite": 5.64,
               "accent": 1.15
             },
-            "deviation": 17.90
+            "deviation": 7.94
           },
           {
             "top": 2436,
             "pct": {
-              "field": 62.58,
-              "bone": 21.38,
-              "graphite": 13.81,
+              "field": 65.59,
+              "bone": 16.63,
+              "graphite": 15.55,
               "accent": 2.24
             },
-            "deviation": 17.25
+            "deviation": 26.74
           },
           {
             "top": 3248,
             "pct": {
-              "field": 70.32,
-              "bone": 10.25,
-              "graphite": 19.39,
-              "accent": 0.03
+              "field": 67.13,
+              "bone": 15.07,
+              "graphite": 17.76,
+              "accent": 0.04
             },
-            "deviation": 43.42
+            "deviation": 33.77
           },
           {
-            "top": 3502,
+            "top": 3418,
             "pct": {
-              "field": 75.36,
+              "field": 75.37,
               "bone": 14.23,
-              "graphite": 10.36,
+              "graphite": 10.35,
               "accent": 0.05
             },
-            "deviation": 35.43
+            "deviation": 35.44
           }
         ]
       },
@@ -2424,6 +2678,250 @@
       "settleAttempts": 3,
       "announcements": []
     },
+    "app.375x812.light.cold": {
+      "screen": "app",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "mobile": true
+      },
+      "theme": "light",
+      "state": "cold",
+      "view": "rest",
+      "dimensions": {
+        "width": 375,
+        "height": 4972
+      },
+      "pixels": {
+        "total": 1864500
+      },
+      "buckets": {
+        "field": {
+          "pixels": 962827,
+          "pct": 51.64
+        },
+        "bone": {
+          "pixels": 714910,
+          "pct": 38.34
+        },
+        "graphite": {
+          "pixels": 153990,
+          "pct": 8.26
+        },
+        "accent": {
+          "pixels": 32773,
+          "pct": 1.76
+        }
+      },
+      "deviation": 17.20,
+      "tokens": {
+        "flare": 24.10,
+        "graphite": 5.24,
+        "bone": 33.53,
+        "espresso": 27.54,
+        "sand": 4.81,
+        "fog": 0.00,
+        "void": 0.00,
+        "acid": 0.63,
+        "marigold": 1.03,
+        "cobalt": 0.00,
+        "signal": 0.04,
+        "moss": 0.05,
+        "spec:676562": 0.92,
+        "spec-sunken:535250": 0.27,
+        "spec:b8aaa4": 0.91,
+        "spec-sunken:ccbeb8": 0.53,
+        "spec:4e4f49": 0.07,
+        "spec-sunken:40413d": 0.32
+      },
+      "strays": {
+        "pctOverDeltaE12": 0.44,
+        "meanDeltaE": 0.29,
+        "top": [
+          {
+            "hex": "#8e8885",
+            "pct": 0.02,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 13.91
+          },
+          {
+            "hex": "#90827c",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 13.58
+          },
+          {
+            "hex": "#8a8582",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 13.06
+          },
+          {
+            "hex": "#988a84",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.09
+          },
+          {
+            "hex": "#8c7f79",
+            "pct": 0.01,
+            "nearest": "spec:676562",
+            "deltaE": 12.28
+          }
+        ],
+        "nearMisses": [
+          {
+            "hex": "#f73e06",
+            "pct": 2.01,
+            "nearest": "flare",
+            "deltaE": 0.80
+          },
+          {
+            "hex": "#f83e06",
+            "pct": 1.07,
+            "nearest": "flare",
+            "deltaE": 0.40
+          },
+          {
+            "hex": "#f63e06",
+            "pct": 0.75,
+            "nearest": "flare",
+            "deltaE": 1.21
+          },
+          {
+            "hex": "#f53e06",
+            "pct": 0.13,
+            "nearest": "flare",
+            "deltaE": 1.61
+          },
+          {
+            "hex": "#f73d06",
+            "pct": 0.09,
+            "nearest": "flare",
+            "deltaE": 0.72
+          }
+        ]
+      },
+      "scrollingForm": {
+        "viewportHeight": 812,
+        "count": 7,
+        "mean": {
+          "field": 52.71,
+          "bone": 37.91,
+          "graphite": 7.84,
+          "accent": 1.54
+        },
+        "meanDeviation": 15.81,
+        "inkOnPaper": 17.72,
+        "worst": {
+          "top": 3248,
+          "deviation": 66.18
+        },
+        "breaches": [
+          "window @3248: field 27.04 under the 35 band",
+          "window @3248: bone 59.75 over the 55 band",
+          "mean bone 37.91 outside 30±6",
+          "accents painting: marigold 1.03, acid 0.63 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+        ],
+        "windows": [
+          {
+            "top": 0,
+            "pct": {
+              "field": 69.25,
+              "bone": 23.53,
+              "graphite": 7.09,
+              "accent": 0.13
+            },
+            "deviation": 18.50
+          },
+          {
+            "top": 812,
+            "pct": {
+              "field": 48.29,
+              "bone": 38.58,
+              "graphite": 9.19,
+              "accent": 3.94
+            },
+            "deviation": 23.41
+          },
+          {
+            "top": 1624,
+            "pct": {
+              "field": 67.33,
+              "bone": 23.95,
+              "graphite": 6.16,
+              "accent": 2.56
+            },
+            "deviation": 15.77
+          },
+          {
+            "top": 2436,
+            "pct": {
+              "field": 37.83,
+              "bone": 48.88,
+              "graphite": 11.03,
+              "accent": 2.26
+            },
+            "deviation": 44.34
+          },
+          {
+            "top": 3248,
+            "pct": {
+              "field": 27.04,
+              "bone": 59.75,
+              "graphite": 11.34,
+              "accent": 1.87
+            },
+            "deviation": 66.18
+          },
+          {
+            "top": 4060,
+            "pct": {
+              "field": 54.78,
+              "bone": 39.78,
+              "graphite": 5.44,
+              "accent": 0.01
+            },
+            "deviation": 19.55
+          },
+          {
+            "top": 4160,
+            "pct": {
+              "field": 64.48,
+              "bone": 30.88,
+              "graphite": 4.63,
+              "accent": 0.01
+            },
+            "deviation": 10.72
+          }
+        ]
+      },
+      "composition": {
+        "pageGround": null,
+        "sections": [
+          {
+            "label": "div.hero-frame",
+            "top": 0,
+            "height": 276,
+            "pct": {
+              "field": 77.03,
+              "bone": 13.61,
+              "graphite": 9.00,
+              "accent": 0.36
+            },
+            "deviation": 36.06,
+            "held": true
+          }
+        ],
+        "nested": [],
+        "breaches": [
+          "section div.hero-frame @0: bone 13.61 under the 15 band"
+        ]
+      },
+      "externalRequests": 0,
+      "settleAttempts": 3,
+      "announcements": []
+    },
     "app.375x812.light.day0": {
       "screen": "app",
       "viewport": {
@@ -2436,46 +2934,46 @@
       "view": "rest",
       "dimensions": {
         "width": 375,
-        "height": 4314
+        "height": 4230
       },
       "pixels": {
-        "total": 1617750
+        "total": 1586250
       },
       "buckets": {
         "field": {
-          "pixels": 822563,
-          "pct": 50.85
+          "pixels": 819875,
+          "pct": 51.69
         },
         "bone": {
-          "pixels": 627757,
-          "pct": 38.80
+          "pixels": 606826,
+          "pct": 38.26
         },
         "graphite": {
-          "pixels": 138199,
-          "pct": 8.54
+          "pixels": 136645,
+          "pct": 8.61
         },
         "accent": {
-          "pixels": 29231,
-          "pct": 1.81
+          "pixels": 22904,
+          "pct": 1.44
         }
       },
-      "deviation": 18.69,
+      "deviation": 17.74,
       "tokens": {
-        "flare": 25.83,
-        "graphite": 5.44,
-        "bone": 33.26,
-        "espresso": 25.02,
-        "sand": 5.54,
+        "flare": 26.08,
+        "graphite": 5.45,
+        "bone": 32.60,
+        "espresso": 25.60,
+        "sand": 5.66,
         "fog": 0.00,
         "void": 0.00,
-        "acid": 0.78,
-        "marigold": 0.92,
+        "acid": 0.41,
+        "marigold": 0.94,
         "cobalt": 0.00,
         "signal": 0.05,
-        "moss": 0.05,
-        "spec:676562": 0.94,
-        "spec-sunken:535250": 0.27,
-        "spec:b8aaa4": 0.94,
+        "moss": 0.04,
+        "spec:676562": 0.96,
+        "spec-sunken:535250": 0.28,
+        "spec:b8aaa4": 0.96,
         "spec-sunken:ccbeb8": 0.56,
         "spec:4e4f49": 0.08,
         "spec-sunken:40413d": 0.33
@@ -2518,31 +3016,31 @@
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 2.32,
+            "pct": 2.36,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 1.23,
+            "pct": 1.26,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 0.87,
+            "pct": 0.88,
             "nearest": "flare",
             "deltaE": 1.21
           },
           {
             "hex": "#f53e06",
-            "pct": 0.15,
+            "pct": 0.16,
             "nearest": "flare",
             "deltaE": 1.61
           },
           {
             "hex": "#f73d06",
-            "pct": 0.10,
+            "pct": 0.11,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -2552,86 +3050,84 @@
         "viewportHeight": 812,
         "count": 6,
         "mean": {
-          "field": 49.32,
-          "bone": 40.39,
-          "graphite": 8.69,
-          "accent": 1.60
+          "field": 50.72,
+          "bone": 39.35,
+          "graphite": 8.68,
+          "accent": 1.26
         },
-        "meanDeviation": 22.16,
-        "inkOnPaper": 18.04,
+        "meanDeviation": 20.05,
+        "inkOnPaper": 18.38,
         "worst": {
-          "top": 3248,
-          "deviation": 64.42
+          "top": 2436,
+          "deviation": 62.37
         },
         "breaches": [
-          "window @2436: field 33.55 under the 35 band",
-          "window @2436: bone 55.60 over the 55 band",
-          "window @3248: field 29.76 under the 35 band",
-          "window @3248: bone 59.99 over the 55 band",
-          "mean field 49.32 outside 60±8",
-          "mean bone 40.39 outside 30±6",
-          "accents painting: marigold 0.92, acid 0.78 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
+          "window @2436: field 28.82 under the 35 band",
+          "window @2436: bone 60.09 over the 55 band",
+          "mean field 50.72 outside 60±8",
+          "mean bone 39.35 outside 30±6",
+          "accents painting: marigold 0.94, acid 0.41 — §2 permits one per surface; the two tracks are Trust Rule 1 (tokens.css --reward/--data) and §12 outranks §2. A third is drift."
         ],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 62.41,
-              "bone": 28.15,
-              "graphite": 7.22,
-              "accent": 2.22
+              "field": 67.79,
+              "bone": 25.00,
+              "graphite": 7.07,
+              "accent": 0.14
             },
-            "deviation": 5.26
+            "deviation": 15.57
           },
           {
             "top": 812,
             "pct": {
-              "field": 52.54,
-              "bone": 35.16,
-              "graphite": 8.36,
-              "accent": 3.93
+              "field": 55.29,
+              "bone": 32.46,
+              "graphite": 8.31,
+              "accent": 3.94
             },
-            "deviation": 14.92
+            "deviation": 9.41
           },
           {
             "top": 1624,
             "pct": {
-              "field": 62.94,
-              "bone": 25.84,
-              "graphite": 10.06,
-              "accent": 1.16
+              "field": 59.89,
+              "bone": 28.25,
+              "graphite": 10.71,
+              "accent": 1.15
             },
-            "deviation": 10.00
+            "deviation": 5.42
           },
           {
             "top": 2436,
             "pct": {
-              "field": 33.55,
-              "bone": 55.60,
-              "graphite": 8.60,
+              "field": 28.82,
+              "bone": 60.09,
+              "graphite": 8.84,
               "accent": 2.25
             },
-            "deviation": 52.91
+            "deviation": 62.37
           },
           {
             "top": 3248,
             "pct": {
-              "field": 29.76,
-              "bone": 59.99,
-              "graphite": 10.22,
-              "accent": 0.03
+              "field": 37.73,
+              "bone": 52.80,
+              "graphite": 9.44,
+              "accent": 0.04
             },
-            "deviation": 64.42
+            "deviation": 48.47
           },
           {
-            "top": 3502,
+            "top": 3418,
             "pct": {
-              "field": 54.69,
-              "bone": 37.58,
+              "field": 54.79,
+              "bone": 37.48,
               "graphite": 7.69,
               "accent": 0.04
             },
-            "deviation": 15.16
+            "deviation": 14.96
           }
         ]
       },
@@ -3430,53 +3926,53 @@
       "view": "rest",
       "dimensions": {
         "width": 1440,
-        "height": 4748
+        "height": 4994
       },
       "pixels": {
-        "total": 6837120
+        "total": 7191360
       },
       "buckets": {
         "field": {
-          "pixels": 4194071,
-          "pct": 61.34
+          "pixels": 4330964,
+          "pct": 60.22
         },
         "bone": {
-          "pixels": 2232727,
-          "pct": 32.66
+          "pixels": 2432617,
+          "pct": 33.83
         },
         "graphite": {
-          "pixels": 300393,
-          "pct": 4.39
+          "pixels": 317583,
+          "pct": 4.42
         },
         "accent": {
-          "pixels": 109929,
-          "pct": 1.61
+          "pixels": 110196,
+          "pct": 1.53
         }
       },
-      "deviation": 8.00,
+      "deviation": 8.10,
       "tokens": {
-        "flare": 25.98,
-        "graphite": 2.81,
-        "bone": 25.81,
-        "espresso": 35.36,
-        "sand": 6.84,
+        "flare": 26.05,
+        "graphite": 2.76,
+        "bone": 27.33,
+        "espresso": 34.17,
+        "sand": 6.50,
         "fog": 0.00,
         "void": 0.00,
         "acid": 0.08,
-        "marigold": 1.46,
+        "marigold": 1.39,
         "cobalt": 0.00,
         "signal": 0.05,
         "moss": 0.02,
-        "spec:676562": 0.41,
-        "spec-sunken:535250": 0.16,
-        "spec:b8aaa4": 0.45,
-        "spec-sunken:ccbeb8": 0.30,
+        "spec:676562": 0.43,
+        "spec-sunken:535250": 0.17,
+        "spec:b8aaa4": 0.46,
+        "spec-sunken:ccbeb8": 0.31,
         "spec:4e4f49": 0.07,
-        "spec-sunken:40413d": 0.21
+        "spec-sunken:40413d": 0.22
       },
       "strays": {
-        "pctOverDeltaE12": 0.25,
-        "meanDeltaE": 0.25,
+        "pctOverDeltaE12": 0.24,
+        "meanDeltaE": 0.26,
         "top": [
           {
             "hex": "#8e8885",
@@ -3497,46 +3993,46 @@
             "deltaE": 35.78
           },
           {
+            "hex": "#918b87",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.76
+          },
+          {
             "hex": "#c5390f",
             "pct": 0.00,
             "nearest": "signal",
             "deltaE": 17.30
-          },
-          {
-            "hex": "#918b87",
-            "pct": 0.00,
-            "nearest": "spec:b8aaa4",
-            "deltaE": 12.76
           }
         ],
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 6.85,
+            "pct": 7.15,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 3.67,
+            "pct": 3.83,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 2.58,
+            "pct": 2.70,
             "nearest": "flare",
             "deltaE": 1.21
           },
           {
             "hex": "#f53e06",
-            "pct": 0.45,
+            "pct": 0.47,
             "nearest": "flare",
             "deltaE": 1.61
           },
           {
             "hex": "#f73d06",
-            "pct": 0.30,
+            "pct": 0.32,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -3546,78 +4042,78 @@
         "viewportHeight": 900,
         "count": 6,
         "mean": {
-          "field": 62.39,
-          "bone": 31.73,
-          "graphite": 4.46,
+          "field": 61.56,
+          "bone": 32.54,
+          "graphite": 4.47,
           "accent": 1.43
         },
-        "meanDeviation": 8.22,
-        "inkOnPaper": 11.86,
+        "meanDeviation": 8.20,
+        "inkOnPaper": 11.55,
         "worst": {
-          "top": 3848,
-          "deviation": 30.60
+          "top": 4094,
+          "deviation": 30.45
         },
         "breaches": [],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 62.58,
-              "bone": 31.48,
-              "graphite": 5.83,
-              "accent": 0.11
+              "field": 62.59,
+              "bone": 31.86,
+              "graphite": 5.45,
+              "accent": 0.10
             },
-            "deviation": 8.12
+            "deviation": 8.90
           },
           {
             "top": 900,
             "pct": {
-              "field": 58.58,
-              "bone": 37.48,
-              "graphite": 3.49,
-              "accent": 0.45
+              "field": 57.08,
+              "bone": 38.04,
+              "graphite": 4.40,
+              "accent": 0.48
             },
-            "deviation": 14.97
+            "deviation": 16.07
           },
           {
             "top": 1800,
             "pct": {
-              "field": 52.16,
-              "bone": 44.06,
-              "graphite": 3.79,
+              "field": 54.82,
+              "bone": 42.31,
+              "graphite": 2.88,
               "accent": 0.00
             },
-            "deviation": 28.12
+            "deviation": 24.61
           },
           {
             "top": 2700,
             "pct": {
-              "field": 58.59,
-              "bone": 36.59,
-              "graphite": 4.80,
-              "accent": 0.03
+              "field": 55.62,
+              "bone": 39.67,
+              "graphite": 4.69,
+              "accent": 0.02
             },
-            "deviation": 13.18
+            "deviation": 19.34
           },
           {
             "top": 3600,
             "pct": {
-              "field": 72.99,
-              "bone": 22.19,
-              "graphite": 4.69,
+              "field": 69.89,
+              "bone": 24.74,
+              "graphite": 5.25,
               "accent": 0.13
             },
-            "deviation": 25.98
+            "deviation": 19.77
           },
           {
-            "top": 3848,
+            "top": 4094,
             "pct": {
-              "field": 69.43,
-              "bone": 18.55,
-              "graphite": 4.15,
+              "field": 69.36,
+              "bone": 18.64,
+              "graphite": 4.14,
               "accent": 7.87
             },
-            "deviation": 30.60
+            "deviation": 30.45
           }
         ]
       },
@@ -3627,37 +4123,37 @@
           {
             "label": "section.lp-wall",
             "top": 0,
-            "height": 1062,
+            "height": 1205,
             "pct": {
-              "field": 65.17,
-              "bone": 28.69,
-              "graphite": 6.03,
-              "accent": 0.11
+              "field": 63.03,
+              "bone": 30.96,
+              "graphite": 5.91,
+              "accent": 0.09
             },
-            "deviation": 10.35,
+            "deviation": 7.99,
             "held": false
           },
           {
             "label": "section.lp-spec",
-            "top": 1062,
-            "height": 2140,
+            "top": 1205,
+            "height": 2242,
             "pct": {
-              "field": 53.18,
-              "bone": 42.90,
-              "graphite": 3.74,
+              "field": 51.99,
+              "bone": 44.08,
+              "graphite": 3.75,
               "accent": 0.18
             },
-            "deviation": 25.80,
+            "deviation": 28.16,
             "held": false
           },
           {
             "label": "section.lp-shear",
-            "top": 3202,
+            "top": 3447,
             "height": 593,
             "pct": {
-              "field": 68.63,
-              "bone": 27.13,
-              "graphite": 4.17,
+              "field": 68.64,
+              "bone": 27.02,
+              "graphite": 4.28,
               "accent": 0.07
             },
             "deviation": 17.27,
@@ -3665,20 +4161,20 @@
           },
           {
             "label": "section.lp-object",
-            "top": 3795,
-            "height": 703,
+            "top": 4040,
+            "height": 704,
             "pct": {
-              "field": 72.09,
-              "bone": 22.85,
-              "graphite": 4.92,
+              "field": 72.02,
+              "bone": 22.93,
+              "graphite": 4.91,
               "accent": 0.14
             },
-            "deviation": 24.17,
+            "deviation": 24.04,
             "held": true
           },
           {
             "label": "footer.lp-foot",
-            "top": 4498,
+            "top": 4744,
             "height": 250,
             "pct": {
               "field": 67.41,
@@ -3692,7 +4188,7 @@
         ],
         "nested": [],
         "breaches": [
-          "section footer.lp-foot @4498: bone 2.52 under the 15 band"
+          "section footer.lp-foot @4744: bone 2.52 under the 15 band"
         ]
       },
       "externalRequests": 0,
@@ -3711,53 +4207,53 @@
       "view": "rest",
       "dimensions": {
         "width": 1440,
-        "height": 4748
+        "height": 4994
       },
       "pixels": {
-        "total": 6837120
+        "total": 7191360
       },
       "buckets": {
         "field": {
-          "pixels": 4194071,
-          "pct": 61.34
+          "pixels": 4330964,
+          "pct": 60.22
         },
         "bone": {
-          "pixels": 2232727,
-          "pct": 32.66
+          "pixels": 2432617,
+          "pct": 33.83
         },
         "graphite": {
-          "pixels": 300393,
-          "pct": 4.39
+          "pixels": 317583,
+          "pct": 4.42
         },
         "accent": {
-          "pixels": 109929,
-          "pct": 1.61
+          "pixels": 110196,
+          "pct": 1.53
         }
       },
-      "deviation": 8.00,
+      "deviation": 8.10,
       "tokens": {
-        "flare": 25.98,
-        "graphite": 2.81,
-        "bone": 25.81,
-        "espresso": 35.36,
-        "sand": 6.84,
+        "flare": 26.05,
+        "graphite": 2.76,
+        "bone": 27.33,
+        "espresso": 34.17,
+        "sand": 6.50,
         "fog": 0.00,
         "void": 0.00,
         "acid": 0.08,
-        "marigold": 1.46,
+        "marigold": 1.39,
         "cobalt": 0.00,
         "signal": 0.05,
         "moss": 0.02,
-        "spec:676562": 0.41,
-        "spec-sunken:535250": 0.16,
-        "spec:b8aaa4": 0.45,
-        "spec-sunken:ccbeb8": 0.30,
+        "spec:676562": 0.43,
+        "spec-sunken:535250": 0.17,
+        "spec:b8aaa4": 0.46,
+        "spec-sunken:ccbeb8": 0.31,
         "spec:4e4f49": 0.07,
-        "spec-sunken:40413d": 0.21
+        "spec-sunken:40413d": 0.22
       },
       "strays": {
-        "pctOverDeltaE12": 0.25,
-        "meanDeltaE": 0.25,
+        "pctOverDeltaE12": 0.24,
+        "meanDeltaE": 0.26,
         "top": [
           {
             "hex": "#8e8885",
@@ -3778,46 +4274,46 @@
             "deltaE": 35.78
           },
           {
+            "hex": "#918b87",
+            "pct": 0.01,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 12.76
+          },
+          {
             "hex": "#c5390f",
             "pct": 0.00,
             "nearest": "signal",
             "deltaE": 17.30
-          },
-          {
-            "hex": "#918b87",
-            "pct": 0.00,
-            "nearest": "spec:b8aaa4",
-            "deltaE": 12.76
           }
         ],
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 6.85,
+            "pct": 7.15,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 3.67,
+            "pct": 3.83,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 2.58,
+            "pct": 2.70,
             "nearest": "flare",
             "deltaE": 1.21
           },
           {
             "hex": "#f53e06",
-            "pct": 0.45,
+            "pct": 0.47,
             "nearest": "flare",
             "deltaE": 1.61
           },
           {
             "hex": "#f73d06",
-            "pct": 0.30,
+            "pct": 0.32,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -3827,78 +4323,78 @@
         "viewportHeight": 900,
         "count": 6,
         "mean": {
-          "field": 62.39,
-          "bone": 31.73,
-          "graphite": 4.46,
+          "field": 61.56,
+          "bone": 32.54,
+          "graphite": 4.47,
           "accent": 1.43
         },
-        "meanDeviation": 8.22,
-        "inkOnPaper": 11.86,
+        "meanDeviation": 8.20,
+        "inkOnPaper": 11.55,
         "worst": {
-          "top": 3848,
-          "deviation": 30.60
+          "top": 4094,
+          "deviation": 30.45
         },
         "breaches": [],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 62.58,
-              "bone": 31.48,
-              "graphite": 5.83,
-              "accent": 0.11
+              "field": 62.59,
+              "bone": 31.86,
+              "graphite": 5.45,
+              "accent": 0.10
             },
-            "deviation": 8.12
+            "deviation": 8.90
           },
           {
             "top": 900,
             "pct": {
-              "field": 58.58,
-              "bone": 37.48,
-              "graphite": 3.49,
-              "accent": 0.45
+              "field": 57.08,
+              "bone": 38.04,
+              "graphite": 4.40,
+              "accent": 0.48
             },
-            "deviation": 14.97
+            "deviation": 16.07
           },
           {
             "top": 1800,
             "pct": {
-              "field": 52.16,
-              "bone": 44.06,
-              "graphite": 3.79,
+              "field": 54.82,
+              "bone": 42.31,
+              "graphite": 2.88,
               "accent": 0.00
             },
-            "deviation": 28.12
+            "deviation": 24.61
           },
           {
             "top": 2700,
             "pct": {
-              "field": 58.59,
-              "bone": 36.59,
-              "graphite": 4.80,
-              "accent": 0.03
+              "field": 55.62,
+              "bone": 39.67,
+              "graphite": 4.69,
+              "accent": 0.02
             },
-            "deviation": 13.18
+            "deviation": 19.34
           },
           {
             "top": 3600,
             "pct": {
-              "field": 72.99,
-              "bone": 22.19,
-              "graphite": 4.69,
+              "field": 69.89,
+              "bone": 24.74,
+              "graphite": 5.25,
               "accent": 0.13
             },
-            "deviation": 25.98
+            "deviation": 19.77
           },
           {
-            "top": 3848,
+            "top": 4094,
             "pct": {
-              "field": 69.43,
-              "bone": 18.55,
-              "graphite": 4.15,
+              "field": 69.36,
+              "bone": 18.64,
+              "graphite": 4.14,
               "accent": 7.87
             },
-            "deviation": 30.60
+            "deviation": 30.45
           }
         ]
       },
@@ -3908,37 +4404,37 @@
           {
             "label": "section.lp-wall",
             "top": 0,
-            "height": 1062,
+            "height": 1205,
             "pct": {
-              "field": 65.17,
-              "bone": 28.69,
-              "graphite": 6.03,
-              "accent": 0.11
+              "field": 63.03,
+              "bone": 30.96,
+              "graphite": 5.91,
+              "accent": 0.09
             },
-            "deviation": 10.35,
+            "deviation": 7.99,
             "held": false
           },
           {
             "label": "section.lp-spec",
-            "top": 1062,
-            "height": 2140,
+            "top": 1205,
+            "height": 2242,
             "pct": {
-              "field": 53.18,
-              "bone": 42.90,
-              "graphite": 3.74,
+              "field": 51.99,
+              "bone": 44.08,
+              "graphite": 3.75,
               "accent": 0.18
             },
-            "deviation": 25.80,
+            "deviation": 28.16,
             "held": false
           },
           {
             "label": "section.lp-shear",
-            "top": 3202,
+            "top": 3447,
             "height": 593,
             "pct": {
-              "field": 68.63,
-              "bone": 27.13,
-              "graphite": 4.17,
+              "field": 68.64,
+              "bone": 27.02,
+              "graphite": 4.28,
               "accent": 0.07
             },
             "deviation": 17.27,
@@ -3946,20 +4442,20 @@
           },
           {
             "label": "section.lp-object",
-            "top": 3795,
-            "height": 703,
+            "top": 4040,
+            "height": 704,
             "pct": {
-              "field": 72.09,
-              "bone": 22.85,
-              "graphite": 4.92,
+              "field": 72.02,
+              "bone": 22.93,
+              "graphite": 4.91,
               "accent": 0.14
             },
-            "deviation": 24.17,
+            "deviation": 24.04,
             "held": true
           },
           {
             "label": "footer.lp-foot",
-            "top": 4498,
+            "top": 4744,
             "height": 250,
             "pct": {
               "field": 67.41,
@@ -3973,7 +4469,7 @@
         ],
         "nested": [],
         "breaches": [
-          "section footer.lp-foot @4498: bone 2.52 under the 15 band"
+          "section footer.lp-foot @4744: bone 2.52 under the 15 band"
         ]
       },
       "externalRequests": 0,
@@ -3992,49 +4488,49 @@
       "view": "rest",
       "dimensions": {
         "width": 375,
-        "height": 6931
+        "height": 7304
       },
       "pixels": {
-        "total": 2599125
+        "total": 2739000
       },
       "buckets": {
         "field": {
-          "pixels": 1586198,
-          "pct": 61.03
+          "pixels": 1631768,
+          "pct": 59.58
         },
         "bone": {
-          "pixels": 766869,
-          "pct": 29.50
+          "pixels": 845167,
+          "pct": 30.86
         },
         "graphite": {
-          "pixels": 209622,
-          "pct": 8.07
+          "pixels": 225302,
+          "pct": 8.23
         },
         "accent": {
-          "pixels": 36436,
-          "pct": 1.40
+          "pixels": 36763,
+          "pct": 1.34
         }
       },
-      "deviation": 2.19,
+      "deviation": 2.16,
       "tokens": {
-        "flare": 12.68,
-        "graphite": 4.02,
-        "bone": 18.89,
-        "espresso": 48.35,
-        "sand": 10.61,
+        "flare": 12.46,
+        "graphite": 4.00,
+        "bone": 20.51,
+        "espresso": 47.11,
+        "sand": 10.34,
         "fog": 0.00,
         "void": 0.00,
-        "acid": 0.20,
-        "marigold": 1.09,
+        "acid": 0.19,
+        "marigold": 1.04,
         "cobalt": 0.00,
-        "signal": 0.07,
+        "signal": 0.06,
         "moss": 0.05,
-        "spec:676562": 1.06,
-        "spec-sunken:535250": 0.30,
-        "spec:b8aaa4": 1.16,
-        "spec-sunken:ccbeb8": 0.80,
+        "spec:676562": 1.10,
+        "spec-sunken:535250": 0.33,
+        "spec:b8aaa4": 1.21,
+        "spec-sunken:ccbeb8": 0.84,
         "spec:4e4f49": 0.18,
-        "spec-sunken:40413d": 0.54
+        "spec-sunken:40413d": 0.57
       },
       "strays": {
         "pctOverDeltaE12": 0.51,
@@ -4042,15 +4538,9 @@
         "top": [
           {
             "hex": "#90827c",
-            "pct": 0.02,
+            "pct": 0.03,
             "nearest": "spec:676562",
             "deltaE": 13.58
-          },
-          {
-            "hex": "#8c7f79",
-            "pct": 0.02,
-            "nearest": "spec:676562",
-            "deltaE": 12.28
           },
           {
             "hex": "#8e8885",
@@ -4059,8 +4549,14 @@
             "deltaE": 13.91
           },
           {
-            "hex": "#92847e",
+            "hex": "#8c7f79",
             "pct": 0.02,
+            "nearest": "spec:676562",
+            "deltaE": 12.28
+          },
+          {
+            "hex": "#92847e",
+            "pct": 0.01,
             "nearest": "spec:676562",
             "deltaE": 14.29
           },
@@ -4074,19 +4570,19 @@
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 3.41,
+            "pct": 3.44,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 1.82,
+            "pct": 1.84,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 1.27,
+            "pct": 1.28,
             "nearest": "flare",
             "deltaE": 1.21
           },
@@ -4098,7 +4594,7 @@
           },
           {
             "hex": "#f73d06",
-            "pct": 0.15,
+            "pct": 0.16,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -4108,108 +4604,108 @@
         "viewportHeight": 812,
         "count": 9,
         "mean": {
-          "field": 61.18,
-          "bone": 29.32,
-          "graphite": 8.15,
-          "accent": 1.35
+          "field": 59.60,
+          "bone": 30.84,
+          "graphite": 8.22,
+          "accent": 1.34
         },
-        "meanDeviation": 2.67,
-        "inkOnPaper": 21.47,
+        "meanDeviation": 2.12,
+        "inkOnPaper": 21.05,
         "worst": {
-          "top": 812,
-          "deviation": 42.10
+          "top": 4872,
+          "deviation": 36.51
         },
         "breaches": [],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 66.48,
-              "bone": 24.25,
-              "graphite": 9.08,
+              "field": 47.77,
+              "bone": 41.97,
+              "graphite": 10.06,
               "accent": 0.19
             },
-            "deviation": 15.12
+            "deviation": 28.08
           },
           {
             "top": 812,
             "pct": {
-              "field": 40.90,
-              "bone": 44.44,
-              "graphite": 14.61,
-              "accent": 0.04
+              "field": 54.90,
+              "bone": 35.41,
+              "graphite": 9.67,
+              "accent": 0.02
             },
-            "deviation": 42.10
+            "deviation": 14.17
           },
           {
             "top": 1624,
             "pct": {
-              "field": 75.61,
-              "bone": 17.28,
-              "graphite": 5.28,
-              "accent": 1.84
+              "field": 63.13,
+              "bone": 23.69,
+              "graphite": 11.31,
+              "accent": 1.87
             },
-            "deviation": 31.22
+            "deviation": 12.88
           },
           {
             "top": 2436,
             "pct": {
-              "field": 57.43,
-              "bone": 34.88,
-              "graphite": 7.68,
+              "field": 53.44,
+              "bone": 40.97,
+              "graphite": 5.59,
               "accent": 0.00
             },
-            "deviation": 9.77
+            "deviation": 21.94
           },
           {
             "top": 3248,
             "pct": {
-              "field": 59.95,
-              "bone": 33.18,
-              "graphite": 6.88,
+              "field": 70.34,
+              "bone": 20.87,
+              "graphite": 8.80,
               "accent": 0.00
             },
-            "deviation": 6.35
+            "deviation": 22.27
           },
           {
             "top": 4060,
             "pct": {
-              "field": 74.14,
-              "bone": 19.50,
-              "graphite": 6.37,
+              "field": 62.26,
+              "bone": 30.60,
+              "graphite": 7.14,
               "accent": 0.00
             },
-            "deviation": 28.27
+            "deviation": 5.71
           },
           {
             "top": 4872,
             "pct": {
-              "field": 73.51,
-              "bone": 22.17,
-              "graphite": 4.20,
-              "accent": 0.12
+              "field": 78.25,
+              "bone": 17.05,
+              "graphite": 4.68,
+              "accent": 0.02
             },
-            "deviation": 27.02
+            "deviation": 36.51
           },
           {
             "top": 5684,
             "pct": {
-              "field": 43.74,
-              "bone": 46.34,
-              "graphite": 9.73,
-              "accent": 0.19
+              "field": 47.42,
+              "bone": 45.31,
+              "graphite": 7.17,
+              "accent": 0.11
             },
-            "deviation": 36.14
+            "deviation": 30.62
           },
           {
-            "top": 6119,
+            "top": 6492,
             "pct": {
               "field": 58.87,
-              "bone": 21.80,
+              "bone": 21.69,
               "graphite": 9.56,
-              "accent": 9.77
+              "accent": 9.88
             },
-            "deviation": 18.67
+            "deviation": 18.88
           }
         ]
       },
@@ -4219,72 +4715,72 @@
           {
             "label": "section.lp-wall",
             "top": 0,
-            "height": 1675,
+            "height": 1920,
             "pct": {
-              "field": 54.98,
-              "bone": 33.30,
-              "graphite": 11.60,
-              "accent": 0.12
+              "field": 49.60,
+              "bone": 38.63,
+              "graphite": 11.66,
+              "accent": 0.10
             },
-            "deviation": 13.80,
+            "deviation": 24.60,
             "held": false
           },
           {
             "label": "section.lp-spec",
-            "top": 1675,
-            "height": 3299,
+            "top": 1920,
+            "height": 3401,
             "pct": {
-              "field": 67.20,
-              "bone": 25.93,
-              "graphite": 6.42,
-              "accent": 0.45
+              "field": 67.74,
+              "bone": 25.32,
+              "graphite": 6.50,
+              "accent": 0.44
             },
-            "deviation": 14.40,
+            "deviation": 15.48,
             "held": false
           },
           {
             "label": "section.lp-shear",
-            "top": 4974,
-            "height": 1211,
+            "top": 5321,
+            "height": 1237,
             "pct": {
-              "field": 55.98,
-              "bone": 37.55,
-              "graphite": 6.38,
+              "field": 55.07,
+              "bone": 38.37,
+              "graphite": 6.47,
               "accent": 0.08
             },
-            "deviation": 15.11,
+            "deviation": 16.74,
             "held": false
           },
           {
             "label": "section.lp-object",
-            "top": 6185,
-            "height": 494,
+            "top": 6558,
+            "height": 493,
             "pct": {
-              "field": 52.39,
-              "bone": 34.38,
-              "graphite": 12.88,
+              "field": 52.47,
+              "bone": 34.28,
+              "graphite": 12.91,
               "accent": 0.35
             },
-            "deviation": 18.53,
+            "deviation": 18.37,
             "held": true
           },
           {
             "label": "footer.lp-foot",
-            "top": 6679,
-            "height": 252,
+            "top": 7051,
+            "height": 253,
             "pct": {
-              "field": 61.58,
-              "bone": 2.85,
-              "graphite": 4.76,
-              "accent": 30.80
+              "field": 61.39,
+              "bone": 2.84,
+              "graphite": 4.75,
+              "accent": 31.02
             },
-            "deviation": 60.78,
+            "deviation": 60.83,
             "held": true
           }
         ],
         "nested": [],
         "breaches": [
-          "section footer.lp-foot @6679: bone 2.85 under the 15 band"
+          "section footer.lp-foot @7051: bone 2.84 under the 15 band"
         ]
       },
       "externalRequests": 0,
@@ -4303,65 +4799,65 @@
       "view": "rest",
       "dimensions": {
         "width": 375,
-        "height": 6931
+        "height": 7304
       },
       "pixels": {
-        "total": 2599125
+        "total": 2739000
       },
       "buckets": {
         "field": {
-          "pixels": 1528719,
-          "pct": 58.82
+          "pixels": 1574067,
+          "pct": 57.47
         },
         "bone": {
-          "pixels": 823720,
-          "pct": 31.69
+          "pixels": 902257,
+          "pct": 32.94
         },
         "graphite": {
-          "pixels": 210238,
-          "pct": 8.09
+          "pixels": 225901,
+          "pct": 8.25
         },
         "accent": {
-          "pixels": 36448,
-          "pct": 1.40
+          "pixels": 36775,
+          "pct": 1.34
         }
       },
-      "deviation": 3.56,
+      "deviation": 6.38,
       "tokens": {
-        "flare": 12.68,
-        "graphite": 4.05,
-        "bone": 25.26,
-        "espresso": 46.13,
-        "sand": 6.43,
+        "flare": 12.46,
+        "graphite": 4.02,
+        "bone": 26.56,
+        "espresso": 45.01,
+        "sand": 6.38,
         "fog": 0.00,
         "void": 0.00,
-        "acid": 0.20,
-        "marigold": 1.09,
+        "acid": 0.19,
+        "marigold": 1.04,
         "cobalt": 0.00,
-        "signal": 0.07,
+        "signal": 0.06,
         "moss": 0.05,
-        "spec:676562": 1.08,
-        "spec-sunken:535250": 0.30,
-        "spec:b8aaa4": 1.15,
-        "spec-sunken:ccbeb8": 0.83,
-        "spec:4e4f49": 0.16,
-        "spec-sunken:40413d": 0.53
+        "spec:676562": 1.12,
+        "spec-sunken:535250": 0.33,
+        "spec:b8aaa4": 1.19,
+        "spec-sunken:ccbeb8": 0.87,
+        "spec:4e4f49": 0.17,
+        "spec-sunken:40413d": 0.56
       },
       "strays": {
-        "pctOverDeltaE12": 0.51,
-        "meanDeltaE": 0.39,
+        "pctOverDeltaE12": 0.50,
+        "meanDeltaE": 0.40,
         "top": [
-          {
-            "hex": "#8e8885",
-            "pct": 0.02,
-            "nearest": "spec:b8aaa4",
-            "deltaE": 13.91
-          },
           {
             "hex": "#90827c",
             "pct": 0.02,
             "nearest": "spec:676562",
             "deltaE": 13.58
+          },
+          {
+            "hex": "#8e8885",
+            "pct": 0.02,
+            "nearest": "spec:b8aaa4",
+            "deltaE": 13.91
           },
           {
             "hex": "#8c7f79",
@@ -4385,19 +4881,19 @@
         "nearMisses": [
           {
             "hex": "#f73e06",
-            "pct": 3.41,
+            "pct": 3.44,
             "nearest": "flare",
             "deltaE": 0.80
           },
           {
             "hex": "#f83e06",
-            "pct": 1.82,
+            "pct": 1.84,
             "nearest": "flare",
             "deltaE": 0.40
           },
           {
             "hex": "#f63e06",
-            "pct": 1.27,
+            "pct": 1.28,
             "nearest": "flare",
             "deltaE": 1.21
           },
@@ -4409,7 +4905,7 @@
           },
           {
             "hex": "#f73d06",
-            "pct": 0.15,
+            "pct": 0.16,
             "nearest": "flare",
             "deltaE": 0.72
           }
@@ -4419,108 +4915,108 @@
         "viewportHeight": 812,
         "count": 9,
         "mean": {
-          "field": 59.08,
-          "bone": 31.39,
-          "graphite": 8.18,
-          "accent": 1.35
+          "field": 57.49,
+          "bone": 32.92,
+          "graphite": 8.24,
+          "accent": 1.34
         },
-        "meanDeviation": 3.13,
-        "inkOnPaper": 20.33,
+        "meanDeviation": 6.33,
+        "inkOnPaper": 20.02,
         "worst": {
-          "top": 812,
-          "deviation": 42.10
+          "top": 4872,
+          "deviation": 36.51
         },
         "breaches": [],
         "windows": [
           {
             "top": 0,
             "pct": {
-              "field": 66.48,
-              "bone": 24.25,
-              "graphite": 9.08,
+              "field": 47.77,
+              "bone": 41.97,
+              "graphite": 10.06,
               "accent": 0.19
             },
-            "deviation": 15.12
+            "deviation": 28.08
           },
           {
             "top": 812,
             "pct": {
-              "field": 40.90,
-              "bone": 44.44,
-              "graphite": 14.61,
-              "accent": 0.04
+              "field": 54.90,
+              "bone": 35.41,
+              "graphite": 9.67,
+              "accent": 0.02
             },
-            "deviation": 42.10
+            "deviation": 14.17
           },
           {
             "top": 1624,
             "pct": {
-              "field": 48.16,
-              "bone": 43.65,
-              "graphite": 6.35,
-              "accent": 1.84
+              "field": 47.97,
+              "bone": 38.47,
+              "graphite": 11.68,
+              "accent": 1.87
             },
-            "deviation": 27.30
+            "deviation": 24.30
           },
           {
             "top": 2436,
             "pct": {
-              "field": 66.01,
-              "bone": 27.18,
-              "graphite": 6.81,
+              "field": 49.65,
+              "bone": 44.94,
+              "graphite": 5.41,
               "accent": 0.00
             },
-            "deviation": 12.02
+            "deviation": 29.88
           },
           {
             "top": 3248,
             "pct": {
-              "field": 59.95,
-              "bone": 33.18,
-              "graphite": 6.88,
+              "field": 70.34,
+              "bone": 20.87,
+              "graphite": 8.80,
               "accent": 0.00
             },
-            "deviation": 6.35
+            "deviation": 22.27
           },
           {
             "top": 4060,
             "pct": {
-              "field": 74.14,
-              "bone": 19.50,
-              "graphite": 6.37,
+              "field": 62.26,
+              "bone": 30.60,
+              "graphite": 7.14,
               "accent": 0.00
             },
-            "deviation": 28.27
+            "deviation": 5.71
           },
           {
             "top": 4872,
             "pct": {
-              "field": 73.51,
-              "bone": 22.17,
-              "graphite": 4.20,
-              "accent": 0.12
+              "field": 78.25,
+              "bone": 17.05,
+              "graphite": 4.68,
+              "accent": 0.02
             },
-            "deviation": 27.02
+            "deviation": 36.51
           },
           {
             "top": 5684,
             "pct": {
-              "field": 43.74,
-              "bone": 46.34,
-              "graphite": 9.73,
-              "accent": 0.19
+              "field": 47.42,
+              "bone": 45.31,
+              "graphite": 7.17,
+              "accent": 0.11
             },
-            "deviation": 36.14
+            "deviation": 30.62
           },
           {
-            "top": 6119,
+            "top": 6492,
             "pct": {
               "field": 58.87,
-              "bone": 21.80,
+              "bone": 21.69,
               "graphite": 9.56,
-              "accent": 9.77
+              "accent": 9.88
             },
-            "deviation": 18.67
+            "deviation": 18.88
           }
         ]
       },
@@ -4530,72 +5026,72 @@
           {
             "label": "section.lp-wall",
             "top": 0,
-            "height": 1675,
+            "height": 1920,
             "pct": {
-              "field": 54.98,
-              "bone": 33.30,
-              "graphite": 11.60,
-              "accent": 0.12
+              "field": 49.60,
+              "bone": 38.63,
+              "graphite": 11.66,
+              "accent": 0.10
             },
-            "deviation": 13.80,
+            "deviation": 24.60,
             "held": false
           },
           {
             "label": "section.lp-spec",
-            "top": 1675,
-            "height": 3299,
+            "top": 1920,
+            "height": 3401,
             "pct": {
-              "field": 62.56,
-              "bone": 30.53,
-              "graphite": 6.47,
-              "accent": 0.45
+              "field": 63.21,
+              "bone": 29.80,
+              "graphite": 6.55,
+              "accent": 0.44
             },
-            "deviation": 6.16,
+            "deviation": 6.43,
             "held": false
           },
           {
             "label": "section.lp-shear",
-            "top": 4974,
-            "height": 1211,
+            "top": 5321,
+            "height": 1237,
             "pct": {
-              "field": 55.98,
-              "bone": 37.55,
-              "graphite": 6.38,
+              "field": 55.07,
+              "bone": 38.37,
+              "graphite": 6.47,
               "accent": 0.08
             },
-            "deviation": 15.11,
+            "deviation": 16.74,
             "held": false
           },
           {
             "label": "section.lp-object",
-            "top": 6185,
-            "height": 494,
+            "top": 6558,
+            "height": 493,
             "pct": {
-              "field": 52.39,
-              "bone": 34.38,
-              "graphite": 12.88,
+              "field": 52.47,
+              "bone": 34.28,
+              "graphite": 12.91,
               "accent": 0.35
             },
-            "deviation": 18.53,
+            "deviation": 18.37,
             "held": true
           },
           {
             "label": "footer.lp-foot",
-            "top": 6679,
-            "height": 252,
+            "top": 7051,
+            "height": 253,
             "pct": {
-              "field": 61.58,
-              "bone": 2.85,
-              "graphite": 4.76,
-              "accent": 30.80
+              "field": 61.39,
+              "bone": 2.84,
+              "graphite": 4.75,
+              "accent": 31.02
             },
-            "deviation": 60.78,
+            "deviation": 60.83,
             "held": true
           }
         ],
         "nested": [],
         "breaches": [
-          "section footer.lp-foot @6679: bone 2.85 under the 15 band"
+          "section footer.lp-foot @7051: bone 2.84 under the 15 band"
         ]
       },
       "externalRequests": 0,

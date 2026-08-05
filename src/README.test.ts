@@ -6,7 +6,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { MECHANICS, HAND_OFF_LEAD } from './components/Landing.tsx'
 import { RESIST_LABEL } from './components/LogCard.tsx'
 import { WINDOW_DAYS, EXPAND_STEP_DAYS, resistedChipLabel } from './components/ArchiveCard.tsx'
-import { resistedThisMonthDA } from './engine/ledger.ts'
+import { resistedThisMonthDA, WEEK_DAYS } from './engine/ledger.ts'
+import { NO_SCORE_LINE } from './components/HeroCard.tsx'
 import { sampleLedgerRows } from './content/sampleLedger.ts'
 import {
   todayISO,
@@ -146,6 +147,39 @@ describe('every number in the README is the number in the code', () => {
     // describing a different feature.
     expect(FLAT).toContain('It never asks whether it was worth it')
     expect(FLAT).toContain('It never counts the answers')
+  })
+
+  it('states the week window card 01 prints while it withholds the score', () => {
+    // MECHANICS[0] became a ReactNode this round — it interpolates WEEK_DAYS —
+    // so the string loop above skips it, exactly as it skips the note cap and
+    // the decision answers. That is the trade this file makes for binding a
+    // number, and the price is an explicit case here. Without one the landing's
+    // first badge and this file's first mechanic row could drift apart in the
+    // one direction nothing else watches.
+    expect(FLAT).toContain(`Your last ${WEEK_DAYS} days stand there`)
+    // The README's own paragraph on the same behaviour, which is the fuller
+    // copy of it and the one a reader lands on from the repo link.
+    expect(FLAT).toContain(`prints your last ${WEEK_DAYS} days`)
+    // The disclosure is the app's own string in both documents (the landing
+    // quotes HeroCard's constant; this is the README's copy of it).
+    expect(FLAT).toContain(NO_SCORE_LINE)
+  })
+
+  it('claims the same absence of a verdict the landing claims', () => {
+    // THE STRANGER TEST'S CLAIM, and it exists in two documents, which is this
+    // file's whole subject. Each of these is a behaviour noVerdict.test.tsx
+    // asserts against the rendered product, so a README that kept the promise
+    // after the product dropped it would be caught there — and a README that
+    // dropped the promise while the product kept it is caught here.
+    expect(FLAT).toContain('Nothing here grades you')
+    expect(FLAT).toContain('Days are counted, never chained')
+    expect(FLAT).toContain('no target line, no average and no projection')
+    // …and the register itself, stated rather than implied: §7.1 bans the
+    // coddling half as hard as the punitive half, and a later editor asked to
+    // soften this file has to delete this sentence to do it.
+    expect(FLAT).toContain('The dryness is the respect')
+    // The document that makes the claim is held to it too.
+    expect(FLAT).not.toMatch(/don'?t worry|no judg|you'?ve got this|guilt-free/i)
   })
 
   it('states the calibration horizon the engine actually uses', () => {

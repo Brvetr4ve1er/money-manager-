@@ -96,9 +96,9 @@ const SETTLE_GAP_MS = 400
  *
  * IT WAS 2, AND THAT NUMBER REFUSED HONEST ROWS. Every quiet app row at 375px
  * fails a 2-attempt protocol on this container — day0, dense, the drawer, and
- * the two `cold` rows the matrix has kept commented out since round 5 with a
- * diagnosis ("the reward toasts that follow live ~1.8-2.6s") that was measurably
- * false. The real difference between a phone row's first two captures is the
+ * the two `cold` rows the matrix kept commented out from round 5 to round 7
+ * behind a diagnosis ("the reward toasts that follow live ~1.8-2.6s") that was
+ * measurably false. The real difference between a phone row's first two captures is the
  * antialiased keyline of the topbar's mute button, re-rastered over the first
  * ~1.1s: tens of pixels out of two million, which cannot move a published figure
  * at 2dp but is not byte-identical either.

@@ -175,7 +175,7 @@ const drawerOpen = (width: number, height: number, theme: Theme): MatrixRow => (
 })
 
 /**
- * EIGHTEEN ROWS: screen x viewport x theme, plus three phone pairs. ~2s each.
+ * TWENTY ROWS: screen x viewport x theme, plus four phone pairs. ~2s each.
  *
  * Rounds 1-4 measured four and two of the gaps mattered — nobody had ever
  * censused the landing in dark, and the landing is the one surface the record
@@ -205,27 +205,40 @@ const drawerOpen = (width: number, height: number, theme: Theme): MatrixRow => (
  *              run.ts), and the only one that measures a surface a user reaches
  *              by pressing something rather than by arriving.
  *
- * The 'cold' fixture ships (scripts/census/fixtures/cold.json) but no row uses
- * it. A fixture costs nothing to keep; a row costs ~2s on every run. The
- * staleness hash picks the fixture up either way — it is in PIXEL_INPUTS
- * regardless of whether a row reads it.
+ *   .cold      THE PRE-SETUP APP WITH A WEEK OF ROWS ON IT, and this pair went
+ *              live in round 7 step 3 because the change that step shipped
+ *              created a screen nothing measured. Card 01 no longer prints a
+ *              demo-derived score while `profile` is null: it prints the week
+ *              block instead (see HeroCard), and the block's tallest part —
+ *              the repeated-category list — needs rows to exist at all. day0
+ *              has none, so it renders the block's one-line empty state;
+ *              seeded has a profile, so it renders no block. Only this pair
+ *              measures the surface with something in it.
  *
- * BEFORE YOU UNCOMMENT THEM, KNOW THIS — AND KNOW THAT THE DIAGNOSIS BELOW WAS
- * WRONG. Measured on the tree of commit a2d4e6d (2026-08-04), both cold rows
- * FAIL the settle check as the tool was then written: two captures 400ms apart
- * differ, and so does the retry. Given a 5s pause before capture they settle and
- * read
- *   app.375x812.dark.cold   F 54.1 / B 33.9 / G 9.8 / A 2.2   dev 11.8
- *   app.375x812.light.cold  F 52.9 / B 39.4 / G 5.6 / A 2.1   dev 19.0
- * The old text blamed "the reward toasts that follow live ~1.8-2.6s". It cannot
- * be that: newlyEarnedIds(cold) is empty, its xpLog gains nothing on mount, and
- * healthDate already equals the frozen day, so the cold state raises no toast at
- * all. What actually differs between its first captures is the antialiased
- * keyline of the mobile topbar's mute button, re-rastered over the first ~1.1s —
- * tens of pixels, invisible at 2dp. Round 7's settle fix (run.ts: four attempts,
- * `settleAttempts` recorded) is what these rows were waiting for, not a longer
- * sleep. They stay commented out for the reason the recon gave: day-1 sits
- * between day0 and seeded and carries no state either of those does not.
+ *              THE FIXTURE WAS REDEFINED WITH THE ROW, and the old definition
+ *              is why the pair used to be commented out: `cold` meant "day one,
+ *              with a log", which sat between day0 and seeded and carried no
+ *              state either of them lacked. That was true and it is no longer
+ *              the interesting axis. It now holds six rows over five days
+ *              before setup — three Food, two Transport, one resist — so the
+ *              block renders its facts line, its two-entry repeats list and
+ *              its definition note, which is the whole of what the change
+ *              draws. Everything else about it is unchanged: profile null,
+ *              stage null, healthDate on the frozen day, and nothing that
+ *              unlocks on mount (census.test asserts the last one).
+ *
+ * THE OLD WARNING ABOVE THIS PAIR IS KEPT BECAUSE IT WAS HALF WRONG AND THE
+ * WRONG HALF IS INSTRUCTIVE. Measured on the tree of commit a2d4e6d
+ * (2026-08-04), both cold rows FAILED the settle check as the tool was then
+ * written: two captures 400ms apart differed, and so did the retry. The text
+ * blamed "the reward toasts that follow live ~1.8-2.6s". It cannot have been
+ * that: newlyEarnedIds(cold) is empty, its xpLog gains nothing on mount, and
+ * healthDate already equals the frozen day, so the cold state raises no toast
+ * at all. What actually differed between its first captures is the antialiased
+ * keyline of the mobile topbar's mute button, re-rastered over the first ~1.1s
+ * — tens of pixels, invisible at 2dp. Round 7's settle fix (run.ts: four
+ * attempts, `settleAttempts` recorded) is what these rows were waiting for, not
+ * a longer sleep, and it is what lets them ship now.
  */
 export const MATRIX: MatrixRow[] = [
   row('landing', 375, 812, 'light', 'fresh'),
@@ -267,10 +280,10 @@ export const MATRIX: MatrixRow[] = [
   row('app', 375, 812, 'dark', 'day0'),
   row('app', 375, 812, 'light', 'dense'),
   row('app', 375, 812, 'dark', 'dense'),
+  row('app', 375, 812, 'light', 'cold'),
+  row('app', 375, 812, 'dark', 'cold'),
   drawerOpen(375, 812, 'light'),
   drawerOpen(375, 812, 'dark'),
-  // row('app', 375, 812, 'light', 'cold'),
-  // row('app', 375, 812, 'dark', 'cold'),
 ]
 
 /** Row ids, sorted — the artifact's key order and the run order both. */

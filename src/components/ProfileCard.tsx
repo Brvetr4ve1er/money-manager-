@@ -179,11 +179,18 @@ export function ProfileCard({
   const clearError = () => setError(null)
 
   return (
-    <section className="card">
+    /* id + tabIndex -1 + aria-labelledby: the same three HeroCard's setup
+       anchor and .hero-nav's links need on every target they point at. An
+       anchor to an element with no tabindex scrolls but leaves focus on
+       <body>, so the next Tab restarts at the top of the page — the failure
+       HeroShell's nav comment names. LogCard and SimCard already carry it;
+       this card grew it when card 01's pre-setup control started pointing
+       here. The id is the card's key in App's stack, so the two cannot drift. */
+    <section className="card" id="numbers" tabIndex={-1} aria-labelledby="numbers-title">
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
       <span className="spec-label" aria-hidden="true">NUM—06</span>
       {/* CONSTRAINT §2.1b — see .counter-plate in tokens.css. */}
-      <h2 className="counter-plate">My numbers</h2>
+      <h2 id="numbers-title" className="counter-plate">My numbers</h2>
       {/* Permanently mounted status region (same announce-on-change rule as
           the toast/XP regions in App): the visible save confirmation is the
           card flipping to the summary, which a screen reader won't narrate. */}

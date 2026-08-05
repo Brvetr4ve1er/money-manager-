@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ComponentKey, Stage } from '../engine/healthScore.ts'
 import type { PixelPet } from '../engine/achievements.ts'
 import { CALIBRATION_DAYS } from '../engine/profile.ts'
+import { WEEK_DAYS, type WeekSoFar } from '../engine/ledger.ts'
 import { Glyph } from './Glyph.tsx'
 
 /** Stage → badge mapping, shared with the desktop HeroShell so the two hero
@@ -26,6 +27,21 @@ export const STAGE_META: Record<Stage, { label: string; stars: number; field: st
   beacon: { label: 'Beacon', stars: 4, field: 'var(--espresso)', ink: 'var(--flare)' },
 }
 
+/**
+ * WHAT CARD 01 SAYS WHILE IT IS WITHHOLDING THE SCORE.
+ *
+ * A constant rather than a literal because the LANDING PAGE quotes it. The
+ * marketing surface tells a stranger that this product prints no rating off
+ * numbers that are not theirs, and the page's rule is that it prints the app's
+ * own words or it prints nothing — the same binding RESIST_LABEL and
+ * resistedChipLabel already carry (see Landing.tsx). Reword the disclosure and
+ * the pitch rewords itself; Root.test asserts the two ends are one string.
+ *
+ * CONSTRAINT Trust Rule 6: it names the absence and what supplies it, and it
+ * never says the user is late, behind or missing something.
+ */
+export const NO_SCORE_LINE = 'No score yet. Your numbers turn it on.'
+
 /** Display order and names for the explainability drawer. */
 const COMPONENT_ROWS: Array<{ key: ComponentKey; label: string }> = [
   { key: 'SR', label: 'Savings rate' },
@@ -35,6 +51,134 @@ const COMPONENT_ROWS: Array<{ key: ComponentKey; label: string }> = [
   { key: 'IC', label: 'Impulse control' },
 ]
 
+/**
+ * Achievement loot: cosmetic companions, earned on the ENGAGEMENT track.
+ *
+ * Extracted because it has to survive the score being withheld. Every pet
+ * reachable in week one — first-log, first-resist, first-sim, ten-logs — is
+ * reachable BEFORE setup, so a shelf that lived only inside the stage badge's
+ * column would hide the badges a pre-setup user actually earned, which is the
+ * one thing Trust Rule 2 ("every cosmetic is earned") makes unacceptable: the
+ * app may not take back what it paid.
+ *
+ * `loose` is the standalone placement — no badge to sit under, so the strip
+ * takes the card's measure instead of the badge's 96px column.
+ */
+function PetStrip({ pets, loose }: { pets: PixelPet[]; loose?: boolean }) {
+  return (
+    // role="img" names them for AT the same way the stars are named — a bare
+    // div takes no accessible name and a screen reader would read the raw
+    // marks, or nothing.
+    <div
+      className={loose ? 'pet-strip is-loose' : 'pet-strip'}
+      role="img"
+      aria-label={`Companions: ${pets.map((p) => p.name).join(', ')}`}
+    >
+      {/* .mark: §1 trait 01 — every glyph sits in a container, so the
+          companions are badges on the strip, not loose marks. */}
+      {pets.map((p) => (
+        <span className="mark" key={p.name} aria-hidden="true">
+          <Glyph name={p.glyph} />
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * THE WEEK BLOCK — what card 01 prints while it has no score to print.
+ *
+ * Every figure here is a sum over rows the user typed, in a window bounded at
+ * both ends (see weekToDate). Nothing is projected, nothing is averaged,
+ * nothing is compared to a target, and nothing is graded: the repeats are
+ * ordered by total and the copy never calls the first one biggest, because
+ * ordering is not a verdict (Trust Rules 3 and 6).
+ *
+ * IT IS NOT A STREAK AND CANNOT BECOME ONE. `daysLogged` is a count of days
+ * with rows on them, not a run: five empty days between two logged ones cost
+ * nothing and are not mentioned. There is no day grid here for the same reason
+ * ArchiveCard refuses one — "a binary grid is a streak calendar in a ledger's
+ * coat" — and the derivation hands over no per-day array to draw one from.
+ *
+ * THE REPEATS ARE THE POINT. Days and totals are arithmetic the user could do;
+ * "Food, 4 rows, 1,920 DA" is the one thing in week one the record knows and
+ * the person does not, and it is the app applying its own invisible-category
+ * lesson to the user's own rows instead of to a hypothetical coffee.
+ */
+function WeekBlock({ week }: { week: WeekSoFar }) {
+  return (
+    // CONSTRAINT §2.1b — the block takes the counter plate, which is what
+    // .stage-info carried before it: the head of the phone stack is 300px of
+    // Flare topbar and a card, and a plate is the ground's OPPOSITE so one
+    // block moves both themes the right way at once. See .counter-plate in
+    // tokens.css, and docs/brand/census.json for what it measures.
+    // role="group" + a label: a bare div takes no accessible name, so the
+    // window this block is about would be a loose run of numbers to AT.
+    <div className="week-block counter-plate" role="group" aria-labelledby="week-head">
+      {/* The window names itself. "Last 7 days", not "this week": the window
+          is rolling and always WEEK_DAYS long (see weekToDate), and calling a
+          rolling window a calendar week is the kind of imprecision §7 rule 3
+          exists to stop. */}
+      <p className="week-head mono" id="week-head">Last {WEEK_DAYS} days</p>
+      {week.daysLogged === 0 ? (
+        // §7's empty-state register, and Trust Rule 5 taken literally: state
+        // what the record holds, which is nothing, and stop. NO NUMERALS — a
+        // "0 / 7" or an empty bar here would draw a target the user is short
+        // of, which is the punitive framing Trust Rule 6 forbids and the
+        // streak device this step is specifically not allowed to build.
+        <p className="week-empty">Nothing logged in the last {WEEK_DAYS} days.</p>
+      ) : (
+        <>
+          {/* Same shape and same register as .month-facts on the archive: a
+              flex row of stated figures, INDEX ROLL (§9 move 4) on each one a
+              log moves. "logged", not "spent" — every amount in Ember is typed
+              by hand, so the honest claim is what the user recorded. */}
+          <p className="week-facts">
+            <span className="week-days mono index-roll" key={week.daysLogged}>
+              Logged on {week.daysLogged} {week.daysLogged === 1 ? 'day' : 'days'}
+            </span>
+            <span className="week-spend mono index-roll" key={week.spentDA}>
+              {week.spentDA.toLocaleString()} DA logged
+            </span>
+            {/* Only when there is one, mirroring the archive's resisted chip:
+                a "0 DA resisted" line reports a user who resisted nothing as
+                having failed at something. Resists are a separate bucket from
+                spend and never enter it (Trust Rule 1's discipline applied to
+                a money figure — see weekToDate). */}
+            {week.resistedDA > 0 && (
+              <span className="week-resisted mono index-roll" key={week.resistedDA}>
+                {week.resistedDA.toLocaleString()} DA resisted
+              </span>
+            )}
+          </p>
+          {week.repeats.length > 0 && (
+            <>
+              <ul className="week-repeats">
+                {week.repeats.map((r) => (
+                  <li className="week-repeat" key={r.category}>
+                    <span className="week-cat">{r.category}</span>
+                    {/* No plural branch: a repeat is two rows or more by
+                        construction (weekToDate), so "1 rows" cannot happen. */}
+                    <span className="week-rows mono">{r.rows} rows</span>
+                    <span className="week-total mono index-roll" key={r.totalDA}>
+                      {r.totalDA.toLocaleString()} DA
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {/* What a repeat IS, stated once. A definition, not a verdict:
+                  it says how the rows were selected and stops — no adjective,
+                  no "biggest", no suggestion about what to do next. The
+                  no-verdict rule the simulator keeps, kept here. */}
+              <p className="week-note">Categories with more than one row.</p>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 export function HeroCard({
   stage,
   score,
@@ -42,6 +186,7 @@ export function HeroCard({
   components,
   historyDays,
   isDemo,
+  week,
 }: {
   stage: Stage
   score: number
@@ -52,6 +197,8 @@ export function HeroCard({
   historyDays: number
   /** True while the score runs on DEMO_PROFILE rather than the user's numbers. */
   isDemo: boolean
+  /** The last seven days of the record. Printed only while there is no score. */
+  week: WeekSoFar
 }) {
   const meta = STAGE_META[stage]
   // Explainability drawer: the engine exposes its component breakdown "for
@@ -59,12 +206,38 @@ export function HeroCard({
   // makes the score trainable instead of mystical; the copy explains the
   // parts, it never advises (no-verdict rule).
   const [open, setOpen] = useState(false)
+  /**
+   * TRUST RULE 5, TAKEN LITERALLY RATHER THAN DISCLOSED.
+   *
+   * Before setup every input to this card is DEMO_PROFILE's — a 90,000 DA
+   * income, a 45,000 DA fund, a 12,000 -> 9,500 DA paydown — so a fresh install
+   * rendered "Bonfire", three of four stars and "Health 59.0" at the h1 tier
+   * about a person who does not exist. Round 6 added the sentence that says so;
+   * a disclaimer under a fabricated number is an admission, not a fix, and the
+   * two readings a person can take from it are both bad: believe the number, or
+   * conclude the flagship figure is decoration.
+   *
+   * So the readout is WITHHELD, not qualified. No stage badge, no stage name,
+   * no rating, no numeral — on this card and on the desktop hero plate, because
+   * app.css re-homes the stage above 1024 and a withholding that stops at a
+   * breakpoint leaves the fiction standing at one width.
+   *
+   * The drawer goes with it. Its five bars are the same demo arithmetic one tap
+   * further in, and "Why this stage?" names a stage that is not on screen —
+   * keeping it would move the fabrication behind a disclosure instead of
+   * removing it. Everything returns the moment PROFILE_SET lands.
+   */
+  const hasScore = !isDemo
+  // Belt and braces: nothing can press the toggle while the score is withheld,
+  // but a card whose SHAPE says "expanded" with no drawer under it is a
+  // contradiction the reader would have to resolve. One source of truth.
+  const expanded = open && hasScore
   return (
     // is-open drives CONTAINER MORPH (§9 move 6): the card re-cuts its
     // superellipse from n 4.2 to 2.8 while the drawer is out, rather than
     // scaling. A class, not :has(), so the state that changes the shape is the
     // same state that renders the drawer — one source of truth.
-    <section className={open ? 'card hero-card is-open' : 'card hero-card'}>
+    <section className={expanded ? 'card hero-card is-open' : 'card hero-card'}>
       {/* §11 corner mark. aria-hidden: printed spec, not content. */}
       <span className="spec-label" aria-hidden="true">HLT—01</span>
       {/* The card names what it measures, not what the measurement currently
@@ -80,6 +253,22 @@ export function HeroCard({
           Graphite ink, and that is the one thing a counter plate may not
           carry. */}
       <h2 className="counter-plate">Health score</h2>
+      {/* THE SWAP. One of these two is on screen, never both: a score the app
+          has earned, or the record it actually holds. See `hasScore` above.
+          THE MONEY BLOCK LEADS AND THE LOOT FOLLOWS, which is the two-track
+          rule as reading order: the card's subject is the record, and the
+          companions are decoration the user earned on the other track. They
+          are rendered here at all — rather than only beside a stage badge that
+          is not on screen — because a badge earned before setup must not
+          vanish until setup (Trust Rule 2). At ≥1024 app.css hides
+          .hero-card .stage-col, so this strip is deliberately NOT inside it. */}
+      {!hasScore && (
+        <>
+          <WeekBlock week={week} />
+          {pets.length > 0 && <PetStrip pets={pets} loose />}
+        </>
+      )}
+      {hasScore && (
       <div className="hero-main">
         <div className="stage-col">
           {/* No elevation (§5): the badge is a flat field with a 2px keyline.
@@ -95,23 +284,8 @@ export function HeroCard({
           {/* Achievement loot: cosmetic companions BESIDE the stage badge, never
               inside it — the badge's color/stars stay a pure function of
               financial health (the two-track rule), and the pets are earned
-              engagement decoration riding along. role="img" names them for AT
-              the same way the stars are named. */}
-          {pets.length > 0 && (
-            <div
-              className="pet-strip"
-              role="img"
-              aria-label={`Companions: ${pets.map((p) => p.name).join(', ')}`}
-            >
-              {/* .mark: §1 trait 01 — every glyph sits in a container, so the
-                  companions are badges on the strip, not loose marks. */}
-              {pets.map((p) => (
-                <span className="mark" key={p.name} aria-hidden="true">
-                  <Glyph name={p.glyph} />
-                </span>
-              ))}
-            </div>
-          )}
+              engagement decoration riding along. */}
+          {pets.length > 0 && <PetStrip pets={pets} />}
         </div>
         {/* CONSTRAINT §2.1b — the readout column takes the counter plate too.
             The h2 alone left window @0 at 80.40% field / 11.67% Bone in dark —
@@ -169,23 +343,21 @@ export function HeroCard({
           </p>
         </div>
       </div>
+      )}
       {/* Trust Rule 5, said out loud, in its two halves.
-          WHOSE numbers (isDemo) comes first, because it is the bigger claim
-          and it was missing entirely: before setup, SR/BA/EF/DT are computed
-          from DEMO_PROFILE's invented 90,000 DA income and 45,000 DA fund, so
-          a fresh install rendered "Health 59.0 / Bonfire / 3 of 4 stars" at
-          the d2 tier off numbers no user ever entered — a fabricated score
-          presented as fact, which is exactly what the cold-start gate in
-          Root.tsx refuses to do one screen earlier. It compounds: the first
-          ROLL_DAY persists that stage, and mapToStage's ±3 hysteresis then
-          defends it against the user's real numbers. SimCard and ProfileCard
-          each say it for their own surface; this is the loudest number the
-          product computes and it said nothing.
-          Then HOW MUCH HISTORY (historyDays) — the original line. It is
-          keyed separately because the two states are independent: setup can
-          land on day 3, and a user can log 90 days without ever completing
-          setup, in which case the demo half must survive the calibration
-          half dropping away.
+          WHAT IS MISSING (isDemo) comes first, because it is the bigger claim.
+          Before setup SR/BA/EF/DT are computed from DEMO_PROFILE's invented
+          90,000 DA income and 45,000 DA fund, so this card used to render
+          "Health 59.0 / Bonfire / 3 of 4 stars" at the h1 tier off numbers no
+          user ever entered. The readout is withheld now (see hasScore), so
+          this half no longer qualifies a number — it names the absence and
+          what ends it, and the block above prints what the record does hold.
+          Then HOW MUCH HISTORY (historyDays) — the original line, and it
+          survives the swap unchanged. It is keyed separately because the two
+          states are independent: setup can land on day 3, and a user can log
+          90 days without ever completing setup. The 90-day clock runs on
+          logged history either way, so it is a fact about the record on both
+          sides of setup.
           Deliberately not the words "demo profile": SimCard owns that phrase
           and a second copy of it would make the app say "demo" twice about
           two different things.
@@ -208,9 +380,13 @@ export function HeroCard({
           the artifact rather than off a --diff console line — the earlier
           53.00 / 36.24 and 66.03 / 25.30 were in no file anybody could check.
           THE DISCLOSURE AND THE CONTROL ARE ONE BLOCK because they are one
-          thought — what this number is still missing, and the button that
-          opens what it is made of. The drawer stays OUTSIDE: it is conditional
-          and it is the answer, not the question.
+          thought — what this card is still missing, and the control that ends
+          it. Which control that is depends on which side of setup the reader
+          is on: before it, the thing missing is the user's numbers and the
+          control goes to the card that takes them; after it, the thing missing
+          is an explanation and the control opens the breakdown. The drawer
+          stays OUTSIDE: it is conditional and it is the answer, not the
+          question.
           The plate holds no accent (§2.1 rule 2 — see .counter-plate in
           tokens.css); .stage-col above it holds the only one on this card.
           A plate is a ground and a ground has to be there in every state, so
@@ -219,7 +395,14 @@ export function HeroCard({
       <div className="hero-foot counter-plate">
         {(isDemo || historyDays < CALIBRATION_DAYS) && (
           <p className="calibrating">
-            {isDemo && 'Placeholder numbers until setup. '}
+            {/* NAMES THE ABSENCE, NOT A FAULT (Trust Rule 6). It states what
+                the card has not got and what supplies it, in two fragments,
+                and it never says the user is late, behind or missing
+                something — nothing here is owed and no day was lost. It is
+                also said EXACTLY ONCE per surface: this is the whole of the
+                app's pre-setup ask on card 01, and it does not repeat, escalate
+                or return. */}
+            {isDemo && `${NO_SCORE_LINE} `}
             {historyDays < CALIBRATION_DAYS && (
               <>
                 {/* Grotesk for the sentence, mono only for the index — the same
@@ -233,21 +416,35 @@ export function HeroCard({
             )}
           </p>
         )}
-        <button
-          type="button"
-          className="btn hero-why"
-          aria-expanded={open}
-          // aria-controls names the drawer this button owns. Held unconditional
-          // rather than gated on `open`: with aria-expanded="false" beside it,
-          // the relationship is the point even while the target is unmounted —
-          // it is what lets AT jump from the trigger to what it opens.
-          aria-controls="health-breakdown"
-          onClick={() => setOpen((o) => !o)}
-        >
-          {open ? 'Hide the breakdown' : 'Why this stage?'}
-        </button>
+        {/* THE CONTROL, AND IT IS AN ANCHOR ON PURPOSE. Below 1024px app.css
+            hides .hero-nav, .hero-side and .hero-stage-line wholesale, so on
+            the 375px phone this product is built for there was no in-page
+            navigation at all — every card was reached by scrolling. This is a
+            plain <a> to the card that takes the numbers: keyboard-reachable,
+            focusable, no JS scroll handling, and it lands focus on a
+            tabIndex -1 labelled <section> rather than on <body> (the failure
+            HeroShell's comment names, which is why ProfileCard grew the id and
+            the label in the same change). Styled as a .btn because it is the
+            card's one control; it grants nothing and pays nothing. */}
+        {isDemo ? (
+          <a className="btn hero-setup" href="#numbers">Set up my numbers</a>
+        ) : (
+          <button
+            type="button"
+            className="btn hero-why"
+            aria-expanded={open}
+            // aria-controls names the drawer this button owns. Held unconditional
+            // rather than gated on `open`: with aria-expanded="false" beside it,
+            // the relationship is the point even while the target is unmounted —
+            // it is what lets AT jump from the trigger to what it opens.
+            aria-controls="health-breakdown"
+            onClick={() => setOpen((o) => !o)}
+          >
+            {open ? 'Hide the breakdown' : 'Why this stage?'}
+          </button>
+        )}
       </div>
-      {open && (
+      {expanded && (
         <div className="health-breakdown" id="health-breakdown">
           <ul className="health-bars">
             {COMPONENT_ROWS.map(({ key, label }) => {

@@ -10,6 +10,7 @@ import {
   ASSUMED_REVOLVING_APR,
   DEMO_PROFILE,
   CALIBRATION_DAYS,
+  resolveProfile,
 } from './engine/profile.ts'
 import { LESSONS, lessonForDay } from './content/lessons.ts'
 import {
@@ -49,6 +50,39 @@ afterEach(() => {
 
 const xpNow = () =>
   Number(screen.getByRole('progressbar').getAttribute('aria-valuenow'))
+
+/**
+ * A COMPLETED SETUP — the fixture every case whose SUBJECT is the Health Score
+ * now has to seed, and the reason is the change that made it necessary.
+ *
+ * Card 01 no longer prints a stage, a rating or a "Health NN.N" while the
+ * profile is null: before setup every input is DEMO_PROFILE's invented 90,000
+ * DA income and 45,000 DA fund, and a fabricated score under a disclaimer is
+ * still a fabricated score (Trust Rule 5 — see HeroCard's hasScore). So a case
+ * that wants to read the score has to give the app numbers to score, which is
+ * the test following the code: none of the assertions below were loosened, they
+ * were moved onto a state where the thing they assert exists.
+ *
+ * Two amounts and a date is the whole floor ProfileCard enforces; efBalance is
+ * here so the drawer has an Emergency fund bar to show, and debt/goal stay null
+ * so Debt trend and the goal line keep reading as honest absences.
+ */
+const setupProfile = (savedDate: string = todayISO()) => ({
+  monthlyIncome: 60_000,
+  monthlyEssentials: 30_000,
+  efBalance: 20_000,
+  debt: null,
+  goal: null,
+  savedDate,
+})
+
+/** Boot the app past setup, with whatever else the case needs beside it. */
+const seedSetup = (extra: Record<string, unknown> = {}) => {
+  localStorage.setItem(
+    'ember-state-v1',
+    JSON.stringify({ profile: setupProfile(), ...extra }),
+  )
+}
 
 /**
  * THE XP STRIP — what QST—03 became.
@@ -437,40 +471,76 @@ describe('health explainability drawer', () => {
     expect(within(hero()).getByText(/Day 1 \/ 90/)).toBeTruthy()
   })
 
-  it('names whose numbers it is scoring while the profile is still the demo one', () => {
-    // Trust Rule 5's other half. A fresh install renders "Health 59.0",
-    // "Bonfire" and "3 of 4 stars" at the d2 display tier off DEMO_PROFILE's
-    // invented 90,000 DA income, 45,000 DA fund and 12,000 -> 9,500 DA debt
-    // paydown — numbers no user ever entered. "Score still calibrating" speaks
-    // about logged HISTORY, not about whose figures are being scored, so the
-    // loudest number the product computes said nothing about being borrowed.
-    // It compounds: the first ROLL_DAY persists that stage, and mapToStage's
-    // +-3 hysteresis then defends it against the user's real numbers.
+  it('prints no score at all while the numbers are not the user’s (Trust Rule 5)', () => {
+    // TRUST RULE 5, TAKEN LITERALLY RATHER THAN DISCLOSED — and this case is
+    // the previous one ("names whose numbers it is scoring") with its remedy
+    // replaced, because the remedy was the weaker of the two available.
+    //
+    // A fresh install used to render "Health 59.0", "Bonfire" and "3 of 4
+    // stars" at the h1 tier off DEMO_PROFILE's invented 90,000 DA income,
+    // 45,000 DA fund and 12,000 -> 9,500 DA debt paydown — numbers no user ever
+    // entered — with a 13px line underneath saying so. A person who is bad with
+    // money reads that screen two ways and both are bad: believe the rating, or
+    // conclude the flagship figure is decoration. So the readout is WITHHELD.
     render(<App />)
     const hero = () => screen.getByRole('main').querySelector('.hero-card') as HTMLElement
-    expect(within(hero()).getByText(/Placeholder numbers until setup/)).toBeTruthy()
-    // The demo half is INDEPENDENT of the calibration half — setup can land on
-    // day 3, and 90 days can pass with no setup at all.
+    // Not the numeral, not the stage, not the rating, not the badge.
+    expect(within(hero()).queryByText(/^Health \d+(\.\d)?$/)).toBeNull()
+    expect(hero().querySelector('.score-value')).toBeNull()
+    expect(hero().querySelector('.stage-badge')).toBeNull()
+    expect(hero().querySelector('.stage-name')).toBeNull()
+    expect(within(hero()).queryByRole('img', { name: /of 4 stars$/ })).toBeNull()
+    // …and no stage LABEL leaks in under another element, either.
+    for (const label of ['Ember', 'Hearth-fire', 'Bonfire', 'Beacon']) {
+      expect(`${label}: ${within(hero()).queryAllByText(label).length}`).toBe(`${label}: 0`)
+    }
+    // The drawer goes with it: its five bars are the same demo arithmetic one
+    // tap further in, and "Why this stage?" names a stage that is not there.
+    expect(within(hero()).queryByRole('button', { name: /Why this stage/ })).toBeNull()
+    // What stands in its place is the absence, named, plus what ends it.
+    expect(within(hero()).getByText(/No score yet\. Your numbers turn it on\./)).toBeTruthy()
+
+    // SETUP LANDS AND EVERYTHING COMES BACK. The withholding is about whose
+    // numbers these are, and after this dispatch they are the user's.
     fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
     fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
     fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
-    expect(within(hero()).queryByText(/Placeholder numbers until setup/)).toBeNull()
-    // …and the calibration line survives the flip on its own.
+    expect(within(hero()).getByText(/^Health \d+(\.\d)?$/)).toBeTruthy()
+    expect(hero().querySelector('.stage-badge')).not.toBeNull()
+    expect(within(hero()).getByRole('img', { name: /of 4 stars$/ })).toBeTruthy()
+    expect(within(hero()).getByRole('button', { name: /Why this stage/ })).toBeTruthy()
+    expect(within(hero()).queryByText(/No score yet/)).toBeNull()
+    // …and the calibration line, which is about logged HISTORY and not about
+    // whose figures are being scored, survives the flip on its own. The two
+    // states are independent: setup can land on day 3, and 90 days can pass
+    // with no setup at all.
     expect(within(hero()).getByText(/Score still calibrating/)).toBeTruthy()
   })
 
-  it('carries the same disclosure on the desktop hero plate that owns the stage', () => {
+  it('withholds the stage on the desktop hero plate too, or it is not withheld', () => {
     // At >=1024px the hero is the full viewport and the stage badge, name and
-    // rating move onto its plate (app.css), so the card's disclosure is a
-    // scroll away — the one width where the loudest claim could be read
-    // without the sentence that qualifies it. Same flag, same plate.
+    // rating move onto its plate (app.css), so a withholding that stopped at
+    // the card would leave the fabricated stage standing at one of the two
+    // widths this app ships — which is not a cold start, it is a cold start on
+    // a phone. The printed corner index ("Health 59/100") goes with it: a
+    // quiet register is exactly where an unearned claim survives a cleanup.
     render(<App />)
     const header = screen.getByRole('banner')
-    expect(within(header).getByText(/Placeholder until setup/)).toBeTruthy()
+    expect(header.querySelector('.hero-stage-line')).toBeNull()
+    expect(header.querySelector('.hero-stage-badge')).toBeNull()
+    expect(header.querySelector('.hero-spec-bl')).toBeNull()
+    expect(within(header).queryByRole('img', { name: /of 4 stars$/ })).toBeNull()
+    // The qualifier is gone WITH the claim, not instead of it.
+    expect(within(header).queryByText(/Placeholder until setup/)).toBeNull()
+    // The hero itself is untouched: mark, wordmark and the one h1 all stand.
+    expect(within(header).getAllByRole('heading', { level: 1 })).toHaveLength(1)
+
     fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
     fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
     fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
-    expect(within(header).queryByText(/Placeholder until setup/)).toBeNull()
+    expect(header.querySelector('.hero-stage-line')).not.toBeNull()
+    expect(header.querySelector('.hero-spec-bl')?.getAttribute('aria-hidden')).toBe('true')
+    expect(within(header).getByRole('img', { name: /of 4 stars$/ })).toBeTruthy()
   })
 
   it('does not say "demo profile" a second time — SimCard owns that phrase', () => {
@@ -481,20 +551,216 @@ describe('health explainability drawer', () => {
   })
 
   it('expands a component breakdown that explains, never advises', () => {
+    // Seeded past setup: the drawer is the breakdown of a score, and there is
+    // no score before setup to break down (see the withholding case above).
+    seedSetup()
     render(<App />)
+    // SCOPED TO THE CARD, because a completed setup puts its own "Emergency
+    // fund" line on NUM—06's summary. The bars under test are this card's.
+    const hero = () => screen.getByRole('main').querySelector('.hero-card') as HTMLElement
     const why = screen.getByRole('button', { name: /Why this stage/ })
     expect(why.getAttribute('aria-expanded')).toBe('false')
-    expect(screen.queryByText('Savings rate')).toBeNull()
+    expect(within(hero()).queryByText('Savings rate')).toBeNull()
     fireEvent.click(why)
     expect(why.getAttribute('aria-expanded')).toBe('true')
     for (const label of ['Savings rate', 'Budget', 'Emergency fund', 'Debt trend']) {
-      expect(screen.getByText(label)).toBeTruthy()
+      expect(within(hero()).getByText(label)).toBeTruthy()
     }
     // No flagged impulse events yet: IC is structurally excluded and must
     // read as honest absence, never as a zero counting against the user.
-    expect(screen.getByText('Impulse control').closest('li')!.textContent).toContain(
+    expect(within(hero()).getByText('Impulse control').closest('li')!.textContent).toContain(
       'not counted',
     )
+  })
+})
+
+/**
+ * THE WEEK BLOCK — what card 01 prints in place of a score it has not earned.
+ *
+ * The whole point of the surface is comprehension, so these cases are about
+ * what a stranger can read off it and what it is structurally incapable of
+ * becoming. Two things it must never be, in the brief's own words: a streak the
+ * user can lose, and an engagement figure on a money card.
+ */
+describe('the week block', () => {
+  const hero = () => screen.getByRole('main').querySelector('.hero-card') as HTMLElement
+  const block = () => hero().querySelector('.week-block') as HTMLElement
+  const day = (n: number) => addDaysISO(todayISO(), -n)
+  const row = (over: Record<string, unknown>) => ({
+    amountDA: 100,
+    category: 'Food',
+    date: todayISO(),
+    ...over,
+  })
+  const seedRows = (rows: Array<Record<string, unknown>>) =>
+    localStorage.setItem('ember-state-v1', JSON.stringify({ transactions: rows }))
+
+  it('states what it has on an empty record, and states no number at all', () => {
+    // TRUST RULE 5 AT ITS SMALLEST, and §7's empty-state register. No "0 / 7",
+    // no empty bar, no progressbar, no grid of days — every one of those draws
+    // a target the user is already short of on the first screen they ever see,
+    // which is the punitive framing Trust Rule 6 forbids.
+    render(<App />)
+    expect(block()).not.toBeNull()
+    expect(within(block()).getByText('Nothing logged in the last 7 days.')).toBeTruthy()
+    expect(block().textContent).not.toMatch(/\b0\b/)
+    expect(block().textContent).not.toMatch(/DA/)
+    expect(within(block()).queryAllByRole('progressbar')).toEqual([])
+    expect(within(block()).queryAllByRole('meter')).toEqual([])
+    expect(block().querySelector('.week-facts, .week-repeats, .month-strip')).toBeNull()
+  })
+
+  it('names itself for assistive tech instead of being a loose run of numbers', () => {
+    seedRows([row({ id: 'a', amountDA: 400 })])
+    render(<App />)
+    const named = within(hero()).getByRole('group', { name: 'Last 7 days' })
+    expect(named).toBe(block())
+  })
+
+  it('prints the first row it has, in the singular, with no repeats line', () => {
+    seedRows([row({ id: 'a', amountDA: 400 })])
+    render(<App />)
+    expect(within(block()).getByText('Logged on 1 day')).toBeTruthy()
+    expect(within(block()).getByText('400 DA logged')).toBeTruthy()
+    expect(block().querySelector('.week-repeats')).toBeNull()
+    expect(block().querySelector('.week-note')).toBeNull()
+  })
+
+  it('names a repeated category with the SUM of its rows, and grades nothing', () => {
+    // THE ONE THING IN WEEK ONE THE RECORD KNOWS AND THE USER DOES NOT. The
+    // user typed four rows; nobody typed "four rows, 1,920 DA".
+    seedRows([
+      row({ id: 'a', amountDA: 480 }),
+      row({ id: 'b', amountDA: 520, date: day(1) }),
+      row({ id: 'c', amountDA: 500, date: day(2) }),
+      row({ id: 'd', amountDA: 420, date: day(3) }),
+      row({ id: 'e', amountDA: 6_000, category: 'Rent', date: day(4) }),
+    ])
+    render(<App />)
+    const repeat = block().querySelector('.week-repeat') as HTMLElement
+    expect(within(repeat).getByText('Food')).toBeTruthy()
+    expect(within(repeat).getByText('4 rows')).toBeTruthy()
+    expect(within(repeat).getByText('1,920 DA')).toBeTruthy()
+    // A sum, not a mean: 480 average would be the same four rows lying about
+    // what they cost. Nor a rate, nor a projection.
+    expect(block().textContent).not.toMatch(/480 DA|per day|per week|on track|projected/i)
+    // Rent happened once and is the biggest single row on the card. It is not
+    // in the list, because the list is about what repeated — and the list is
+    // ORDERED, never graded: no superlative appears anywhere on the block.
+    expect(block().querySelectorAll('.week-repeat')).toHaveLength(1)
+    expect(block().textContent).not.toMatch(/biggest|most|worst|top|highest|too much|should/i)
+    expect(within(block()).getByText('Categories with more than one row.')).toBeTruthy()
+  })
+
+  it('is not a streak: no run, no grid, and no word for a missed day', () => {
+    // THE ASSERTION THE BRIEF ASKED FOR BY NAME. Rows six days apart with five
+    // empty days between them read exactly as two consecutive days would —
+    // nothing is lost, nothing resets, no day is called missed.
+    seedRows([
+      row({ id: 'a', date: day(6), amountDA: 100 }),
+      row({ id: 'b', amountDA: 100, category: 'Transport' }),
+    ])
+    render(<App />)
+    expect(within(block()).getByText('Logged on 2 days')).toBeTruthy()
+    expect(block().textContent).not.toMatch(
+      /streak|in a row|missed|broken|keep it up|don.t break|consecutive|lost/i,
+    )
+    // No per-day cells, so nothing can be read as a calendar of hits and
+    // misses — ArchiveCard's own warning, applied one card up: "a binary grid
+    // is a streak calendar in a ledger's coat".
+    // Two categories, so there is no repeats list either — which makes the
+    // "no list items at all" form of the assertion available, and that is the
+    // strongest form: a day grid is a list of days however it is spelled.
+    expect(block().querySelectorAll('.month-cell, .week-cell, li, td')).toHaveLength(0)
+  })
+
+  it('keeps resisted money out of the spend figure and out of the repeats', () => {
+    seedRows([
+      row({ id: 'a', amountDA: 300 }),
+      row({ id: 'b', amountDA: 200, date: day(1) }),
+      row({ id: 'r', amountDA: 4_000, resistedImpulse: true, date: day(2) }),
+    ])
+    render(<App />)
+    expect(within(block()).getByText('500 DA logged')).toBeTruthy()
+    expect(within(block()).getByText('4,000 DA resisted')).toBeTruthy()
+    // The two Food rows repeat; the resist is not one of them and its 4,000 DA
+    // is not in their total.
+    expect(within(block().querySelector('.week-repeat') as HTMLElement).getByText('500 DA'))
+      .toBeTruthy()
+  })
+
+  it('carries no engagement figure, and paying for a log does not change that', () => {
+    // TRUST RULE 1, on the surface that replaced the score. The block reads
+    // transactions and a day; nothing about XP, levels, badges or lessons can
+    // appear on it, and a log through it pays exactly what a log pays.
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '1200' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(within(block()).getByText('1,200 DA logged')).toBeTruthy()
+    expect(block().textContent).not.toMatch(/\bxp\b|level|badge|pet|quest|lesson|spark/i)
+    expect(xpNow()).toBe(XP_REWARDS.logExpense)
+    expect(JSON.parse(localStorage.getItem('ember-state-v1')!).xpLog).toHaveLength(1)
+  })
+
+  it('hands the reader a keyboard route to the card that ends the absence', () => {
+    // Below 1024px app.css hides .hero-nav, .hero-side and .hero-stage-line, so
+    // the phone this product is built for had no in-page navigation at all.
+    // This is one anchor, on the card whose number is missing, pointing at the
+    // card that supplies it — and it lands focus on a real target rather than
+    // on <body>.
+    render(<App />)
+    const link = within(hero()).getByRole('link', { name: 'Set up my numbers' })
+    expect(link.getAttribute('href')).toBe('#numbers')
+    const target = document.getElementById('numbers')
+    expect(target).not.toBeNull()
+    expect(target!.getAttribute('tabindex')).toBe('-1')
+    // …and it is named, so arriving there announces which card it is.
+    expect(
+      document.getElementById(target!.getAttribute('aria-labelledby')!)?.textContent,
+    ).toBe('My numbers')
+    expect(target!.querySelector('.spec-label')?.textContent).toBe('NUM—06')
+  })
+
+  it('asks once, and never again — no second prompt, no nag, no counter', () => {
+    // Trust Rule 6. The pre-setup ask is ONE sentence and ONE control on ONE
+    // card. It does not repeat per day, it does not escalate, and nothing on
+    // the block counts how long the user has gone without answering it.
+    seedRows([row({ id: 'a', date: day(5) }), row({ id: 'b' })])
+    render(<App />)
+    expect(screen.getAllByRole('link', { name: 'Set up my numbers' })).toHaveLength(1)
+    expect(hero().querySelectorAll('.calibrating')).toHaveLength(1)
+    expect(hero().textContent).not.toMatch(/still haven|remember to|don.t forget|overdue|reminder/i)
+  })
+
+  it('gives the block back the moment the numbers arrive', () => {
+    // The swap in the other direction: one of the two is on screen, never both.
+    seedRows([row({ id: 'a', amountDA: 400 })])
+    render(<App />)
+    expect(block()).not.toBeNull()
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save my numbers/ }))
+    expect(hero().querySelector('.week-block')).toBeNull()
+    expect(within(hero()).getByText(/^Health \d+(\.\d)?$/)).toBeTruthy()
+  })
+
+  it('keeps a badge earned before setup on screen (Trust Rule 2)', () => {
+    // Every pet reachable in week one is reachable BEFORE setup, and the strip
+    // used to live only inside the stage badge's column — which is not
+    // rendered while the score is withheld. The app may not take back what it
+    // paid, so the shelf stands on its own.
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({ achievements: [{ id: 'first-log', date: todayISO() }] }),
+    )
+    render(<App />)
+    expect(hero().querySelector('.stage-badge')).toBeNull()
+    const shelf = within(hero()).getByRole('img', { name: /^Companions:/ })
+    expect(shelf.classList.contains('is-loose')).toBe(true)
+    // …and it sits AFTER the money block: the card's subject is the record,
+    // and the loot is decoration earned on the other track.
+    expect(block().compareDocumentPosition(shelf) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy()
   })
 })
 
@@ -652,6 +918,10 @@ describe('daily lesson + codex', () => {
   })
 
   it('keeps a persistent accent off the spec sheet — §11’s three-colour cap', () => {
+    // Seeded past setup: .stage-badge is one of the four persistent accents
+    // this case tallies, and the hero withholds it entirely until the numbers
+    // are the user's own (Trust Rule 5 — see HeroCard's hasScore).
+    seedSetup()
     render(<App />)
     // THE RULE THAT DECIDES WHICH CARDS MAY MOVE, and it is arithmetic, not
     // taste. §2.1 rule 2 pins the foreground on ANY accent fill to Graphite and
@@ -867,14 +1137,21 @@ describe('daily lesson + codex', () => {
     // A PLATE IS A GROUND, so it has to be there in every state — a ground that
     // appears on day 3 and vanishes on day 91 is not a ground, it is a mood.
     // .calibrating is conditional (Trust Rule 5: it says so only while the
-    // score is still calibrating or the numbers are placeholders), so the plate
-    // is the box AROUND it and the control, not the sentence itself.
+    // score is still calibrating or the numbers are not the user's), so the
+    // plate is the box AROUND it and the control, not the sentence itself.
+    // THE CONTROL IS CONDITIONAL TOO NOW, and that is the second half of the
+    // same argument: before setup the thing missing is the user's numbers and
+    // the control goes to the card that takes them (.hero-setup); after it, the
+    // thing missing is an explanation and the control opens the drawer
+    // (.hero-why). The plate does not care which — it is the ground, and a
+    // ground that appears on day 3 and vanishes on day 91 is not a ground.
     // Fresh install: the disclosure is showing, and the plate holds both.
     const { unmount } = render(<App />)
     const withNote = document.querySelector('.hero-card > .hero-foot')!
     expect(withNote.classList.contains('counter-plate')).toBe(true)
     expect(withNote.querySelector('.calibrating')).toBeTruthy()
-    expect(withNote.querySelector('.hero-why')).toBeTruthy()
+    expect(withNote.querySelector('.hero-setup')).toBeTruthy()
+    expect(withNote.querySelector('.hero-why')).toBeNull()
     unmount()
 
     // A user with setup done and more than CALIBRATION_DAYS of log behind them:
@@ -906,6 +1183,7 @@ describe('daily lesson + codex', () => {
     expect(without.querySelector('.calibrating')).toBeNull()
     expect(without.classList.contains('counter-plate')).toBe(true)
     expect(without.querySelector('.hero-why')).toBeTruthy()
+    expect(without.querySelector('.hero-setup')).toBeNull()
   })
 
   it('collects the lesson into the codex and persists it', () => {
@@ -1161,9 +1439,15 @@ describe('day rollover health smoothing', () => {
   it('persists yesterday’s final score at midnight — smooth() applies once per day, not twice', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 1, 12, 0, 0)) // Aug 1, local noon
+    // A COMPLETED SETUP, because the readout is what this case reads: card 01
+    // prints no score while the profile is null (Trust Rule 5 — see HeroCard's
+    // hasScore). The expected values go through resolveProfile rather than
+    // being retyped, so the test's arithmetic and the app's are one call.
+    const profileData = setupProfile('2026-08-01')
     localStorage.setItem(
       'ember-state-v1',
       JSON.stringify({
+        profile: profileData,
         prevHealthScore: 30,
         stage: 'ember',
         healthDate: '2026-08-01',
@@ -1174,11 +1458,12 @@ describe('day rollover health smoothing', () => {
     fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
 
+    const { profile, meta } = resolveProfile(profileData)
     const txs: Transaction[] = [
       { id: 'x', amountDA: 5_000, category: 'Food', date: '2026-08-01', resistedImpulse: false },
     ]
     const day1 = computeHealthScore(
-      deriveHealthInputs(txs, DEMO_PROFILE, '2026-08-01'),
+      deriveHealthInputs(txs, profile, '2026-08-01', meta),
       30,
       'ember',
     )
@@ -1197,7 +1482,7 @@ describe('day rollover health smoothing', () => {
     expect(persisted.prevHealthScore).toBeCloseTo(day1.score, 10)
     // Today renders exactly one smoothing step from that base.
     const day2 = computeHealthScore(
-      deriveHealthInputs(txs, DEMO_PROFILE, '2026-08-02'),
+      deriveHealthInputs(txs, profile, '2026-08-02', meta),
       day1.score,
       day1.stage,
     )
@@ -1349,6 +1634,13 @@ describe('page heading structure', () => {
 })
 
 describe('the health readout carries the display tier', () => {
+  // EVERY CASE HERE SEEDS A COMPLETED SETUP, and the reason is the subject: a
+  // readout the app withholds has no tier. Card 01 prints no score while the
+  // profile is null (Trust Rule 5 — see HeroCard's hasScore), so the tier, the
+  // split and the exposure count are all claims about the state where a score
+  // exists. Nothing in the assertions changed.
+  beforeEach(() => seedSetup())
+
   it('splits the readout typographically without splitting it for assistive tech', () => {
     render(<App />)
     // One string for AT — the visible halves take two type tiers and leave the
@@ -1507,10 +1799,10 @@ describe('the date-grouped ledger', () => {
      directly, because the whole point of the feature is that "Today" and
      "Yesterday" are computed from the day the app is HOLDING, not from a fresh
      wall-clock read at render time. */
-  const seed = (transactions: Partial<Transaction>[]) => {
+  const seed = (transactions: Partial<Transaction>[], extra: Record<string, unknown> = {}) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 7, 4, 12, 0, 0))
-    localStorage.setItem('ember-state-v1', JSON.stringify({ transactions }))
+    localStorage.setItem('ember-state-v1', JSON.stringify({ transactions, ...extra }))
   }
   const tx = (over: Partial<Transaction>): Partial<Transaction> => ({
     amountDA: 100,
@@ -1801,7 +2093,10 @@ describe('the date-grouped ledger', () => {
   })
 
   it('carries no engagement number into the money surface (Trust Rule 1)', () => {
-    seed(FOUR_DAYS)
+    // The profile is here so there IS a Health readout to hold still: card 01
+    // prints no score before setup (Trust Rule 5 — see HeroCard's hasScore),
+    // and "the financial track did not move" needs the track on screen.
+    seed(FOUR_DAYS, { profile: setupProfile('2026-08-04') })
     render(<App />)
     const before = xpNow()
     const health = screen.getByText(/^Health \d+(\.\d)?$/).textContent
@@ -2571,7 +2866,10 @@ describe('the month so far', () => {
   })
 
   it('carries no engagement number onto the money surface (Trust Rule 1)', () => {
-    seed(AUGUST)
+    // Seeded past setup for the same reason the ledger's twin of this case is:
+    // the Health readout is the witness that the financial track did not move,
+    // and it is withheld until the numbers are the user's (Trust Rule 5).
+    seed(AUGUST, { profile: setupProfile('2026-08-04') })
     render(<App />)
     const before = xpNow()
     const health = screen.getByText(/^Health \d+(\.\d)?$/).textContent
@@ -2927,6 +3225,9 @@ describe('accessibility depth — the sweep as regression tests', () => {
 
   // ── Finding 7: the health drawer had no aria-controls ───────────────────
   it('wires the health drawer to the button that opens it', () => {
+    // Seeded past setup: there is no drawer, and no stage to ask about,
+    // while the score is withheld.
+    seedSetup()
     render(<App />)
     const why = () => screen.getByRole('button', { name: /Why this stage\?|Hide the breakdown/ })
     expect(why().getAttribute('aria-controls')).toBe('health-breakdown')
@@ -3235,7 +3536,15 @@ describe('the decision record', () => {
     // without, and the record's figures are deliberately enormous — 5,000,000
     // DA bought, which would swamp every component that reads spend if any of
     // them read it.
-    localStorage.setItem('ember-state-v1', JSON.stringify({ transactions: rows }))
+    // The profile is seeded on all three states below for one reason and it is
+    // not this case's subject: card 01 prints no score at all until setup, so a
+    // demo-profile render has no number to compare (Trust Rule 5 — see
+    // HeroCard's hasScore). The comparison itself is unchanged, and it is still
+    // the same profile on both sides of it.
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({ profile: setupProfile(), transactions: rows }),
+    )
     render(<App />)
     const scoreWithout = screen.getByText(/^Health \d+(\.\d)?$/).textContent
     fireEvent.click(screen.getByRole('button', { name: /Why this stage/ }))
@@ -3247,6 +3556,7 @@ describe('the decision record', () => {
     localStorage.setItem(
       'ember-state-v1',
       JSON.stringify({
+        profile: setupProfile(),
         transactions: rows,
         decisions: [
           { id: 'd1', date: today, amountDA: 5_000_000, line: 'Buy path ends lower.', outcome: 'bought', outcomeDate: today },
@@ -3272,6 +3582,7 @@ describe('the decision record', () => {
     localStorage.setItem(
       'ember-state-v1',
       JSON.stringify({
+        profile: setupProfile(),
         transactions: rows,
         decisions: CHECK_BACK_ANSWERS.map((_answer, i) => ({
           id: `c${i}`,
@@ -3796,5 +4107,378 @@ describe('every announcement surface is mounted, empty, and hidden by geometry',
         `${r.getAttribute('aria-label')}: `,
       )
     }
+  })
+})
+
+/**
+ * THE FIRST SESSION, WALKED BY ACCESSIBILITY TREE.
+ *
+ * Round 7's product step changed what a new user meets first — card 01 now
+ * withholds the score and prints the week block, and its foot grew the phone's
+ * only in-page jump link — which puts the newest DOM in the app on the screen
+ * with the least assistive-tech coverage. Every case above this one asserts a
+ * SPECIFIC claim about a specific control. These two assert the MECHANICAL ones
+ * — the failures that are silent in a browser, invisible in a diff, and true of
+ * every station at once — over the whole first session rather than one screen
+ * of it.
+ *
+ * WHAT `audit()` CHECKS AND WHY EACH ONE IS A REAL FAILURE, NOT A LINT:
+ *
+ *  · one h1. Two page titles, or none, and the outline has no root.
+ *  · no duplicate id. getElementById returns the first, so a duplicate silently
+ *    re-points every aria-labelledby, every label[for] and every fragment link
+ *    that names it at whichever copy rendered first.
+ *  · every aria-labelledby / aria-describedby IDREF resolves. A dangling one is
+ *    not a degraded name, it is NO name: the attribute suppresses the fallback.
+ *  · every aria-controls resolves OR its owner reports aria-expanded="false".
+ *    That is the rule this app actually holds rather than an exemption carved
+ *    for it: a collapsed disclosure's target is legitimately unmounted (see
+ *    HeroCard's drawer), and anything else pointing at nothing is the failure
+ *    HeroShell's nav comment names — an anchor left behind by a deleted card.
+ *  · every in-page href="#…" resolves AND its target can take focus. A fragment
+ *    link to a node with no tabindex scrolls and leaves focus on <body>, so the
+ *    next Tab restarts at the top of the document. Chrome papers over it with
+ *    the sequential-focus navigation starting point; Safari/VoiceOver do not.
+ *    This is the one the new "Set up my numbers" anchor depends on.
+ *  · nothing tabbable inside aria-hidden. That is a keyboard trap with no
+ *    accessible name — the constraint Landing.tsx's product shot is built
+ *    around, checked here on the app for the first time.
+ *  · every tabbable control has a non-empty accessible name.
+ *  · heading levels never skip on the way down.
+ *
+ * IT FOUND NOTHING, AND THAT IS THE POINT OF COMMITTING IT. Rounds 4-6 fixed
+ * each of these classes one at a time as a rendered audit turned them up; what
+ * did not exist was anything that would fail when the next one arrived. This
+ * runs at ten stations of the first session, so it does.
+ */
+const TABBABLE_SEL = 'a[href], button, input, select, textarea, [tabindex]'
+
+/** Elements a Tab press can reach. tabindex="-1" is excluded deliberately: it
+    is the app's own focus-handoff mechanism (<main>, the card sections), not a
+    tab stop, and aria-hidden over one is not a trap. */
+const tabbable = (): HTMLElement[] =>
+  ([...document.querySelectorAll(TABBABLE_SEL)] as HTMLElement[]).filter(
+    (el) => el.getAttribute('tabindex') !== '-1' && !el.hasAttribute('disabled'),
+  )
+
+/**
+ * A deliberately CONSERVATIVE accessible-name computation — aria-label, then
+ * aria-labelledby, then the native label association, then the element's own
+ * text. It is not the full accname algorithm (no dependency exists for that
+ * here, and adding one is a dependency change), so it can only ever be wrong in
+ * the safe direction: it may name something a browser would not, never the
+ * reverse. An empty return is therefore evidence, not a guess.
+ */
+function accessibleName(el: Element): string {
+  const label = el.getAttribute('aria-label')
+  if (label !== null && label.trim() !== '') return label.trim()
+  const by = el.getAttribute('aria-labelledby')
+  if (by !== null) {
+    const text = by
+      .trim()
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent ?? '')
+      .join(' ')
+      .trim()
+    if (text !== '') return text
+  }
+  if (
+    el instanceof HTMLInputElement ||
+    el instanceof HTMLSelectElement ||
+    el instanceof HTMLTextAreaElement
+  ) {
+    const wrapping = el.closest('label')
+    if (wrapping !== null && (wrapping.textContent ?? '').trim() !== '') {
+      return wrapping.textContent!.trim()
+    }
+    if (el.id !== '') {
+      const associated = document.querySelector(`label[for="${el.id}"]`)
+      if (associated !== null) return (associated.textContent ?? '').trim()
+    }
+    return ''
+  }
+  return (el.textContent ?? '').trim()
+}
+
+/** Every mechanical failure the document currently holds, each stamped with the
+    station it was found at. An empty array is the passing state. */
+function audit(station: string): string[] {
+  const found: string[] = []
+  const fail = (what: string) => found.push(`${station}: ${what}`)
+
+  const h1s = document.querySelectorAll('h1')
+  if (h1s.length !== 1) fail(`${h1s.length} h1 elements, expected 1`)
+
+  const ids = [...document.querySelectorAll('[id]')].map((e) => e.id)
+  for (const dup of new Set(ids.filter((id, i) => ids.indexOf(id) !== i))) {
+    fail(`duplicate id "${dup}"`)
+  }
+
+  for (const attr of ['aria-labelledby', 'aria-describedby']) {
+    for (const el of document.querySelectorAll(`[${attr}]`)) {
+      for (const ref of el.getAttribute(attr)!.trim().split(/\s+/)) {
+        if (document.getElementById(ref) === null) {
+          fail(`${attr}="${ref}" resolves to nothing (<${el.tagName.toLowerCase()}>)`)
+        }
+      }
+    }
+  }
+  for (const el of document.querySelectorAll('[aria-controls]')) {
+    const ref = el.getAttribute('aria-controls')!
+    if (document.getElementById(ref) === null && el.getAttribute('aria-expanded') !== 'false') {
+      fail(`aria-controls="${ref}" resolves to nothing and is not collapsed`)
+    }
+  }
+  for (const a of document.querySelectorAll('a[href^="#"]')) {
+    const id = a.getAttribute('href')!.slice(1)
+    if (id === '') continue
+    const target = document.getElementById(id)
+    if (target === null) {
+      fail(`in-page link #${id} points at nothing`)
+      continue
+    }
+    const nativelyFocusable = /^(a|button|input|select|textarea)$/i.test(target.tagName)
+    if (!nativelyFocusable && target.getAttribute('tabindex') === null) {
+      fail(`in-page link #${id} points at a node that cannot take focus`)
+    }
+  }
+  for (const el of tabbable()) {
+    if (el.closest('[aria-hidden="true"]') !== null) {
+      fail(`tabbable <${el.tagName.toLowerCase()}> inside aria-hidden`)
+    }
+    if (accessibleName(el) === '') {
+      fail(`unnamed tabbable <${el.tagName.toLowerCase()} class="${el.className}">`)
+    }
+  }
+  let previous = 0
+  for (const h of document.querySelectorAll('h1,h2,h3,h4,h5,h6')) {
+    const level = Number(h.tagName[1])
+    if (previous !== 0 && level > previous + 1) {
+      fail(`heading skips h${previous} -> h${level} ("${h.textContent?.slice(0, 30)}")`)
+    }
+    previous = level
+  }
+  return found
+}
+
+describe('the first session, walked by accessibility tree', () => {
+  it('holds at every station from the empty app to the first export', () => {
+    const found: string[] = []
+    render(<App />)
+    // Day zero: no profile, no rows. Card 01 is the week block and its foot's
+    // anchor is the phone's only route to another card — below 1024px app.css
+    // hides .hero-nav, .hero-side and .hero-stage-line wholesale.
+    found.push(...audit('day0'))
+
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '1200' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    // The undo strip is out, the ledger has a day group, the week block has
+    // figures in it for the first time.
+    found.push(...audit('first-log'))
+
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    // An empty amount: role="alert" is mounted and two fields point at it
+    // through aria-describedby.
+    found.push(...audit('log-error'))
+
+    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Run simulation' }))
+    found.push(...audit('simulation-run'))
+
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Bought it' }))
+    })
+    // The three answer buttons are gone, the log form is prefilled and focused.
+    found.push(...audit('decision-closed'))
+
+    fireEvent.click(screen.getByRole('button', { name: /Got it:/ }))
+    found.push(...audit('lesson-read'))
+
+    // SETUP — the transition this round's product step is about. The score,
+    // the stage plate, the rating, the corner index and the drawer all arrive
+    // at once, and the anchor that pointed here is replaced by the drawer
+    // toggle in the same commit.
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '60000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), {
+      target: { value: '30000' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save my numbers' }))
+    found.push(...audit('setup-saved'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Why this stage?' }))
+    found.push(...audit('drawer-open'))
+    fireEvent.click(screen.getByRole('button', { name: 'Hide the breakdown' }))
+    found.push(...audit('drawer-closed'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export my data' }))
+    found.push(...audit('export'))
+
+    // toEqual([]) rather than toHaveLength(0): a failure prints every finding
+    // with the station it was found at, which is the whole value of running the
+    // same checker at ten places instead of asserting ten separate facts.
+    expect(found).toEqual([])
+  })
+
+  it('holds on a record with a due check-back and an expandable archive', () => {
+    // The two structures the walk above cannot reach on day one: a check-back
+    // is fourteen elapsed days away, and the archive grows its expand control
+    // on the fourth day of rows.
+    const bought = addDaysISO(todayISO(), -CHECK_BACK_DAYS)
+    seedSetup({
+      transactions: [
+        {
+          id: 'x1',
+          amountDA: 900,
+          category: 'Food',
+          date: bought,
+          note: 'headphones',
+          resistedImpulse: false,
+          impulseFlagged: false,
+        },
+        ...Array.from({ length: 8 }, (_, i) => ({
+          id: `y${i}`,
+          amountDA: 100 + i,
+          category: 'Food',
+          date: addDaysISO(todayISO(), -i),
+          resistedImpulse: i === 2,
+          impulseFlagged: i === 3,
+        })),
+      ],
+      decisions: [
+        {
+          id: `${bought}-a`,
+          date: bought,
+          amountDA: 900,
+          line: 'Buy and wait land within 3 points. Month 12.',
+          demo: false,
+          outcome: 'bought',
+          outcomeDate: bought,
+          txId: 'x1',
+        },
+      ],
+    })
+    render(<App />)
+    const found = audit('check-back-due')
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: CHECK_BACK_ANSWERS[0].label }))
+    })
+    found.push(...audit('check-back-answered'))
+    fireEvent.click(screen.getByRole('button', { name: /Show \d+ earlier day/ }))
+    found.push(...audit('archive-expanded'))
+    expect(found).toEqual([])
+  })
+})
+
+/**
+ * THE SAME WALK, BY KEYBOARD.
+ *
+ * The audit above reads the tree at rest; this one presses things. Nine of the
+ * app's controls unmount, relabel or go inert on their own activation, and a
+ * focused element that is simply removed from the document drops focus to
+ * <body> WITHOUT firing blur — silently, with no event any component sees. Each
+ * of those hand-offs was fixed one at a time (LogCard's undo strip and its
+ * expiry timer, ProfileCard's save and cancel, SimCard's close and check-back,
+ * ArchiveCard's collapse peer, LessonCard's and the note pad's aria-disabled
+ * guards). None of them had a test that would fail if a TENTH control arrived
+ * without one.
+ *
+ * `focus()` before every click is what makes this a keyboard walk rather than a
+ * pointer one: fireEvent.click does not move focus in jsdom, so without it
+ * every station would trivially pass with focus still on <body> from the start.
+ */
+describe('the first session, walked by keyboard', () => {
+  it('never leaves focus on <body> after a control acts on itself', () => {
+    vi.useFakeTimers()
+    render(<App />)
+    const stranded: string[] = []
+    const press = (el: HTMLElement, what: string) => {
+      el.focus()
+      fireEvent.click(el)
+      if (document.activeElement === document.body || document.activeElement === null) {
+        stranded.push(what)
+      }
+    }
+    const amount = () => screen.getByLabelText('Amount (DA)')
+    const logBtn = () => screen.getByRole('button', { name: /Log purchase/ })
+
+    fireEvent.change(amount(), { target: { value: '1200' } })
+    press(logBtn(), 'log')
+    // The undo button unmounts on its own click — focus moves to the submit
+    // button FIRST, then the row is removed.
+    press(screen.getByRole('button', { name: 'Undo' }), 'undo')
+
+    // WCAG 2.2.1: holding focus inside the strip pauses the grace window, and
+    // when it does expire the strip must hand focus back rather than unmount
+    // the node holding it.
+    fireEvent.change(amount(), { target: { value: '900' } })
+    press(logBtn(), 'second log')
+    screen.getByRole('button', { name: 'Undo' }).focus()
+    act(() => {
+      vi.advanceTimersByTime(30_000)
+    })
+    if (document.activeElement === document.body) stranded.push('undo window expiry')
+
+    // The pad's Clear key goes inert under the user's own finger (aria-disabled
+    // plus an onClick guard, never the `disabled` attribute).
+    press(screen.getByRole('button', { name: 'Add 1,000 DA' }), 'note key')
+    press(screen.getByRole('button', { name: 'Clear' }), 'clear')
+    press(screen.getByRole('button', { name: 'Clear' }), 'clear with nothing to clear')
+
+    // Same guard, different card: "Got it" relabels to "Collected" and stays.
+    press(screen.getAllByRole('button', { name: /Got it:/ })[0], 'lesson read')
+    press(screen.getAllByRole('button', { name: /— collected$/ })[0], 'lesson re-press')
+
+    fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
+    press(screen.getByRole('button', { name: 'Run simulation' }), 'simulation')
+    // "Waited" removes all three answer buttons, one of which has focus.
+    // NOT wrapped in act(): fireEvent already flushes the commit, and an outer
+    // act() would DEFER the unmount past the check inside press() — the reading
+    // would then be taken while the button was still in the document, and the
+    // case would pass with the hand-off deleted. Verified by deleting it.
+    press(screen.getByRole('button', { name: 'Waited' }), 'decision closed')
+
+    // Setup replaces the whole form with the summary, and card 01's anchor with
+    // the drawer toggle, in one commit.
+    fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '60000' } })
+    fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), {
+      target: { value: '30000' },
+    })
+    press(screen.getByRole('button', { name: 'Save my numbers' }), 'setup saved')
+    press(screen.getByRole('button', { name: 'Edit my numbers' }), 'edit')
+    press(screen.getByRole('button', { name: 'Cancel' }), 'cancel')
+
+    press(screen.getByRole('button', { name: 'Why this stage?' }), 'drawer open')
+    press(screen.getByRole('button', { name: 'Hide the breakdown' }), 'drawer close')
+    press(screen.getByRole('button', { name: 'Export my data' }), 'export')
+    press(screen.getByRole('button', { name: 'Mute sound' }), 'mute')
+
+    expect(stranded).toEqual([])
+  })
+
+  it('hands focus back when the archive collapse peer unmounts itself', () => {
+    // The archive's own hand-off, on a record long enough to have a middle:
+    // "Show fewer days" exists only while the window is partly out, so pressing
+    // it removes the button that was pressed.
+    seedSetup({
+      transactions: Array.from({ length: 200 }, (_, i) => ({
+        id: `t${i}`,
+        amountDA: 100,
+        category: 'Food',
+        date: addDaysISO(todayISO(), -i),
+        resistedImpulse: false,
+        impulseFlagged: false,
+      })),
+    })
+    render(<App />)
+    const more = screen.getByRole('button', { name: /Show \d+ earlier days/ })
+    more.focus()
+    fireEvent.click(more)
+    const fewer = screen.getByRole('button', { name: 'Show fewer days' })
+    fewer.focus()
+    fireEvent.click(fewer)
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: /Show \d+ earlier days/ }),
+    )
   })
 })

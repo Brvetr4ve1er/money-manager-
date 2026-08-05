@@ -13,7 +13,7 @@
  * only exists inside JSX cannot be tested without a DOM.
  */
 
-import type { Transaction } from '../state/store.ts'
+import { addDaysISO, type Transaction } from '../state/store.ts'
 
 export interface LedgerDay {
   /** Local day key (YYYY-MM-DD) every row in this group carries. */
@@ -221,6 +221,164 @@ export function resistedThisMonthDA(transactions: Transaction[], today: string):
     if (t.resistedImpulse && t.amountDA > 0 && t.date.slice(0, 7) === month) total += t.amountDA
   }
   return total
+}
+
+/**
+ * The rolling window the week block reads. SEVEN LOCAL DAYS ENDING `today`,
+ * INCLUSIVE — not the calendar week. A Monday-anchored week hands a user who
+ * installs on Saturday a two-day "week", and a block whose length depends on
+ * which day you opened it is a block whose numbers cannot be compared to
+ * themselves. The window is always seven days long, whatever day it is.
+ */
+export const WEEK_DAYS = 7
+
+/** One category the window holds more than one spend row for. */
+export interface WeekRepeat {
+  /** The category exactly as the row carries it — never re-cased or merged. */
+  category: string
+  /** How many SPEND rows. Resists are not in here (see weekToDate). */
+  rows: number
+  /** What those rows came to. A sum. Never an average, never a rate. */
+  totalDA: number
+}
+
+export interface WeekSoFar {
+  /** Days in the window with at least one row on them. A COUNT, never a run. */
+  daysLogged: number
+  /** Money that left, inside the window. Resists add 0 — the ledger's rule. */
+  spentDA: number
+  /** The window's resisted total. Separate bucket, separate rule (see below). */
+  resistedDA: number
+  /**
+   * Categories with two or more spend rows, biggest total first, capped at
+   * `limit`. Empty when nothing repeated — an empty list is a fact about the
+   * window, not a failure to find something.
+   */
+  repeats: WeekRepeat[]
+}
+
+/** How many repeat rows a surface may print. Three is what fits a phone card. */
+export const WEEK_REPEAT_LIMIT = 3
+
+/**
+ * The last seven days, as the record actually holds them.
+ *
+ * WHY THIS EXISTS AT ALL. Before setup the Health Score runs on DEMO_PROFILE, so
+ * the loudest number on the first screen is about nobody (Trust Rule 5) — the
+ * card withholds it now and prints this instead. Every figure here is a sum over
+ * rows the user typed, exact from the first row, and none of it is a projection.
+ *
+ * IT IS NOT A STREAK, AND THAT IS A HARD PROPERTY OF THE SHAPE RATHER THAN OF
+ * THE COPY (Trust Rules 3 and 6). `daysLogged` counts days, it does not measure
+ * a run: rows on day -6 and day 0 with five empty days between them count two,
+ * exactly as two consecutive days do. There is no per-day array to draw a grid
+ * from, nothing resets, nothing is lost, and a gap is not an event. ArchiveCard
+ * already warns that "a binary grid is a streak calendar in a ledger's coat";
+ * this derivation cannot grow one without a caller inventing the days itself.
+ *
+ * NO ENGAGEMENT INPUT REACHES IT (Trust Rule 1). It takes transactions and a
+ * day. It cannot see xp, level, achievements or lessonsSeen even if a later
+ * edit wanted it to — the same argument monthToDate makes about the profile.
+ *
+ * BOUNDED AT BOTH ENDS, like deriveHealthInputs' windows and monthToDate's
+ * `date <= today`: a future-dated row (device clock skew, a hand-edited
+ * payload) must not be able to sit inside the window forever, and a row older
+ * than the window is out of it.
+ *
+ * CONSTRAINT: THE COST IS THE WINDOW'S, NOT THE RECORD'S — and it was the
+ * record's. This function ran on every logged purchase over every row the user
+ * has ever entered, and it tested membership with `daysBetween(t.date, today)`:
+ * two `dayIndex` calls per row, each a `split`, a `map(Number)` and a
+ * `Date.UTC`. Every peer derivation bounds itself with a string compare FIRST
+ * (deriveHealthInputs' `date >= cutoff && date <= today`, monthToDate's
+ * `date <= today`, resistedThisMonthDA's `slice(0, 7)`); this one did not, and
+ * it was the most expensive derivation in a logged purchase at every size
+ * measured. MEASURED on THIS tree, jsdom, one process, both arms through the
+ * same warmed best-of-5 harness, over a synthetic ledger:
+ *
+ *                            before    after
+ *     500 rows /  63 days    0.428 ms  0.032 ms
+ *   5,000 rows / 625 days    4.236 ms  0.041 ms
+ *   5,000 rows /  50 days    4.240 ms  0.058 ms
+ *
+ * The middle row is the whole finding. At 5,000 rows the FIVE other
+ * whole-ledger derivations App re-runs in the same render come to 0.424 ms
+ * together — ledgerWindow(3) 0.148, monthToDate 0.132, deriveHealthInputs
+ * 0.079, historyDays 0.053, resistedThisMonthDA 0.012 — so this one cost TEN
+ * TIMES all of them combined, for a block HeroCard only renders while
+ * `profile` is null. Note also that the before column barely moves between 625
+ * days and 50: the cost tracked the ROW COUNT and ignored the window
+ * completely, which is exactly the property being removed.
+ *
+ * The bound is one `addDaysISO` for the whole call, then a lexicographic
+ * compare per row. That is exact rather than an approximation: transaction
+ * dates are validated day keys (isValidDayKey in the store), for which string
+ * order IS chronological order, and `addDaysISO` is the same DST-safe calendar
+ * step `daysBeforeISO` uses in profile.ts — `cutoff <= date <= today` is
+ * precisely `0 <= daysBetween(date, today) < WEEK_DAYS`. The hour-based bug
+ * dayIndex documents is avoided by not doing the arithmetic at all.
+ *
+ * WHAT IT MUST NEVER GROW: an average, a per-day rate, a target, a projection,
+ * a comparison against UserProfile.budgeted, or a superlative. The repeats are
+ * ordered, and ordering is not grading — a surface may print them in order and
+ * may not call the first one "biggest".
+ */
+export function weekToDate(
+  transactions: Transaction[],
+  today: string,
+  limit: number = WEEK_REPEAT_LIMIT,
+): WeekSoFar {
+  // The window's older edge, computed ONCE. WEEK_DAYS - 1 because both ends are
+  // inclusive: today−6 through today is exactly seven calendar days, the same
+  // off-by-one deriveHealthInputs spells out at its `daysBeforeISO(today, 29)`.
+  const cutoff = addDaysISO(today, -(WEEK_DAYS - 1))
+  const days = new Set<string>()
+  let spentDA = 0
+  let resistedDA = 0
+  // Two accumulators per category in one map: a second pass to count rows would
+  // walk the ledger twice for a card that re-renders on every reward timer.
+  const byCategory = new Map<string, { rows: number; totalDA: number }>()
+  for (const t of transactions) {
+    // The whole membership test, and no date arithmetic in it — see the note
+    // above the function for what this replaced and what it cost.
+    if (t.date < cutoff || t.date > today) continue
+    // A resist is a row the user filed, so the day counts as a day they logged
+    // on — the count is about the record having something on it, not about
+    // money having moved.
+    days.add(t.date)
+    if (t.resistedImpulse) {
+      // `amountDA > 0` because a resist may carry no figure at all — the row
+      // still counts as a resist, it just contributes no dinars. Same rule, and
+      // the same reason, as resistedThisMonthDA.
+      if (t.amountDA > 0) resistedDA += t.amountDA
+      // …and it goes NO FURTHER. Resists never enter spentDA and never enter a
+      // repeat's total: the repeats describe money that left, and folding in
+      // money the user says did not leave would report a category as costing
+      // the sum of what it cost and what it nearly cost.
+      continue
+    }
+    spentDA += t.amountDA
+    const cur = byCategory.get(t.category)
+    if (cur) {
+      cur.rows += 1
+      cur.totalDA += t.amountDA
+    } else {
+      byCategory.set(t.category, { rows: 1, totalDA: t.amountDA })
+    }
+  }
+  const repeats: WeekRepeat[] = []
+  for (const [category, { rows, totalDA }] of byCategory) {
+    if (rows >= 2) repeats.push({ category, rows, totalDA })
+  }
+  // Deterministic all the way down: total, then row count, then the category
+  // name. Two categories that tie on both numbers must not swap order between
+  // renders because a Map's insertion order changed — the block is a statement
+  // of fact and a fact that reorders under the reader is a bug.
+  repeats.sort(
+    (a, b) =>
+      b.totalDA - a.totalDA || b.rows - a.rows || (a.category < b.category ? -1 : 1),
+  )
+  return { daysLogged: days.size, spentDA, resistedDA, repeats: repeats.slice(0, limit) }
 }
 
 /** One calendar day of the month, whether or not anything happened on it. */

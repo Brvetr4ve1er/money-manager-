@@ -321,6 +321,63 @@
   font-weight: 700;
 }
 .lp-sub { margin: var(--s1) 0 0; font-size: var(--fs-body); }
+/* THE TERMS THE READER IS ON (see Landing.tsx) — what the app will and will not
+   do to the person reading, between the lede and the hand-off.
+
+   IT TAKES THE INK BAR AND NOT THE ACCENT ONE, and that is the hierarchy rather
+   than a shortage. §1 trait 06 caps a surface at three tones and .lp-share
+   below has already spent the accent on the paragraph that earns it — the one
+   mechanic no bank-linked tracker can do. So this block gets the same §6 6px
+   keyline in --lp-form: Graphite on Bone, a non-text rule at 11.4:1, and a
+   quieter peer of the Flare bar under it. Two bars, one loud, and the loud one
+   is on the claim.
+
+   ITS LEAD IS BODY-700, NOT --fs-h3, AND THAT IS DELIBERATE. The wall's ramp is
+   stated three rules down: d1 wordmark / h1 thesis / h3 lede / h3 hand-off /
+   body, "and the two h3s are the two things a stranger has to leave with". A
+   third h3 does not add a third thing, it flattens the two that are there. What
+   flags this block instead is the mono stamp above it — §1 trait 10 and §7.4's
+   deadpan spec label, which is the register these four lines are written in
+   anyway.
+
+   NO PLATE, IN EITHER DIRECTION. CONSTRAINT §2.1b: below 720px the wall
+   alternates Bone (thesis/lede/this) → Espresso (.lp-share) → Bone (.lp-sub) →
+   Espresso (.lp-terms), and grounding this block would fuse it to the plate
+   under it into one field run. Measured on the tree before it existed, at
+   375x812: the leading Bone run was 283–452 = 169px, and this block extends it
+   to roughly 320 — well inside §2.1b's derived ~605px limit for a Bone run
+   against the 35% field floor. It moves window @0 (66.48% field / 24.25% Bone
+   in both themes, docs/brand/census.json at tree 83c9a9e) TOWARD the 60/30
+   target rather than away, which is why the give-back is not needed here. */
+.lp-grade {
+  margin: var(--s2) 0 0;
+  border-left: var(--keyline-heavy) solid var(--lp-form);
+  padding-left: var(--s2);
+}
+/* Same mono spec register as every other stamp on this poster (.lp-index,
+   .lp-corner, .lp-facts, .lp-share-tag, .lp-shot-tag), and the same half-step
+   gap: a caption clamped to the thing under it. */
+.lp-grade-tag {
+  margin: 0 0 calc(var(--s1) / 2);
+  font-family: var(--mono);
+  font-size: var(--fs-spec);
+  line-height: var(--lh-spec);
+  letter-spacing: var(--tr-spec);
+  text-transform: uppercase;
+}
+.lp-grade-lead {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+/* The terms under the claim. 500 against the lead's 700 — the same weight step
+   .lp-share-body and .lp-terms both make, and for the same reason: a list of
+   facts supports a claim, it is not the claim. */
+.lp-grade-body {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
 /* THE HAND-OFF (see Landing.tsx) — the reason to pass this on, above the fold.
    It gets the §6 6px keyline bar rather than a plate of its own: a second ink
    plate inside the wall's plate would make the composition four boxes deep,

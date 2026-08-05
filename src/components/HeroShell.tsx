@@ -148,7 +148,16 @@ export function HeroShell({
         {/* Stage readout, cornered as a plate. The hero owns it at this width
             (HeroCard sheds its duplicate — see app.css), and the pets ride
             beside the badge exactly as they do on the card: cosmetic loot
-            beside the score's mark, never inside it. */}
+            beside the score's mark, never inside it.
+            WITHHELD BEFORE SETUP, and the withholding has to happen HERE as
+            well as on the card or it does not happen at all: at ≥1024 app.css
+            hides .hero-card .hero-main and this plate IS the stage. A card
+            that refuses to print a demo-derived stage while the hero above it
+            prints the same stage is not an honest cold start at one of the two
+            widths the app ships. There is no plate at all rather than a plate
+            with a hole in it — the whole block is the stage readout, and a
+            readout of nothing is not a readout. See HeroCard's hasScore. */}
+        {!isDemo && (
         <div className="hero-stage-line hero-rise" style={{ animationDelay: '350ms' }}>
           <span
             className="hero-stage-badge"
@@ -174,15 +183,14 @@ export function HeroShell({
               <Glyph name="star" key={i} />
             ))}
           </span>
-          {/* Whose numbers. At ≥1024 the hero is the full viewport, so this
-              plate carries the stage above the fold and HeroCard's disclosure
-              is a scroll away — the one width where the loudest claim can be
-              read without the sentence that qualifies it. Inside the plate,
-              not on the field beside it: .hero-stage-line is Bone with
-              Graphite type (11.4:1), and an 11px string on the Flare field
-              would break §2.1 rule 1. The line is display:none below 1024,
-              where HeroCard's copy is the only one on screen. */}
-          {isDemo && <span className="hero-stage-note mono">Placeholder until setup</span>}
+          {/* THE "Placeholder until setup" NOTE IS GONE WITH THE CLAIM IT
+              QUALIFIED. It existed because this plate carried a demo-derived
+              stage above the fold at the one width where HeroCard's disclosure
+              is a scroll away. The plate no longer renders before setup at
+              all, so there is nothing left to qualify — a qualified fiction
+              was always the weaker of the two answers. The .hero-stage-note
+              rule stays in app.css against the day another line needs the
+              plate's quiet register. */}
           {pets.length > 0 && (
             <span
               className="hero-pets"
@@ -199,6 +207,7 @@ export function HeroShell({
             </span>
           )}
         </div>
+        )}
 
         {/* The live health index as a corner spec label — `62/100`, the §1
             trait 10 fractional label doing real work. aria-hidden, and that is
@@ -207,7 +216,14 @@ export function HeroShell({
             tree. The card keeps its readout at every width now (it is the
             drawer's subject), so this goes back to being what it looks like —
             a printed corner index, rounded to whole points, beside the card's
-            precise figure. One live source for the number, one printed one. */}
+            precise figure. One live source for the number, one printed one.
+            WITHHELD BEFORE SETUP for the same reason the plate above is: a
+            printed index is still the number. "Health 59/100" in a corner is
+            the demo score in its quietest register, and the quiet register is
+            exactly where an unearned claim survives a cleanup. The corner is
+            left empty rather than given a placeholder glyph — EMB—00 opposite
+            is the layout's spec label and it is still there. */}
+        {!isDemo && (
         <span
           className="hero-spec hero-spec-bl mono hero-rise"
           style={{ animationDelay: '420ms' }}
@@ -219,6 +235,7 @@ export function HeroShell({
               remounts the span and re-runs the stepped index. */}
           Health <span className="index-roll" key={index}>{index}</span>/100
         </span>
+        )}
 
         <button
           className="btn hero-mute"

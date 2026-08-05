@@ -107,7 +107,7 @@ were readings of a page mid-announcement. The census fixture held five achieveme
 settle check could not see it: it compares two captures 400ms apart, and **a byte comparison
 cannot detect anything that changes more slowly than it samples**. The fixture now holds what it
 qualifies for, so the app is measured at rest; the tool records every painting live region per
-row (`announcements`, empty on all eighteen) so this class of error states itself instead of
+row (`announcements`, empty on every row of the matrix) so this class of error states itself instead of
 being inferred. The cost of the three rounds was not the 1.4pp on window `@0`. It was
 `div.hero-frame`, whose section reading at `9a42bd8` was **80.02% field / 8.82% Bone** — a
 recorded band breach on a 276px composition — against **77.03 / 13.61** at rest. Two-thirds of
@@ -275,7 +275,9 @@ nobody has a number for.** Rounds 1–6 measured the app in exactly one state �
 transactions, a completed profile and 510 XP — and reported that every viewport window was inside
 the band. That sentence was true and it was about one fixture.
 
-Round 7 added three pairs, all at 375×812, and each one broke on arrival:
+Round 7 added FOUR pairs, all at 375×812, and each one broke on arrival. Three came with the
+instrument; the fourth (`cold`) came with the product change that created the screen it measures,
+and is set out after the block below:
 
 ```
 PROVENANCE: every figure in this block is docs/brand/census.json.
@@ -324,8 +326,52 @@ defect is width-independent (at 1440 with 120 rows the same run reads 92.7% fiel
 cap — a worse number, from the same cause). The check-back prompt: already on screen in every
 seeded row, `d0` is due on the frozen day. A non-empty live region: already covered, by accident,
 and now covered on purpose by `announcements`. A heavy spread-out ledger: measures nothing, per
-the window above. And `cold`, which stays commented out because day one sits between day zero
-and seeded and carries no state either of them lacks.
+the window above.
+
+**AND THEN A FOURTH PAIR WENT LIVE, BECAUSE A CHANGE MADE A SCREEN THAT DID NOT EXIST BEFORE.**
+`cold` was the pair this section listed as deliberately absent — "day one sits between day zero
+and seeded and carries no state either of them lacks" — and that reasoning was sound about the
+app as it then was. Round 7's product step ended it. Card 01 no longer prints a demo-derived
+score while `profile` is null: it prints the WEEK BLOCK, a stated run of the last seven days of
+the record (see `HeroCard`, `weekToDate`). `day0` has no rows, so it renders the block's one-line
+empty state; every `seeded` row has a profile, so it renders no block at all. The block with
+something in it — the facts line, the repeated-category list, the definition note — was on no
+row in the matrix. So the fixture was redefined to the state the change is about (six rows over
+five days, pre-setup, one of them a resist) and the pair was uncommented.
+
+```
+PROVENANCE: docs/brand/census.json, the artifact this paragraph ships with.
+   app.375x812.light.cold   doc 4972   7 windows  meanDeviation 15.83  worst @3248 dev 66.24
+      TWO band breaches + one mean.  window @3248 27.04 field / 59.75 bone
+                                     mean bone 37.91, outside 30±6
+   app.375x812.dark.cold    doc 4972   7 windows  meanDeviation  3.61  worst @3248 dev 43.42
+      ONE band breach.               window @3248 bone 8.46, under the 15 floor
+```
+
+`@3248` is the theme-twin check paying for itself again, and it is the SAME defect `day0` already
+records one window earlier (`@2436`, 28.82 / 60.09 light against 65.62 / 16.61 dark): before
+setup, `ProfileCard`'s open form is one unbroken ground taller than a viewport, and neither the
+day list nor the decision record — the two surfaces whose stripe breaks a run on the seeded page
+— has anything in it to stripe. It is a pre-setup structural run, it is not the week block, and
+it is not fixed here. It is now measured on two pairs instead of one, which is the only claim
+this section makes about it.
+
+**The week block moved `day0` toward the band on both axes and in both themes**, which is what a
+counter plate in `.hero-main`'s slot is supposed to do — a plate is the ground's OPPOSITE, so one
+block moves the two themes the right way at once (§2.1b). Measured against the artifact
+committed at `ec3aa0c`:
+
+```
+BEFORE: the census committed at ec3aa0c. AFTER: docs/brand/census.json.
+app.375x812.light.day0   mean-of-windows dev 22.16 -> 20.05   breaches 7 -> 5
+                         field 50.85 -> 51.69   bone 38.80 -> 38.26
+app.375x812.dark.day0    mean-of-windows dev 16.28 -> 15.19   breaches 4 -> 3
+                         field 63.41 -> 63.23   bone 23.62 -> 24.06
+```
+
+Every `seeded` row is BYTE-IDENTICAL across the change, and that is the design rather than luck:
+the block renders only while `profile` is null, so the twelve rows this section's earlier
+paragraphs quote measure exactly the same DOM they did before.
 
 The instrument is `npm run census`; the answer is committed at `docs/brand/census.json` and a
 test fails when it stops describing the tree. Any figure quoted about this product's pixels

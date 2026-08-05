@@ -2,7 +2,8 @@ import { useMemo, type ReactNode } from 'react'
 import { Monogram } from './Monogram.tsx'
 import { Wordmark } from './Wordmark.tsx'
 import { ArchiveCard, resistedChipLabel } from './ArchiveCard.tsx'
-import { resistedThisMonthDA } from '../engine/ledger.ts'
+import { NO_SCORE_LINE } from './HeroCard.tsx'
+import { resistedThisMonthDA, WEEK_DAYS } from '../engine/ledger.ts'
 import {
   todayISO,
   NOTE_MAX_LEN,
@@ -73,6 +74,9 @@ import { sampleLedgerRows } from '../content/sampleLedger.ts'
  *   · the hand-off's one figure is resistedChipLabel(resistedThisMonthDA(…))
  *     over the shot's own rows — the record's line, printed by the record's
  *     code, so the fold and the screenshot under it cannot disagree
+ *   · the fold's terms block reads WEEK_DAYS for the window that stands in for
+ *     the score, and the grid's first badge reads it too — and that badge
+ *     quotes NO_SCORE_LINE, HeroCard's own pre-setup disclosure, verbatim
  *   · the product shot is rendered BY <ArchiveCard> itself
  * Change a denomination, either cap, an answer, a horizon, the roster, that
  * button or that card and this page changes with them.
@@ -132,7 +136,27 @@ import { sampleLedgerRows } from '../content/sampleLedger.ts'
 export const MECHANICS: ReadonlyArray<{ title: string; body: ReactNode }> = [
   {
     title: 'Health score',
-    body: 'Five components. Shrunk for thin data. It explains; it never advises.',
+    // THE BADGE THAT WENT HALF-TRUE WHEN THE FIRST RUN CHANGED. This row read
+    // "Five components. Shrunk for thin data…" and stopped, which described the
+    // app AFTER setup and described nothing at all before it. Card 01 no longer
+    // prints a stage, a rating or a numeral while `profile` is null — every
+    // input would be DEMO_PROFILE's invented income (HeroCard's hasScore) — and
+    // prints the last WEEK_DAYS days of the user's own record in its place
+    // (weekToDate). A grid row that names only the half a stranger will not
+    // reach for weeks is the drift this page's whole discipline is against.
+    // WEEK_DAYS is read, like every other number here.
+    // THE EVIDENCE FOR THE FOLD'S TERMS BLOCK LIVES HERE, not up there. The
+    // disclosure is quoted VERBATIM off HeroCard's own NO_SCORE_LINE — the page
+    // prints the app's own words or it prints nothing — and the fold's block
+    // states the terms without it, because 62 words above .lp-share pushed the
+    // mechanic's lead under the 812px fold and 40 did not (see .lp-grade).
+    body: (
+      <>
+        No score until your own numbers are in. Your last {WEEK_DAYS} days stand
+        there, and the card says so: &ldquo;{NO_SCORE_LINE}&rdquo; Then: five
+        components, shrunk for thin data. It explains; it never advises.
+      </>
+    ),
   },
   {
     title: 'The resist',
@@ -289,7 +313,20 @@ const RULES: ReadonlyArray<{ id: string; body: ReactNode }> = [
   { id: 'honesty', body: '"I bought it anyway" logs at full XP. Honesty is never punished.' },
   {
     id: 'cold-start',
-    body: <>Under {CALIBRATION_DAYS} days the score says it is still calibrating.</>,
+    // TWO HALVES NOW, BECAUSE THE ENGINE GREW THE FIRST ONE. This rule read
+    // only the calibration clause, which is what the app says once a score
+    // EXISTS. Before setup there is no score to qualify: HeroCard withholds the
+    // stage, the rating and the numeral outright rather than disclaiming them,
+    // and HeroShell withholds the same three on the desktop plate so the
+    // withholding does not stop at a breakpoint. A rules list is a mirror of
+    // the code (see the block comment above); the code moved and this line had
+    // not. Both numbers are read, never typed.
+    body: (
+      <>
+        No score until your numbers are in. Under {CALIBRATION_DAYS} days it
+        says it is still calibrating.
+      </>
+    ),
   },
   { id: 'export', body: 'Full export, always. No account. Your data leaves when you do.' },
 ]
@@ -357,6 +394,91 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
                 Built flat. Logged in DA.
               </h2>
               <p className="lp-lede">Runs on your phone. Not on your bank.</p>
+              {/* THE TERMS THE READER IS ON — third element, and the placement
+                  is the argument.
+
+                  WHO THIS BLOCK IS FOR. The person this product is built for is
+                  bad with money and slightly ashamed of it, and the thing
+                  standing between them and the first log is not a missing
+                  feature — it is the expectation that a money app will read
+                  their year back to them and find it wanting. Every other block
+                  on this plate answers "what can it do". This one answers "what
+                  will it do to me", which is the question that gets asked
+                  first and, until now, was answered nowhere above the fold.
+
+                  WHY IT PRECEDES THE MECHANIC, given that the round before this
+                  one moved the mechanic UP for the opposite reason. The
+                  displaced block then was .lp-sub — sixty words of market
+                  argument. This is four lines of terms and it is short by
+                  construction: it states absences, and an absence needs no
+                  mechanism to explain it. MEASURED, on this tree, at 375x812:
+                  .lp-share ran 452–976 with the fold at 812, so the mechanic's
+                  tag, lead and first lines were the last things on screen one.
+                  A block of this height moves that run down by its own height
+                  and leaves the lead on screen one; the census row
+                  landing.375x812.* is where the after is recorded. If a later
+                  edit grows this block past the lede tier, the mechanic goes
+                  under the fold and the trade stops paying — that is the test
+                  to re-run, not a paragraph to re-argue.
+
+                  IT IS NOT REASSURANCE, AND THAT IS THE VOICE CONSTRAINT
+                  (§7.1). "It's okay, everyone slips" is the banned register on
+                  both counts: it comforts, and it presumes the slip. Every line
+                  here is a fact of construction stated flat — the register is
+                  dry respect, and the dryness IS the respect.
+
+                  EVERY CLAUSE IS SHIPPED CODE, and the two that can be bound
+                  are bound rather than typed:
+                    · "No score until you enter your own numbers" — HeroCard's
+                      hasScore withholds the stage, the rating and the numeral
+                      while `profile` is null, and HeroShell withholds the same
+                      three on the desktop plate so it does not stop at a
+                      breakpoint.
+                    · the last-N-days line reads WEEK_DAYS; the disclosure
+                      itself is quoted verbatim from HeroCard's NO_SCORE_LINE on
+                      badge 01/08 below, the same binding RESIST_LABEL carries.
+                    · "Days are counted, never chained" — the week block's
+                      `daysLogged` is a count and structurally cannot become a
+                      run (weekToDate hands over no per-day array), and nothing
+                      in the product renders one. The one badge that reads days
+                      (achievements.ts `streak-7`) computes the LONGEST run ever
+                      over the whole ledger and is earn-only, so there is no
+                      counter to reset and nothing to take back (Trust Rule 2).
+                      Scoped on purpose, twice over: claiming "no streak
+                      anywhere" would be false, and PRINTING the retention
+                      register in order to deny it is the same defect one level
+                      down — noVerdict.test.ts holds this page to the same four
+                      registers as the app, and caught the first draft of this
+                      line doing exactly that.
+                    · "No target line on the record" — ArchiveCard is never
+                      handed the profile, so `budgeted` has no path to it; the
+                      card states the same scope in its own words inside the
+                      shot below.
+                    · "It reads like any other" — Trust Rule 3. LOG_TX pays
+                      XP_REWARDS.logExpense whatever the row says, and no
+                      surface colours, ranks or compares a day.
+                  noVerdict.test.ts asserts the whole set against the rendered
+                  app rather than against this comment. */}
+              <div className="lp-grade">
+                <p className="lp-grade-tag">No verdict</p>
+                <p className="lp-grade-lead">Nothing here grades you.</p>
+                {/* FOUR CLAIMS AND A CLOSER, AND THE LENGTH IS A CONSTRAINT
+                    RATHER THAN AN EDIT. Measured at 375x812: this block is
+                    357px at 62 words and 253px at 40, and .lp-share sits
+                    directly under it — at 62 words the mechanic's lead crossed
+                    the fold, which is the exact cost the placement note above
+                    says this trade must not pay. So the EVIDENCE moved to the
+                    spec sheet, where evidence belongs on this page: badge 01/08
+                    quotes NO_SCORE_LINE verbatim, the same division of labour
+                    .lp-share and the product shot already run on. What stays
+                    here is the terms. */}
+                <p className="lp-grade-body">
+                  No score until you enter your own numbers. Your last{' '}
+                  {WEEK_DAYS} days stand there instead. Days are counted, never
+                  chained: no run to break, no day to lose. Log the week you
+                  would rather not. It reads like any other.
+                </p>
+              </div>
               {/* THE HAND-OFF — the reason to send this to someone, above the
                   fold, on the accent bar. See HAND_OFF_TITLE above for why the
                   row is an index into MECHANICS and not a sentence.

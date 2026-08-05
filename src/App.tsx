@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState, type RefObject } from 'react'
 import { RESIST_XP_DAILY_CAP } from './engine/xp.ts'
 import { historyDays } from './engine/profile.ts'
+import { weekToDate } from './engine/ledger.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
@@ -137,6 +138,14 @@ export default function App({
   // no longer takes it: a day total is an exact fact from day one, so a 90-day
   // index on that card made accurate figures look provisional (see ArchiveCard).
   const loggedDays = useMemo(() => historyDays(state.transactions, today), [state.transactions, today])
+  // THE LAST SEVEN DAYS, for the card that has no score to print yet (see
+  // HeroCard's hasScore). A third reader of the two props ArchiveCard already
+  // takes — transactions and a day — and nothing else: no profile, no xp, no
+  // achievements, so no engagement figure and no budget can reach it even by a
+  // later edit (Trust Rule 1, kept structurally rather than by convention).
+  // Memoised like every derivation around it and for the reason spelled out
+  // above `pets`: useRewards schedules two extra renders per grant.
+  const week = useMemo(() => weekToDate(state.transactions, today), [state.transactions, today])
   // Counting loop with an early exit, not filter().length: the old form
   // allocated an intermediate array over the whole ledger to answer one
   // boolean, and it answers the same after the third resist of the day as
@@ -439,6 +448,10 @@ export default function App({
       // simulator can never disagree about it.
       historyDays={loggedDays}
       isDemo={isDemo}
+      // What the card prints INSTEAD of a score it has not earned. Handed down
+      // rather than derived in the card so the derivation stays testable
+      // without a DOM and so the memo lives with every other one.
+      week={week}
     />,
     <LogCard
       key="log"
