@@ -24,6 +24,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, because part of the suite reads PAST census artifacts
+          # out of git. §2.1b.3's copy-height table cites figures carried by
+          # specific commits, and census.test.ts binds each line by running
+          # `git show <sha>:docs/brand/census.json` rather than trusting the
+          # prose — which is the whole point, since three of those figures were
+          # once wrong with a green suite. checkout's default depth of 1 leaves
+          # those SHAs unreachable and the test dies on an opaque git error.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:

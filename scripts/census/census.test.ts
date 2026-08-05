@@ -940,14 +940,29 @@ describe('the window reading measures screens, not documents', () => {
     // this reads them out of git rather than trusting the prose.
     const flat = (s: string) => s.replace(/\s+/g, ' ')
     const doc = flat(readFileSync(new URL('docs/brand/DESIGN-SYSTEM.md', REPO_ROOT), 'utf8'))
-    const committed = (sha: string): Census =>
-      JSON.parse(
-        execFileSync('git', ['show', `${sha}:docs/brand/census.json`], {
+    const committed = (sha: string): Census => {
+      let raw: string
+      try {
+        raw = execFileSync('git', ['show', `${sha}:docs/brand/census.json`], {
           cwd: REPO_ROOT,
           encoding: 'utf8',
           maxBuffer: 32 * 1024 * 1024,
-        }),
-      ) as Census
+        })
+      } catch (err) {
+        // A shallow clone reaches none of these commits and git fails with a
+        // message about a bad object, which reads like the artifact is missing
+        // rather than the history. CI checks out with fetch-depth: 0 for this
+        // reason; say so, so the next person debugging a red build is not
+        // hunting a file that is present and fine.
+        throw new Error(
+          `Could not read docs/brand/census.json at ${sha}. This test reads ` +
+            `historical artifacts out of git, so it needs full history — a ` +
+            `shallow clone (git clone --depth, or actions/checkout without ` +
+            `fetch-depth: 0) cannot satisfy it. Underlying error: ${(err as Error).message}`,
+        )
+      }
+      return JSON.parse(raw) as Census
+    }
 
     /** One row of the table: [block height, carrier commit or null for HEAD's artifact]. */
     const TABLE: Array<[string, string | null]> = [
