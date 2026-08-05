@@ -11,3 +11,10 @@ vitest-report.json
 # committed artifact (docs/brand/census.json); the PNGs are ~40MB of evidence
 # for one run on one machine and would bloat the history within a round.
 docs/brand/census-shots/
+
+# Adversarial auditors write throwaway Chromium probes here (AX-tree dumps,
+# heading-outline walks). They are read-only agents by contract and their
+# scratch tooling is not part of the product; prior rounds kept probes in the
+# session scratchpad. Ignored rather than deleted so a running audit keeps its
+# working files.
+scripts/_audit/
