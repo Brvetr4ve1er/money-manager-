@@ -248,125 +248,148 @@ export function ProfileCard({
               </label>
             </div>
 
+            {/* CONSTRAINT §2.1b — the three optional groups carry the COUNTER
+                plate, and the required income/essentials pair above does not.
+                Open, this card is one viewport of one unbroken ground (§2.1b.2
+                names it the pre-setup structural run, measured on the day0 and
+                cold pairs); a plate is the ground's opposite, so plating the
+                three groups interrupts the run in light and in dark at once.
+                The pair above stays on the paper deliberately: the two amounts
+                that make setup finishable are not put inside a box the optional
+                sections share.
+                THE PLATE IS THE INNER DIV, NEVER THE <fieldset>, and that is
+                §2.1: a first-child <legend> is the UA's RENDERED LEGEND, so a
+                background on the fieldset starts at the legend's vertical
+                middle and cuts the label in half — top half on the card's Bone,
+                bottom half on the plate's Espresso at 1.16:1. The legend stays
+                on the paper and the controls take the ground. See
+                .profile-fields.counter-plate in app.css, for that and for the
+                bleed that keeps the fields at their 275px measure. */}
             <fieldset className="profile-group">
               <legend className="field-label">Emergency fund — optional</legend>
-              <label className="field-wrap">
-                <span className="field-label">Emergency fund (DA)</span>
-                <input
-                  className="field mono"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="Blank = not counted"
-                  value={ef}
-                  onChange={(e) => {
-                    setEf(e.target.value)
-                    clearError()
-                  }}
-                  {...fieldA11y('ef')}
-                />
-              </label>
-            </fieldset>
-
-            <fieldset className="profile-group">
-              <legend className="field-label">Revolving debt — optional</legend>
-              <div className="log-row">
+              <div className="profile-fields counter-plate">
                 <label className="field-wrap">
-                  <span className="field-label">Debt balance (DA)</span>
+                  <span className="field-label">Emergency fund (DA)</span>
                   <input
                     className="field mono"
                     type="text"
                     inputMode="decimal"
                     placeholder="Blank = not counted"
-                    value={debtBalance}
+                    value={ef}
                     onChange={(e) => {
-                      setDebtBalance(e.target.value)
+                      setEf(e.target.value)
                       clearError()
                     }}
-                    {...fieldA11y('debtBalance')}
-                  />
-                </label>
-                <label className="field-wrap">
-                  <span className="field-label">Minimum payment (DA/mo)</span>
-                  <input
-                    className="field mono"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={debtMinimum}
-                    onChange={(e) => {
-                      setDebtMinimum(e.target.value)
-                      clearError()
-                    }}
-                    {...fieldA11y('debtMinimum')}
+                    {...fieldA11y('ef')}
                   />
                 </label>
               </div>
             </fieldset>
 
             <fieldset className="profile-group">
-              <legend className="field-label">Savings goal — optional</legend>
-              <div className="log-row">
-                <label className="field-wrap">
-                  <span className="field-label">Goal name</span>
-                  <input
-                    className="field"
-                    type="text"
-                    placeholder="e.g. Laptop"
-                    value={goalName}
-                    onChange={(e) => {
-                      setGoalName(e.target.value)
-                      clearError()
-                    }}
-                    {...fieldA11y('goalName')}
-                  />
-                </label>
-                <label className="field-wrap">
-                  <span className="field-label">Target (DA)</span>
-                  <input
-                    className="field mono"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={goalTarget}
-                    onChange={(e) => {
-                      setGoalTarget(e.target.value)
-                      clearError()
-                    }}
-                    {...fieldA11y('goalTarget')}
-                  />
-                </label>
+              <legend className="field-label">Revolving debt — optional</legend>
+              <div className="profile-fields counter-plate">
+                <div className="log-row">
+                  <label className="field-wrap">
+                    <span className="field-label">Debt balance (DA)</span>
+                    <input
+                      className="field mono"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Blank = not counted"
+                      value={debtBalance}
+                      onChange={(e) => {
+                        setDebtBalance(e.target.value)
+                        clearError()
+                      }}
+                      {...fieldA11y('debtBalance')}
+                    />
+                  </label>
+                  <label className="field-wrap">
+                    <span className="field-label">Minimum payment (DA/mo)</span>
+                    <input
+                      className="field mono"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={debtMinimum}
+                      onChange={(e) => {
+                        setDebtMinimum(e.target.value)
+                        clearError()
+                      }}
+                      {...fieldA11y('debtMinimum')}
+                    />
+                  </label>
+                </div>
               </div>
-              <div className="log-row">
-                <label className="field-wrap">
-                  <span className="field-label">Saved so far (DA)</span>
-                  <input
-                    className="field mono"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={goalCurrent}
-                    onChange={(e) => {
-                      setGoalCurrent(e.target.value)
-                      clearError()
-                    }}
-                    {...fieldA11y('goalCurrent')}
-                  />
-                </label>
-                <label className="field-wrap">
-                  <span className="field-label">Monthly contribution (DA)</span>
-                  <input
-                    className="field mono"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={goalContribution}
-                    onChange={(e) => {
-                      setGoalContribution(e.target.value)
-                      clearError()
-                    }}
-                    {...fieldA11y('goalContribution')}
-                  />
-                </label>
+            </fieldset>
+
+            <fieldset className="profile-group">
+              <legend className="field-label">Savings goal — optional</legend>
+              <div className="profile-fields counter-plate">
+                <div className="log-row">
+                  <label className="field-wrap">
+                    <span className="field-label">Goal name</span>
+                    <input
+                      className="field"
+                      type="text"
+                      placeholder="e.g. Laptop"
+                      value={goalName}
+                      onChange={(e) => {
+                        setGoalName(e.target.value)
+                        clearError()
+                      }}
+                      {...fieldA11y('goalName')}
+                    />
+                  </label>
+                  <label className="field-wrap">
+                    <span className="field-label">Target (DA)</span>
+                    <input
+                      className="field mono"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={goalTarget}
+                      onChange={(e) => {
+                        setGoalTarget(e.target.value)
+                        clearError()
+                      }}
+                      {...fieldA11y('goalTarget')}
+                    />
+                  </label>
+                </div>
+                <div className="log-row">
+                  <label className="field-wrap">
+                    <span className="field-label">Saved so far (DA)</span>
+                    <input
+                      className="field mono"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={goalCurrent}
+                      onChange={(e) => {
+                        setGoalCurrent(e.target.value)
+                        clearError()
+                      }}
+                      {...fieldA11y('goalCurrent')}
+                    />
+                  </label>
+                  <label className="field-wrap">
+                    <span className="field-label">Monthly contribution (DA)</span>
+                    <input
+                      className="field mono"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={goalContribution}
+                      onChange={(e) => {
+                        setGoalContribution(e.target.value)
+                        clearError()
+                      }}
+                      {...fieldA11y('goalContribution')}
+                    />
+                  </label>
+                </div>
               </div>
             </fieldset>
 

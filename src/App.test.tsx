@@ -22,6 +22,7 @@ import {
   type Transaction,
 } from './state/store.ts'
 import { XP_REWARDS } from './engine/xp.ts'
+import { LONG_DAY_ROWS } from './components/ArchiveCard.tsx'
 import { audit } from '../scripts/testing/a11yAudit.ts'
 
 // Sounds are reinforcement only; jsdom has no AudioContext, so stub the module.
@@ -1089,7 +1090,12 @@ describe('daily lesson + codex', () => {
       'HLT—01 div', // the score readout; .stage-col beside it holds the accent
       'HLT—01 div', // the card's foot: the calibration disclosure + its control
       'LOG—02 h2',
-      'LOG—02 fieldset', // the note keypad — the form's one accent-free panel
+      // The note keypad — the form's one accent-free panel. The plate is the
+      // KEY ROW inside the fieldset, never the fieldset: a first-child <legend>
+      // is the UA's rendered legend, so a background on the fieldset starts at
+      // the legend's vertical middle and cuts "CASH (DA)" in half, its lower
+      // edge landing Graphite-on-Espresso at 1.16:1 (§2.1). See LogCard.
+      'LOG—02 div',
       // Not a region of a card: the whole strip IS the plate (see XpStrip).
       'xp-strip div',
       'LSN—04 p',
@@ -1138,6 +1144,143 @@ describe('daily lesson + codex', () => {
     }
     expect(striped('.decision', 'counter-plate')).toEqual(['0:true', '1:false', '2:true', '3:false'])
     expect(striped('.ledger-day', 'reading-plate')).toEqual(['0:true', '1:false', '2:true'])
+  })
+
+  it('plates the setup form’s optional groups and leaves the two required amounts on the paper', () => {
+    // CONSTRAINT §2.1b — THE PRE-SETUP STRUCTURAL RUN. Nothing seeded: with
+    // `profile` null ProfileCard renders the open form, and open it was one
+    // viewport of ONE ground. The census committed at a5add96 (tree 44ff64a,
+    // dirty) read app.375x812.light.day0 window @2436 at 27.13% field / 61.49%
+    // Bone and app.375x812.light.cold @3248 at 27.12 / 59.80, plus a mean on
+    // each — eleven waived band breaches across the two pairs, all of them this
+    // card. The SAVED branch has carried .profile-rows.counter-plate since the
+    // first plate pass; the open branch had no plate at all, which was the
+    // whole defect.
+    render(<App />)
+    const form = document.querySelector('#numbers form')!
+    // The three optional sections are the plate — and the plate is the DIV
+    // INSIDE each fieldset, never the fieldset itself. A first-child <legend>
+    // is the UA's rendered legend: the fieldset's background starts at the
+    // legend's vertical middle, so a plate there cuts the label in half and its
+    // lower edge lands Graphite-on-Espresso at 1.16:1 (§2.1). The legend stays
+    // on the card's Bone paper at 11.4:1 and the controls take the ground.
+    // An equality, not a count: a fourth group joining, or one silently losing
+    // its plate, both fail here.
+    expect(
+      [...form.querySelectorAll('fieldset')].map(
+        (el) =>
+          `${el.querySelector('legend')?.textContent}: ` +
+          `${el.classList.contains('counter-plate')}/${el.querySelector(':scope > .profile-fields.counter-plate') !== null}`,
+      ),
+    ).toEqual([
+      'Emergency fund — optional: false/true',
+      'Revolving debt — optional: false/true',
+      'Savings goal — optional: false/true',
+    ])
+    // The two amounts that make setup finishable stay on the card's own paper:
+    // they are what the card is FOR, and putting them inside a box the optional
+    // sections share would read as one more thing to opt into.
+    const required = form.querySelector('.log-row')!
+    expect(required.classList.contains('counter-plate')).toBe(false)
+    expect(
+      [...required.querySelectorAll('.field-label')].map((el) => el.textContent),
+    ).toEqual(['Monthly income (DA)', 'Monthly essentials (DA)'])
+    // …and the submit stays off the plate too. §2.1 rule 2 pins the ink on any
+    // accent fill to Graphite and never flips it, and .btn-flame is Flare —
+    // 2.51:1 on the Sand the plate takes in dark against 3.02:1 on Bone, which
+    // is the same arithmetic tokens.css uses to hold this button off the
+    // archive sheet. The PERSISTENT_ACCENT loop above asserts the general rule;
+    // this pins the one control the setup form owns.
+    expect(form.querySelector('.log-actions')!.classList.contains('counter-plate')).toBe(false)
+    for (const plate of form.querySelectorAll('.counter-plate')) {
+      expect(plate.querySelector('.btn-flame')).toBeNull()
+    }
+  })
+
+  it('stripes a long ledger day’s own rows, and leaves a short day alone', () => {
+    // CONSTRAINT §2.1b — the run-length rule ONE LEVEL BELOW the day. The day
+    // stripe asserted above is the right unit until a single day is longer than
+    // a screen: the census committed at a5add96 (tree 44ff64a, dirty) read
+    // app.375x812.light.dense window @4872 at 24.53% field and its dark twin at
+    // 80.56 — the same window of the same DOM, one 1,463px run of one ground
+    // through the theme swap. The composition walk cannot see it (the day plate
+    // is x50 w275, so it is not full-bleed and is no NESTED ground); only the
+    // window reading has it.
+    const dense = Array.from({ length: LONG_DAY_ROWS + 1 }, (_, i) => ({
+      id: `dense-${i}`,
+      amountDA: 500,
+      category: 'Food',
+      date: todayISO(),
+    }))
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        transactions: [
+          ...dense,
+          // A second day at the gate exactly, which must NOT stripe: an ungated
+          // rule over-plates short days and pushes dark's mean Bone out of the
+          // 30±6 tolerance on rows that had no breach at all.
+          ...Array.from({ length: LONG_DAY_ROWS }, (_, i) => ({
+            id: `short-${i}`,
+            amountDA: 500,
+            category: 'Food',
+            date: addDaysISO(todayISO(), -1),
+          })),
+        ],
+      }),
+    )
+    render(<App />)
+    const days = [...document.querySelectorAll('.ledger-day')]
+    const rowsOf = (day: Element) =>
+      [...day.querySelectorAll('.tx')].map((el, i) => `${i}:${el.classList[1] ?? '-'}`)
+    // The long day is the READING plate (it is day 0 of the alternation), so
+    // its rows take the COUNTER plate — a plate is the ground's opposite, and a
+    // stripe that is not the opposite interrupts nothing.
+    expect(days[0].classList.contains('reading-plate')).toBe(true)
+    expect(rowsOf(days[0])).toEqual([
+      '0:counter-plate', '1:-', '2:counter-plate', '3:-', '4:counter-plate',
+      '5:-', '6:counter-plate', '7:-', '8:counter-plate',
+    ])
+    // The short day is on the archive sheet, one row under the gate, and bare.
+    expect(days[1].classList.contains('reading-plate')).toBe(false)
+    expect(rowsOf(days[1])).toEqual(['0:-', '1:-', '2:-', '3:-', '4:-', '5:-', '6:-', '7:-'])
+    // The gate is EXCEEDED, never met: LONG_DAY_ROWS rows is a day that fits.
+    expect(`${days[1].querySelectorAll('.tx').length}`).toBe(`${LONG_DAY_ROWS}`)
+  })
+
+  it('puts the opposite plate on a long day that is not itself plated', () => {
+    // The other half of "the opposite": on an UNPLATED day the sheet under the
+    // rows is the counter ground, so the stripe has to be the READING plate.
+    // One rule, two grounds, both directions — which is the same duality
+    // §2.1b uses to argue for two plates instead of one.
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        transactions: [
+          { id: 'd0', amountDA: 500, category: 'Food', date: todayISO() },
+          ...Array.from({ length: LONG_DAY_ROWS + 1 }, (_, i) => ({
+            id: `long-${i}`,
+            amountDA: 500,
+            category: 'Food',
+            date: addDaysISO(todayISO(), -1),
+          })),
+        ],
+      }),
+    )
+    render(<App />)
+    const days = [...document.querySelectorAll('.ledger-day')]
+    expect(days[1].classList.contains('reading-plate')).toBe(false)
+    expect(
+      [...days[1].querySelectorAll('.tx')].map((el) => el.classList[1] ?? '-'),
+    ).toEqual([
+      'reading-plate', '-', 'reading-plate', '-', 'reading-plate',
+      '-', 'reading-plate', '-', 'reading-plate',
+    ])
+    // And no accent ink lands on either new stripe (§2.1 rule 2, the same loop
+    // the plate test above runs over the whole tree).
+    for (const plate of document.querySelectorAll('.tx.counter-plate, .tx.reading-plate')) {
+      expect(plate.querySelector('.btn-gold, .btn-data, .btn-flame, .stage-badge')).toBeNull()
+    }
   })
 
   it('plates the archive’s head without swallowing the day list into it', () => {

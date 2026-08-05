@@ -650,10 +650,10 @@ describe('the fixtures do not rot', () => {
  *
  * The finding that produced it, and the reason this exists at all: the
  * document average is the arithmetic mean of regimes that never appear
- * together. app.375x812.light.seeded in docs/brand/census.json reads 56.59
- * field / 34.29 Bone over the whole document, while its seven viewport windows
- * run 58.40, 49.05, 68.84, 53.43, 48.70, 44.92 and 73.98 percent field.
- * Nobody sees 56.59/34.29. So the windows are measured too, and where the two
+ * together. app.375x812.light.seeded in docs/brand/census.json reads 56.25
+ * field / 34.62 Bone over the whole document, while its seven viewport windows
+ * run 57.50, 47.65, 68.84, 53.43, 48.70, 44.92 and 73.98 percent field.
+ * Nobody sees 56.25/34.62. So the windows are measured too, and where the two
  * disagree the windows are the truth.
  *
  * WHAT THAT ROW LOOKED LIKE WHEN THIS TOOL FOUND IT, stamped: on the clean tree
@@ -851,6 +851,21 @@ describe('the window reading measures screens, not documents', () => {
     // classifier tails, not accents.
     expect(DECLARED).toEqual(['marigold', 'acid'])
     expect(ARTIFACT.law.declaredAccents).toEqual(DECLARED)
+
+    // AND THE SENTENCE ABOVE IS NOW AN ASSERTION, BECAUSE IT WAS LOAD-BEARING
+    // WHILE IT WAS ONLY A COMMENT. §2.1b.1's `.lp-foot` waiver spent four
+    // rounds calling that footer "an approved Marigold + Cobalt + Bone lockup"
+    // — a claim this comment already contradicted, two hundred lines up, in a
+    // test that passed the whole time. A comment cannot lose an argument with
+    // another comment; a test can.
+    for (const sheet of ['tokens.css', 'app.css', 'landing.css']) {
+      const css = readFileSync(new URL(`src/styles/${sheet}`, REPO_ROOT), 'utf8')
+      // Every REFERENCE, ignoring the declarations tokens.css makes: the
+      // palette is complete on purpose (§6 ships all twelve) and unused is not
+      // the same thing as absent.
+      const used = [...css.matchAll(/var\(\s*(--(?:cobalt|signal|moss))\s*[),]/g)].map((m) => m[1])
+      expect(`${sheet}: ${used.join()}`).toBe(`${sheet}: `)
+    }
   })
 
   it('states the amended law once, and the artifact carries the same numbers', () => {
@@ -1049,73 +1064,106 @@ describe('the window reading measures screens, not documents', () => {
    * waiver is the same rot as a stale figure in prose. Closing one means
    * deleting its line here, which is the smallest possible ceremony for the
    * only good news this list can carry.
+   *
+   * TWENTY-FIVE OF THE THIRTY ENTRIES THIS LIST CARRIED WERE DELETED IN ONE
+   * CHANGE, AND THE DELETIONS ARE THE POINT. Sixteen window/mean breaches sat
+   * on the three 375px fixtures the previous round added, and fourteen section
+   * breaches on two elements. What closed them:
+   *
+   *   `div.hero-frame` bone 13.61, x10   .hero-word-col's block padding went
+   *     --s2 -> --s3 (app.css). One declaration, one 8px step on the grid, ten
+   *     rows, and no document height anywhere moved.
+   *   day0 + cold, x11                   the three optional groups of
+   *     ProfileCard's open setup form took .counter-plate (app.css,
+   *     ProfileCard.tsx). The saved branch already had a plate; the open branch
+   *     had none, and open it is one viewport of one ground.
+   *   dense, x4 of 5                     a long day now stripes its own rows in
+   *     the day's opposite plate (ArchiveCard's LONG_DAY_ROWS).
+   *
+   * The one dense entry that remains is below, and it is a decision rather than
+   * a deferral: see its comment for the duty cycle that would close it and why
+   * that is refused.
    */
-  const HERO_FRAME = 'section div.hero-frame @0: bone 13.61 under the 15 band'
-  const PHONE_APP_ROWS = [
-    'app.375x812.dark.cold',
-    'app.375x812.dark.day0',
-    'app.375x812.dark.dense',
-    'app.375x812.dark.seeded',
-    'app.375x812.dark.seeded.breakdown',
-    'app.375x812.light.cold',
-    'app.375x812.light.day0',
-    'app.375x812.light.dense',
-    'app.375x812.light.seeded',
-    'app.375x812.light.seeded.breakdown',
-  ]
 
   /** Window/mean band breaches that are recorded and argued. Row id -> verbatim. */
   const WINDOW_WAIVERS: Record<string, string[]> = {
-    // §2.1b.2: before setup ProfileCard's open form is one unbroken ground
-    // taller than a viewport, and neither the day list nor the decision record
-    // has anything in it to stripe. Named there as a pre-setup structural run,
-    // measured on two pairs, and explicitly "not fixed here".
-    'app.375x812.light.day0': [
-      'window @2436: field 27.13 under the 35 band',
-      'window @2436: bone 61.49 over the 55 band',
-      'mean field 50.79 outside 60±8',
-      'mean bone 39.30 outside 30±6',
-    ],
-    'app.375x812.dark.day0': [
-      'window @3248: bone 14.84 under the 15 band',
-      'window @3398: bone 14.23 under the 15 band',
-      'mean bone 22.92 outside 30±6',
-    ],
-    'app.375x812.light.cold': [
-      'window @3248: field 27.12 under the 35 band',
-      'window @3248: bone 59.80 over the 55 band',
-      'mean bone 37.92 outside 30±6',
-    ],
-    'app.375x812.dark.cold': ['window @3248: bone 8.35 under the 15 band'],
-    // §2.1b.2: one dense day is one unbroken ground run — ArchiveCard's stripe
-    // alternates per `ledger-day`, so a day with 24 rows in it has nothing to
-    // alternate. @4872 is the theme-twin check paying for itself: 24.53% field
-    // in light and 80.56% in dark, the same window of the same DOM, one defect.
-    'app.375x812.light.dense': [
-      'window @4872: field 24.53 under the 35 band',
-      'window @4872: bone 69.98 over the 65 cap',
-      'mean field 51.51 outside 60±8',
-      'mean bone 40.29 outside 30±6',
-    ],
-    'app.375x812.dark.dense': ['window @4872: field 80.56 over the 80 band'],
+    // A DECISION, NOT A DEFERRAL. The dense day's run is broken — every one of
+    // this row's nine windows is inside the band, and its twin
+    // (app.375x812.light.dense) is inside on the mean as well, with 1.04pp of
+    // room. What is left is a DOCUMENT MEAN, 0.59pp over the 30±6 tolerance, on
+    // a fixture built to be adversarial (24 rows on one day).
+    //
+    // THE FIX EXISTS AND IS REFUSED, WHICH IS WHY THIS IS A DECISION. The sub-
+    // day stripe's two plates are DUALS (§2.1b: a plate is the ground's
+    // opposite), so any duty cycle that pulls light's mean Bone down pushes
+    // dark's up by nearly as much, and the corridor satisfying both at once is
+    // about half a point wide. Measured on this tree, both dense rows:
+    // 1-in-2 gives light 34.96 and dark 36.59; 2-in-5 gives light 35.97 and dark
+    // 35.59 — inside by 0.03 and 0.41. Taking 2-in-5 would delete this entry
+    // and buy two rows that a single re-wrap re-opens, by choosing a modulus so
+    // a mean lands inside a tolerance. §2.1b.1 forbids exactly that move on the
+    // landing ("the answer was not to relengthen the wall until the grid
+    // sampled somewhere kinder") and it is the same move here. So the stripe
+    // stays at one in two — the alternation the day groups already use — and
+    // this number is pinned instead, where a drift in either direction fails.
+    'app.375x812.dark.dense': ['mean bone 36.59 outside 30±6'],
   }
 
   /** Section/run breaches that are recorded and argued. Row id -> verbatim. */
   const COMPOSITION_WAIVERS: Record<string, string[]> = {
-    // §2.1b.1's closing paragraph: `.lp-foot` is §5C's PLATE, an approved
-    // Marigold + Cobalt + Bone lockup, so its ACCENT bucket is holding the
-    // counter's role and the Bone floor is reading the wrong two buckets. No
-    // exemption is carved into compositionBreaches — that would need a selector
-    // or a heuristic, and the walk holds no per-page knowledge — so the breach
-    // stays recorded and the disposition lives in the law and here.
+    // §2.1b.1's closing paragraphs — A DECISION, NOT A DEFERRAL. `.lp-foot` is
+    // §5C's PLATE — "horizontal lockup on marigold/cobalt", taking the MARIGOLD
+    // branch of that slash — in which the ACCENT bucket holds the COUNTER's
+    // role. The band is measuring the wrong two buckets for this one
+    // composition. No exemption is carved into compositionBreaches — that would
+    // need a selector or a heuristic, and the walk holds no per-page knowledge —
+    // so the breach stays recorded and the disposition lives in the law and
+    // here.
+    //
+    // THIS ENTRY SAID "an approved Marigold + Cobalt + Bone lockup" AND THE
+    // TREE HAS NEVER PAINTED A COBALT PIXEL. `tokens.cobalt` is 0.00 on every
+    // row of the artifact, no stylesheet references `var(--cobalt)`, and the
+    // test ~250 lines above ("nothing binds cobalt, signal or moss to a role")
+    // said so in its comment the whole time and asserts it now. One file held
+    // both halves of a contradiction and stayed green, because the waiver's
+    // NUMBER was pinned and its ARGUMENT was prose — round 7's failure mode
+    // with the premise and the measurement swapped. What the section actually
+    // paints, at 375 / at 1440:
+    //   Espresso  the section's field                  61.58 / 67.41
+    //   Marigold  the lockup's plate                   30.80 / 27.98
+    //   Graphite  the ink and keyline INSIDE the plate  4.76 / 2.09
+    //   Bone      the section's counter                 2.85 / 2.52
+    // Two grounds and four tones, nested so that neither surface carries more
+    // than three (§1 trait 06): Espresso + Marigold + Bone outside, Marigold +
+    // Graphite in. THE DISPOSITION SURVIVES THE CORRECTION because it never
+    // rested on the triad. It rests on §2.1b.1's preceding paragraph, which
+    // scopes accent to the DOCUMENT — the accent bucket is 1.32% at 375 and
+    // 1.54% at 1440, inside the 2% law, of which Marigold is 1.02 and 1.40 —
+    // and on Marigold being §2's one accent that legally carries body copy
+    // (Graphite on Marigold 6.38:1). The Bone floor is under because Marigold
+    // is doing the form's job here, not because Bone was skimped.
+    //
+    // THE FIX EXISTS AND IS REFUSED, AND NAMING ITS PRICE IS WHY THIS ENTRY IS
+    // A DECISION. Plating `nav.lp-foot-links` in Bone is a ~48px band the full
+    // width of the plate; against a section 252px tall at 375 and 250px at 1440
+    // that is well over ten points of Bone in both, i.e. cheap and sufficient.
+    // It buys that with a THIRD ground in the footer — a second one standing
+    // directly on the section's own field, where §5C authorises exactly one —
+    // and by re-roling the links from Bone-on-Espresso 13.4:1 to
+    // Graphite-on-Bone. §2.1 forbids designing around the classification, so
+    // this is not deferred work and no future round should price it again: it
+    // is closed as WONTFIX, and the numbers are pinned here so a drift fails.
+    //
+    // AND THE REFUSAL IS CHECKED NOW, NOT PROMISED. The test below pins all
+    // four buckets of the section on all four rows — the breach string pins
+    // only Bone, so a repaint that kept `bone 2.85` and moved everything else
+    // used to pass — and pins Cobalt at zero. design.test.ts's §5C block pins
+    // the footer's grounds, inks and keylines in landing.css, so the plate
+    // priced above fails there by name if anyone ships it.
     'landing.375x812.light.fresh': ['section footer.lp-foot @7129: bone 2.85 under the 15 band'],
     'landing.375x812.dark.fresh': ['section footer.lp-foot @7129: bone 2.85 under the 15 band'],
     'landing.1440x900.light.fresh': ['section footer.lp-foot @4718: bone 2.52 under the 15 band'],
     'landing.1440x900.dark.fresh': ['section footer.lp-foot @4718: bone 2.52 under the 15 band'],
-    // §2.1b.2's fourth finding: the app's own instance of the hero band §2
-    // names, 1.39pp under the floor, identical in both themes. Open, argued,
-    // not closed.
-    ...Object.fromEntries(PHONE_APP_ROWS.map((id) => [id, [HERO_FRAME]])),
   }
 
   it('admits no band breach that is not argued in the design system', () => {
@@ -1135,6 +1183,112 @@ describe('the window reading measures screens, not documents', () => {
     for (const id of [...Object.keys(WINDOW_WAIVERS), ...Object.keys(COMPOSITION_WAIVERS)]) {
       expect(`${id}: ${id in ARTIFACT.rows}`).toBe(`${id}: true`)
     }
+  })
+
+  it('checks the lp-foot waiver against the composition it argues from', () => {
+    /**
+     * A WAIVER PINS ITS NUMBER; NOTHING PINNED ITS ARGUMENT, AND THE ARGUMENT
+     * WAS WRONG FOR FOUR ROUNDS. The entry above claimed an approved
+     * `Marigold + Cobalt + Bone` lockup on a page that paints no Cobalt at all,
+     * and the suite could not notice because the only checked thing was the
+     * string `bone 2.85`. That is exactly the shape of the defect this whole
+     * describe block exists to prevent, one level up: a premise surviving after
+     * it stopped being true, or in this case after never having been.
+     *
+     * So the disposition's load-bearing facts are checked here, each against
+     * the artifact rather than against prose.
+     */
+
+    // ONE. The whole four-bucket vector, not just the bucket that breached. The
+    // argument is "the accent bucket is holding the counter's role", which is a
+    // claim about the RELATIVE sizes of all four; a repaint that dropped the
+    // Marigold plate and left Bone at 2.85 would falsify it while leaving the
+    // waived breach string untouched.
+    const SECTION: Record<string, string> = {
+      'landing.375x812.light.fresh':
+        '@7129 252px held field 61.58 bone 2.85 graphite 4.76 accent 30.80',
+      'landing.375x812.dark.fresh':
+        '@7129 252px held field 61.58 bone 2.85 graphite 4.76 accent 30.80',
+      'landing.1440x900.light.fresh':
+        '@4718 250px held field 67.41 bone 2.52 graphite 2.09 accent 27.98',
+      'landing.1440x900.dark.fresh':
+        '@4718 250px held field 67.41 bone 2.52 graphite 2.09 accent 27.98',
+    }
+    const read = (id: string): string => {
+      const s = ARTIFACT.rows[id].composition.sections.find((r) => r.label === 'footer.lp-foot')
+      if (s === undefined) return 'no footer.lp-foot section'
+      const buckets = BUCKET_ORDER.map((b) => `${b} ${s.pct[b].toFixed(2)}`).join(' ')
+      return `@${s.top} ${s.height}px ${s.held ? 'held' : 'sequence'} ${buckets}`
+    }
+    for (const [id, expected] of Object.entries(SECTION)) {
+      expect(`${id}: ${read(id)}`).toBe(`${id}: ${expected}`)
+      // Every waived row is a row whose waiver names this section, and vice
+      // versa: the two lists cannot drift apart.
+      expect(`${id}: ${(COMPOSITION_WAIVERS[id] ?? []).join(' | ')}`).toContain('footer.lp-foot')
+    }
+    expect(Object.keys(SECTION).sort()).toEqual(Object.keys(COMPOSITION_WAIVERS).sort())
+
+    // TWO. The two themes of one page must measure alike (§2.1b). This section
+    // measures IDENTICALLY, which is stronger, and it is a fact about how it is
+    // built: every tone `.lp-foot` names resolves to a token tokens.css holds
+    // out of the ground swap (design.test.ts's §5C block asserts that end).
+    // A theme-dependent tone in there splits these two readings.
+    expect(read('landing.375x812.dark.fresh')).toBe(read('landing.375x812.light.fresh'))
+    expect(read('landing.1440x900.dark.fresh')).toBe(read('landing.1440x900.light.fresh'))
+
+    // THREE. The half of the argument that is a LAW rather than a reading: the
+    // 30.80% Marigold is legal because scarcity is a document property, so the
+    // document had better still be inside it. If the accent ever exceeds the
+    // document cap, "§5C would become illegal" stops being the answer and this
+    // waiver has to be re-argued from the start.
+    for (const id of Object.keys(SECTION)) {
+      const accent = ARTIFACT.rows[id].buckets.accent.pct
+      expect(`${id}: accent ${accent} within ${SCROLLING_FORM.accentMax}`).toBe(
+        `${id}: accent ${accent} within ${accent <= SCROLLING_FORM.accentMax ? SCROLLING_FORM.accentMax : 'THE DOCUMENT LAW IS BREACHED'}`,
+      )
+    }
+
+    // FOUR. The claim the entry used to make, pinned as the fact it is. No row
+    // of the matrix paints Cobalt, so no composition in this repo can be an
+    // approved `Marigold + Cobalt + Bone` triad, and the sentence cannot come
+    // back into the waiver without this failing.
+    for (const [id, row] of Object.entries(ARTIFACT.rows)) {
+      expect(`${id}: cobalt ${row.tokens.cobalt}`).toBe(`${id}: cobalt 0`)
+    }
+
+    // FIVE. §2.1b.1 argues this waiver in prose and quotes six figures of the
+    // same section plus the two document accents, and not one of them was bound
+    // to the file it claims to read — which is §2.1b's own rule ("quote the row
+    // id, or stamp the tree") unenforced on the paragraph that needs it most,
+    // since the prose IS the argument here. Whitespace-collapsed, like every
+    // other prose binding in this file: reflowing must not fail, changing a
+    // number must.
+    const doc = readFileSync(new URL('docs/brand/DESIGN-SYSTEM.md', REPO_ROOT), 'utf8').replace(
+      /\s+/g,
+      ' ',
+    )
+    const foot = (id: string): RegionStat =>
+      ARTIFACT.rows[id].composition.sections.find((r) => r.label === 'footer.lp-foot')!
+    const phone = foot('landing.375x812.light.fresh')
+    const wide = foot('landing.1440x900.light.fresh')
+    const four = (r: RegionStat) => BUCKET_ORDER.map((b) => r.pct[b].toFixed(2))
+    const [pf, pb, pg, pa] = four(phone)
+    const [wf, wb, wg, wa] = four(wide)
+    expect(doc).toContain(
+      `**${pf}% field / ${pb}% Bone / ${pg}% Graphite / ${pa}% accent, ` +
+        `deviation ${phone.deviation}** at 375`,
+    )
+    expect(doc).toContain(`**${wf} / ${wb} / ${wg} / ${wa}, deviation ${wide.deviation}** at 1440`)
+    expect(doc).toContain(`accent ${pa}% at 375 and ${wa}% at 1440`)
+    // The document-scope half, which is the law rather than the reading.
+    const accent = (id: string) => ARTIFACT.rows[id].buckets.accent.pct.toFixed(2)
+    expect(doc).toContain(
+      `**${accent('landing.375x812.light.fresh')}% at 375 and ` +
+        `${accent('landing.1440x900.light.fresh')}% at 1440** against the ` +
+        `${SCROLLING_FORM.accentMax}% cap`,
+    )
+    // And the height the price is computed against, in both widths.
+    expect(doc).toContain(`a section ${phone.height}px tall at 375 and ${wide.height}px at 1440`)
   })
 })
 

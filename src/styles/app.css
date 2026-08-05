@@ -87,10 +87,73 @@
    a plate class cannot silently leave a component without the padding its own
    rule was written to zero (list resets, fieldset defaults).
    CONSTRAINT: §2.1b's per-window band — see .counter-plate in tokens.css. */
-.note-pad.counter-plate,
 .profile-rows.counter-plate,
+.profile-fields.counter-plate,
 .decision.counter-plate {
   padding: var(--s2);
+}
+
+/* NO PLATE EVER LANDS ON A <fieldset>, AND THAT IS §2.1 RATHER THAN TASTE.
+   A <legend> that is a fieldset's first child is the RENDERED LEGEND: the UA
+   places it in the block-start BORDER and starts the fieldset's border box at
+   the legend's vertical middle, so a background on the fieldset begins halfway
+   down the label. On a plate that puts the top half of one string on the card's
+   Bone paper and the bottom half on the plate's Espresso, and Graphite on
+   Espresso is 1.16:1 for the half that lands there — a label cut in two, half
+   of it invisible. It was already shipping on `.note-pad` ("CASH (DA)", cut
+   through the middle on every seeded row) and the setup form's three optional
+   groups would have made it four.
+   Floating the legend is the escape the rendering spec offers and it was
+   measured and rejected: it takes the fieldset off its shrink-to-fit width and
+   the document went 375px wide -> 446px on `app.375x812.light.day0`, i.e. a
+   horizontal scrollbar on a 375px phone.
+   So the GROUND goes on the box INSIDE the fieldset — `.note-keys` already
+   existed, `.profile-fields` is new — and the legend stays on the card's paper
+   at 11.4:1, where §2.1's table already has it. The fieldset keeps the grouping
+   semantics; the plate keeps the controls. */
+.note-keys.counter-plate { padding: var(--s2); }
+
+/* THE SETUP FORM'S THREE OPTIONAL GROUPS (see ProfileCard). Box only; the
+   ground is .counter-plate's.
+   CONSTRAINT §2.1b — THE PRE-SETUP STRUCTURAL RUN, which §2.1b.2 recorded on
+   two pairs and left open. While `profile` is null this card renders the open
+   form, and `section#numbers.card` is then a Bone card taller than a viewport
+   with nothing in it to interrupt — §2.1b's own derivation puts a card row at
+   12.8% field, the Flare gutter beside it and nothing else, and its floor at
+   ~605px of Bone before the 35% field band gives way. It sat at @2436 on day0
+   (27.13 field / 61.49 Bone) and @3248 on cold (27.12 / 59.80) and dragged both
+   means. PROVENANCE: HISTORICAL — those four figures are the artifact this
+   change replaced. Read docs/brand/census.json for the two rows now.
+   The saved branch already carried the answer — `.profile-rows.counter-plate`,
+   the line above — and the open branch had no plate at all. `.note-keys` is the
+   precedent for plating the controls of a form group, and it is the same
+   shape: a counter plate is the ground's OPPOSITE, so one plate moves light
+   (which needs field mass) and dark (which needs Bone mass) the right way at
+   once, in the same place.
+   WHAT IS DELIBERATELY LEFT OFF THE PLATE. The required income/essentials pair
+   is a bare `div.log-row` on the paper, so the two fields that make setup
+   finishable are not inside a box the optional ones share; and `div.log-actions`
+   stays off it too, because `.btn-flame` is Flare and tokens.css holds Flare
+   off the plate's Sand-in-dark half at 2.51:1. No persistent accent-inked
+   control lands inside these three (App.test.tsx's PERSISTENT_ACCENT loop). */
+.profile-fields.counter-plate {
+  /* THE BLEED IS LOAD-BEARING, and it is the same --s2 the archive head takes
+     for the same reason: .card's inline padding is --s3, so a negative --s2
+     margin with the plate's own --s2 padding returns the fields to the 275px
+     measure they had. Measured both ways on this tree: with the bleed,
+     app.375x812.light.day0's document goes 4210 -> 4306 (+96px); without it
+     every .field-wrap re-wraps a line narrower and the same document comes out
+     at 4515 (+209px, more than twice the cost) for the same plate. A plate that
+     pays its band in re-wrapped type is buying the ratio with the reading
+     measure, which is the trade §5's 12-column grid exists to refuse.
+     (4210 is the census committed at a5add96, tree 44ff64a dirty; 4306 is
+     docs/brand/census.json; 4515 is this tree with the margin removed.)
+     NOT WIDTH-SCOPED, unlike the hero foot and the archive head: both of those
+     were scoped off a measured desktop regression, and no row in the matrix
+     renders this form above 375px (every wider row is `seeded`, which has a
+     profile). A breakpoint here would be chosen rather than measured, which is
+     the one thing §2.1b says a breakpoint may not be. */
+  margin: 0 calc(var(--s2) * -1);
 }
 
 /* THE HERO'S FOOT PLATE (see HeroCard) — the head of the stack, which is where
@@ -313,7 +376,27 @@
   border-radius: var(--r-lg);
   corner-shape: squircle;
   corner-shape: superellipse(2.07);
-  padding: var(--s2) var(--s3);
+  /* UNIFORM --s3, not --s2 vertical / --s3 inline.
+     CONSTRAINT §2.1b.1's SECTION band, and it is the cheapest pixel in the
+     tree. `div.hero-frame` is the one qualifying ground on every 375px app row
+     (pageGround null, one section, held) and it read 77.03 field / 13.61 Bone —
+     1.39pp under the 15 floor, byte-identical in both themes, on ten rows at
+     once. This plate is 178px wide, so one 8px step of block padding either
+     side buys 178 x 16 = 2,848px^2 of Bone against the frame's 375 x 276 =
+     103,500, i.e. +2.75pp — the whole shortfall and then some, from one
+     declaration on the 8px grid (§5).
+     IT MOVES NO DOCUMENT HEIGHT: the frame's height is set by
+     `min-height: max(--s7, 34vh)` = 276px on this viewport, not by its
+     contents, so 16px more padding inside it is absorbed rather than added —
+     the section's `height` is 276 in the artifact before this change and 276
+     after, and no row's document height moved. And it touches no
+     desktop row — the >=1024 block below re-declares this padding as
+     `var(--s4) var(--s5)`.
+     PROVENANCE: HISTORICAL — 77.03 / 13.61 is the artifact this change
+     replaced, and nothing may be steered by it again. The same section in
+     docs/brand/census.json now reads 74.39 field / 16.31 Bone, deviation 30.67,
+     on all ten 375px app rows and still byte-identical across the two themes. */
+  padding: var(--s3);
 }
 /* Mark + wordmark travel as one unit at every width, and both scale off the
    lockup's font-size in em so the brick and the word can never drift apart. */
@@ -1948,6 +2031,33 @@ form > .profile-note { margin-top: var(--s1); }
   font-size: var(--fs-cap);
 }
 .tx:last-child { border-bottom: none; }
+/* THE SUB-DAY STRIPE (see LONG_DAY_ROWS in ArchiveCard). Box only; the two
+   grounds are the plates' own, and which plate a row takes is the OPPOSITE of
+   the day it sits in.
+   CONSTRAINT §2.1b — the run-length rule one level below the day. A day with 24
+   rows has nothing to alternate, so `li.ledger-day.reading-plate` ran 1,463px of
+   one ground on an 812px viewport.
+   --r-sm, not the plates' own --r-lg: 28px is a card's corner and this box is a
+   48px row — §5's radius set has exactly one value between 4 and 28 and it is
+   12. The squircle comes with the plate rule and is not re-declared.
+   --s1, because .tx's own `padding: var(--s1) 0` is (0,1,0) and declared later
+   in this file than tokens.css's `padding: var(--s2)`, so without this line the
+   plate would render as a bare fill with its type on the edge — the same
+   cascade the plates'-box list at the top of this file exists for. */
+.tx.counter-plate,
+.tx.reading-plate {
+  padding: var(--s1);
+  border-radius: var(--r-sm);
+}
+/* THE FILL OFFSET IS THE BOUNDARY on the counter plate — Espresso against the
+   Bone day around it at 13.4:1 in light, Bone against Espresso at 11.4:1 in
+   dark, both far over WCAG 1.4.11's 3:1. That is tokens.css's own argument for
+   why .counter-plate carries no keyline, and .tx's shared bottom rule would
+   otherwise draw one edge of a contour the plate is not asking for. The reading
+   plate keeps its own four-sided keyline (§1 trait 05) and re-states the bottom
+   so :last-child cannot strip one side of it. */
+.tx.counter-plate { border-bottom: 0; }
+.tx.reading-plate:last-child { border-bottom: var(--keyline-w) solid var(--keyline); }
 /* The what-it-was column. min-width: 0 is load-bearing, not tidying: a flex
    item's default min-width is auto, so one 80-char unbroken note would refuse
    to shrink and push the amount off the 320px phone. */

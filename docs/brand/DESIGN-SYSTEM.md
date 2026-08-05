@@ -94,8 +94,8 @@ An application document is not one composition. It is a sequence of them, and th
 whole-document average is a number nobody ever looks at. Measured — `app.375x812.light.seeded`
 (PROVENANCE: `docs/brand/census.json`, the committed artifact, kept current by the staleness
 hash rather than by a commit hash that ages), which is what the rule below
-means by "comes from that file": the page averages **56.59% field / 34.29% Bone** over the whole
-document, while its **seven** viewport windows run 58.40, 49.05, 68.84, 53.43, 48.70, 44.92
+means by "comes from that file": the page averages **56.25% field / 34.62% Bone** over the whole
+document, while its **seven** viewport windows run 57.50, 47.65, 68.84, 53.43, 48.70, 44.92
 and 73.98 percent field. Those seven are all inside the band below; the average they
 produce is still a number that appears on no screen, which is the point.
 
@@ -111,8 +111,16 @@ row (`announcements`, empty on every row of the matrix) so this class of error s
 being inferred. The cost of the three rounds was not the 1.4pp on window `@0`. It was
 `div.hero-frame`, whose section reading at `9a42bd8` was **80.02% field / 8.82% Bone** — a
 recorded band breach on a 276px composition — against **77.03 / 13.61** at rest. Two-thirds of
-that breach was a banner. The Bone-floor half is real, is 1.39pp under, and is identical in both
-themes.
+that breach was a banner. The Bone-floor half was real, was 1.39pp under, and was identical in
+both themes. **IT IS PAID, AND THE PRICE WAS ONE DECLARATION.** `.hero-word-col` — §5 layout A's
+single centred container, 178px wide on the phone — carried `padding: var(--s2) var(--s3)`.
+Uniform `--s3` puts 178 × 16 = 2,848px² more Bone into a 375 × 276 frame, i.e. +2.75pp against a
+1.39pp shortfall, on the 8px grid, with the ≥1024 block already re-declaring the same property so
+no desktop row moves and with the frame's `min-height` absorbing the height so no document moves
+either. The section now reads **74.39 field / 16.31 Bone, deviation 30.67** on all ten 375px app
+rows, still byte-identical across the two themes (PROVENANCE: `docs/brand/census.json`; the two
+readings before it are HISTORICAL). Ten waived breaches closed on one line, which is what a
+measured tree buys you: the cheapest pixel in the repo was findable because it had a number.
 
 **THE SETTLE PROTOCOL IS FOUR ATTEMPTS, NOT TWO, AND HALF THE MATRIX DEPENDS ON IT.** The
 sentence above describes the check as it was; the admission rule moved in the round that admitted
@@ -203,10 +211,12 @@ comparing it against the law.**
 Every figure in that paragraph is a toast figure — it was measured before the fixture was
 quiesced (see the correction above), and `66.01 / 25.28` and `59.41 / 30.30` in particular are
 window `@0` with a banner across it. The conclusion is unharmed, which is the only reason the
-paragraph stands: at rest the same pair reads **65.22 / 26.56** (dark) and **58.40 / 31.93**
-(light), and the mean-of-windows vectors are **57.70 / 33.20** and **56.76 / 34.18** — still the
+paragraph stands: at rest the same pair reads **64.32 / 27.48** (dark) and **57.50 / 32.85**
+(light), and the mean-of-windows vectors are **57.77 / 33.13** and **56.43 / 34.50** — still the
 same page to within a point. (PROVENANCE: the toast figures are HISTORICAL, from the census
-committed at `12bbf5e`; the at-rest pair is `docs/brand/census.json`.)
+committed at `12bbf5e`; the at-rest pair is `docs/brand/census.json`. Both at-rest windows moved
+0.90pp toward each other when `.hero-word-col`'s padding closed the hero band's Bone floor —
+window `@0` is the one window that plate is in.)
 
 **A plate may be scoped by width, and its undo is `unset`.** A plate is a give-back, so it
 belongs only where the window it lands in is short of the ground it carries; both of the
@@ -271,10 +281,14 @@ Accent          not re-checked. Accent stays a document property.
 
 **Accent must stay document-scoped or §5C becomes illegal.** `.lp-foot` reads accent 30.80% at
 375 and 27.98% at 1440 under a naive per-section count (PROVENANCE: `docs/brand/census.json`) — because §5C names *"THE PLATE —
-horizontal lockup on marigold/cobalt"* as a signature layout and §2 lists `Marigold + Cobalt +
-Bone` as an approved pairing. In that composition Marigold **is** a field, not an accent. §2.1b
+horizontal lockup on marigold/cobalt"* as a signature layout, and this page takes the **marigold**
+branch of that slash. In that composition Marigold **is** a field, not an accent. §2.1b
 already draws exactly this line between window-scoped budgets and document-scoped ones; the
-section reading inherits it unchanged.
+section reading inherits it unchanged. The document reading is the one that keeps it honest, and
+it is inside the law: the accent **bucket** reads **1.32% at 375 and 1.54% at 1440** against the
+2% cap, of which Marigold is 1.02 and 1.40 and the rest is classifier tail
+(PROVENANCE: `docs/brand/census.json`), which is why a 31% section may be exempted without the
+exemption being a licence.
 
 **AND THE SAME ARGUMENT DISPOSES OF `.lp-foot`'s BONE FLOOR, WHICH IS THE WORST SECTION READING
 IN THE ARTIFACT AND HAS BEEN OPEN, UNARGUED, SINCE THE THIRD READING LANDED.**
@@ -285,12 +299,32 @@ IN THE ARTIFACT AND HAS BEEN OPEN, UNARGUED, SINCE THE THIRD READING LANDED.**
 every census since the one committed at `83c9a9e`. The paragraph above exempts that section's
 ACCENT and then stops,
 which left the field/Bone split — the same buckets, the same composition, the same §5C argument —
-with no disposition anywhere in this document. Carried through: in an approved
-`Marigold + Cobalt + Bone` plate the accent bucket is holding the COUNTER'S ROLE, not an accent's.
-A 31% Marigold lockup standing on 61% Espresso is §2's 60/30 read exactly, with the counter
-painted in the third colour of an approved triad. The band is measuring the wrong two buckets for
+with no disposition anywhere in this document. Carried through: in a §5C plate the accent bucket
+is holding the COUNTER'S ROLE, not an accent's.
+A 31% Marigold lockup standing on 61% Espresso is §2's 60/30 read exactly, and Marigold is the
+one accent in this palette that legally carries body copy (Graphite on Marigold, 6.38:1, §2.1
+rule 2) — so the plate can do the counter's whole job, which is why the counter bucket is empty
+rather than skimped. The band is measuring the wrong two buckets for
 this one composition, and a Bone band added to satisfy it would be designing around a
 classification artefact — which §2.1 forbids by name.
+
+**THE SENTENCE ABOVE USED TO READ "in an approved `Marigold + Cobalt + Bone` plate", AND THE TREE
+HAS NEVER PAINTED A COBALT PIXEL.** §5C's layout name carries a slash — *marigold/cobalt*, either
+one — and this argument upgraded it into an *and*, then cited §2's approved triad as the licence
+for a composition that contains two of its three colours. The artifact says so in one field:
+`tokens.cobalt` is **0.00 on all twenty rows**, and no stylesheet in the repo references
+`var(--cobalt)` — which `scripts/census/census.test.ts` said, in the comment on a passing test,
+the whole time the waiver two hundred lines below it claimed the opposite. **A WAIVER'S NUMBER WAS
+PINNED AND ITS ARGUMENT WAS NOT**, so one file held both halves of a contradiction and the suite
+stayed green: §2.1b's failure mode with the premise and the measurement swapped. A comment cannot
+lose an argument with another comment, so that one is an assertion now too. What `.lp-foot`
+paints is two grounds and four tones, nested so neither surface carries more than three (§1 trait
+06) — Espresso field, Marigold plate, **Bone** counter (the 6px `--lp-counter` keyline and the two
+links, 13.4:1) outside; Marigold field, Graphite ink inside. The disposition is unharmed, because
+it never rested on the triad: it rests on the accent being document-scoped and on Marigold being
+legal for body copy. It is now checked rather than asserted — `census.test.ts` pins all four
+buckets of the section on all four rows and pins Cobalt at zero, and `design.test.ts`'s §5C block
+pins the footer's grounds, inks and keylines in `landing.css`.
 **THE BREACH STAYS IN THE ARTIFACT, AND THAT IS DELIBERATE.** No exemption is carved into
 `compositionBreaches`. It could only be carved by naming a selector or by inventing a heuristic,
 and §2.1b.1's whole construction is that the walk holds no per-page knowledge; a reading that got
@@ -298,6 +332,28 @@ KINDER by special case would stop being the harsher reading that is the argument
 disposition lives here and in the test: `census.test.ts` carries a per-row waiver list, each entry
 quoting the breach verbatim with the paragraph that argues it, so this breach cannot grow, cannot
 multiply and cannot be joined by an unargued one without the suite going red.
+
+**AND THE PRICE OF THE FIX IS NAMED HERE SO THAT NO FUTURE ROUND PRICES IT AGAIN.** A waiver that
+records only a refusal reads as debt, and debt gets re-opened by whoever inherits it. The breach
+IS closeable: giving `nav.lp-foot-links` a Bone plate is a ~48px band the full width of the
+plate, and against a section 252px tall at 375 and 250px at 1440 that is more than ten points of
+Bone at either width — cheap, and enough. What it buys with is a THIRD ground in the footer — a
+second one standing directly on the section's own field, where §5C authorises exactly one, the
+lockup — and a re-roling of the links from Bone-on-Espresso 13.4:1 to
+Graphite-on-Bone. That is designing around a classification artefact, which §2.1 forbids by name.
+So this is **WONTFIX, not deferred**: the four entries in `census.test.ts` are a decision with its
+price attached, and the numbers are pinned in them so a drift still fails.
+
+**AND A REFUSAL THAT LIVES ONLY IN A COMMENT IS NOT A REFUSAL.** The paragraph above is the third
+round in which this document has priced a plate it does not want; nothing in the tree stopped
+anyone from shipping it, and the waiver — which is the only thing keeping the suite green on this
+section — would have gone on passing, because the breach string it pins mentions Bone and nothing
+else. So the ground count is now an assertion: `design.test.ts`'s §5C block reads every
+`.lp-foot*` rule in `landing.css` and requires exactly two `background` declarations
+(`--lp-espresso`, `--lp-gold`), the two inks §2.1's table licenses on them, and no tone that
+`tokens.css`'s dark block redefines — which is also why this is the one composition in the matrix
+whose two themes measure identically rather than merely alike. Ship the plate priced above and
+two named tests go red in the ordinary suite, with no browser and no census run.
 
 **This reading is the harsher one, and that is the argument for it.** It was adopted because it
 *adds* breaches and removes none. On the tree of `9a42bd8`, `landing.1440x900.*` `.lp-shear` was
@@ -315,9 +371,14 @@ there.** This paragraph used to say the opposite — that the app's grounds "are
 viewport, so the composition check does not fire and the app keeps being judged by its windows" —
 and that was false in the artifact of the round that wrote it. Read the rows: every app row
 records `pageGround: null`, exactly one section, `div.hero-frame` @0, 276px and therefore
-`held: true`, and one composition breach —
-`section div.hero-frame @0: bone 13.61 under the 15 band` — on **every** 375px app row, in both
-themes. §2.1b.2 states the same finding four hundred words further down; the two halves of one
+`held: true`. That section carried `section div.hero-frame @0: bone 13.61 under the 15 band` on
+**every** 375px app row, in both themes, for four rounds. **IT IS CLOSED** — see §2.1b's opening
+block for the one declaration that closed it — and the same section reads
+**74.39% field / 16.31% Bone, deviation 30.67** today, on all ten of those rows
+(PROVENANCE: `docs/brand/census.json`; the 13.61 is HISTORICAL). The finding stands although the
+breach does not, and that is the point of keeping the
+sentence: a reading that fires only while a defect is open cannot tell you when the next one
+arrives. §2.1b.2 states the same finding four hundred words further down; the two halves of one
 document disagreed about whether the third reading applies to the app at all. It does. What is
 true, and is the point that sentence was reaching for, is that the walk needs no per-page
 knowledge to do it: `scripts/census/composition.ts` contains no `screen === 'landing'` branch,
@@ -332,10 +393,16 @@ the band. That sentence was true and it was about one fixture.
 
 Round 7 added FOUR pairs, all at 375×812, and each one broke on arrival. Three came with the
 instrument; the fourth (`cold`) came with the product change that created the screen it measures,
-and is set out after the block below:
+and is set out after the block below. **ROUND 8 PAID FIFTEEN OF THE SIXTEEN BAND BREACHES THOSE
+PAIRS ARRIVED WITH**, so every figure in the next two blocks is now HISTORICAL and the state of
+the same six rows today is the third block, at the end of this section. The old blocks stay
+because a row that broke on arrival and was then fixed is the whole case for adding it, and
+deleting the arrival reading would leave the fix looking like a preference:
 
 ```
-PROVENANCE: every figure in this block is docs/brand/census.json.
+PROVENANCE: HISTORICAL. Every figure in this block is the census committed at
+            a5add96, which stamps tree 44ff64a, dirty — the state round 7 left
+            and round 8 was pointed at. Steer by the ROUND 8 block below it.
 .day0        the app's FIRST SCREEN — profile null, ledger empty, ProfileCard's
              setup form open. Not `fresh` (that is the landing; the gate reads
              storage) and not `cold` (day one, with a log). The fixture is
@@ -371,12 +438,16 @@ PROVENANCE: every figure in this block is docs/brand/census.json.
 
 `@4872` in the dense pair is the theme-twin check paying for itself in one line: **24.53% field
 in light and 80.56% in dark, the same window of the same DOM.** That is not two defects. It is
-one ground run measured through the swap, which is precisely what the twin rule is for.
+one ground run measured through the swap, which is precisely what the twin rule is for. **And it
+is what the fix was written against**: because the two plates are duals, one rule — a long day
+striping its own rows in the day's opposite plate (`ArchiveCard`, `LONG_DAY_ROWS`) — moves 24.53
+up and 80.56 down at once. Neither number survives; that window now reads 54.52 / 41.15 in light
+and 51.56 / 44.14 in dark (PROVENANCE: `docs/brand/census.json`).
 
-The fourth finding needed no new row, only the fixture correction: **`div.hero-frame` reads
+The fourth finding needed no new row, only the fixture correction: **`div.hero-frame` read
 13.61% Bone against a 15% floor, in both themes, on every 375px app row.** The section reading
 found it as soon as the banner stopped inflating it. It is the app's own instance of the hero
-band §2 names.
+band §2 names, and it is closed — §2.1b's opening block states the declaration and the arithmetic.
 
 **What was deliberately NOT added, with the reason, because an absent row is a claim too.** The
 desktop twins of all three pairs: the drawer costs 0.8 mean-dev at 1440 and the dense day's
@@ -398,7 +469,9 @@ row in the matrix. So the fixture was redefined to the state the change is about
 five days, pre-setup, one of them a resist) and the pair was uncommented.
 
 ```
-PROVENANCE: docs/brand/census.json, the artifact this paragraph ships with.
+PROVENANCE: HISTORICAL — the census committed at a5add96, which stamps tree
+            44ff64a, dirty. All three of these band breaches are closed; see
+            the ROUND 8 block at the end of this section.
    app.375x812.light.cold   doc 4952   7 windows  meanDeviation 15.84  worst @3248 dev 65.86
       TWO band breaches + one mean.  window @3248 27.12 field / 59.80 bone
                                      mean bone 37.92, outside 30±6
@@ -411,8 +484,24 @@ records one window earlier (`@2436`, 27.13 / 61.49 light against 66.82 / 15.16 d
 setup, `ProfileCard`'s open form is one unbroken ground taller than a viewport, and neither the
 day list nor the decision record — the two surfaces whose stripe breaks a run on the seeded page
 — has anything in it to stripe. It is a pre-setup structural run, it is not the week block, and
-it is not fixed here. It is now measured on two pairs instead of one, which is the only claim
-this section makes about it.
+it was not fixed in the round that found it. It was measured on two pairs instead of one, which
+was the only claim this section made about it — and measuring it on two pairs is what made it
+worth eleven waivers to somebody.
+
+**IT IS FIXED NOW, AND THE FIX IS THE SAME SENTENCE THIS SECTION ALREADY CONTAINED.** "Neither the
+day list nor the decision record has anything in it to stripe" names the two surfaces that carry a
+plate on the seeded page — and it does not say the third thing, which is that the card doing the
+running had no plate at all. `ProfileCard`'s SAVED branch has carried
+`<ul className="profile-rows counter-plate">` since the first plate pass; its OPEN branch, the one
+this whole defect is about, was bare paper. So the three optional groups — Emergency fund,
+Revolving debt, Savings goal — take `.counter-plate` (`.note-pad` is the precedent: a plated
+`fieldset` full of form controls). The required income/essentials pair stays on the paper, and the
+`.btn-flame` submit stays off the plate, because Flare on the plate's Sand-in-dark half is 2.51:1.
+The plate bleeds `--s2` into the card's inset for the reason the archive head does — without it
+every field re-wraps a line narrower, the document grows ~305px instead of ~96, and the grid
+re-phases into new breaches at the far end. All eleven `day0` and `cold` band breaches close, and
+`app.375x812.dark.day0` becomes the best app row in the matrix at meanDeviation 2.90
+(PROVENANCE: `docs/brand/census.json`).
 
 **The week block moved `day0` toward the band on both axes and in both themes**, which is what a
 counter plate in `.hero-main`'s slot is supposed to do — a plate is the ground's OPPOSITE, so one
@@ -427,9 +516,12 @@ BEFORE = the census committed at 83c9a9e, which stamps tree ec3aa0c, dirty.
          row at all, so it cannot be the source of any figure on this line.)
 MIDDLE = the census committed at c3c6c3b, which stamps tree 83c9a9e, dirty.
          Week block in; HeroCard still printed the calibration clause here.
-AFTER  = docs/brand/census.json.  The calibration clause is withheld before
-         setup (it qualified a score this card had already refused to render —
-         see HeroCard), which is 20px off the document.
+AFTER  = the census committed at a5add96, which stamps tree 44ff64a, dirty.
+         NOT docs/brand/census.json any more — this line used to name it, and
+         round 8's setup-form plate moved both rows off it. The calibration
+         clause is withheld before setup (it qualified a score this card had
+         already refused to render — see HeroCard), which is 20px off the
+         document. Read the ROUND 8 block below for where these two rows are.
 Counts are the `breaches` ARRAY LENGTH, so each includes the two-accent advisory.
 app.375x812.light.day0   mean-of-windows dev 22.16 -> 20.05 -> 19.89
                          breaches 7 -> 5 -> 5
@@ -449,6 +541,44 @@ Every `seeded` row is BYTE-IDENTICAL across both changes, and that is the design
 the week block renders only while `profile` is null and the calibration gate only fires where
 `hasScore` is false, so the twelve rows this section's earlier paragraphs quote measure exactly
 the same DOM they did before.
+
+**THE ROUND 8 STATE OF THE SIX ROWS THIS SECTION ADDED.** Thirty waived breaches went to five: one
+window/mean entry, four `.lp-foot` sections, and every one of the ten `div.hero-frame` entries
+gone. Three changes did it and each is one idea — a uniform padding on the hero's centred
+container, a counter plate under the setup form's optional groups, a sub-day stripe inside a long
+ledger day. None of them moved a boundary until the grid sampled somewhere kinder; all three
+added ground where a run needed interrupting, which is the only move §2.1b offers.
+
+```
+PROVENANCE: docs/brand/census.json, the artifact this section ships with.
+Counts are BAND breaches — `breaches` minus the two-accent advisory every app
+row carries, so each array is one longer.
+   app.375x812.light.day0   doc 4306  6 windows  meanDeviation  8.44  worst @2436 dev 44.18
+      ZERO.  mean 56.52 field / 34.00 bone.  Worst window 37.91 / 51.77.
+   app.375x812.dark.day0    doc 4306  6 windows  meanDeviation  2.90  worst @3494 dev 22.39
+      ZERO.  mean 60.75 field / 29.30 bone — the best app row in the matrix.
+   app.375x812.light.cold   doc 5048  7 windows  meanDeviation  8.86  worst @2436 dev 44.17
+      ZERO.  mean 56.51 field / 34.43 bone.  Worst window 37.92 / 48.80.
+   app.375x812.dark.cold    doc 5048  7 windows  meanDeviation  6.95  worst @3248 dev 27.86
+      ZERO.  mean 57.09 field / 33.47 bone.  Worst window 48.03 / 43.65.
+   app.375x812.light.dense  doc 6816  9 windows  meanDeviation  9.92  worst @6004 dev 27.96
+      ZERO.  mean 57.05 field / 34.96 bone — 1.04pp inside the 30±6 tolerance.
+   app.375x812.dark.dense   doc 6816  9 windows  meanDeviation 13.19  worst @5684 dev 35.69
+      ONE, and it is waived as a DECISION:  mean bone 36.59, 0.59 over.
+      All nine of this row's windows are inside the band; what is left is a
+      document mean on the fixture built to be adversarial.
+```
+
+**The one that stays is a duty cycle, not a defect, and refusing to close it is the finding.** The
+sub-day stripe's two plates are duals, so any duty cycle that pulls light's mean Bone down pushes
+dark's up by nearly as much; the corridor that satisfies both at once is about half a point wide.
+Measured on this tree, both `dense` rows: one row in two gives light 34.96 and dark 36.59; two
+rows in five gives light 35.97 and dark 35.59 — both inside, by 0.03 and 0.41. Two-in-five closes
+the last waiver in the app and it is **refused**. 0.03pp is the width of a re-wrap, not a margin,
+and a modulus chosen so that a mean lands inside a tolerance is §2.1b.1's forbidden move with
+arithmetic instead of a paragraph. The stripe stays at one in two — the alternation the day groups
+above it already use — and the number is pinned in `census.test.ts`, where a drift in either
+direction fails.
 
 #### 2.1b.3 A paragraph of copy is a composition change, and the grid phase will bill you for it
 

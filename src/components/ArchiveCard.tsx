@@ -70,6 +70,62 @@ export const WINDOW_DAYS = 3
 export const EXPAND_STEP_DAYS = 30
 
 /**
+ * Rows a day must EXCEED before its own rows start alternating too.
+ *
+ * CONSTRAINT §2.1b — "no single ground may run longer than one viewport", one
+ * level below the day. The day stripe below breaks the archive's run per
+ * `ledger-day`, which is the right unit right up until one day is longer than a
+ * screen: the `dense` fixture puts 24 rows on one day, and one day is one
+ * plate, so that day was a single ground longer than the viewport
+ * (PROVENANCE: HISTORICAL — window @4872 read 24.53% field in light and 80.56%
+ * in dark, the SAME window of the same DOM, in the artifact this change
+ * replaced; that is the theme-twin check finding one defect twice, and neither
+ * figure survives in docs/brand/census.json — @4872 now reads 54.52 / 41.15 and
+ * 51.56 / 44.14). The composition walk structurally cannot see it: the day
+ * plate is inset inside the card, so it fails the walk's full-bleed test and is
+ * no NESTED ground. Only the window reading has it.
+ *
+ * SO A LONG DAY STRIPES ITS ROWS, in the day's OPPOSITE plate — a plate is the
+ * ground's opposite, so one rule moves light and dark the right way at once,
+ * which is §2.1b's own argument applied one level down.
+ *
+ * GATED, AND THE GATE IS MEASURED. An ungated rule fires on days that are not
+ * runs — every `seeded` day holds one to four rows — and it adds ground where
+ * the day stripe has already done the work. Measured on this tree with the gate
+ * removed: `app.375x812.light.dense` goes from ONE band breach to TWO (its mean
+ * Bone crosses the 36 limit, so the corridor is simply walked to the other end
+ * rather than closed), `app.375x812.light.seeded.breakdown`'s mean deviation
+ * goes 9.40 -> 11.14 on a row with no breach at all, and every seeded document
+ * grows — 5605 -> 5629, 6816 -> 6842 — because short days are now paying for
+ * plate boxes they did not need.
+ * 8 is the gate because it is above every day the seeded matrix holds, so the
+ * stripe cannot fire on a day that is not a run; and §2.1b's own derivation
+ * puts a Bone run's floor at ~605px with the Flare gutters either side, which
+ * a nine-row day is the first to reach.
+ *
+ * THE DUTY CYCLE IS ONE IN TWO, AND IT IS NOT TUNED. The two plates are duals,
+ * so any duty cycle that pulls light's mean Bone down pushes dark's up by
+ * almost the same amount, and the corridor that satisfies both means at once is
+ * about half a point wide. Measured on this tree, both dense rows, with
+ * everything else in this change applied:
+ *
+ *     1 in 2   light mean bone 34.96   dark mean bone 36.59  (dark 0.59 over)
+ *     2 in 5   light mean bone 35.97   dark mean bone 35.59  (both inside, by
+ *                                                             0.03 and 0.41)
+ *
+ * 2-in-5 closes one more waiver and it is REFUSED, because 0.03pp is not a
+ * margin — it is the width of a re-wrap — and because a duty cycle chosen so a
+ * mean lands inside a tolerance is §2.1b.1's forbidden move ("the answer was
+ * not to relengthen the wall until the grid sampled somewhere kinder") with a
+ * modulus instead of a paragraph. One in two is the stripe a ledger has always
+ * had and the same alternation the day groups above already use. The 0.59pp
+ * that stays is a DOCUMENT MEAN on a deliberately adversarial fixture, with all
+ * nine of that row's windows inside the band; it is waived by name in
+ * scripts/census/census.test.ts and the waiver states this trade.
+ */
+export const LONG_DAY_ROWS = 8
+
+/**
  * The record's resisted line, in the card's own words.
  *
  * EXPORTED BECAUSE THE PITCH QUOTES IT. The landing's hand-off tells a stranger
@@ -331,10 +387,21 @@ export function ArchiveCard({
                 87% of its rows being one plate. So the days ALTERNATE, which
                 is also the oldest device a ledger has. See .reading-plate in
                 tokens.css. */}
-            {shown.map((day, i) => (
+            {shown.map((day, i) => {
+              /* The day's own ground: plated days are the READING ground, the
+                 rest stand on the archive sheet (the counter ground). A row
+                 stripe has to be that ground's OPPOSITE or it interrupts
+                 nothing — inside a reading plate the opposite is the counter
+                 plate, and on the bare sheet it is the reading plate.
+                 CONSTRAINT §2.1b — see LONG_DAY_ROWS above for the gate and for
+                 the run this breaks. */
+              const dayPlated = i % 2 === 0
+              const rowPlate = dayPlated ? 'counter-plate' : 'reading-plate'
+              const stripeRows = day.rows.length > LONG_DAY_ROWS
+              return (
               <li
                 key={day.date}
-                className={i % 2 === 0 ? 'ledger-day reading-plate' : 'ledger-day'}
+                className={dayPlated ? 'ledger-day reading-plate' : 'ledger-day'}
               >
                 {/* h3, under the card's own h2 — the page keeps its single h1
                     wordmark and the outline gains a real day level. The total
@@ -359,8 +426,11 @@ export function ArchiveCard({
                   </span>
                 </h3>
                 <ul className="tx-list">
-                  {day.rows.map((t) => (
-                    <li key={t.id} className="tx">
+                  {day.rows.map((t, j) => (
+                    <li
+                      key={t.id}
+                      className={stripeRows && j % 2 === 0 ? `tx ${rowPlate}` : 'tx'}
+                    >
                       {/* A column, not a single span: the row stacks
                           what-it-was under the category. Both lines are plain
                           text inside the same <li>, so a screen reader reading
@@ -418,7 +488,8 @@ export function ArchiveCard({
                   ))}
                 </ul>
               </li>
-            ))}
+              )
+            })}
           </ul>
           {(hiddenDays > 0 || limit > WINDOW_DAYS) && (
             <div className="ledger-controls">

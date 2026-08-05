@@ -1233,6 +1233,147 @@ describe('§2.2 — the product shot is themed, not pinned', () => {
   })
 })
 
+describe('§5C — THE PLATE is two grounds, and the third one is refused in writing', () => {
+  /**
+   * THE ONE WAIVED SECTION BREACH IN THE ARTIFACT, DEFENDED BY ITS OWN SHEET.
+   *
+   * `footer.lp-foot` reads 61.58% field / 2.85% Bone at 375 and 67.41 / 2.52 at
+   * 1440 (PROVENANCE: `docs/brand/census.json`), so it is under §2.1b.1's 15%
+   * Bone floor on all four landing rows, and `census.test.ts`'s
+   * COMPOSITION_WAIVERS closes that as WONTFIX rather than deferring it. The
+   * price it refuses to pay is a THIRD ground in the footer — a Bone plate
+   * under `nav.lp-foot-links` would clear the floor at either width and put a
+   * second ground straight onto the section's own field, where §5C authorises
+   * exactly one (the lockup).
+   *
+   * A REFUSAL THAT LIVES ONLY IN A COMMENT IS NOT ENFORCED, WHICH IS THIS
+   * ROUND'S WHOLE SUBJECT. The waiver pins the breach STRING, so the number
+   * cannot drift; nothing pinned the composition the number describes, and the
+   * waiver spent four rounds asserting an "approved Marigold + Cobalt + Bone
+   * lockup" for a footer with no Cobalt in it. So the ground count is asserted
+   * here, over every `.lp-foot*` rule in the sheet rather than over a list of
+   * the ones that exist today: ship the plate that is refused and this goes red
+   * by name, in the ordinary suite, without a browser.
+   */
+
+  /** Every `selector { … }` pair in a sheet. `[^{}]` on both halves means an
+      `@media` prelude can never match as a selector — the engine skips past it
+      and matches the rules nested inside on their own, which is what a rule
+      that only asks WHICH selectors declare a ground wants. */
+  const blocks = (css: string): Array<[string, string]> =>
+    [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2].trim()])
+
+  const FOOT = blocks(LANDING).filter(([sel]) => sel.includes('.lp-foot'))
+
+  /** `prop: value` pairs for one property, tagged with the selector that
+      declares them. The leading `(?:^|;)` is what keeps `color` from also
+      matching `outline-color` and `border-color`. */
+  const declared = (prop: string): string[] =>
+    FOOT.flatMap(([sel, body]) =>
+      [...body.matchAll(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`, 'g'))].map(
+        (m) => `${sel} -> ${m[1].trim()}`,
+      ),
+    )
+
+  it('grounds the footer in Espresso and the lockup in Marigold, and stops there', () => {
+    // TWO GROUNDS. §5C's PLATE is a lockup ON a field; the field is the
+    // section and the lockup is the plate. A third entry in this list is the
+    // fix census.test.ts prices and refuses.
+    expect(declared('background')).toEqual([
+      '.lp-foot -> var(--lp-espresso)',
+      '.lp-foot-inner -> var(--lp-gold)',
+    ])
+    expect(declared('background-color')).toEqual([])
+  })
+
+  it('inks the plate in Graphite and the field in Bone, both from §2.1s table', () => {
+    // §2.1 rule 2: on any accent fill the foreground is Graphite, 6.38:1 on
+    // Marigold. Off the plate the links stand on Espresso, where Graphite is
+    // 1.16:1 and Bone is 13.4:1 — which is why the ONE thing the refused plate
+    // would cost beyond the ground count is re-roling those two links.
+    expect(declared('color')).toEqual([
+      '.lp-foot -> var(--lp-counter)',
+      '.lp-foot-inner -> var(--on-accent)',
+      '.lp-foot-links a -> var(--lp-counter)',
+    ])
+    // The two keylines are the second contour (§1 trait 05) and they are also
+    // most of the Bone the section has: 6px × the full width is 2.38 of the
+    // 2.85 points the census reads at 375.
+    expect(declared('border-top')).toEqual([
+      '.lp-foot -> var(--keyline-heavy) solid var(--lp-counter)',
+    ])
+    expect(declared('border')).toEqual([
+      '.lp-foot-inner -> var(--keyline-w) solid var(--lp-form)',
+    ])
+  })
+
+  it('names only tones that are held out of the ground swap', () => {
+    /**
+     * WHY THE TWO THEMES OF THIS SECTION MEASURE IDENTICALLY, NOT MERELY ALIKE.
+     * §2.1b asks a row to be compared against its own theme twin; `.lp-foot` is
+     * the one composition in the matrix where the two readings are the same
+     * number to the last decimal, and that is a property of the sheet rather
+     * than a coincidence. Every tone below resolves through a token
+     * tokens.css's `prefers-color-scheme: dark` block deliberately does not
+     * override — the brand triad ("These do NOT participate in the ground
+     * swap"), `--on-accent` ("it never flips in dark mode") and two raw hexes.
+     * Name a swapping token here and the footer starts reading two different
+     * compositions, which is the defect §2.2 exists to prevent.
+     */
+    const SWAP_FREE = [
+      'var(--lp-espresso)', // --espresso, raw
+      'var(--lp-gold)', //     --marigold, raw
+      'var(--lp-counter)', //  --brand-counter
+      'var(--lp-form)', //     --brand-form
+      'var(--on-accent)', //   --graphite, never flips
+    ]
+    const tones = new Set(
+      FOOT.flatMap(([, body]) => [...body.matchAll(/var\(--[a-z-]+\)/g)].map((m) => m[0])).filter(
+        (t) => !/--s\d|--r-|--keyline|--fs-|--lh-|--tr-|--t-|--ease|--display|--press/.test(t),
+      ),
+    )
+    expect([...tones].sort()).toEqual([...SWAP_FREE].sort())
+
+    // Every `@media (prefers-color-scheme: dark)` body in the sheet, cut by
+    // counting braces rather than by a `\n}\n}` sentinel — tokens.css has four
+    // of these blocks at three indents, and a regex that only found the first
+    // would pass this test by not looking.
+    const darkBodies: string[] = []
+    const OPEN = '@media (prefers-color-scheme: dark)'
+    for (let i = TOKENS.indexOf(OPEN); i !== -1; i = TOKENS.indexOf(OPEN, i + 1)) {
+      let depth = 0
+      let j = TOKENS.indexOf('{', i)
+      const from = j
+      for (; j < TOKENS.length; j++) {
+        if (TOKENS[j] === '{') depth++
+        else if (TOKENS[j] === '}' && --depth === 0) break
+      }
+      darkBodies.push(TOKENS.slice(from, j))
+    }
+    expect(darkBodies.length).toBeGreaterThan(0)
+
+    for (const tone of tones) {
+      // Resolve the whole alias chain, not one hop: `--lp-counter` is
+      // `--brand-counter` is `--bone`, and a dark override anywhere along it
+      // re-themes the footer. Five hops is more than the sheet has ever used.
+      const chain = [tone.slice(4, -1)]
+      for (let hop = 0; hop < 5; hop++) {
+        const next = new RegExp(`${chain[chain.length - 1]}:\\s*var\\((--[a-z-]+)\\)`).exec(
+          LANDING + TOKENS,
+        )?.[1]
+        if (next === undefined || chain.includes(next)) break
+        chain.push(next)
+      }
+      for (const root of chain) {
+        const re = new RegExp(`(?:^|[;{\\s])${root}\\s*:`)
+        expect(`${tone} (${root}) redefined in dark: ${darkBodies.some((b) => re.test(b))}`).toBe(
+          `${tone} (${root}) redefined in dark: false`,
+        )
+      }
+    }
+  })
+})
+
 describe('§5D / §2 — the shear stands on the field, not on the paper', () => {
   const block = (sel: string) =>
     new RegExp(`\\n\\.${sel} \\{([\\s\\S]*?)\\n\\}`).exec(LANDING)?.[1] ?? ''

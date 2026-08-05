@@ -404,10 +404,20 @@ export function LogCard({
             which is the other thing in this form called a note. */}
         {/* CONSTRAINT §2.1b: the keypad is the one panel in this form with no
             accent control on it, so it is where LogCard's field ground goes
-            (see .counter-plate in tokens.css). */}
-        <fieldset className="note-pad counter-plate">
+            (see .counter-plate in tokens.css).
+            THE PLATE IS ON .note-keys, NOT ON THE <fieldset> — moved, because a
+            first-child <legend> is the UA's RENDERED LEGEND and the fieldset's
+            background therefore starts at the legend's vertical MIDDLE. "CASH
+            (DA)" shipped cut in half for several rounds: top half Graphite on
+            the card's Bone, bottom half Graphite on the plate's Espresso at
+            1.16:1, i.e. a label with an invisible lower edge (§2.1). Putting
+            the ground on the box inside leaves the legend on the paper at
+            11.4:1 and needs no UA-behaviour workaround — floating the legend
+            was measured and took the document to 446px wide on a 375px phone.
+            See app.css's plates'-box list. */}
+        <fieldset className="note-pad">
           <legend className="field-label">Cash (DA)</legend>
-          <div className="note-keys">
+          <div className="note-keys counter-plate">
             {NOTE_DENOMINATIONS_DA.map((n) => (
               // §7.4: the key is a numeral. No "Add 1000 DA!", no emoji. The
               // unit lives in the accessible name (which contains the visible
