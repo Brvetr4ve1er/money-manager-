@@ -1,0 +1,326 @@
+/* OBSIDIAN — ship's console. Everything scoped under .proto-obsidian. */
+
+.proto-obsidian {
+  --bg: #050607;
+  --panel: #0c0f12;
+  --panel2: #10141a;
+  --line: rgba(255, 255, 255, 0.1);
+  --line2: rgba(255, 255, 255, 0.16);
+  --scan: rgba(255, 255, 255, 0.03);
+  --fg: #d6dde5;
+  --muted: #8f9aa8;
+  --dim: #5d6873;
+  --cyan: #59e3ff;
+  --cyan-dim: rgba(89, 227, 255, 0.16);
+  --amber: #ffb547;
+  --amber-dim: rgba(255, 181, 71, 0.14);
+  --red: #ff6b57;
+  --red-dim: rgba(255, 107, 87, 0.14);
+  --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --cond: 'Barlow Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif;
+  --t: 160ms ease-out;
+
+  background: var(--bg);
+  background-image: repeating-linear-gradient(0deg, var(--scan) 0 1px, transparent 1px 4px);
+  color: var(--fg);
+  min-height: 100dvh;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  -webkit-font-smoothing: antialiased;
+}
+@media (prefers-color-scheme: light) {
+  .proto-obsidian {
+    --bg: #eef1f4;
+    --panel: #f8fafc;
+    --panel2: #e4e9ee;
+    --line: rgba(10, 20, 30, 0.14);
+    --line2: rgba(10, 20, 30, 0.24);
+    --scan: rgba(10, 20, 30, 0.035);
+    --fg: #1b2129;
+    --muted: #4c5866;
+    --dim: #6f7a86;
+    --cyan: #086a82;
+    --cyan-dim: rgba(8, 106, 130, 0.12);
+    --amber: #915300;
+    --amber-dim: rgba(145, 83, 0, 0.12);
+    --red: #b33a28;
+    --red-dim: rgba(179, 58, 40, 0.12);
+  }
+}
+
+/* reset */
+.proto-obsidian *, .proto-obsidian *::before, .proto-obsidian *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.proto-obsidian button, .proto-obsidian input { font: inherit; color: inherit; background: none; border: 0; }
+.proto-obsidian button { cursor: pointer; }
+.proto-obsidian ul, .proto-obsidian ol { list-style: none; }
+.proto-obsidian a { color: var(--cyan); text-decoration: none; }
+.proto-obsidian h2 { font-weight: 500; }
+.proto-obsidian :focus-visible { outline: 1px solid var(--cyan); outline-offset: 2px; box-shadow: 0 0 0 3px var(--cyan-dim); }
+.proto-obsidian small { font-size: 10px; }
+
+/* type */
+.proto-obsidian .ob-micro { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.proto-obsidian .ob-muted { color: var(--muted); }
+.proto-obsidian .ob-note { font-size: 11px; color: var(--muted); margin-top: 12px; }
+.proto-obsidian .ob-err { color: var(--amber); }
+.proto-obsidian .ob-link { font-size: 10px; letter-spacing: 0.12em; color: var(--cyan); padding: 2px 0; }
+
+/* frame: mobile = strip / main / bottom bar */
+.proto-obsidian .ob-frame { display: grid; grid-template-rows: auto 1fr; min-height: 100dvh; }
+.proto-obsidian .ob-strip {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 10px; letter-spacing: 0.12em; color: var(--muted);
+  background: var(--panel);
+}
+.proto-obsidian .ob-brand { color: var(--fg); display: inline-flex; align-items: center; gap: 6px; }
+.proto-obsidian .ob-brand em { font-style: normal; color: var(--dim); }
+.proto-obsidian .ob-strip-data { display: flex; gap: 16px; }
+.proto-obsidian .ob-main { padding: 16px 16px 84px; }
+
+.proto-obsidian .ob-rail {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: var(--panel); border-top: 1px solid var(--line2);
+}
+.proto-obsidian .ob-rail-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px 12px;
+  font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  border-top: 2px solid transparent; transition: color var(--t), border-color var(--t), background var(--t);
+}
+.proto-obsidian .ob-rail-btn.is-on { color: var(--cyan); border-top-color: var(--cyan); background: var(--cyan-dim); }
+.proto-obsidian .ob-rail-code { display: none; }
+.proto-obsidian .ob-back { display: none; }
+
+@media (min-width: 1024px) {
+  .proto-obsidian .ob-frame {
+    grid-template-columns: 188px 1fr; grid-template-rows: auto 1fr;
+    max-width: 1280px; margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line);
+  }
+  .proto-obsidian .ob-strip { grid-column: 1 / -1; padding: 10px 24px; }
+  .proto-obsidian .ob-rail {
+    position: sticky; top: 0; align-self: start; height: calc(100dvh - 37px);
+    grid-template-columns: 1fr; grid-auto-rows: max-content; border-top: 0; border-right: 1px solid var(--line); padding-top: 12px;
+  }
+  .proto-obsidian .ob-rail-btn {
+    flex-direction: row; gap: 10px; padding: 12px 16px; font-size: 10px; border-top: 0; border-left: 2px solid transparent; text-align: left;
+  }
+  .proto-obsidian .ob-rail-btn.is-on { border-left-color: var(--cyan); }
+  .proto-obsidian .ob-rail-label { flex: 1; }
+  .proto-obsidian .ob-rail-code { display: inline; color: var(--dim); }
+  .proto-obsidian .ob-back { display: block; margin-top: auto; padding: 16px; font-size: 10px; letter-spacing: 0.12em; color: var(--muted); border-top: 1px solid var(--line); }
+  .proto-obsidian .ob-rail { display: flex; flex-direction: column; }
+  .proto-obsidian .ob-main { padding: 24px; }
+}
+.proto-obsidian .ob-back-strip { color: var(--muted); }
+@media (min-width: 1024px) { .proto-obsidian .ob-back-strip { display: none; } }
+@media (max-width: 1023px) { .proto-obsidian .ob-strip-data span:nth-child(3) { display: none; } }
+
+/* grids */
+.proto-obsidian .ob-grid { display: grid; gap: 16px; }
+@media (min-width: 1024px) {
+  .proto-obsidian .ob-grid-home { grid-template-columns: 1.4fr 1fr; grid-template-areas: 'reactor cells' 'reactor next' 'modules next'; gap: 24px; }
+  .proto-obsidian .ob-reactor { grid-area: reactor; }
+  .proto-obsidian .ob-cells { grid-area: cells; }
+  .proto-obsidian .ob-next { grid-area: next; }
+  .proto-obsidian .ob-modules { grid-area: modules; }
+  .proto-obsidian .ob-grid-runway { gap: 24px; }
+}
+
+/* panels with corner brackets + hairlines */
+.proto-obsidian .ob-panel {
+  position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 2px; padding: 16px;
+}
+.proto-obsidian .ob-c { position: absolute; width: 8px; height: 8px; border: 0 solid var(--cyan); opacity: 0.8; pointer-events: none; }
+.proto-obsidian .ob-c-tl { top: -1px; left: -1px; border-top-width: 1px; border-left-width: 1px; }
+.proto-obsidian .ob-c-tr { top: -1px; right: -1px; border-top-width: 1px; border-right-width: 1px; }
+.proto-obsidian .ob-c-bl { bottom: -1px; left: -1px; border-bottom-width: 1px; border-left-width: 1px; }
+.proto-obsidian .ob-c-br { bottom: -1px; right: -1px; border-bottom-width: 1px; border-right-width: 1px; }
+.proto-obsidian .ob-panel-h {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--line);
+}
+.proto-obsidian .ob-panel-h h2 { font-family: var(--cond); font-size: 17px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); }
+.proto-obsidian .ob-panel-meta { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.proto-obsidian .ob-panel-meta strong { color: var(--cyan); font-weight: 500; }
+
+/* keycaps */
+.proto-obsidian .ob-key {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; min-height: 32px;
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg);
+  background: var(--panel2); border: 1px solid var(--line2); border-radius: 2px; box-shadow: 0 2px 0 var(--line2);
+  transition: transform var(--t), box-shadow var(--t), background var(--t);
+}
+.proto-obsidian .ob-key:hover { background: var(--panel); }
+.proto-obsidian .ob-key:active { transform: translateY(2px); box-shadow: 0 0 0 var(--line2); }
+.proto-obsidian .ob-key-cyan { color: var(--cyan); border-color: var(--cyan); box-shadow: 0 2px 0 var(--cyan); background: var(--cyan-dim); }
+.proto-obsidian .ob-key-amber { color: var(--amber); border-color: var(--amber); box-shadow: 0 2px 0 var(--amber); background: var(--amber-dim); }
+
+/* dots, tags */
+.proto-obsidian .ob-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); vertical-align: middle; }
+.proto-obsidian .ob-dot-amber { background: var(--amber); }
+.proto-obsidian .ob-dot-red { background: var(--red); }
+.proto-obsidian .ob-dot-dim { background: var(--dim); }
+.proto-obsidian .ob-blink { animation: ob-blink 1.2s steps(2, start) infinite; }
+@keyframes ob-blink { to { visibility: hidden; } }
+.proto-obsidian .ob-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; letter-spacing: 0.1em; white-space: nowrap; }
+.proto-obsidian .ob-tag-cyan { color: var(--cyan); }
+.proto-obsidian .ob-tag-amber { color: var(--amber); }
+.proto-obsidian .ob-tag-red { color: var(--red); }
+.proto-obsidian .ob-tag-dim { color: var(--muted); }
+
+/* reactor */
+.proto-obsidian .ob-reactor-body { display: grid; gap: 16px; justify-items: center; }
+@media (min-width: 640px) { .proto-obsidian .ob-reactor-body { grid-template-columns: 240px 1fr; align-items: center; justify-items: start; gap: 24px; } }
+.proto-obsidian .ob-gauge { width: 240px; max-width: 100%; height: auto; display: block; }
+.proto-obsidian .ob-tick { stroke: var(--line2); stroke-width: 1; }
+.proto-obsidian .ob-tick-major { stroke: var(--muted); stroke-width: 1.5; }
+.proto-obsidian .ob-gauge-num { fill: var(--dim); font-size: 8px; font-family: var(--mono); letter-spacing: 0.1em; }
+.proto-obsidian .ob-gauge-pct { fill: var(--muted); font-size: 9px; font-family: var(--mono); letter-spacing: 0.14em; }
+.proto-obsidian .ob-arc-track { fill: none; stroke: var(--line); stroke-width: 3; }
+.proto-obsidian .ob-arc-fill { fill: none; stroke: var(--cyan); stroke-width: 3; stroke-linecap: butt; }
+.proto-obsidian .ob-core-ring { fill: none; stroke: var(--line2); stroke-width: 1; stroke-dasharray: 2 4; }
+.proto-obsidian .ob-core-breathe { animation: ob-breathe 3.2s ease-in-out infinite; }
+@keyframes ob-breathe { 50% { transform: scale(1.06); } }
+.proto-obsidian .ob-core-glow { transform-origin: 120px 120px; }
+.proto-obsidian .ob-needle line { stroke: var(--fg); stroke-width: 1.25; }
+.proto-obsidian .ob-needle circle { fill: var(--cyan); }
+.proto-obsidian .ob-needle { transition: transform 160ms linear; }
+.proto-obsidian .ob-reactor-read { display: grid; gap: 8px; width: 100%; }
+.proto-obsidian .ob-hero { font-size: clamp(44px, 11vw, 64px); font-weight: 200; line-height: 1; letter-spacing: -0.02em; color: var(--fg); }
+.proto-obsidian .ob-hero small { font-size: 14px; font-weight: 400; letter-spacing: 0.12em; margin-left: 8px; color: var(--cyan); }
+.proto-obsidian .ob-delta { font-size: 11px; color: var(--amber); letter-spacing: 0.06em; }
+.proto-obsidian .ob-readout-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.proto-obsidian .ob-readout { display: grid; gap: 2px; }
+.proto-obsidian .ob-readout-num { font-size: 24px; font-weight: 300; color: var(--cyan); line-height: 1.1; }
+.proto-obsidian .ob-readout-num small { font-size: 9px; letter-spacing: 0.12em; margin-left: 6px; color: var(--muted); }
+
+/* fuel cells */
+.proto-obsidian .ob-cells { display: grid; gap: 12px; }
+.proto-obsidian .ob-cell { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); background: var(--panel2); border-radius: 2px; }
+.proto-obsidian .ob-cell-top { display: flex; justify-content: space-between; }
+.proto-obsidian .ob-cell-main { font-size: 26px; font-weight: 300; line-height: 1.1; }
+.proto-obsidian .ob-cell-amber .ob-cell-main { color: var(--amber); }
+.proto-obsidian .ob-bar { position: relative; height: 10px; border: 1px solid var(--line2); background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--line) calc(10% - 1px) 10%); }
+.proto-obsidian .ob-bar i { position: absolute; inset: 1px auto 1px 1px; background: var(--cyan); transition: width 600ms ease-out; }
+.proto-obsidian .ob-cell-amber .ob-bar i { background: var(--amber); }
+.proto-obsidian .ob-cell-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* burns list */
+.proto-obsidian .ob-burns { display: grid; }
+.proto-obsidian .ob-burns li + li { border-top: 1px solid var(--line); }
+.proto-obsidian .ob-burn {
+  width: 100%; display: grid; grid-template-columns: 52px 1fr auto; grid-template-areas: 'date name amt' 'date tag tag' 'nudge nudge nudge';
+  gap: 2px 12px; align-items: center; padding: 10px 4px; text-align: left; border-radius: 2px; transition: background var(--t), opacity var(--t);
+}
+.proto-obsidian .ob-burn:hover { background: var(--panel2); }
+.proto-obsidian .ob-burn-date { grid-area: date; font-size: 10px; letter-spacing: 0.1em; color: var(--muted); }
+.proto-obsidian .ob-burn-name { grid-area: name; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.proto-obsidian .ob-burn-amt { grid-area: amt; text-align: right; display: grid; color: var(--fg); }
+.proto-obsidian .ob-burn-amt small { color: var(--muted); }
+.proto-obsidian .ob-burn .ob-tag { grid-area: tag; }
+.proto-obsidian .ob-burn.is-paid { opacity: 0.5; }
+.proto-obsidian .ob-burn.is-paid .ob-burn-name { text-decoration: line-through; }
+.proto-obsidian .ob-burn.is-late { outline: 1px dashed var(--red); outline-offset: -1px; background: var(--red-dim); }
+.proto-obsidian .ob-nudge { grid-area: nudge; font-size: 10px; color: var(--muted); padding-top: 4px; }
+.proto-obsidian .ob-seg { display: inline-flex; align-items: center; gap: 2px; }
+.proto-obsidian .ob-seg i { width: 7px; height: 8px; border: 1px solid var(--line2); }
+.proto-obsidian .ob-seg i.on { background: var(--cyan); border-color: var(--cyan); }
+.proto-obsidian .ob-seg small { margin-left: 4px; color: var(--muted); }
+.proto-obsidian .ob-module-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* radar */
+.proto-obsidian .ob-radar { position: relative; height: 230px; margin: 8px 24px 0; overflow: visible; }
+.proto-obsidian .ob-axis { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line2); }
+.proto-obsidian .ob-axis-tick { position: absolute; top: -3px; width: 1px; height: 7px; background: var(--line2); }
+.proto-obsidian .ob-axis-tick.major { top: -6px; height: 13px; background: var(--muted); }
+.proto-obsidian .ob-axis-lbl { position: absolute; top: 12px; transform: translateX(-50%); font-size: 9px; letter-spacing: 0.12em; color: var(--muted); white-space: nowrap; }
+.proto-obsidian .ob-past { position: absolute; left: 0; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, transparent 0 6px, var(--line) 6px 7px); opacity: 0.6; }
+.proto-obsidian .ob-now { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--amber); }
+.proto-obsidian .ob-now span { position: absolute; top: -2px; left: 6px; font-size: 9px; letter-spacing: 0.14em; color: var(--amber); }
+.proto-obsidian .ob-radar-sweep::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 18%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--cyan-dim)); border-right: 1px solid var(--cyan);
+  animation: ob-sweep 4s linear infinite;
+}
+@keyframes ob-sweep { from { left: -18%; opacity: 0.9; } to { left: 100%; opacity: 0.9; } }
+.proto-obsidian .ob-mark { position: absolute; top: 50%; width: 1px; height: 1px; overflow: visible; }
+.proto-obsidian .ob-mark-pt { position: absolute; left: -4px; top: -4px; width: 9px; height: 9px; transform: rotate(45deg); border: 1px solid currentColor; background: var(--panel); transition: background var(--t), transform var(--t); }
+.proto-obsidian .ob-mark:hover .ob-mark-pt, .proto-obsidian .ob-mark:focus-visible .ob-mark-pt { background: currentColor; transform: rotate(45deg) scale(1.25); }
+.proto-obsidian .ob-mark-line { position: absolute; left: 0; width: 1px; background: currentColor; opacity: 0.7; }
+.proto-obsidian .ob-mark-lbl { position: absolute; left: 6px; display: grid; font-size: 10px; line-height: 1.2; white-space: nowrap; color: var(--fg); text-align: left; }
+.proto-obsidian .ob-mark-lbl b { font-weight: 400; color: currentColor; }
+.proto-obsidian .ob-mark-cyan { color: var(--cyan); }
+.proto-obsidian .ob-mark-amber { color: var(--amber); }
+.proto-obsidian .ob-mark-red { color: var(--red); }
+.proto-obsidian .ob-mark-red .ob-mark-pt { border-style: dashed; }
+.proto-obsidian .ob-mark-dim { color: var(--muted); }
+.proto-obsidian .ob-mark.is-paid .ob-mark-lbl { color: var(--muted); text-decoration: line-through; }
+/* callout levels alternate above / below / above-far so labels don't collide */
+.proto-obsidian .ob-mark.lvl-0 .ob-mark-line { top: -56px; height: 56px; }
+.proto-obsidian .ob-mark.lvl-0 .ob-mark-lbl { top: -62px; }
+.proto-obsidian .ob-mark.lvl-1 .ob-mark-line { top: 0; height: 56px; }
+.proto-obsidian .ob-mark.lvl-1 .ob-mark-lbl { top: 40px; }
+.proto-obsidian .ob-mark.lvl-2 .ob-mark-line { top: -100px; height: 100px; }
+.proto-obsidian .ob-mark.lvl-2 .ob-mark-lbl { top: -106px; }
+@media (max-width: 639px) {
+  .proto-obsidian .ob-radar { margin: 8px 8px 0; }
+  .proto-obsidian .ob-mark-lbl { font-size: 9px; }
+  .proto-obsidian .ob-mark.lvl-1 .ob-mark-line { height: 80px; }
+  .proto-obsidian .ob-mark.lvl-1 .ob-mark-lbl { top: 64px; }
+}
+
+/* inbox tray */
+.proto-obsidian .ob-row-grid { display: grid; grid-template-columns: 1.6fr 1fr 64px 72px 44px; gap: 10px; align-items: center; }
+.proto-obsidian .ob-table-h { font-size: 9px; letter-spacing: 0.14em; color: var(--muted); padding: 0 8px 8px; border-bottom: 1px solid var(--line); }
+.proto-obsidian .ob-row { border-bottom: 1px solid var(--line); overflow: hidden; }
+.proto-obsidian .ob-row-btn { width: 100%; padding: 10px 8px; text-align: left; transition: background var(--t); }
+.proto-obsidian .ob-row-btn:hover { background: var(--panel2); }
+.proto-obsidian .ob-caret { color: var(--cyan); font-weight: 400; }
+.proto-obsidian .ob-row-merchant { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.proto-obsidian .ob-flag { font-size: 9px; letter-spacing: 0.08em; color: var(--amber); white-space: nowrap; }
+.proto-obsidian .ob-row-amt { display: grid; }
+.proto-obsidian .ob-row-amt small { color: var(--muted); }
+.proto-obsidian .ob-row-src { font-size: 9px; letter-spacing: 0.1em; color: var(--muted); text-align: right; }
+.proto-obsidian .ob-conf { position: relative; display: block; padding-top: 6px; font-size: 11px; }
+.proto-obsidian .ob-conf i { position: absolute; top: 0; left: 0; height: 2px; background: currentColor; }
+.proto-obsidian .ob-conf-cyan { color: var(--cyan); }
+.proto-obsidian .ob-conf-amber { color: var(--amber); }
+.proto-obsidian .ob-conf-dim { color: var(--muted); }
+.proto-obsidian .ob-row-body { padding: 0 8px 12px 24px; display: grid; gap: 10px; }
+.proto-obsidian .ob-log { font: inherit; font-size: 11px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; color: var(--muted); border-left: 1px solid var(--line2); padding-left: 12px; }
+.proto-obsidian .ob-row-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.proto-obsidian .ob-row.is-commit { animation: ob-commit 260ms ease-out forwards; }
+.proto-obsidian .ob-row.is-reject { animation: ob-reject 260ms ease-out forwards; }
+@keyframes ob-commit { 0% { background: var(--cyan-dim); } 40% { background: var(--cyan-dim); transform: none; opacity: 1; } 100% { transform: translateX(40px); opacity: 0; } }
+@keyframes ob-reject { to { transform: translateX(-24px); opacity: 0; } }
+@media (max-width: 639px) {
+  .proto-obsidian .ob-row-grid { grid-template-columns: 1.4fr 1fr 56px; }
+  .proto-obsidian .ob-row-grid > :nth-child(4), .proto-obsidian .ob-row-grid > :nth-child(5) { display: none; }
+  .proto-obsidian .ob-row-body { padding-left: 8px; }
+}
+
+/* quick log */
+.proto-obsidian .ob-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.proto-obsidian .ob-cmd { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--line2); background: var(--bg); border-radius: 2px; }
+.proto-obsidian .ob-cmd:focus-within { border-color: var(--cyan); }
+.proto-obsidian .ob-prompt { color: var(--cyan); font-weight: 600; }
+.proto-obsidian .ob-cmd input { min-width: 0; padding: 6px 0; font-size: 15px; outline: none; caret-color: var(--cyan); }
+.proto-obsidian .ob-cmd input::placeholder { color: var(--dim); }
+.proto-obsidian .ob-feed { margin-top: 16px; border-top: 1px solid var(--line); font-size: 12px; }
+.proto-obsidian .ob-feed li { display: grid; grid-template-columns: 52px 92px 1fr 1fr auto; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line); align-items: center; }
+.proto-obsidian .ob-feed-amt { color: var(--fg); text-align: right; }
+.proto-obsidian .ob-feed li.is-new { animation: ob-print 320ms ease-out; }
+.proto-obsidian .ob-feed li.is-new .ob-feed-amt { color: var(--cyan); }
+@keyframes ob-print { from { background: var(--cyan-dim); transform: translateX(-6px); opacity: 0; } to { background: transparent; } }
+@media (max-width: 639px) {
+  .proto-obsidian .ob-feed li { grid-template-columns: 52px 1fr 1fr auto; }
+  .proto-obsidian .ob-feed li > :nth-child(4) { display: none; }
+}
+
+/* reduced motion: instruments snap, nothing sweeps or blinks */
+@media (prefers-reduced-motion: reduce) {
+  .proto-obsidian *, .proto-obsidian *::before, .proto-obsidian *::after { animation: none !important; transition: none !important; }
+}
