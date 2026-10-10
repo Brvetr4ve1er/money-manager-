@@ -62,6 +62,36 @@ no server.
 - **Neo-brutalist × gacha design** — thick black strokes, hard offset
   shadows, flat accent colors.
 
+## Support modes
+
+Mechanics for the days money is hardest to manage — named by need, never by
+diagnosis. The **"What helps you"** card composes them; each can be changed
+afterwards, and none of them touches the health score.
+
+- **Hold the door** — a self-set brake: purchases at or above an amount, or
+  in chosen categories, are *held* instead of logged, and the user decides
+  again once the wait (1h–3 days) has passed. Tightening the brake is
+  immediate; loosening or removing it waits **48 hours**, so a calm day
+  binds a loud one. Letting a held purchase go is never punished and a
+  release pays the ordinary +5 — the same honesty rules as any log.
+- **Pace mirror** — spending speed over the last three days against the
+  user's own 28-day baseline. Speaks only when it has something to say
+  ("a bit / a lot faster than your usual pace"), needs two weeks of history
+  before it speaks at all, and offers one thing: the trusted person.
+- **Dim the house** — a low-energy view that draws only the essentials
+  (health, logging, anything held, recent) and hides the engagement track;
+  one tap restores everything.
+- **Guilt-free return** — after five or more days away the app says
+  "nothing is broken", asks for at most one rough number for the gap, and
+  accepts skipping as a full answer. There is no back-fill and no streak:
+  the seven-day badge counts logged days in any order, so a missed week
+  costs nothing.
+- **Calm mode** — sound off, no animation, no visual pop-ups; live regions
+  still announce for assistive tech.
+- **Someone you trust** — a weekly text snapshot the user builds (every
+  section opt-in), previews, and sends by hand via copy or the OS share
+  sheet. Nothing is shared automatically, and the snapshot says so.
+
 ## Trust rules
 
 These are product invariants, not aspirations:
@@ -115,6 +145,10 @@ Deploy checklist:
 - `src/engine/profile.ts` — user profile, demo fallback, and health inputs
 - `src/engine/boss.ts` — weekly boss battle engine
 - `src/engine/achievements.ts` — badge roster and pixel pets
+- `src/engine/brakes.ts` — spending brakes (hold / edit lock) and the pace signal
+- `src/engine/calm.ts` — low-energy mode and the guilt-free return
+- `src/engine/snapshot.ts` — the trusted-person text snapshot
+- `src/engine/needs.ts` — needs-based setup and the defaults it composes
 - `src/content/lessons.ts` — the 30-lesson codex content
 - `src/state/store.ts` — local-first persistence, sanitization, multi-tab
   merge, and export

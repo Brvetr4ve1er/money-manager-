@@ -33,6 +33,13 @@ import { BossCard } from './components/BossCard.tsx'
 import { SimCard } from './components/SimCard.tsx'
 import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
 import { Ledger } from './components/Ledger.tsx'
+import { NeedsCard } from './components/NeedsCard.tsx'
+import { BrakesCard } from './components/BrakesCard.tsx'
+import { TrustedCard } from './components/TrustedCard.tsx'
+import { ReentryBanner } from './components/ReentryBanner.tsx'
+import type { LogOutcome } from './components/LogCard.tsx'
+import { holdPurchase, shouldHold, spendVelocity } from './engine/brakes.ts'
+import { catchUpTransaction } from './engine/calm.ts'
 import { useHealthDay } from './hooks/useHealthDay.ts'
 import { useBossBattle } from './hooks/useBossBattle.ts'
 import { useAchievements } from './hooks/useAchievements.ts'
@@ -52,8 +59,21 @@ export default function App() {
     [],
   )
   useEffect(() => sfx.setMuted(state.muted), [state.muted])
+  // Brake edit-lock clock: a loosening scheduled 48h ago must land without a
+  // reload. The reducer returns the same state when nothing is due, so the
+  // minute tick is render-free almost always.
+  useEffect(() => {
+    const tick = () => dispatch({ type: 'BRAKES_TICK', nowISO: new Date().toISOString() })
+    tick()
+    const id = window.setInterval(tick, 60_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   const { today, health } = useHealthDay(state, dispatch)
+  const { support } = state
+  // Pace vs. the user's own baseline (see brakes.ts). Pure over the ledger;
+  // the Ledger card phrases it, and only when it has something to say.
+  const velocity = spendVelocity(state.transactions, today)
   // The hook's `today` (like logPurchase uses), so the battle week can never
   // disagree with the day every other card believes it is. The hook also
   // claims a just-completed winning week — the toast/fanfare react to the
@@ -94,7 +114,21 @@ export default function App() {
     category: string,
     resisted: boolean,
     impulseFlagged: boolean,
-  ): string {
+  ): LogOutcome {
+    // Hold the door: a purchase matching the user's own brake is queued, not
+    // logged — no row, no XP, no score input until the wait passes and the
+    // user decides again (see brakes.ts). Resists are never held: resisting
+    // IS the brake working.
+    if (!resisted && support.brakes !== null && shouldHold(amountDA, category, support.brakes)) {
+      const held = holdPurchase(
+        { id: newId(), amountDA, category, impulseFlagged },
+        support.brakes,
+        Date.now(),
+      )
+      dispatch({ type: 'HOLD_TX', held })
+      sfx.blip()
+      return { id: held.id, heldHours: support.brakes.delayHours }
+    }
     const tx: Transaction = {
       // newId, not bare crypto.randomUUID: randomUUID is undefined outside
       // secure contexts (plain-http hosting), and a throw here would fail the
@@ -119,13 +153,26 @@ export default function App() {
     if (resisted) sfx.sparkle()
     else sfx.blip()
     // The id is LogCard's undo handle for the grace window.
-    return tx.id
+    return { id: tx.id, heldHours: null }
   }
 
   function undoLog(id: string) {
     // Row and XP grant leave together (see UNDO_TX in the reducer). The blip
     // reinforces the visible change — the ledger row and undo strip vanish.
+    // A just-held purchase has no row: the same handle lets it go instead
+    // (each reducer path no-ops on an id it does not own).
     dispatch({ type: 'UNDO_TX', id })
+    dispatch({ type: 'LET_GO_HELD', id })
+    sfx.blip()
+  }
+
+  const nowISO = () => new Date().toISOString()
+
+  function catchUp(amountDA: number) {
+    // One honest lump for the days away, then the banner goes. Pays the
+    // ordinary +5 like any log — showing up after a gap is still showing up.
+    dispatch({ type: 'LOG_TX', tx: catchUpTransaction(newId(), amountDA, today) })
+    dispatch({ type: 'REENTRY_DISMISS' })
     sfx.blip()
   }
 
@@ -152,8 +199,41 @@ export default function App() {
     URL.revokeObjectURL(url)
   }
 
+  // Cards every mode shows. The low-energy view (see calm.ts) is a strict
+  // subset — what is waiting, what to log, what happened — never a
+  // different app: the same cards in the same places, with the engagement
+  // track (XP, quests, boss, lessons, badges) simply not drawn.
+  const brakesCard = (
+    <BrakesCard
+      rule={support.brakes}
+      pending={support.pendingBrakes}
+      held={support.held}
+      onRequest={(rule) => dispatch({ type: 'BRAKES_REQUEST', rule, nowISO: nowISO() })}
+      onRelease={(id) => {
+        dispatch({ type: 'RELEASE_HELD', id, date: today })
+        sfx.blip()
+      }}
+      onLetGo={(id) => {
+        dispatch({ type: 'LET_GO_HELD', id })
+        sfx.blip()
+      }}
+    />
+  )
+  const needsCard = (
+    <NeedsCard
+      needs={support.needs}
+      lowEnergy={support.lowEnergy}
+      calm={support.calm}
+      onSave={(needs) => dispatch({ type: 'NEEDS_SET', needs, nowISO: nowISO() })}
+      onLowEnergy={(on) => dispatch({ type: 'LOW_ENERGY_SET', on, nowISO: nowISO() })}
+      onCalm={(on) => dispatch({ type: 'CALM_SET', on, nowISO: nowISO() })}
+    />
+  )
+
   return (
-    <div className="shell">
+    // data-calm: no animation, no transitions, no visual toast (app.css).
+    // The live regions still announce — calm is about surprises, not AT.
+    <div className="shell" data-calm={support.calm ? 'true' : undefined}>
       {/* The header carries the page's h1 wordmark: without it the
           accessibility outline starts at the dynamic stage label with no
           page-level heading. Mobile topbar and desktop full-viewport hero
@@ -189,13 +269,32 @@ export default function App() {
           foot as sibling landmarks. .main-stack carries the shell's column
           rhythm inside the landmark. */}
       <main className="main-stack">
+        {support.reentry && (
+          <ReentryBanner
+            reentry={support.reentry}
+            onCatchUp={catchUp}
+            onSkip={() => dispatch({ type: 'REENTRY_DISMISS' })}
+          />
+        )}
+        {support.lowEnergy && (
+          <p className="mode-strip" role="status">
+            Low-energy view: just the essentials.{' '}
+            <button
+              type="button"
+              className="btn undo-btn"
+              onClick={() => dispatch({ type: 'LOW_ENERGY_SET', on: false, nowISO: nowISO() })}
+            >
+              Show everything
+            </button>
+          </p>
+        )}
         <HeroCard
           stage={health.stage}
           score={health.score}
           pets={pets}
           components={health.components}
         />
-        <XpCard xp={state.xp} gain={xpGain} />
+        {!support.lowEnergy && <XpCard xp={state.xp} gain={xpGain} />}
         <LogCard
           transactions={state.transactions}
           onLog={logPurchase}
@@ -205,24 +304,53 @@ export default function App() {
             RESIST_XP_DAILY_CAP
           }
         />
-        <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
-        <BossCard battle={battle} wonLastWeek={wonLastWeek} />
-        {/* "Got it" genuinely completes the verified lesson quest — the tap
-            lands on today's actual lesson content, so the app observes the
-            action instead of taking it on self-report. */}
-        <LessonCard lesson={todayLesson} readToday={lessonReadToday} onRead={readLesson} />
-        {/* Running a simulation genuinely completes the sim quest — a
-            daily quest the app verifies instead of taking on self-report, so
-            QuestCard renders it without a tap-to-complete button. */}
-        <SimCard
-          profile={profile}
-          isDemo={isDemo}
-          onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
+        {/* The held queue is money in limbo — it stays visible in every mode. */}
+        {support.lowEnergy && support.held.length > 0 && brakesCard}
+        {!support.lowEnergy && (
+          <>
+            <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
+            <BossCard battle={battle} wonLastWeek={wonLastWeek} />
+            {/* "Got it" genuinely completes the verified lesson quest — the tap
+                lands on today's actual lesson content, so the app observes the
+                action instead of taking it on self-report. */}
+            <LessonCard lesson={todayLesson} readToday={lessonReadToday} onRead={readLesson} />
+            {/* Running a simulation genuinely completes the sim quest — a
+                daily quest the app verifies instead of taking on self-report, so
+                QuestCard renders it without a tap-to-complete button. */}
+            <SimCard
+              profile={profile}
+              isDemo={isDemo}
+              onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
+            />
+            <ProfileCard profile={state.profile} onSave={saveProfile} />
+          </>
+        )}
+        <Ledger
+          transactions={state.transactions}
+          today={today}
+          velocity={velocity}
+          trustedName={support.trusted?.name ?? null}
         />
-        <ProfileCard profile={state.profile} onSave={saveProfile} />
-        <Ledger transactions={state.transactions} today={today} />
-        <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
-        <AchievementsCard unlocks={state.achievements} />
+        {!support.lowEnergy && (
+          <>
+            {needsCard}
+            {brakesCard}
+            <TrustedCard
+              trusted={support.trusted}
+              input={{
+                transactions: state.transactions,
+                held: support.held,
+                velocity,
+                health: { score: health.score, stage: health.stage },
+                today,
+              }}
+              onSave={(trusted) => dispatch({ type: 'TRUSTED_SET', trusted, nowISO: nowISO() })}
+            />
+            <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
+            <AchievementsCard unlocks={state.achievements} />
+          </>
+        )}
+        {support.lowEnergy && needsCard}
       </main>
 
       <footer className="foot">

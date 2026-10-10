@@ -13,6 +13,15 @@ const CHIP_MAX = 3
 /** How long the post-log Undo affordance stays available. */
 const UNDO_WINDOW_MS = 5_000
 
+/**
+ * What a log attempt became: a ledger row, or a purchase the brakes caught
+ * (held for `heldHours` before the user decides again — see brakes.ts).
+ */
+export interface LogOutcome {
+  id: string
+  heldHours: number | null
+}
+
 export function LogCard({
   transactions,
   onLog,
@@ -20,8 +29,9 @@ export function LogCard({
   resistXpCapped,
 }: {
   transactions: Transaction[]
-  /** Logs the entry and returns the new transaction's id (for Undo). */
-  onLog: (amountDA: number, category: string, resisted: boolean, impulseFlagged: boolean) => string
+  /** Logs (or holds) the entry and returns its id for Undo. */
+  onLog: (amountDA: number, category: string, resisted: boolean, impulseFlagged: boolean) => LogOutcome
+  /** Undoes a log — or lets a just-held purchase go. */
   onUndo: (id: string) => void
   resistXpCapped: boolean
 }) {
@@ -87,11 +97,8 @@ export function LogCard({
     setError(null)
     // The flag only rides on purchases: a resisted impulse was not yielded to,
     // and deriveHealthInputs counts yielded as flagged-and-not-resisted anyway.
-    const id = onLog(validAmt ? amt : 0, category, resisted, !resisted && impulse)
-    setLastLog({
-      id,
-      text: resisted ? 'Resist logged' : `Logged ${(validAmt ? amt : 0).toLocaleString()} DA`,
-    })
+    const out = onLog(validAmt ? amt : 0, category, resisted, !resisted && impulse)
+    setLastLog({ id: out.id, text: outcomeText(out, validAmt ? amt : 0, resisted) })
     setAmount('')
     setImpulse(false)
   }
@@ -100,8 +107,18 @@ export function LogCard({
     // Chips are habitual repeats, never impulse reports — the checkbox flag
     // stays a deliberate per-entry choice on the form.
     setError(null)
-    const id = onLog(amountDA, chipCategory, false, false)
-    setLastLog({ id, text: `Logged ${amountDA.toLocaleString()} DA` })
+    const out = onLog(amountDA, chipCategory, false, false)
+    setLastLog({ id: out.id, text: outcomeText(out, amountDA, false) })
+  }
+
+  // A held purchase is announced as held, never as logged: the ledger did
+  // not change, and the user needs to know where it went (the brakes card).
+  function outcomeText(out: LogOutcome, amountDA: number, resisted: boolean): string {
+    if (resisted) return 'Resist logged'
+    if (out.heldHours !== null) {
+      return `Held ${amountDA.toLocaleString()} DA — you decide again in ${out.heldHours}h`
+    }
+    return `Logged ${amountDA.toLocaleString()} DA`
   }
 
   return (
@@ -205,7 +222,7 @@ export function LogCard({
               setLastLog(null)
             }}
           >
-            Undo
+            {lastLog.text.startsWith('Held') ? 'Undo hold' : 'Undo'}
           </button>
         </div>
       )}

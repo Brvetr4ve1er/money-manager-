@@ -737,3 +737,191 @@ describe('weekly boss battle', () => {
     expect(saved().xpLog).toHaveLength(1)
   })
 })
+
+describe('hold the door (brakes)', () => {
+  const seedBrakes = () =>
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        support: { brakes: { thresholdDA: 5_000, categories: ['Fun'], delayHours: 24 } },
+      }),
+    )
+  const saved = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
+
+  it('holds a purchase at or above the threshold — no row, no XP, a visible queue', () => {
+    seedBrakes()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '6000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(screen.getByText(/Held 6,000 DA — you decide again in 24h/)).toBeTruthy()
+    expect(xpNow()).toBe(0)
+    expect(saved().transactions).toHaveLength(0)
+    expect(saved().support.held).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Waiting (1)' })).toBeTruthy()
+    // Not releasable yet: the wait is the whole point.
+    expect((screen.getByRole('button', { name: 'Still want it' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('lets a just-held purchase go from the grace strip — nothing logged, nothing punished', () => {
+    seedBrakes()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '6000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo hold' }))
+    expect(saved().support.held).toHaveLength(0)
+    expect(saved().transactions).toHaveLength(0)
+    expect(xpNow()).toBe(0)
+  })
+
+  it('logs a purchase below the threshold and outside the held categories normally', () => {
+    seedBrakes()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '300' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(screen.getByText('Logged 300 DA')).toBeTruthy()
+    expect(xpNow()).toBe(5)
+    expect(saved().support.held).toHaveLength(0)
+  })
+
+  it('never holds a resist — resisting is the brake working', () => {
+    seedBrakes()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '9000' } })
+    fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    expect(xpNow()).toBe(50)
+    expect(saved().support.held).toHaveLength(0)
+  })
+
+  it('releases a held purchase into the ledger once its wait has passed', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 1, 12, 0, 0))
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        support: {
+          brakes: { thresholdDA: 5_000, categories: [], delayHours: 24 },
+          held: [
+            {
+              id: 'h1',
+              amountDA: 7_000,
+              category: 'Fun',
+              impulseFlagged: false,
+              heldAt: '2026-07-30T12:00:00.000Z',
+              releaseAt: '2026-07-31T12:00:00.000Z',
+            },
+          ],
+        },
+      }),
+    )
+    render(<App />)
+    const still = screen.getByRole('button', { name: 'Still want it' }) as HTMLButtonElement
+    expect(still.disabled).toBe(false)
+    fireEvent.click(still)
+    const s = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(s.support.held).toHaveLength(0)
+    expect(s.transactions).toHaveLength(1)
+    expect(s.transactions[0].id).toBe('h1')
+    expect(s.transactions[0].amountDA).toBe(7_000)
+    expect(xpNow()).toBe(5)
+  })
+})
+
+describe('dim the house (low-energy view)', () => {
+  it('hides the engagement track and keeps logging, and offers one tap back', () => {
+    localStorage.setItem('ember-state-v1', JSON.stringify({ support: { lowEnergy: true } }))
+    render(<App />)
+    expect(screen.queryByRole('heading', { name: "Today's quests" })).toBeNull()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByRole('button', { name: /Log purchase/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Show everything' }))
+    expect(screen.getByRole('heading', { name: "Today's quests" })).toBeTruthy()
+  })
+
+  it('keeps the held queue visible in the low-energy view — money in limbo is essential', () => {
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        support: {
+          lowEnergy: true,
+          brakes: { thresholdDA: 5_000, categories: [], delayHours: 24 },
+          held: [
+            {
+              id: 'h1',
+              amountDA: 7_000,
+              category: 'Fun',
+              impulseFlagged: false,
+              heldAt: '2026-07-30T12:00:00.000Z',
+              releaseAt: '2099-07-31T12:00:00.000Z',
+            },
+          ],
+        },
+      }),
+    )
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Waiting (1)' })).toBeTruthy()
+  })
+})
+
+describe('guilt-free re-entry', () => {
+  const seedAway = () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 11, 12, 0, 0)) // Aug 11
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        healthDate: '2026-08-01',
+        questsDate: '2026-08-01',
+        support: { lastOpened: '2026-08-01' },
+      }),
+    )
+  }
+
+  it('welcomes a return after days away without a backlog, and skip dismisses it for good', () => {
+    seedAway()
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Welcome back.' })).toBeTruthy()
+    expect(screen.getByText(/It has been 10 days/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Skip, start from today' }))
+    expect(screen.queryByRole('heading', { name: 'Welcome back.' })).toBeNull()
+    const s = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(s.support.reentry).toBeNull()
+    expect(s.support.lastOpened).toBe('2026-08-11')
+    expect(s.transactions).toHaveLength(0)
+  })
+
+  it('accepts one rough catch-up number as a single dated row', () => {
+    seedAway()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Roughly, while away (DA)'), { target: { value: '4000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add it' }))
+    const s = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(s.transactions).toHaveLength(1)
+    expect(s.transactions[0].amountDA).toBe(4_000)
+    expect(s.transactions[0].date).toBe('2026-08-11')
+    expect(s.support.reentry).toBeNull()
+  })
+
+  it('does not treat a short gap as a re-entry', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 3, 12, 0, 0))
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({ healthDate: '2026-08-01', questsDate: '2026-08-01', support: { lastOpened: '2026-08-01' } }),
+    )
+    render(<App />)
+    expect(screen.queryByRole('heading', { name: 'Welcome back.' })).toBeNull()
+  })
+})
+
+describe('calm mode', () => {
+  it('saving the calm need mutes sound and marks the shell calm', () => {
+    render(<App />)
+    fireEvent.click(screen.getByLabelText(/Noise and surprises stress me/))
+    fireEvent.click(screen.getByRole('button', { name: 'Save what helps' }))
+    const s = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(s.muted).toBe(true)
+    expect(s.support.calm).toBe(true)
+    expect(document.querySelector('.shell[data-calm]')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Calm mode: on' })).toBeTruthy()
+  })
+})

@@ -1,6 +1,33 @@
 import type { Transaction } from '../state/store.ts'
+import type { Velocity } from '../engine/brakes.ts'
 
-export function Ledger({ transactions, today }: { transactions: Transaction[]; today: string }) {
+/**
+ * The pace signal's copy. Pace, never a diagnosis: it compares the user with
+ * their own baseline and offers one thing — the person they chose — and
+ * nothing else. Silent when the pace is usual or unknown.
+ */
+function paceLine(v: Velocity, trustedName: string | null): string | null {
+  if (v.level !== 'faster' && v.level !== 'much-faster') return null
+  const pace =
+    v.level === 'much-faster'
+      ? 'Money is leaving a lot faster than your usual pace these last few days.'
+      : 'Money is leaving a bit faster than your usual pace these last few days.'
+  const who = trustedName && trustedName.trim() !== '' ? ` Want to tell ${trustedName.trim()}?` : ''
+  return `${pace} Not a verdict — just a mirror.${who}`
+}
+
+export function Ledger({
+  transactions,
+  today,
+  velocity,
+  trustedName,
+}: {
+  transactions: Transaction[]
+  today: string
+  velocity?: Velocity
+  trustedName?: string | null
+}) {
+  const pace = velocity ? paceLine(velocity, trustedName ?? null) : null
   // "Kept, not spent": resisted amounts finally compound into one visible
   // number instead of scattering per-row. Current calendar month, resists
   // with a typed amount only. A motivational mirror over self-reported data —
@@ -18,6 +45,7 @@ export function Ledger({ transactions, today }: { transactions: Transaction[]; t
           <span className="kept-chip mono">{keptDA.toLocaleString()} DA kept this month</span>
         )}
       </div>
+      {pace && <p className="pace-note">{pace}</p>}
       {transactions.length === 0 ? (
         <p className="empty">Nothing logged yet. First log is +5 XP.</p>
       ) : (
