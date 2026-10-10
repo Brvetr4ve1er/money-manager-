@@ -3,7 +3,7 @@ import {
   ACHIEVEMENTS,
   ACHIEVEMENT_IDS,
   achievementById,
-  longestLogStreak,
+  loggedDayCount,
   newlyEarnedIds,
   unlockedPets,
 } from './achievements.ts'
@@ -22,42 +22,34 @@ const withState = (over: Partial<AppState> = {}): AppState => ({ ...defaultState
 
 const earned = (id: string, state: AppState): boolean => achievementById(id)!.earned(state)
 
-describe('longestLogStreak', () => {
+describe('loggedDayCount', () => {
   it('is 0 with no transactions', () => {
-    expect(longestLogStreak([])).toBe(0)
+    expect(loggedDayCount([])).toBe(0)
   })
   it('is 1 for a single logged day', () => {
-    expect(longestLogStreak([tx()])).toBe(1)
+    expect(loggedDayCount([tx()])).toBe(1)
   })
-  it('counts consecutive local dates', () => {
-    const txs = ['2026-08-01', '2026-08-02', '2026-08-03'].map((date) => tx({ date }))
-    expect(longestLogStreak(txs)).toBe(3)
-  })
-  it('multiple logs on one day count as one streak day', () => {
+  it('multiple logs on one day count as one day', () => {
     const txs = [tx({ id: 'a' }), tx({ id: 'b' }), tx({ id: 'c', date: '2026-08-02' })]
-    expect(longestLogStreak(txs)).toBe(2)
+    expect(loggedDayCount(txs)).toBe(2)
   })
-  it('a missed day breaks the run — the longest run wins', () => {
+  it('a missed day never resets the count — days accumulate, no streak', () => {
     const txs = ['2026-08-01', '2026-08-02', '2026-08-04', '2026-08-05', '2026-08-06'].map(
       (date) => tx({ date }),
     )
-    expect(longestLogStreak(txs)).toBe(3)
-  })
-  it('crosses month boundaries on real calendar days', () => {
-    const txs = ['2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02'].map((date) => tx({ date }))
-    expect(longestLogStreak(txs)).toBe(4)
+    expect(loggedDayCount(txs)).toBe(5)
   })
   it('is order-independent — the ledger stores newest-first', () => {
     const txs = ['2026-08-03', '2026-08-01', '2026-08-02'].map((date) => tx({ date }))
-    expect(longestLogStreak(txs)).toBe(3)
+    expect(loggedDayCount(txs)).toBe(3)
   })
-  it('resisted rows keep the streak alive — showing up is the behavior', () => {
+  it('resisted rows count as showing up', () => {
     const txs = [
       tx({ date: '2026-08-01' }),
       tx({ date: '2026-08-02', amountDA: 0, resistedImpulse: true }),
       tx({ date: '2026-08-03' }),
     ]
-    expect(longestLogStreak(txs)).toBe(3)
+    expect(loggedDayCount(txs)).toBe(3)
   })
 })
 
@@ -88,11 +80,12 @@ describe('unlock predicates', () => {
     })
     expect(earned('first-sim', s)).toBe(true)
   })
-  it('streak-7 needs seven consecutive logged days', () => {
+  it('seven-days needs seven logged days, gaps allowed', () => {
     const six = ['01', '02', '03', '04', '05', '06'].map((d) => tx({ date: `2026-08-${d}` }))
-    expect(earned('streak-7', withState({ transactions: six }))).toBe(false)
-    const seven = [...six, tx({ date: '2026-08-07' })]
-    expect(earned('streak-7', withState({ transactions: seven }))).toBe(true)
+    expect(earned('seven-days', withState({ transactions: six }))).toBe(false)
+    // A week off between day six and day seven costs nothing.
+    const seven = [...six, tx({ date: '2026-08-20' })]
+    expect(earned('seven-days', withState({ transactions: seven }))).toBe(true)
   })
   it('codex-5 needs five collected lessons', () => {
     const four = Array.from({ length: 4 }, (_, i) => ({ id: `l${i}`, date: '2026-08-01' }))

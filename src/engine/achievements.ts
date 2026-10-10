@@ -8,7 +8,6 @@
  * so the collection can never become an XP lever or a score input.
  */
 
-import { addDaysISO } from './boss.ts'
 import type { AchievementUnlock, AppState, Transaction } from '../state/store.ts'
 
 export interface PixelPet {
@@ -32,24 +31,15 @@ function isPurchase(t: Transaction): boolean {
 }
 
 /**
- * Longest run of consecutive local calendar days holding at least one logged
- * row. ANY row counts, resists included — the streak rewards the logging
- * habit itself (showing up), the same show-up rule the boss engine's
- * hasLogInWeek applies. Pure over the list (no wall clock): a streak once
- * built stays computable identically on every tab and reload, and the unlock
- * persists anyway, so "longest ever" needs no reference day.
+ * Number of distinct local calendar days holding at least one logged row.
+ * ANY row counts, resists included — the badge rewards showing up, the same
+ * show-up rule the boss engine's hasLogInWeek applies. Deliberately NOT a
+ * consecutive-day streak: a streak resets to zero on one missed day, which
+ * punishes exactly the people (low-energy weeks, episodes, hospital stays)
+ * the app most wants to keep. Days accumulate forever and never reset.
  */
-export function longestLogStreak(transactions: Transaction[]): number {
-  const days = [...new Set(transactions.map((t) => t.date))].sort()
-  let best = 0
-  let run = 0
-  let prev: string | null = null
-  for (const day of days) {
-    run = prev !== null && addDaysISO(prev, 1) === day ? run + 1 : 1
-    if (run > best) best = run
-    prev = day
-  }
-  return best
+export function loggedDayCount(transactions: Transaction[]): number {
+  return new Set(transactions.map((t) => t.date)).size
 }
 
 /**
@@ -91,11 +81,11 @@ export const ACHIEVEMENTS: ReadonlyArray<Achievement> = [
     earned: (s) => s.xpLog.some((g) => g.action === 'runSimulation'),
   },
   {
-    id: 'streak-7',
+    id: 'seven-days',
     name: 'Seven-Day Flame',
-    hint: 'Log something 7 days in a row.',
+    hint: 'Log something on 7 different days — in a row or not.',
     pet: { emoji: '🐉', name: 'Jamra' },
-    earned: (s) => longestLogStreak(s.transactions) >= 7,
+    earned: (s) => loggedDayCount(s.transactions) >= 7,
   },
   {
     id: 'codex-5',

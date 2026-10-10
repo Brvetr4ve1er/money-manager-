@@ -12,11 +12,20 @@ import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 import type { Stage } from '../engine/healthScore.ts'
 import { LESSON_IDS } from '../content/lessons.ts'
 import {
+  applyPending,
+  requestRuleChange,
+  type BrakeRule,
+  type HeldPurchase,
+} from '../engine/brakes.ts'
+import { reentryFor } from '../engine/calm.ts'
+import { composeDefaults, type NeedId } from '../engine/needs.ts'
+import {
   mergeStates,
   rollQuests,
   sanitizeProfile,
   type AppState,
   type ProfileData,
+  type SupportState,
   type Transaction,
 } from './store.ts'
 
@@ -31,6 +40,30 @@ export type AppAction =
   | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
   | { type: 'PROFILE_SET'; profile: ProfileData }
+  /** Needs picker saved: composes the mode defaults (brakes, low energy, calm). */
+  | { type: 'NEEDS_SET'; needs: NeedId[]; nowISO: string }
+  /** Brake rule edit: tightening lands now, loosening waits behind the edit lock. */
+  | { type: 'BRAKES_REQUEST'; rule: BrakeRule | null; nowISO: string }
+  /** Clock tick: promotes a pending rule whose time has come. No-op otherwise. */
+  | { type: 'BRAKES_TICK'; nowISO: string }
+  /** A purchase the brakes caught — queued, not logged. */
+  | { type: 'HOLD_TX'; held: HeldPurchase }
+  /** The wait is over and the user still wants it: logs it like any purchase. */
+  | { type: 'RELEASE_HELD'; id: string; date: string }
+  /** The user let a held purchase go. Nothing is logged; nothing is punished. */
+  | { type: 'LET_GO_HELD'; id: string }
+  | { type: 'LOW_ENERGY_SET'; on: boolean; nowISO: string }
+  | { type: 'CALM_SET'; on: boolean; nowISO: string }
+  | { type: 'REENTRY_DISMISS' }
+  | { type: 'TRUSTED_SET'; trusted: SupportState['trusted']; nowISO: string }
+
+/** Settings edits stamp savedAt so mergeStates can keep the newest block whole. */
+function withSupport(state: AppState, patch: Partial<SupportState>, nowISO?: string): AppState {
+  return {
+    ...state,
+    support: { ...state.support, ...patch, ...(nowISO !== undefined ? { savedAt: nowISO } : {}) },
+  }
+}
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -136,14 +169,22 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // nothing needs to change so dispatching is render-free on no-op days.
       if (state.healthDate === action.today && state.questsDate === action.today) return state
       const rolled = rollQuests(state, action.today)
-      return state.healthDate === action.today
-        ? rolled
-        : {
-            ...rolled,
-            prevHealthScore: action.healthScore,
-            stage: action.healthStage,
-            healthDate: action.today,
-          }
+      const snapped =
+        state.healthDate === action.today
+          ? rolled
+          : {
+              ...rolled,
+              prevHealthScore: action.healthScore,
+              stage: action.healthStage,
+              healthDate: action.today,
+            }
+      // The day clock is also the "last opened" record: a gap of
+      // REENTRY_AFTER_DAYS or more flags the guilt-free return (see calm.ts).
+      // An already-shown re-entry is never overwritten by a later day roll in
+      // the same visit — the user dismisses it, nothing else clears it.
+      if (state.support.lastOpened === action.today) return snapped
+      const reentry = state.support.reentry ?? reentryFor(state.support.lastOpened, action.today)
+      return withSupport(snapped, { lastOpened: action.today, reentry })
     }
     case 'BOSS_VICTORY': {
       // Weekly boss win (computed by the boss engine, dispatched from
@@ -196,5 +237,87 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const profile = sanitizeProfile(action.profile)
       return profile === null ? state : { ...state, profile }
     }
+    case 'NEEDS_SET': {
+      // Defaults compose ON TOP of what the user already set, never beneath:
+      // picking "brakes" with a rule already in place keeps the existing rule
+      // (tightening-only via requestRuleChange), and un-picking it does not
+      // silently remove brakes — removing is its own, edit-locked, action.
+      const needs = [...new Set(action.needs)].sort()
+      const d = composeDefaults(needs)
+      const nowMs = Date.parse(action.nowISO)
+      const brakes =
+        d.brakes !== null && state.support.brakes === null
+          ? requestRuleChange(null, d.brakes, nowMs)
+          : { brakes: state.support.brakes, pending: state.support.pendingBrakes }
+      return {
+        ...withSupport(
+          state,
+          {
+            needs,
+            brakes: brakes.brakes,
+            pendingBrakes: brakes.pending,
+            lowEnergy: state.support.lowEnergy || d.lowEnergy,
+            calm: state.support.calm || d.calm,
+          },
+          action.nowISO,
+        ),
+        // Calm means sound off; the mute merge is OR-safe like this one.
+        muted: state.muted || d.calm,
+      }
+    }
+    case 'BRAKES_REQUEST': {
+      const { brakes, pending } = requestRuleChange(
+        state.support.brakes,
+        action.rule,
+        Date.parse(action.nowISO),
+      )
+      return withSupport(state, { brakes, pendingBrakes: pending }, action.nowISO)
+    }
+    case 'BRAKES_TICK': {
+      const { brakes, pending } = applyPending(
+        state.support.brakes,
+        state.support.pendingBrakes,
+        Date.parse(action.nowISO),
+      )
+      if (pending === state.support.pendingBrakes) return state
+      // A promoted rule is a settings change: stamp it so a peer tab that
+      // ticks later (or never) adopts the promotion instead of its stale copy.
+      return withSupport(state, { brakes, pendingBrakes: pending }, action.nowISO)
+    }
+    case 'HOLD_TX': {
+      if (state.support.held.some((h) => h.id === action.held.id)) return state
+      return withSupport(state, { held: [...state.support.held, action.held] })
+    }
+    case 'RELEASE_HELD': {
+      const held = state.support.held.find((h) => h.id === action.id)
+      if (!held) return state
+      // Same path as any purchase: LOG_TX pays the ordinary +5 and keeps the
+      // held id as the transaction id, so Undo (UNDO_TX) works unchanged.
+      const tx: Transaction = {
+        id: held.id,
+        amountDA: held.amountDA,
+        category: held.category,
+        date: action.date,
+        resistedImpulse: false,
+        impulseFlagged: held.impulseFlagged,
+      }
+      const without = withSupport(state, { held: state.support.held.filter((h) => h.id !== action.id) })
+      return appReducer(without, { type: 'LOG_TX', tx })
+    }
+    case 'LET_GO_HELD': {
+      if (!state.support.held.some((h) => h.id === action.id)) return state
+      return withSupport(state, { held: state.support.held.filter((h) => h.id !== action.id) })
+    }
+    case 'LOW_ENERGY_SET':
+      if (state.support.lowEnergy === action.on) return state
+      return withSupport(state, { lowEnergy: action.on }, action.nowISO)
+    case 'CALM_SET':
+      if (state.support.calm === action.on) return state
+      return { ...withSupport(state, { calm: action.on }, action.nowISO), muted: state.muted || action.on }
+    case 'REENTRY_DISMISS':
+      if (state.support.reentry === null) return state
+      return withSupport(state, { reentry: null })
+    case 'TRUSTED_SET':
+      return withSupport(state, { trusted: action.trusted }, action.nowISO)
   }
 }

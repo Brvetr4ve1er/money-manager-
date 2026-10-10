@@ -1,14 +1,20 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   defaultState,
+  defaultSupport,
   mergeStates,
+  mergeSupport,
   newId,
   sanitizeState,
+  sanitizeSupport,
   todayISO,
   rollQuests,
   type AppState,
+  type SupportState,
   type Transaction,
 } from './store.ts'
+import type { HeldPurchase } from '../engine/brakes.ts'
+import { DEFAULT_SNAPSHOT_OPTIONS } from '../engine/snapshot.ts'
 import { MAX_TOTAL_XP, xpStateFromTotal } from '../engine/xp.ts'
 
 describe('todayISO', () => {
@@ -654,10 +660,10 @@ describe('achievement persistence', () => {
         { id: 'hand-added', date: '2026-08-01' }, // no roster entry — no shelf inflation
         { id: 'first-resist', date: '2026-99-99' }, // impossible calendar day
         { id: 'first-resist', date: 'yesterday' },
-        { id: 'streak-7', date: '2026-08-02' },
+        { id: 'seven-days', date: '2026-08-02' },
       ],
     })
-    expect(out.achievements).toEqual([{ id: 'streak-7', date: '2026-08-02' }])
+    expect(out.achievements).toEqual([{ id: 'seven-days', date: '2026-08-02' }])
   })
 
   it('dedupes unlocks by id keeping the earliest date, in canonical order', () => {
@@ -696,5 +702,270 @@ describe('achievement persistence', () => {
     ]
     expect(mergeStates(a, b).achievements).toEqual(expected)
     expect(mergeStates(b, a).achievements).toEqual(expected)
+  })
+})
+
+/* ------------------------------- support -------------------------------- */
+
+const NOW = '2026-08-10T12:00:00.000Z'
+const LATER = '2026-08-11T12:00:00.000Z'
+
+const mkHeld = (over: Partial<HeldPurchase> = {}): HeldPurchase => ({
+  id: 'h1',
+  amountDA: 6_000,
+  category: 'Fun',
+  impulseFlagged: false,
+  heldAt: NOW,
+  releaseAt: LATER,
+  ...over,
+})
+
+const sup = (over: Partial<SupportState> = {}): SupportState => ({ ...defaultSupport(), ...over })
+
+describe('sanitizeSupport', () => {
+  it('returns defaults for garbage and for a missing slice', () => {
+    expect(sanitizeSupport(null)).toEqual(defaultSupport())
+    expect(sanitizeSupport('junk')).toEqual(defaultSupport())
+    expect(sanitizeSupport({ needs: 'brakes', brakes: 7, held: 'none', savedAt: 123 })).toEqual(defaultSupport())
+    expect(sanitizeState({}).support).toEqual(defaultSupport())
+  })
+
+  it('keeps a valid brake rule in canonical category order', () => {
+    const out = sanitizeSupport({ brakes: { thresholdDA: 5_000, categories: ['Other', 'Fun', 'Fun'], delayHours: 24 } })
+    expect(out.brakes).toEqual({ thresholdDA: 5_000, categories: ['Fun', 'Other'], delayHours: 24 })
+  })
+
+  it('drops a malformed brake rule to null — losing a brake beats enforcing garbage', () => {
+    for (const bad of [
+      { thresholdDA: -1, categories: [], delayHours: 24 },
+      { thresholdDA: 'lots', categories: [], delayHours: 24 },
+      { thresholdDA: 5_000, categories: 'Fun', delayHours: 24 },
+      { thresholdDA: 5_000, categories: [7], delayHours: 24 },
+      { thresholdDA: 5_000, categories: [], delayHours: 5 },
+      { thresholdDA: null, categories: [], delayHours: 24 }, // empty rule
+      'junk',
+    ]) {
+      expect(sanitizeSupport({ brakes: bad }).brakes).toBeNull()
+      expect(sanitizeState({ support: { brakes: bad } }).support.brakes).toBeNull()
+    }
+  })
+
+  it('keeps a pending change only with a real effectiveAt, sanitizing its rule', () => {
+    const good = { rule: null, effectiveAt: LATER }
+    expect(sanitizeSupport({ pendingBrakes: good }).pendingBrakes).toEqual(good)
+    const withRule = sanitizeSupport({
+      pendingBrakes: { rule: { thresholdDA: 1_000, categories: ['Fun'], delayHours: 72 }, effectiveAt: LATER },
+    })
+    expect(withRule.pendingBrakes).toEqual({
+      rule: { thresholdDA: 1_000, categories: ['Fun'], delayHours: 72 },
+      effectiveAt: LATER,
+    })
+    expect(sanitizeSupport({ pendingBrakes: { rule: null, effectiveAt: 'soon' } }).pendingBrakes).toBeNull()
+    expect(sanitizeSupport({ pendingBrakes: { rule: null, effectiveAt: '2026-08-11' } }).pendingBrakes).toBeNull()
+  })
+
+  it('drops held rows with bad timestamps or non-positive amounts', () => {
+    const out = sanitizeSupport({
+      held: [
+        mkHeld(),
+        mkHeld({ id: 'bad-held-at', heldAt: 'yesterday' }),
+        mkHeld({ id: 'bad-release', releaseAt: '2026-08-11' }),
+        mkHeld({ id: 'zero', amountDA: 0 }),
+        mkHeld({ id: 'neg', amountDA: -5 }),
+        mkHeld({ id: 'nan', amountDA: NaN }),
+        { ...mkHeld({ id: 'flag' }), impulseFlagged: 'yes' },
+        'junk',
+      ],
+    })
+    expect(out.held).toEqual([mkHeld()])
+  })
+
+  it('dedupes held rows by id, first occurrence wins, in heldAt then id order', () => {
+    const out = sanitizeSupport({
+      held: [
+        mkHeld({ id: 'b', heldAt: LATER }),
+        mkHeld({ id: 'a', heldAt: LATER }),
+        mkHeld({ id: 'b', amountDA: 1 }),
+        mkHeld({ id: 'c', heldAt: NOW }),
+      ],
+    })
+    expect(out.held.map((h) => h.id)).toEqual(['c', 'a', 'b'])
+    expect(out.held.find((h) => h.id === 'b')?.amountDA).toBe(6_000)
+  })
+
+  it('filters needs to the roster, deduped and sorted', () => {
+    const out = sanitizeSupport({ needs: ['second-pair', 'diagnosis', 'brakes', 7, 'brakes'] })
+    expect(out.needs).toEqual(['brakes', 'second-pair'])
+  })
+
+  it('keeps flags, lastOpened, reentry and savedAt only when well-formed', () => {
+    const out = sanitizeSupport({
+      lowEnergy: true,
+      calm: 'yes',
+      lastOpened: '2026-08-01',
+      reentry: { since: '2026-07-20', days: 12.7 },
+      savedAt: NOW,
+    })
+    expect(out.lowEnergy).toBe(true)
+    expect(out.calm).toBe(false)
+    expect(out.lastOpened).toBe('2026-08-01')
+    expect(out.reentry).toEqual({ since: '2026-07-20', days: 12 })
+    expect(out.savedAt).toBe(NOW)
+    const bad = sanitizeSupport({
+      lastOpened: '2026-99-99',
+      reentry: { since: 'then', days: 3 },
+      savedAt: '2026-08-10',
+    })
+    expect(bad.lastOpened).toBe('')
+    expect(bad.reentry).toBeNull()
+    expect(bad.savedAt).toBe('')
+    expect(sanitizeSupport({ reentry: { since: '2026-07-20', days: -1 } }).reentry).toBeNull()
+  })
+
+  it('trusted options fall back to defaults field by field', () => {
+    const out = sanitizeSupport({ trusted: { name: 'Mum', options: { held: true, totals: 'yes', velocity: false } } })
+    expect(out.trusted).toEqual({
+      name: 'Mum',
+      options: { ...DEFAULT_SNAPSHOT_OPTIONS, held: true, velocity: false },
+    })
+    expect(sanitizeSupport({ trusted: { name: 'Mum' } }).trusted).toEqual({
+      name: 'Mum',
+      options: DEFAULT_SNAPSHOT_OPTIONS,
+    })
+    expect(sanitizeSupport({ trusted: { name: 7, options: {} } }).trusted).toBeNull()
+    expect(sanitizeSupport({ trusted: 'Mum' }).trusted).toBeNull()
+  })
+})
+
+describe('mergeSupport', () => {
+  const rule = { thresholdDA: 5_000, categories: ['Fun'], delayHours: 24 }
+  const tighter = { thresholdDA: 1_000, categories: ['Fun', 'Other'], delayHours: 72 }
+
+  it('the newer savedAt wins the whole settings block', () => {
+    const older = sup({ needs: ['brakes'], brakes: rule, lowEnergy: true, savedAt: NOW })
+    const newer = sup({
+      needs: ['calm'],
+      brakes: tighter,
+      pendingBrakes: { rule: null, effectiveAt: LATER },
+      calm: true,
+      trusted: { name: 'Mum', options: DEFAULT_SNAPSHOT_OPTIONS },
+      savedAt: LATER,
+    })
+    for (const merged of [mergeSupport(older, newer), mergeSupport(newer, older)]) {
+      expect(merged.needs).toEqual(['calm'])
+      expect(merged.brakes).toEqual(tighter)
+      expect(merged.pendingBrakes).toEqual({ rule: null, effectiveAt: LATER })
+      expect(merged.lowEnergy).toBe(false) // no splicing: the older block's flag does not survive
+      expect(merged.calm).toBe(true)
+      expect(merged.trusted).toEqual({ name: 'Mum', options: DEFAULT_SNAPSHOT_OPTIONS })
+      expect(merged.savedAt).toBe(LATER)
+    }
+  })
+
+  it('a stamped block beats a never-saved one', () => {
+    const saved = sup({ lowEnergy: true, savedAt: NOW })
+    expect(mergeSupport(saved, sup()).lowEnergy).toBe(true)
+    expect(mergeSupport(sup(), saved).lowEnergy).toBe(true)
+  })
+
+  it('breaks a savedAt tie by the greater JSON string, symmetrically', () => {
+    const a = sup({ lowEnergy: true, savedAt: NOW })
+    const b = sup({ lowEnergy: false, savedAt: NOW })
+    // '"lowEnergy":true' > '"lowEnergy":false' lexicographically.
+    expect(mergeSupport(a, b).lowEnergy).toBe(true)
+    expect(mergeSupport(b, a).lowEnergy).toBe(true)
+    expect(mergeSupport(a, b)).toEqual(mergeSupport(b, a))
+  })
+
+  it('is symmetric across every field at once', () => {
+    const a = sup({
+      needs: ['brakes'],
+      brakes: rule,
+      held: [mkHeld({ id: 'a1' }), mkHeld({ id: 'shared' })],
+      lastOpened: '2026-08-09',
+      reentry: { since: '2026-08-01', days: 8 },
+      savedAt: NOW,
+    })
+    const b = sup({
+      needs: ['calm'],
+      calm: true,
+      held: [mkHeld({ id: 'b1', heldAt: LATER }), mkHeld({ id: 'shared' })],
+      lastOpened: '2026-08-10',
+      reentry: { since: '2026-07-28', days: 13 },
+      savedAt: LATER,
+    })
+    expect(mergeSupport(a, b)).toEqual(mergeSupport(b, a))
+  })
+
+  it('unions held purchases by id — a tab that never saw a hold cannot release it', () => {
+    const a = sup({ held: [mkHeld({ id: 'a1' }), mkHeld({ id: 'shared' })] })
+    const b = sup({ held: [mkHeld({ id: 'b1' }), mkHeld({ id: 'shared' })] })
+    const ids = (s: SupportState) => s.held.map((h) => h.id)
+    expect(ids(mergeSupport(a, b))).toEqual(['a1', 'b1', 'shared'])
+    expect(ids(mergeSupport(b, a))).toEqual(['a1', 'b1', 'shared'])
+  })
+
+  it('lastOpened takes the later day', () => {
+    const a = sup({ lastOpened: '2026-08-09' })
+    const b = sup({ lastOpened: '2026-08-10' })
+    expect(mergeSupport(a, b).lastOpened).toBe('2026-08-10')
+    expect(mergeSupport(b, a).lastOpened).toBe('2026-08-10')
+    expect(mergeSupport(sup(), b).lastOpened).toBe('2026-08-10')
+  })
+
+  it('reentry is null when either side dismissed it, else the earlier since wins', () => {
+    const r1 = { since: '2026-07-28', days: 13 }
+    const r2 = { since: '2026-08-01', days: 9 }
+    expect(mergeSupport(sup({ reentry: r1 }), sup()).reentry).toBeNull()
+    expect(mergeSupport(sup(), sup({ reentry: r1 })).reentry).toBeNull()
+    expect(mergeSupport(sup({ reentry: r1 }), sup({ reentry: r2 })).reentry).toEqual(r1)
+    expect(mergeSupport(sup({ reentry: r2 }), sup({ reentry: r1 })).reentry).toEqual(r1)
+  })
+})
+
+describe('mergeStates support fixpoint', () => {
+  it('returns the SAME object when the support slice is identical', () => {
+    const support = sup({
+      needs: ['brakes', 'calm'],
+      brakes: { thresholdDA: 5_000, categories: ['Fun'], delayHours: 24 },
+      held: [mkHeld()],
+      calm: true,
+      lastOpened: '2026-08-10',
+      reentry: { since: '2026-08-01', days: 9 },
+      trusted: { name: 'Mum', options: DEFAULT_SNAPSHOT_OPTIONS },
+      savedAt: NOW,
+    })
+    const seed: AppState = { ...defaultState(), questsDate: '2026-08-10', support }
+    const incoming: AppState = {
+      ...defaultState(),
+      questsDate: '2026-08-10',
+      support: JSON.parse(JSON.stringify(support)) as SupportState,
+    }
+    // Strong form: a sanitized/default-ordered state must be its OWN fixpoint
+    // on the very first HYDRATE — mergeSupport builds its result in
+    // defaultSupport()'s key order precisely so this string-compare holds.
+    expect(mergeStates(seed, incoming)).toBe(seed)
+    const local = mergeStates(seed, incoming)
+    expect(mergeStates(local, incoming)).toBe(local)
+    expect(mergeStates(local, local)).toBe(local)
+  })
+
+  it('merges the support slice through mergeStates and reaches a fixpoint', () => {
+    const local: AppState = {
+      ...defaultState(),
+      questsDate: '2026-08-10',
+      support: sup({ held: [mkHeld({ id: 'a1' })], lowEnergy: true, savedAt: NOW }),
+    }
+    const incoming: AppState = {
+      ...defaultState(),
+      questsDate: '2026-08-10',
+      support: sup({ held: [mkHeld({ id: 'b1' })], calm: true, savedAt: LATER }),
+    }
+    const merged = mergeStates(local, incoming)
+    expect(merged.support.held.map((h) => h.id)).toEqual(['a1', 'b1'])
+    expect(merged.support.calm).toBe(true)
+    expect(merged.support.lowEnergy).toBe(false)
+    expect(mergeStates(merged, incoming)).toBe(merged)
+    expect(mergeStates(incoming, local)).toEqual(merged)
   })
 })

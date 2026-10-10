@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { appReducer } from './reducer.ts'
-import { defaultState, type Transaction } from './store.ts'
+import { defaultState, defaultSupport, type AppState, type SupportState, type Transaction } from './store.ts'
+import { DEFAULT_BRAKE_RULE } from '../engine/needs.ts'
+import type { BrakeRule, HeldPurchase } from '../engine/brakes.ts'
 
 const tx = (over: Partial<Transaction> = {}): Transaction => ({
   id: 't1',
@@ -331,5 +333,293 @@ describe('UNLOCK_ACHIEVEMENTS', () => {
       { id: 'first-log', date: '2026-08-01' },
       { id: 'ten-logs', date: '2026-08-09' },
     ])
+  })
+})
+
+/* ----------------------------- support modes ----------------------------- */
+
+const NOW = '2026-08-10T12:00:00.000Z'
+const HOUR = 3_600_000
+const plusHours = (iso: string, h: number) => new Date(Date.parse(iso) + h * HOUR).toISOString()
+
+const withSupport = (over: Partial<SupportState> = {}): AppState => ({
+  ...defaultState(),
+  support: { ...defaultSupport(), ...over },
+})
+
+const rule = (over: Partial<BrakeRule> = {}): BrakeRule => ({
+  thresholdDA: 5_000,
+  categories: ['Fun'],
+  delayHours: 24,
+  ...over,
+})
+
+const held = (over: Partial<HeldPurchase> = {}): HeldPurchase => ({
+  id: 'h1',
+  amountDA: 6_000,
+  category: 'Fun',
+  impulseFlagged: false,
+  heldAt: NOW,
+  releaseAt: plusHours(NOW, 24),
+  ...over,
+})
+
+describe('NEEDS_SET', () => {
+  it('composes the starting brake rule only when none exists', () => {
+    const next = appReducer(withSupport(), { type: 'NEEDS_SET', needs: ['brakes'], nowISO: NOW })
+    expect(next.support.needs).toEqual(['brakes'])
+    expect(next.support.brakes).toEqual(DEFAULT_BRAKE_RULE)
+    expect(next.support.pendingBrakes).toBeNull()
+  })
+  it('keeps an existing rule when brakes is picked again', () => {
+    const existing = rule({ thresholdDA: 2_000 })
+    const next = appReducer(withSupport({ brakes: existing }), {
+      type: 'NEEDS_SET',
+      needs: ['brakes'],
+      nowISO: NOW,
+    })
+    expect(next.support.brakes).toBe(existing)
+    expect(next.support.pendingBrakes).toBeNull()
+  })
+  it('does not remove existing brakes when brakes is un-picked', () => {
+    const existing = rule()
+    const pending = { rule: null, effectiveAt: plusHours(NOW, 48) }
+    const next = appReducer(withSupport({ needs: ['brakes'], brakes: existing, pendingBrakes: pending }), {
+      type: 'NEEDS_SET',
+      needs: ['calm'],
+      nowISO: NOW,
+    })
+    expect(next.support.needs).toEqual(['calm'])
+    expect(next.support.brakes).toBe(existing)
+    expect(next.support.pendingBrakes).toBe(pending)
+  })
+  it('calm sets the calm flag and mutes sound', () => {
+    const next = appReducer(withSupport(), { type: 'NEEDS_SET', needs: ['calm'], nowISO: NOW })
+    expect(next.support.calm).toBe(true)
+    expect(next.muted).toBe(true)
+  })
+  it('low-energy sets the flag and un-picking never clears a flag already on', () => {
+    const on = appReducer(withSupport(), { type: 'NEEDS_SET', needs: ['low-energy'], nowISO: NOW })
+    expect(on.support.lowEnergy).toBe(true)
+    const off = appReducer(on, { type: 'NEEDS_SET', needs: [], nowISO: NOW })
+    expect(off.support.lowEnergy).toBe(true)
+  })
+  it('dedupes and sorts the picked needs and stamps savedAt', () => {
+    const next = appReducer(withSupport(), {
+      type: 'NEEDS_SET',
+      needs: ['second-pair', 'brakes', 'second-pair'],
+      nowISO: NOW,
+    })
+    expect(next.support.needs).toEqual(['brakes', 'second-pair'])
+    expect(next.support.savedAt).toBe(NOW)
+  })
+})
+
+describe('BRAKES_REQUEST', () => {
+  it('applies a tightening immediately and stamps savedAt', () => {
+    const s = withSupport({ brakes: rule({ thresholdDA: 5_000 }) })
+    const next = appReducer(s, { type: 'BRAKES_REQUEST', rule: rule({ thresholdDA: 2_000 }), nowISO: NOW })
+    expect(next.support.brakes).toEqual(rule({ thresholdDA: 2_000 }))
+    expect(next.support.pendingBrakes).toBeNull()
+    expect(next.support.savedAt).toBe(NOW)
+  })
+  it('schedules a loosening 48h out and keeps the current rule', () => {
+    const current = rule({ thresholdDA: 2_000 })
+    const next = appReducer(withSupport({ brakes: current }), {
+      type: 'BRAKES_REQUEST',
+      rule: rule({ thresholdDA: 9_000 }),
+      nowISO: NOW,
+    })
+    expect(next.support.brakes).toBe(current)
+    expect(next.support.pendingBrakes).toEqual({
+      rule: rule({ thresholdDA: 9_000 }),
+      effectiveAt: plusHours(NOW, 48),
+    })
+  })
+  it('schedules removal (null) behind the lock', () => {
+    const current = rule()
+    const next = appReducer(withSupport({ brakes: current }), { type: 'BRAKES_REQUEST', rule: null, nowISO: NOW })
+    expect(next.support.brakes).toBe(current)
+    expect(next.support.pendingBrakes).toEqual({ rule: null, effectiveAt: plusHours(NOW, 48) })
+  })
+})
+
+describe('BRAKES_TICK', () => {
+  const current = rule({ thresholdDA: 2_000 })
+  const pending = { rule: rule({ thresholdDA: 9_000 }), effectiveAt: plusHours(NOW, 48) }
+
+  it('is a same-reference no-op before effectiveAt and when nothing is pending', () => {
+    const s = withSupport({ brakes: current, pendingBrakes: pending, savedAt: NOW })
+    expect(appReducer(s, { type: 'BRAKES_TICK', nowISO: plusHours(NOW, 47) })).toBe(s)
+    const none = withSupport({ brakes: current })
+    expect(appReducer(none, { type: 'BRAKES_TICK', nowISO: plusHours(NOW, 1000) })).toBe(none)
+  })
+  it('promotes the pending rule after effectiveAt and stamps savedAt', () => {
+    const s = withSupport({ brakes: current, pendingBrakes: pending, savedAt: NOW })
+    const at = plusHours(NOW, 49)
+    const next = appReducer(s, { type: 'BRAKES_TICK', nowISO: at })
+    expect(next.support.brakes).toEqual(rule({ thresholdDA: 9_000 }))
+    expect(next.support.pendingBrakes).toBeNull()
+    expect(next.support.savedAt).toBe(at)
+  })
+})
+
+describe('HOLD_TX', () => {
+  it('queues the held purchase', () => {
+    const next = appReducer(withSupport(), { type: 'HOLD_TX', held: held() })
+    expect(next.support.held).toEqual([held()])
+    expect(next.transactions).toEqual([])
+    expect(next.xp.totalXp).toBe(0)
+  })
+  it('dedupes by id — a double dispatch is a same-reference no-op', () => {
+    const s = appReducer(withSupport(), { type: 'HOLD_TX', held: held() })
+    expect(appReducer(s, { type: 'HOLD_TX', held: held({ amountDA: 1 }) })).toBe(s)
+    expect(s.support.held).toHaveLength(1)
+  })
+})
+
+describe('RELEASE_HELD', () => {
+  it('removes the row from held and logs a transaction with the SAME id, paying +5 XP', () => {
+    const s = withSupport({ held: [held({ impulseFlagged: true }), held({ id: 'h2' })] })
+    const next = appReducer(s, { type: 'RELEASE_HELD', id: 'h1', date: '2026-08-11' })
+    expect(next.support.held.map((h) => h.id)).toEqual(['h2'])
+    expect(next.transactions).toEqual([
+      {
+        id: 'h1',
+        amountDA: 6_000,
+        category: 'Fun',
+        date: '2026-08-11',
+        resistedImpulse: false,
+        impulseFlagged: true,
+      },
+    ])
+    expect(next.xp.totalXp).toBe(5)
+    expect(next.xpLog).toEqual([{ id: 'tx:h1', action: 'logExpense', amount: 5, date: '2026-08-11' }])
+  })
+  it('is a same-reference no-op for an unknown id', () => {
+    const s = withSupport({ held: [held()] })
+    expect(appReducer(s, { type: 'RELEASE_HELD', id: 'nope', date: '2026-08-11' })).toBe(s)
+  })
+})
+
+describe('LET_GO_HELD', () => {
+  it('drops the row without logging anything or touching XP', () => {
+    const s = withSupport({ held: [held(), held({ id: 'h2' })] })
+    const next = appReducer(s, { type: 'LET_GO_HELD', id: 'h1' })
+    expect(next.support.held.map((h) => h.id)).toEqual(['h2'])
+    expect(next.transactions).toEqual([])
+    expect(next.xp.totalXp).toBe(0)
+    expect(next.xpLog).toEqual([])
+  })
+  it('is a same-reference no-op for an unknown id', () => {
+    const s = withSupport({ held: [held()] })
+    expect(appReducer(s, { type: 'LET_GO_HELD', id: 'nope' })).toBe(s)
+  })
+})
+
+describe('LOW_ENERGY_SET', () => {
+  it('flips the flag and stamps savedAt', () => {
+    const next = appReducer(withSupport(), { type: 'LOW_ENERGY_SET', on: true, nowISO: NOW })
+    expect(next.support.lowEnergy).toBe(true)
+    expect(next.support.savedAt).toBe(NOW)
+    const back = appReducer(next, { type: 'LOW_ENERGY_SET', on: false, nowISO: plusHours(NOW, 1) })
+    expect(back.support.lowEnergy).toBe(false)
+    expect(back.support.savedAt).toBe(plusHours(NOW, 1))
+  })
+  it('is a same-reference no-op when unchanged', () => {
+    const s = withSupport({ lowEnergy: true })
+    expect(appReducer(s, { type: 'LOW_ENERGY_SET', on: true, nowISO: NOW })).toBe(s)
+    const off = withSupport()
+    expect(appReducer(off, { type: 'LOW_ENERGY_SET', on: false, nowISO: NOW })).toBe(off)
+  })
+})
+
+describe('CALM_SET', () => {
+  it('turning calm on also mutes and stamps savedAt', () => {
+    const next = appReducer(withSupport(), { type: 'CALM_SET', on: true, nowISO: NOW })
+    expect(next.support.calm).toBe(true)
+    expect(next.muted).toBe(true)
+    expect(next.support.savedAt).toBe(NOW)
+  })
+  it('turning calm off leaves mute as it was', () => {
+    const on = appReducer(withSupport(), { type: 'CALM_SET', on: true, nowISO: NOW })
+    const off = appReducer(on, { type: 'CALM_SET', on: false, nowISO: plusHours(NOW, 1) })
+    expect(off.support.calm).toBe(false)
+    expect(off.muted).toBe(true)
+  })
+  it('is a same-reference no-op when unchanged', () => {
+    const s = withSupport({ calm: true })
+    expect(appReducer(s, { type: 'CALM_SET', on: true, nowISO: NOW })).toBe(s)
+  })
+})
+
+describe('REENTRY_DISMISS', () => {
+  it('clears a shown re-entry without stamping savedAt', () => {
+    const s = withSupport({ reentry: { since: '2026-08-01', days: 9 }, savedAt: NOW })
+    const next = appReducer(s, { type: 'REENTRY_DISMISS' })
+    expect(next.support.reentry).toBeNull()
+    expect(next.support.savedAt).toBe(NOW)
+  })
+  it('is a same-reference no-op when there is none', () => {
+    const s = withSupport()
+    expect(appReducer(s, { type: 'REENTRY_DISMISS' })).toBe(s)
+  })
+})
+
+describe('TRUSTED_SET', () => {
+  const trusted = {
+    name: 'Mum',
+    options: { totals: true, categories: false, held: true, velocity: true, health: false },
+  }
+  it('stores the trusted person and stamps savedAt', () => {
+    const next = appReducer(withSupport(), { type: 'TRUSTED_SET', trusted, nowISO: NOW })
+    expect(next.support.trusted).toEqual(trusted)
+    expect(next.support.savedAt).toBe(NOW)
+  })
+  it('clears it with null', () => {
+    const s = appReducer(withSupport(), { type: 'TRUSTED_SET', trusted, nowISO: NOW })
+    const next = appReducer(s, { type: 'TRUSTED_SET', trusted: null, nowISO: plusHours(NOW, 1) })
+    expect(next.support.trusted).toBeNull()
+    expect(next.support.savedAt).toBe(plusHours(NOW, 1))
+  })
+})
+
+describe('ROLL_DAY (last opened and re-entry)', () => {
+  const roll = (s: AppState, today: string) =>
+    appReducer(s, { type: 'ROLL_DAY', today, healthScore: 50, healthStage: 'hearth' })
+  const stale = (over: Partial<SupportState> = {}): AppState => ({
+    ...withSupport(over),
+    healthDate: '2026-07-01',
+    questsDate: '2026-07-01',
+  })
+
+  it('sets support.lastOpened to today', () => {
+    const next = roll(stale({ lastOpened: '2026-08-09' }), '2026-08-10')
+    expect(next.support.lastOpened).toBe('2026-08-10')
+  })
+  it('sets a re-entry when the last open was 5 or more days ago', () => {
+    const next = roll(stale({ lastOpened: '2026-08-05' }), '2026-08-10')
+    expect(next.support.reentry).toEqual({ since: '2026-08-05', days: 5 })
+    expect(next.support.lastOpened).toBe('2026-08-10')
+  })
+  it('leaves reentry null for a 2-day gap', () => {
+    const next = roll(stale({ lastOpened: '2026-08-08' }), '2026-08-10')
+    expect(next.support.reentry).toBeNull()
+    expect(next.support.lastOpened).toBe('2026-08-10')
+  })
+  it('does not overwrite an existing re-entry', () => {
+    const existing = { since: '2026-07-20', days: 15 }
+    const next = roll(stale({ lastOpened: '2026-08-04', reentry: existing }), '2026-08-10')
+    expect(next.support.reentry).toBe(existing)
+    expect(next.support.lastOpened).toBe('2026-08-10')
+  })
+  it('never flags a re-entry on a fresh state (never opened)', () => {
+    const next = roll(stale({ lastOpened: '' }), '2026-08-10')
+    expect(next.support.reentry).toBeNull()
+    expect(next.support.lastOpened).toBe('2026-08-10')
+  })
+  it('does not stamp savedAt — opening the app is not a settings edit', () => {
+    const next = roll(stale({ lastOpened: '2026-08-01', savedAt: NOW }), '2026-08-10')
+    expect(next.support.savedAt).toBe(NOW)
   })
 })
