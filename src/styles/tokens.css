@@ -1,44 +1,109 @@
-/* Ember design tokens — neo-brutalist × gacha. See design-system artifact. */
+/* Ember design tokens — Hearth: warm futurism. Colour comes from LIGHT
+   (glows, halos, gradients on glass), never from flat fills or hard strokes.
+   The legacy token names (--ink, --paper*, --flame, --gold, --teal, --line,
+   --shadow, --r) are kept as aliases so every component rule reads the same
+   system; the new names are the ones to reach for in new rules. */
 
 :root {
-  /* Native controls (select popups, spinners, scrollbars) follow the active
-     theme instead of staying light over the dark UI. */
   color-scheme: light dark;
-  --ink: #141414;
-  --paper: #f6efdc;
-  --paper-hi: #fffcf3;
-  --paper-dim: #ece2c8;
-  --flame: #ff4b2b; --flame-sh: #c4300f;
-  --gold: #ffc93c; --gold-sh: #c79415;
-  --pink: #ff2d78; --pink-sh: #c4104f;
-  --teal: #00b4b0; --teal-sh: #067e7b;
-  --violet: #4b2e83; --violet-sh: #331d5c;
-  --good: #2f9e44; --good-sh: #1d6b2f;
-  /* Text on accent fills (flame/gold/pink/teal/--good). Deliberately NOT
-     --ink, and it never flips in the dark theme: accent surfaces keep their
-     light-theme colors in dark mode, so the ink that passes WCAG AA on them
-     stays fixed — white fails AA on every one of them. */
-  --on-accent: #141414;
-  --line: var(--ink);
-  --shadow: var(--ink);
-  --display: "Arial Black", "Helvetica Neue", -apple-system, "Segoe UI", sans-serif;
-  --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --r: 7px;
+
+  /* ---- dusk (default) ---- */
+  --bg: #1a1530;
+  --bg2: #2a1f4a;
+  --ink: #f5ede3;
+  --mute: #b9adcb;
+  --glass: rgba(255, 240, 225, 0.06);
+  --glass-2: rgba(255, 240, 225, 0.11);
+  --glass-3: rgba(255, 240, 225, 0.17);
+  --line: rgba(255, 214, 170, 0.18);
+  --line-2: rgba(255, 214, 170, 0.42);
+  --amber: #ffb46b;
+  --peach: #ffd2a6;
+  --flame: #ff7a45;
+  --accent-ink: #ffc98a;
+  --mint: #9ed8b5;
+  --mint-ink: #c9f0d8;
+  --rose: #ff9ab0;
+  --lilac: #c6b3ff;
+  --paper: rgba(255, 246, 232, 0.94);
+  --paper-ink: #3a2a2a;
+  --scrim: rgba(12, 8, 28, 0.55);
+  --shadow-soft: 0 24px 60px rgba(0, 0, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.3);
+  --glow-warm: 0 0 40px rgba(255, 160, 90, 0.22);
+  --glow-warm-strong: 0 8px 28px rgba(255, 140, 76, 0.4);
+  --sky:
+    radial-gradient(70% 45% at 50% 108%, rgba(255, 138, 76, 0.28), transparent 70%),
+    radial-gradient(50% 40% at 85% -10%, rgba(120, 90, 200, 0.35), transparent 70%),
+    linear-gradient(180deg, #120f26 0%, var(--bg) 45%, var(--bg2) 100%);
+
+  /* ---- legacy aliases (component rules still read these) ---- */
+  --paper-hi: var(--glass-2);
+  --paper-dim: var(--glass);
+  --flame-sh: rgba(255, 122, 69, 0.35);
+  --gold: var(--amber);
+  --gold-sh: rgba(255, 180, 107, 0.35);
+  --pink: var(--rose);
+  --pink-sh: rgba(255, 154, 176, 0.35);
+  --teal: var(--mint);
+  --teal-sh: rgba(158, 216, 181, 0.35);
+  --violet: var(--lilac);
+  --violet-sh: rgba(198, 179, 255, 0.35);
+  --good: var(--mint);
+  --good-sh: rgba(158, 216, 181, 0.35);
+  /* Text on warm accent fills — fixed dark, both themes (AA on amber/peach). */
+  --on-accent: #2a1408;
+  --shadow: var(--shadow-soft);
+
+  /* ---- type ---- */
+  --display: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --sans: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ---- shape & motion ---- */
+  --r: 18px;
+  --r-lg: 24px;
+  --r-pill: 999px;
+  /* Hearth: slow and domestic. Clay: springy overshoot for the moments that
+     deserve a reaction (a log lands, a quest checks, a badge arrives). */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@media (prefers-color-scheme: dark) {
+/* ---- sunlit (light scheme) ---- */
+@media (prefers-color-scheme: light) {
   :root {
-    --ink: #f3ecd8;
-    --paper: #141414;
-    --paper-hi: #1f1f1f;
-    --paper-dim: #0c0c0c;
-    /* NOT #000: pure black on --paper #141414 is ~1.2:1 — the hard offset
-       shadows (the neo-brutalist signature) and the press-collapse feedback
-       on .card/.btn/.quest-box would vanish on neutral surfaces while accent
-       buttons kept their colored shadows. A dim warm gray stays visibly a
-       shadow against both --paper and --paper-hi #1f1f1f. */
-    --shadow: #3a3a3a;
+    --bg: #f7eddd;
+    --bg2: #fde6cc;
+    --ink: #2b2140;
+    --mute: #67597a;
+    --glass: rgba(255, 255, 255, 0.5);
+    --glass-2: rgba(255, 255, 255, 0.72);
+    --glass-3: rgba(255, 255, 255, 0.88);
+    --line: rgba(190, 120, 60, 0.22);
+    --line-2: rgba(190, 120, 60, 0.45);
+    --amber: #e08a3c;
+    --peach: #f3c08a;
+    --flame: #e0632f;
+    --accent-ink: #8f4a12;
+    --mint: #5aa97d;
+    --mint-ink: #2f6e4c;
+    --rose: #d8577a;
+    --lilac: #8a6fe0;
+    --paper: rgba(255, 252, 246, 0.96);
+    --scrim: rgba(80, 50, 20, 0.35);
+    --shadow-soft: 0 20px 50px rgba(120, 70, 20, 0.16), 0 2px 8px rgba(120, 70, 20, 0.08);
+    --glow-warm: 0 0 40px rgba(224, 138, 60, 0.18);
+    --glow-warm-strong: 0 8px 28px rgba(224, 120, 60, 0.3);
+    --sky:
+      radial-gradient(60% 50% at 75% -5%, rgba(255, 205, 120, 0.75), transparent 70%),
+      radial-gradient(70% 40% at 20% 110%, rgba(224, 120, 80, 0.25), transparent 70%),
+      linear-gradient(180deg, #fff6e8 0%, var(--bg) 50%, var(--bg2) 100%);
+    --flame-sh: rgba(224, 99, 47, 0.3);
+    --gold-sh: rgba(224, 138, 60, 0.3);
+    --pink-sh: rgba(216, 87, 122, 0.3);
+    --teal-sh: rgba(90, 169, 125, 0.3);
+    --violet-sh: rgba(138, 111, 224, 0.3);
+    --good-sh: rgba(90, 169, 125, 0.3);
   }
 }
 
@@ -46,20 +111,18 @@
 
 body {
   margin: 0;
-  background: var(--paper);
+  background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);
+  font-weight: 400;
   line-height: 1.5;
   font-size: 16px;
+  -webkit-font-smoothing: antialiased;
 }
 
-::selection { background: var(--gold); color: var(--on-accent); }
-/* Ink outline, not flame: flame is invisible on .btn-flame (the primary CTA)
-   and only ~2.9:1 on paper — below the WCAG 3:1 non-text minimum. Ink flips
-   with the theme, so the ring holds contrast on paper, accent fills, and the
-   dark theme alike; the 2px offset gap shows the surface underneath as the
-   second layer of the indicator. */
-:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+::selection { background: var(--amber); color: var(--on-accent); }
+/* Peach ring, 3px offset — reads on glass, on warm fills and on the sky. */
+:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; border-radius: 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -71,53 +134,7 @@ body {
 
 h1, h2, h3 {
   font-family: var(--display);
-  font-weight: 900;
-  text-transform: uppercase;
+  font-weight: 500;
   letter-spacing: -0.01em;
   margin: 0;
 }
-
-.card {
-  background: var(--paper-hi);
-  border: 3px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: 5px 5px 0 var(--shadow);
-  padding: 1.2rem 1.4rem;
-}
-
-.btn {
-  font-family: var(--sans);
-  font-weight: 800;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  border: 3px solid var(--ink);
-  border-radius: var(--r);
-  padding: 0.7rem 1.3rem;
-  cursor: pointer;
-  color: var(--ink);
-  background: var(--paper-hi);
-  box-shadow: 4px 4px 0 var(--shadow);
-}
-/* Hover is a 1px lean toward the pressed position with the shadow shrinking
-   to match — the same press metaphor quest rows already speak on hover, so
-   the primary CTAs give a pre-click affordance beyond the cursor. Gated off
-   disabled; :active (declared after, equal specificity) stays the stronger
-   full collapse. */
-.btn:not(:disabled):hover { transform: translate(1px, 1px); box-shadow: 3px 3px 0 var(--shadow); }
-.btn:not(:disabled):active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--shadow); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-/* Accent surfaces take --on-accent text (see its definition above): white
-   fails WCAG AA on flame/teal/pink. Their hover/active shadows mirror the
-   base rules above at matching specificity and order so the colored shadow
-   always wins over the neutral one. */
-.btn-flame { background: var(--flame); color: var(--on-accent); box-shadow: 4px 4px 0 var(--flame-sh); }
-.btn-flame:not(:disabled):hover { box-shadow: 3px 3px 0 var(--flame-sh); }
-.btn-flame:not(:disabled):active { box-shadow: 0 0 0 var(--flame-sh); }
-.btn-gold { background: var(--gold); color: var(--on-accent); box-shadow: 4px 4px 0 var(--gold-sh); }
-.btn-gold:not(:disabled):hover { box-shadow: 3px 3px 0 var(--gold-sh); }
-.btn-gold:not(:disabled):active { box-shadow: 0 0 0 var(--gold-sh); }
-.btn-teal { background: var(--teal); color: var(--on-accent); box-shadow: 4px 4px 0 var(--teal-sh); }
-.btn-teal:not(:disabled):hover { box-shadow: 3px 3px 0 var(--teal-sh); }
-.btn-teal:not(:disabled):active { box-shadow: 0 0 0 var(--teal-sh); }
-
-.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }

@@ -1,6 +1,7 @@
 import type { Stage } from '../engine/healthScore.ts'
 import type { PixelPet } from '../engine/achievements.ts'
 import { STAGE_META } from './HeroCard.tsx'
+import { Ember } from './Ember.tsx'
 
 /**
  * HeroShell — the page header in both of its lives. On mobile it renders as
@@ -59,11 +60,8 @@ export function HeroShell({
                 duplicate, see app.css). Pets follow the badge exactly as on
                 the mobile card: cosmetic loot beside, never inside. */}
             <div className="hero-stage-line hero-rise" style={{ animationDelay: '400ms' }}>
-              <span
-                className="hero-stage-badge"
-                style={{ background: meta.color, boxShadow: `4px 4px 0 ${meta.colorSh}` }}
-              >
-                <span aria-hidden="true">🔥</span>
+              <span className="hero-stage-badge">
+                <Ember stage={stage} size={72} />
               </span>
               <span className="hero-stage-name">{meta.label}</span>
               {pets.length > 0 && (

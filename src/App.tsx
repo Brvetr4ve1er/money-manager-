@@ -293,6 +293,7 @@ export default function App() {
           score={health.score}
           pets={pets}
           components={health.components}
+          puff={xpGain !== null}
         />
         {!support.lowEnergy && <XpCard xp={state.xp} gain={xpGain} />}
         <LogCard
