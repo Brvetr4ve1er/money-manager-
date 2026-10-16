@@ -21,6 +21,10 @@ import { DELAY_OPTIONS_HOURS, type BrakeRule, type HeldPurchase, type PendingRul
 import type { Reentry } from '../engine/calm.ts'
 import { NEED_IDS, type NeedId } from '../engine/needs.ts'
 import { DEFAULT_SNAPSHOT_OPTIONS, type SnapshotOptions } from '../engine/snapshot.ts'
+import { defaultMoney, mergeMoney, sanitizeMoney, type MoneyState } from './slices/money.ts'
+import { defaultLearn, mergeLearn, sanitizeLearn, type LearnState } from './slices/learn.ts'
+import { defaultSocial, mergeSocial, sanitizeSocial, type SocialState } from './slices/social.ts'
+import { defaultInbox, mergeInbox, sanitizeInbox, type InboxState } from './slices/inbox.ts'
 
 export interface Transaction {
   id: string
@@ -35,6 +39,14 @@ export interface Transaction {
    *  (a future "I bought it anyway" flow). Only flagged events may count
    *  against Impulse Control — ordinary planned spending never does. */
   impulseFlagged?: boolean
+  /** Money account this was paid from (money slice); absent = unassigned. */
+  accountId?: string
+  /** Original amount when it was not DA (amountDA holds the conversion). */
+  original?: { amount: number; currency: 'USD' }
+  /** ISO datetime it was logged — compared against account anchors. */
+  at?: string
+  /** Set when the row is an obligation payment (bills never fire charms). */
+  obligationId?: string
 }
 
 export interface ProfileGoal {
@@ -143,6 +155,10 @@ export interface AppState {
   /** Earned achievement badges (ids + dates), unioned by id across tabs. */
   achievements: AchievementUnlock[]
   support: SupportState
+  money: MoneyState
+  learn: LearnState
+  social: SocialState
+  inbox: InboxState
 }
 
 const KEY = 'ember-state-v1'
@@ -243,6 +259,10 @@ export function defaultState(): AppState {
     profile: null,
     achievements: [],
     support: defaultSupport(),
+    money: defaultMoney(),
+    learn: defaultLearn(),
+    social: defaultSocial(),
+    inbox: defaultInbox(),
   }
 }
 
@@ -334,7 +354,12 @@ function isTransaction(v: unknown): v is Transaction {
     isValidDayKey(v.date) &&
     (v.note === undefined || typeof v.note === 'string') &&
     isOptionalBoolean(v.resistedImpulse) &&
-    isOptionalBoolean(v.impulseFlagged)
+    isOptionalBoolean(v.impulseFlagged) &&
+    (v.accountId === undefined || typeof v.accountId === 'string') &&
+    (v.original === undefined ||
+      (isRecord(v.original) && v.original.currency === 'USD' && isFiniteNumber(v.original.amount) && v.original.amount >= 0)) &&
+    (v.at === undefined || isIsoDatetime(v.at)) &&
+    (v.obligationId === undefined || typeof v.obligationId === 'string')
   )
 }
 
@@ -618,6 +643,10 @@ export function sanitizeState(parsed: unknown): AppState {
     )
   }
   out.support = sanitizeSupport(parsed.support)
+  out.money = sanitizeMoney(parsed.money)
+  out.learn = sanitizeLearn(parsed.learn)
+  out.social = sanitizeSocial(parsed.social)
+  out.inbox = sanitizeInbox(parsed.inbox)
   return out
 }
 
@@ -764,6 +793,10 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     // duplicates — same survival + convergence rules as the codex.
     achievements: dedupeEarliestById([...local.achievements, ...incoming.achievements]),
     support: mergeSupport(local.support, incoming.support),
+    money: mergeMoney(local.money, incoming.money),
+    learn: mergeLearn(local.learn, incoming.learn),
+    social: mergeSocial(local.social, incoming.social),
+    inbox: mergeInbox(local.inbox, incoming.inbox),
   }
   // Fixpoint short-circuit: an unchanged merge returns the SAME reference, so
   // useReducer's HYDRATE hands React an identical state, the re-render bails,

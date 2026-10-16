@@ -19,6 +19,10 @@ import {
 } from '../engine/brakes.ts'
 import { reentryFor } from '../engine/calm.ts'
 import { composeDefaults, type NeedId } from '../engine/needs.ts'
+import { moneyReducer, withPayment, type MoneyAction, type Payment } from './slices/money.ts'
+import { learnReducer, type LearnAction } from './slices/learn.ts'
+import { socialReducer, type SocialAction } from './slices/social.ts'
+import { inboxReducer, type InboxAction } from './slices/inbox.ts'
 import {
   mergeStates,
   rollQuests,
@@ -56,6 +60,15 @@ export type AppAction =
   | { type: 'CALM_SET'; on: boolean; nowISO: string }
   | { type: 'REENTRY_DISMISS' }
   | { type: 'TRUSTED_SET'; trusted: SupportState['trusted']; nowISO: string }
+  /** Pay one cycle of an obligation: a payment record AND a real ledger row
+   *  (paying rent is spending), sharing one id pair so Undo removes both. */
+  | { type: 'OBLIGATION_PAY'; payment: Payment; tx: Transaction }
+  /** Undo a payment: void it and remove its ledger row (and the row's XP). */
+  | { type: 'OBLIGATION_UNPAY'; paymentId: string; nowISO: string }
+  | MoneyAction
+  | LearnAction
+  | SocialAction
+  | InboxAction
 
 /** Settings edits stamp savedAt so mergeStates can keep the newest block whole. */
 function withSupport(state: AppState, patch: Partial<SupportState>, nowISO?: string): AppState {
@@ -66,6 +79,30 @@ function withSupport(state: AppState, patch: Partial<SupportState>, nowISO?: str
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
+  // Slice-local actions route by prefix; each slice reducer returns its own
+  // state unchanged on a no-op, so the root keeps the same object too.
+  if (action.type.startsWith('money/')) {
+    const money = moneyReducer(state.money, action as MoneyAction)
+    return money === state.money ? state : { ...state, money }
+  }
+  if (action.type.startsWith('learn/')) {
+    const learn = learnReducer(state.learn, action as LearnAction)
+    return learn === state.learn ? state : { ...state, learn }
+  }
+  if (action.type.startsWith('social/')) {
+    const social = socialReducer(state.social, action as SocialAction)
+    return social === state.social ? state : { ...state, social }
+  }
+  if (action.type.startsWith('inbox/')) {
+    const inbox = inboxReducer(state.inbox, action as InboxAction)
+    return inbox === state.inbox ? state : { ...state, inbox }
+  }
+  return rootReducer(state, action as RootAction)
+}
+
+type RootAction = Exclude<AppAction, MoneyAction | LearnAction | SocialAction | InboxAction>
+
+function rootReducer(state: AppState, action: RootAction): AppState {
   switch (action.type) {
     case 'LOG_TX': {
       // Resist XP caps per day: the button is an unverifiable self-report
@@ -319,5 +356,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return withSupport(state, { reentry: null })
     case 'TRUSTED_SET':
       return withSupport(state, { trusted: action.trusted }, action.nowISO)
+    case 'OBLIGATION_PAY': {
+      if (state.money.payments.some((p) => p.id === action.payment.id)) return state
+      const money = withPayment(state.money, { ...action.payment, txId: action.tx.id })
+      if (money === state.money) return state
+      return appReducer({ ...state, money }, { type: 'LOG_TX', tx: { ...action.tx, obligationId: action.payment.obligationId } })
+    }
+    case 'OBLIGATION_UNPAY': {
+      const p = state.money.payments.find((x) => x.id === action.paymentId)
+      if (!p || p.void) return state
+      const voided = appReducer(state, { type: 'money/payment-void', id: p.id, nowISO: action.nowISO })
+      return appReducer(voided, { type: 'UNDO_TX', id: p.txId })
+    }
   }
 }

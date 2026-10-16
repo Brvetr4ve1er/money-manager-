@@ -12,27 +12,8 @@
 import { ESSENTIAL_CATEGORIES } from './profile.ts'
 import type { Transaction } from '../state/store.ts'
 
-function localDayISO(d: Date): string {
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${dd}`
-}
-
-/** Local-calendar day key `n` days after `dayISO` (pure — no wall clock). */
-export function addDaysISO(dayISO: string, n: number): string {
-  const [y, m, d] = dayISO.split('-').map(Number)
-  return localDayISO(new Date(y, m - 1, d + n))
-}
-
-/**
- * Monday of the week containing `dayISO` — weeks run Mon–Sun on local dates,
- * matching the local-day keys every transaction is stamped with.
- */
-export function weekStartISO(dayISO: string): string {
-  const [y, m, d] = dayISO.split('-').map(Number)
-  const dow = new Date(y, m - 1, d).getDay() // 0 = Sunday
-  return addDaysISO(dayISO, -((dow + 6) % 7))
-}
+export { addDaysISO, weekStartISO } from './dates.ts'
+import { addDaysISO, weekStartISO } from './dates.ts'
 
 /**
  * What feeds the monster. Resisted rows never count (nothing was spent — a

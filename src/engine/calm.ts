@@ -19,12 +19,8 @@ export interface Reentry {
   days: number
 }
 
-/** Whole days from day key `a` to day key `b` (b − a); negative when b is earlier. */
-export function daysBetween(a: string, b: string): number {
-  const [ay, am, ad] = a.split('-').map(Number)
-  const [by, bm, bd] = b.split('-').map(Number)
-  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000)
-}
+export { daysBetween } from './dates.ts'
+import { daysBetween } from './dates.ts'
 
 /** A re-entry when the gap since the last open reaches the threshold; null otherwise. */
 export function reentryFor(lastOpened: string, today: string): Reentry | null {
