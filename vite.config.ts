@@ -46,6 +46,9 @@ export default defineConfig(({ mode, command }) => {
     )
   }
   return {
+    // Relative asset URLs: the built app runs from any path or protocol —
+    // a sub-path deploy, file://, or the desktop app's app://ember origin.
+    base: './',
     plugins: [react(), absoluteSocialCards(siteUrl)],
     test: {
       environment: 'node',

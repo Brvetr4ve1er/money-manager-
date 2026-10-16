@@ -119,6 +119,51 @@ npm test        # run the engine test suites (vitest)
 npm run build   # type-check and produce a production build
 ```
 
+## Install the desktop app
+
+Ember also ships as an Electron desktop app (Windows, macOS, Linux). It is
+the same local-first web build, served from a private `app://ember` origin
+with a strict Content-Security-Policy: no network requests, fonts bundled,
+your data stays in the app's own storage on your machine.
+
+**Where to get it.** Run the **Desktop app** workflow (Actions → Desktop app
+→ Run workflow), or push a `v*` tag. Each OS job uploads an artifact named
+`Ember-Linux`, `Ember-Windows` or `Ember-macOS` on the run's summary page:
+
+| OS | Files | Install |
+| --- | --- | --- |
+| Windows | `Ember-<ver>-win-x64.exe` (installer), `Ember-<ver>-win-x64-portable.exe` | Run the installer (per-user, choose a folder) or just run the portable exe. The build is unsigned, so SmartScreen shows "Windows protected your PC": click **More info → Run anyway**. |
+| macOS | `Ember-<ver>-mac-<arch>.dmg` | Open the dmg and drag Ember to Applications. The build is unsigned: the first time, **right-click Ember → Open → Open** (or System Settings → Privacy & Security → Open Anyway). |
+| Linux | `Ember-<ver>-linux-x86_64.AppImage`, `Ember-<ver>-linux-x64.tar.gz` | `chmod +x Ember-*.AppImage && ./Ember-*.AppImage` (needs FUSE 2: `libfuse2`/`fuse2`), or extract the tar.gz and run `./ember`. |
+
+Building locally:
+
+```bash
+npm run desktop:dev        # build the web app and open it in Electron
+npm run desktop:build      # Linux AppImage + tar.gz into release/
+npm run desktop:build:win  # Windows nsis + portable (best on Windows)
+npm run desktop:build:mac  # macOS dmg (must run on macOS)
+npm run desktop:e2e        # Playwright smoke test against the built app
+```
+
+"Export my data" opens a native Save dialog (default:
+`Documents/ember-export-YYYY-MM-DD.json`). App data lives in the OS user-data
+folder (`%APPDATA%\Ember`, `~/Library/Application Support/Ember`,
+`~/.config/Ember`); window size and position are remembered there too.
+
+### Add to WorkspaceHQ
+
+Add Ember as an app entry pointing at the installed executable:
+
+- Windows: `%LOCALAPPDATA%\Programs\Ember\Ember.exe` (default per-user
+  install path; or wherever you put the portable exe)
+- macOS: `/Applications/Ember.app`
+- Linux: the AppImage path you saved it to (e.g.
+  `~/Applications/Ember-0.1.0-linux-x86_64.AppImage`, made executable), or
+  `<extract dir>/ember` from the tar.gz
+
+Ember is single-instance: launching it again focuses the open window.
+
 ## Deploying
 
 Social-share crawlers (WhatsApp, Facebook, Telegram — the dominant channels

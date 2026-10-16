@@ -3,27 +3,99 @@
   "private": true,
   "version": "0.1.0",
   "description": "Ember — a behavioral money app. Don't teach budgeting; build financial instincts.",
+  "author": "Ember",
   "type": "module",
+  "main": "desktop/dist/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "desktop:icons": "node desktop/scripts/icons.mjs",
+    "desktop:compile": "tsc -p tsconfig.desktop.json",
+    "desktop:prepare": "vite build && npm run desktop:compile && npm run desktop:icons",
+    "desktop:dev": "npm run desktop:prepare && electron .",
+    "desktop:build": "npm run desktop:prepare && electron-builder --linux",
+    "desktop:build:win": "npm run desktop:prepare && electron-builder --win",
+    "desktop:build:mac": "npm run desktop:prepare && electron-builder --mac",
+    "desktop:build:all": "npm run desktop:prepare && electron-builder --linux --win --mac",
+    "desktop:e2e": "node desktop/e2e/smoke.mjs"
   },
   "dependencies": {
+    "@fontsource/outfit": "^5.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.20.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
     "jsdom": "^30.0.1",
+    "playwright": "^1.64.1",
+    "png2icons": "^2.0.1",
+    "sharp": "^0.35.5",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "vitest": "^2.1.8"
+  },
+  "build": {
+    "appId": "app.ember.money",
+    "productName": "Ember",
+    "copyright": "Ember",
+    "directories": {
+      "output": "release",
+      "buildResources": "desktop/build"
+    },
+    "files": [
+      "dist/**",
+      "desktop/dist/*.cjs",
+      "desktop/build/icon.png",
+      "package.json",
+      "!node_modules/**"
+    ],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "asar": true,
+    "publish": null,
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "desktop/build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Ember"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-${os}-${arch}-portable.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "identity": null,
+      "icon": "desktop/build/icon.icns",
+      "category": "public.app-category.finance"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
+      "executableName": "ember",
+      "icon": "desktop/build/icon.png",
+      "category": "Finance",
+      "synopsis": "Build financial instincts — a local-first money app"
+    }
   }
 }

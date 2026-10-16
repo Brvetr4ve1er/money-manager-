@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "outDir": "desktop/dist",
+    "rootDir": "desktop",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": false,
+    "tsBuildInfoFile": "desktop/dist/.tsbuildinfo"
+  },
+  "include": ["desktop/main.cts", "desktop/preload.cts"]
+}
