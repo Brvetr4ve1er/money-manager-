@@ -41,7 +41,7 @@ export function SlipFace({ c, fx }: { c: InboxCandidate; fx: number | null }) {
           {c.amount < 0 ? '−' : ''}
           {fmtMoney(Math.abs(c.amount), c.currency)}
           {c.currency === 'USD' && (
-            <small>{da === null ? ' · set your rate on Home for DA' : ` ≈ ${fmtDA(da)}`}</small>
+            <small>{da === null ? 'needs your DA rate' : `≈ ${fmtDA(da)}`}</small>
           )}
         </span>
       </div>

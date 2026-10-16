@@ -124,7 +124,7 @@ describe('Inbox on the Me room', () => {
     goto('me')
     paste('RedotPay\nCard transaction: USD 12.49 at STEAMGAMES.COM on 08/10/2026.')
     const slip = within(tray()).getByRole('listitem')
-    expect(within(slip).getByText(/set your rate on Home for DA/)).toBeTruthy()
+    expect(within(slip).getByText(/needs your DA rate/)).toBeTruthy()
     fireEvent.click(within(slip).getByRole('button', { name: 'Confirm' }))
     expect(within(slip).getByRole('alert').textContent).toMatch(/set your rate on Home/)
     const s = saved()
