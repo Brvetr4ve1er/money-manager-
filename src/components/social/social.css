@@ -1,0 +1,98 @@
+/* Social money — tontines, IOUs, zakat helper. Hearth glass with light as
+   state; Clay springs only when something happens (a round paid, money back). */
+
+.social-empty { margin: 0 0 0.8rem; font-size: 0.88rem; color: var(--mute); }
+.social-hint { display: block; margin-top: 0.3rem; font-size: 0.76rem; color: var(--mute); }
+.social-form { display: grid; gap: 0.7rem; margin-top: 0.6rem; }
+.social-form .log-actions { margin-top: 0.2rem; }
+
+/* ---- tontines ---- */
+.tontine-list { list-style: none; margin: 0 0 0.8rem; padding: 0; display: grid; gap: 0.8rem; }
+.tontine-row {
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--glass);
+}
+.tontine-body { display: grid; gap: 0.8rem; justify-items: center; }
+.tontine-facts { width: 100%; display: grid; gap: 0.35rem; }
+.tontine-name { font-size: 1.1rem; }
+.tontine-meta { margin: 0; font-size: 0.82rem; color: var(--mute); }
+.tontine-dl { margin: 0.2rem 0 0.4rem; display: grid; gap: 0.45rem; font-size: 0.86rem; }
+.tontine-dl dt { color: var(--mute); font-size: 0.74rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.tontine-dl dd { margin: 0; }
+.tontine-pay { justify-self: start; }
+.tontine-sprung { margin: 0; font-size: 0.84rem; color: var(--mint-ink); }
+
+.tontine-ring { display: block; max-width: 100%; height: auto; overflow: visible; }
+.ring-track { fill: none; stroke: var(--line); stroke-width: 2; }
+.ring-node { fill: var(--glass-2); stroke: var(--line-2); stroke-width: 1; transition: fill 0.4s var(--ease); }
+.ring-dot.is-paid .ring-node { fill: var(--peach); stroke: var(--amber); }
+.ring-dot.is-current .ring-node { fill: var(--flame); stroke: var(--amber); filter: drop-shadow(0 0 6px var(--flame-sh)); }
+.ring-mine { fill: none; stroke: var(--mint); stroke-width: 2; stroke-dasharray: 3 2; }
+.ring-initial { font-size: 9px; font-family: var(--sans); fill: var(--ink); pointer-events: none; }
+.ring-dot.is-paid .ring-initial, .ring-dot.is-current .ring-initial { fill: var(--on-accent); }
+.ring-centre { font-family: var(--display); font-size: 22px; font-weight: 300; fill: var(--ink); }
+.ring-centre-sub { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; fill: var(--mute); }
+.tontine-ring.is-sprung { animation: social-spring 560ms var(--spring); transform-origin: center; }
+
+/* ---- IOUs ---- */
+.iou-cols { display: grid; gap: 1rem; margin-bottom: 0.9rem; }
+.iou-col-title {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
+  font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute);
+  margin-bottom: 0.5rem;
+}
+.iou-col-total { font-size: 1rem; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.iou-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.iou-row {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--glass);
+  display: grid;
+  gap: 0.2rem;
+}
+.iou-row.is-settled { opacity: 0.75; }
+.iou-row.is-sprung { animation: social-spring 520ms var(--spring); box-shadow: var(--glow-warm); }
+.iou-head { display: flex; justify-content: space-between; gap: 0.5rem; align-items: baseline; }
+.iou-person { font-weight: 500; overflow-wrap: anywhere; }
+.iou-amount { font-size: 1.1rem; }
+.iou-meta { margin: 0; font-size: 0.8rem; color: var(--mute); }
+.iou-row .log-actions { margin-top: 0.4rem; }
+.iou-settle { margin-top: 0.4rem; }
+.iou-dir { border: 0; padding: 0; margin: 0; min-width: 0; }
+.iou-dir .chip-row { margin-bottom: 0; }
+
+/* ---- zakat ---- */
+.zakat-note {
+  margin: 0 0 0.8rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--r);
+  border: 1px solid var(--line-2);
+  background: radial-gradient(120% 140% at 0% 0%, rgba(255, 180, 107, 0.16), var(--glass) 70%);
+  color: var(--accent-ink);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.zakat-out { margin: 1rem 0 0; display: grid; gap: 0.5rem; }
+.zakat-out > div { display: flex; justify-content: space-between; gap: 0.6rem; align-items: baseline; font-size: 0.88rem; }
+.zakat-out dt { color: var(--mute); }
+.zakat-out dd { margin: 0; text-align: right; }
+.zakat-est dd { font-size: 1.2rem; }
+.zakat-est.is-lit dd { color: var(--accent-ink); text-shadow: 0 0 24px rgba(255, 160, 90, 0.35); }
+
+@keyframes social-spring {
+  0% { transform: scale(0.94); }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tontine-ring.is-sprung, .iou-row.is-sprung { animation: none; }
+}
+
+@media (min-width: 560px) {
+  .tontine-body { grid-template-columns: auto 1fr; align-items: center; justify-items: start; }
+  .iou-cols { grid-template-columns: 1fr 1fr; }
+}
