@@ -345,3 +345,4 @@ button.codex-tile:not(.codex-locked) { border: 0; }
 button.codex-tile.codex-locked { text-align: center; }
 .codex-grid > li { min-width: 0; display: flex; }
 .codex-grid > li > button.codex-tile { flex: 1; }
+.learn-sheet-title { scroll-margin-top: 5rem; }
