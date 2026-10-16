@@ -1,5 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+// Outfit, bundled locally (no Google Fonts request at runtime; see index.html).
+import '@fontsource/outfit/300.css'
+import '@fontsource/outfit/400.css'
+import '@fontsource/outfit/500.css'
+import '@fontsource/outfit/600.css'
 import App from './App.tsx'
 import { isProtoHash, ProtoShell } from './proto/ProtoShell.tsx'
 

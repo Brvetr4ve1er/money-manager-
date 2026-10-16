@@ -6,14 +6,10 @@
     <meta name="description" content="Ember — build financial instincts. A local-first money game for Algeria: log spending in DA, resist impulses, grow your flame. No bank link, no account." />
     <meta name="theme-color" content="#1a1530" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f7eddd" media="(prefers-color-scheme: light)" />
-    <!-- Outfit is the whole typographic voice (display and body); the
-         fallback stack keeps the layout honest when the font never arrives. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap"
-    />
+    <!-- Outfit is the whole typographic voice (display and body). It is
+         bundled locally via @fontsource/outfit (imported in src/main.tsx),
+         so the app makes zero network requests at runtime — required for
+         the desktop build's strict CSP and for offline use. -->
     <!-- Flame-mark favicon: without it browsers 404 on /favicon.ico and the
          tab shows a generic globe — an unfinished look next to the flame
          brand head above. SVG scales for tabs/bookmarks; the PNG covers iOS
