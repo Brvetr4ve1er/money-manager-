@@ -997,3 +997,36 @@ describe('breathing room + accounts', () => {
     expect(screen.getByText('confirmed today')).toBeTruthy()
   })
 })
+
+describe('backup import', () => {
+  it('merges an exported backup without removing anything on this device', async () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '300' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    goto('me')
+    const backup = {
+      exportedAt: '2026-10-01T00:00:00.000Z',
+      version: 1,
+      transactions: [{ id: 'old-1', amountDA: 700, category: 'Food', date: '2026-09-30' }],
+    }
+    const file = new File([JSON.stringify(backup)], 'ember-export.json', { type: 'application/json' })
+    Object.defineProperty(file, 'text', { value: () => Promise.resolve(JSON.stringify(backup)) })
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Import a backup'), { target: { files: [file] } })
+    })
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.transactions.map((t: Transaction) => t.amountDA).sort()).toEqual([300, 700])
+    expect(screen.getByText(/Nothing on this device was removed/)).toBeTruthy()
+  })
+
+  it('rejects a file that is not a backup, changing nothing', async () => {
+    render(<App />)
+    goto('me')
+    const file = new File(['not json'], 'x.json')
+    Object.defineProperty(file, 'text', { value: () => Promise.resolve('not json') })
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Import a backup'), { target: { files: [file] } })
+    })
+    expect(screen.getByText(/not an Ember backup/)).toBeTruthy()
+  })
+})

@@ -507,3 +507,6 @@ form > .profile-note { margin-top: 0.6rem; }
   .main-stack > .wide { grid-column: 1 / -1; }
   .wordmark { font-size: 1.8rem; }
 }
+.import-row { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-top: 0.8rem; }
+.import-row label.btn { cursor: pointer; }
+.import-row input:focus-visible + * , .import-row:focus-within label.btn { outline: 2px solid var(--peach); outline-offset: 3px; }

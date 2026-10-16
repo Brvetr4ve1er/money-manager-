@@ -36,6 +36,7 @@ import { catchUpTransaction } from './engine/calm.ts'
 import { accountBalance, breathingRoom, liveAccounts } from './engine/money.ts'
 import { BreathingCard } from './components/money/BreathingCard.tsx'
 import { AccountsCard } from './components/money/AccountsCard.tsx'
+import { ImportBackup } from './components/ImportBackup.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
 import { useRoute } from './routes/router.ts'
 import { Dock } from './components/Dock.tsx'
@@ -348,6 +349,7 @@ export default function App() {
                 <button className="btn" onClick={downloadExport}>Export my data</button>
                 <span className="foot-note">Your data leaves when you do — full export, always.</span>
               </div>
+              <ImportBackup onMerge={(incoming) => dispatch({ type: 'HYDRATE', incoming })} />
             </section>
           </>
         )}
