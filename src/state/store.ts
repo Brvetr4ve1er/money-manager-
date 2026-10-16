@@ -174,7 +174,7 @@ export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   // dispatches completion — see App), and it is the sole XP vehicle for
   // reading: LessonCard's tap itself grants nothing extra, so one read pays
   // readLesson exactly once per day.
-  { id: 'lesson', text: "Read today's lesson", xpAction: 'readLesson', verified: true },
+  { id: 'lesson', text: 'Learn one thing today', xpAction: 'readLesson', verified: true },
   // The sim quest self-verifies the same way: running a simulation completes
   // it (see SimCard's onRun in App) — and because it is verified, QuestCard
   // renders it without a tap-to-complete button.

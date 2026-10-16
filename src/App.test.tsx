@@ -48,6 +48,13 @@ const goto = (route: 'home' | 'runway' | 'jars' | 'learn' | 'me') =>
     window.dispatchEvent(new HashChangeEvent('hashchange'))
   })
 
+/** Collect today's bonus card in the Learn codex — one way to "learn one
+ *  thing today" (the verified lesson quest), alongside a quiz pass. */
+const collectBonus = () => {
+  fireEvent.click(screen.getByRole('button', { name: "Open today's bonus card" }))
+  fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+}
+
 describe('quest completion', () => {
   it('never double-grants XP on a rapid double click', () => {
     render(<App />)
@@ -105,9 +112,9 @@ describe('quest completion', () => {
       fireEvent.click(btn)
     }
     // The lesson quest is verified (no tap target on the quest row), so
-    // complete it by actually reading today's lesson…
+    // complete it by actually learning something (today's bonus card)…
     goto('learn')
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    collectBonus()
     // …and the sim quest likewise via a real run.
     fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
@@ -279,7 +286,7 @@ describe('daily lesson + codex', () => {
   it('pays readLesson XP exactly once per day through the verified lesson quest', () => {
     render(<App />)
     goto('learn')
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    collectBonus()
     expect(xpNow()).toBe(15)
     // The button goes inert (aria-disabled, never the disabled attribute) and
     // a second activation is a guarded no-op.
@@ -292,22 +299,23 @@ describe('daily lesson + codex', () => {
 
   it('renders the lesson quest as verified — a tap on the quest row grants nothing', () => {
     render(<App />)
-    const text = screen.getByText("Read today's lesson")
+    const text = screen.getByText('Learn one thing today')
     expect(text.closest('button')).toBeNull()
     fireEvent.click(text)
     expect(xpNow()).toBe(0)
-    // Got it marks the verified row done, like SimCard does for the sim quest.
+    // Collecting a bonus card marks the verified row done, like SimCard does
+    // for the sim quest (a quiz pass does too — see routes/Learn.test.tsx).
     goto('learn')
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    collectBonus()
     goto('home')
-    expect(screen.getByText("Read today's lesson").closest('li')!.className).toContain('done')
+    expect(screen.getByText('Learn one thing today').closest('li')!.className).toContain('done')
   })
 
   it('collects the lesson into the codex and persists it', () => {
     render(<App />)
     goto('learn')
     expect(screen.getByText('0 / 30 collected')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    collectBonus()
     expect(screen.getByText('1 / 30 collected')).toBeTruthy()
     const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
     expect(saved.lessonsSeen).toEqual([{ id: lessonForDay(todayISO(), []).id, date: todayISO() }])
@@ -326,7 +334,7 @@ describe('daily lesson + codex', () => {
     render(<App />)
     goto('learn')
     vi.mocked(sfx.sparkle).mockClear()
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    collectBonus()
     expect(screen.getByText('5 / 30 collected')).toBeTruthy()
     // The sparkle never carries the milestone alone — the toast announces it
     // through the live region.
@@ -336,10 +344,10 @@ describe('daily lesson + codex', () => {
     ).toBe('Codex: 5 / 30 lessons collected!')
   })
 
-  it('shows locked lessons as silhouettes without leaking their titles', () => {
+  it('shows uncollected bonus cards as silhouettes without leaking their titles', () => {
     render(<App />)
     goto('learn')
-    const locked = screen.getAllByLabelText('Locked lesson')
+    const locked = screen.getAllByRole('button', { name: 'Uncollected bonus card' })
     expect(locked).toHaveLength(30)
     for (const tile of locked.slice(0, 3)) {
       expect(tile.textContent).toBe('?')
@@ -601,7 +609,7 @@ describe('level-up toast lifecycle', () => {
     fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     // Lesson quest (verified): +15 → 30.
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    collectBonus()
     goto('home')
     // Log quest: +5 → 35.
     fireEvent.click(screen.getByRole('button', { name: /Mark done: Log every purchase today/ }))
@@ -899,7 +907,7 @@ describe('rooms', () => {
     const dock = screen.getByRole('navigation', { name: 'Rooms' })
     expect(dock.querySelector('[aria-current="page"]')!.textContent).toContain('Home')
     goto('learn')
-    expect(screen.getByRole('button', { name: /^Got it:/ })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Skill path' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Log purchase/ })).toBeNull()
     expect(dock.querySelector('[aria-current="page"]')!.textContent).toContain('Learn')
   })
