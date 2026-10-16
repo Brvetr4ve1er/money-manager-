@@ -17,7 +17,7 @@ function flagNotes(c: InboxCandidate, logged: boolean): string[] {
   }
   if (c.flags.includes('not_a_charge')) out.push('a renewal notice, not a charge')
   if (c.flags.includes('promo')) out.push('a promotion, nothing was charged')
-  if (c.flags.includes('refund')) out.push("a refund — money coming back, so it won't be logged as spending")
+  if (c.flags.includes('refund')) out.push("a refund — money coming back, so it goes back to your balance, not into spending")
   if (logged) out.push('already in your ledger')
   return out
 }
@@ -77,6 +77,9 @@ export function Slip({
   if (!categories.includes(c.suggestedCategory)) categories.push(c.suggestedCategory)
   const [category, setCategory] = useState(c.suggestedCategory)
   const [accountId, setAccountId] = useState(() => accounts.find((a) => a.currency === c.currency)?.id ?? '')
+  // A refund goes back as income, which is kept in the account's own
+  // currency — so only same-currency accounts can take it without a guess.
+  const refundAccounts = accounts.filter((a) => a.currency === c.currency)
   const [armed, setArmed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const catId = useId()
@@ -93,6 +96,13 @@ export function Slip({
 
   const confirm = () => {
     if (refund) {
+      if (accountId && refundAccounts.some((a) => a.id === accountId)) {
+        const nowISO = new Date().toISOString()
+        dispatch({
+          type: 'money/income-add',
+          income: { id: newId(), accountId, amount: Math.abs(c.amount), date: c.date, at: nowISO, note: `refund · ${c.merchant}` },
+        })
+      }
       resolve('confirmed', null)
       return
     }
@@ -162,6 +172,21 @@ export function Slip({
           </label>
         </div>
       )}
+      {refund && refundAccounts.length > 0 && (
+        <div className="log-row slip-fields">
+          <label className="field-wrap" htmlFor={accId}>
+            <span className="field-label">Back to</span>
+            <select id={accId} className="field" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              <option value="">Just note it</option>
+              {refundAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} · {a.currency}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
       {armed && reason && (
         <p id={warnId} className="slip-warn" role="alert">
           This looks like {reason}. Tap “Confirm anyway” to log it.
@@ -174,7 +199,7 @@ export function Slip({
       )}
       <div className="slip-actions">
         <button type="button" className="btn btn-flame" onClick={confirm} aria-describedby={armed ? warnId : undefined}>
-          {refund ? 'Noted' : armed ? 'Confirm anyway' : 'Confirm'}
+          {refund ? (accountId && refundAccounts.length > 0 ? 'Add back to balance' : 'Noted') : armed ? 'Confirm anyway' : 'Confirm'}
         </button>
         <button type="button" className="btn" onClick={() => resolve('rejected', null)}>
           {reason || refund ? 'Not a spend' : 'Reject'}

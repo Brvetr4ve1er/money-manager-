@@ -7,6 +7,8 @@ import { TodayCard } from '../components/learn/TodayCard.tsx'
 import { NodeSheet } from '../components/learn/NodeSheet.tsx'
 import { PathMap } from '../components/learn/PathMap.tsx'
 import { LearnCodex } from '../components/learn/LearnCodex.tsx'
+import { masteredCount } from '../engine/learn.ts'
+import { ACHIEVEMENTS } from '../engine/achievements.ts'
 import { HearthMonth } from '../components/learn/HearthMonth.tsx'
 import type { RouteProps } from './types.ts'
 import '../components/learn/learn.css'
@@ -27,6 +29,9 @@ export function LearnRoute({ state, dispatch, today }: RouteProps) {
   const { profile, isDemo } = resolveProfile(state.profile)
   const [openId, setOpenId] = useState<string | null>(() => nodeFromHash(window.location.hash))
   const openNode = openId ? nodeById(openId) : undefined
+  const [collectionOpen, setCollectionOpen] = useState(
+    () => typeof window.matchMedia !== 'function' || window.matchMedia('(min-width: 1024px)').matches,
+  )
 
   // `#/learn?node=<id>` (Hearth Month's lesson links) opens that lantern.
   useEffect(() => {
@@ -72,8 +77,21 @@ export function LearnRoute({ state, dispatch, today }: RouteProps) {
           On desktop the room grid packs densely, so this card rises into the
           free column beside the Today card. */}
       <SimCard profile={profile} isDemo={isDemo} onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })} />
-      <LearnCodex state={state} today={today} dispatch={dispatch} onOpenNode={setOpenId} />
-      <AchievementsCard unlocks={state.achievements} />
+      {/* The codex (55 lanterns + 30 bonus cards) and the badge shelf are a
+          long scroll on a phone, so they fold behind one summary there; on
+          wide screens (and where matchMedia is missing) they start open. */}
+      <details className="learn-collection wide" open={collectionOpen} onToggle={(e) => setCollectionOpen(e.currentTarget.open)}>
+        <summary className="learn-collection-summary">
+          <span>Your collection</span>
+          <span className="mono">
+            {masteredCount(state.learn)} mastered · {state.achievements.length}/{ACHIEVEMENTS.length} badges
+          </span>
+        </summary>
+        <div className="learn-collection-body">
+          <LearnCodex state={state} today={today} dispatch={dispatch} onOpenNode={setOpenId} />
+          <AchievementsCard unlocks={state.achievements} />
+        </div>
+      </details>
     </>
   )
 }

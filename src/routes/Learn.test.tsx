@@ -215,3 +215,25 @@ describe('nodeFromHash', () => {
     expect(nodeFromHash('#/learn')).toBeNull()
   })
 })
+
+describe('collection fold', () => {
+  it('starts folded on a narrow screen and opens from its summary', () => {
+    const mm = vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    vi.stubGlobal('matchMedia', mm)
+    try {
+      localStorage.clear()
+      window.location.hash = '#/learn'
+      render(<App />)
+      const details = document.querySelector('details.learn-collection') as HTMLDetailsElement
+      expect(details.open).toBe(false)
+      expect(screen.getByText('Your collection')).toBeTruthy()
+      act(() => {
+        details.open = true
+        details.dispatchEvent(new Event('toggle'))
+      })
+      expect(details.open).toBe(true)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})

@@ -131,4 +131,32 @@ describe('Inbox on the Me room', () => {
     expect(s.inbox.candidates[0].status).toBe('pending')
     expect((s.transactions ?? []).some((t: { note?: string }) => t.note === 'from inbox')).toBe(false)
   })
+
+  it('a refund can go back to a same-currency account as income, never as spending', () => {
+    const at = '2026-10-01T09:00:00.000Z'
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        money: {
+          accounts: [
+            { id: 'card', name: 'RedotPay', currency: 'USD', anchorBalance: 100, anchorAt: at, archived: false, updatedAt: at },
+            { id: 'cash', name: 'Cash', currency: 'DA', anchorBalance: 20000, anchorAt: at, archived: false, updatedAt: at },
+          ],
+        },
+      }),
+    )
+    render(<App />)
+    goto('me')
+    paste('From: noreply@steampowered.com\nYour refund has been processed. USD 12.49 will be returned to your card ending 0000.\nDate: 12/10/2026')
+    const slip = within(tray()).getByRole('listitem')
+    const back = within(slip).getByLabelText('Back to') as HTMLSelectElement
+    // Only the USD account can take a USD refund.
+    expect([...back.options].map((o) => o.value)).toEqual(['', 'card'])
+    fireEvent.click(within(slip).getByRole('button', { name: 'Add back to balance' }))
+    const s = saved()
+    expect(s.transactions).toEqual([])
+    expect(s.money.incomes).toHaveLength(1)
+    expect(s.money.incomes[0]).toMatchObject({ accountId: 'card', amount: 12.49 })
+    expect(s.inbox.candidates[0]).toMatchObject({ status: 'confirmed', txId: null })
+  })
 })
