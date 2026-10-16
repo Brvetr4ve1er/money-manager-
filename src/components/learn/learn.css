@@ -63,6 +63,7 @@
 .learn-branches { display: grid; gap: 1.1rem; }
 .learn-branch {
   position: relative;
+  min-width: 0;
   padding: 0.8rem 0.2rem 0.2rem;
   border-radius: var(--r);
   background: radial-gradient(120% 90% at 0% 0%, rgba(255, 180, 107, 0.07), transparent 60%);
@@ -189,7 +190,7 @@
 }
 
 @media (min-width: 1024px) {
-  .learn-branches { grid-template-columns: 1fr 1fr; }
+  .learn-branches { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .learn-trail { grid-auto-columns: 5.6rem; }
   .learn-trail::before { left: 2.8rem; right: 2.8rem; }
 }
