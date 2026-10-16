@@ -39,6 +39,7 @@ import { AccountsCard } from './components/money/AccountsCard.tsx'
 import { ImportBackup } from './components/ImportBackup.tsx'
 import { RecapCard } from './components/RecapCard.tsx'
 import { ceremonyDue } from './engine/recap.ts'
+import { RoomCard } from './components/RoomCard.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
 import { useRoute } from './routes/router.ts'
 import { Dock } from './components/Dock.tsx'
@@ -297,6 +298,7 @@ export default function App() {
               usualPerDay={velocity.baselinePerDay}
             />
             {/* First week of a month: last month's moon ceremony greets you. */}
+            {room.hasAccounts && <RoomCard state={state} today={today} nowMs={Date.now()} />}
             {!support.lowEnergy && ceremonyDue(state, today) !== null && (
               <RecapCard state={state} today={today} month={ceremonyDue(state, today)!} />
             )}
