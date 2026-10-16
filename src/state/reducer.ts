@@ -22,6 +22,9 @@ import { moneyReducer, withPayment, type MoneyAction, type Payment } from './sli
 import { learnReducer, type LearnAction } from './slices/learn.ts'
 import { socialReducer, type SocialAction } from './slices/social.ts'
 import { inboxReducer, type InboxAction } from './slices/inbox.ts'
+import { nodeById } from '../content/curriculum.ts'
+import { isApplied } from '../engine/learn.ts'
+import type { XpAction } from '../engine/xp.ts'
 import {
   mergeStates,
   rollQuests,
@@ -64,6 +67,13 @@ export type AppAction =
   | { type: 'OBLIGATION_PAY'; payment: Payment; tx: Transaction }
   /** Undo a payment: void it and remove its ledger row (and the row's XP). */
   | { type: 'OBLIGATION_UNPAY'; paymentId: string; nowISO: string }
+  /** Both quiz questions answered: records the pass, seeds review cards,
+   *  pays quizPass once per node ever, and completes the daily lesson quest. */
+  | { type: 'LEARN_QUIZ_PASS'; nodeId: string; today: string; nowISO?: string }
+  /** The node's apply check holds in real state: mastery, nodeApplied once. */
+  | { type: 'LEARN_APPLY'; nodeId: string; today: string }
+  /** One spaced-review answer; any correct answer pays reviewDone once a day. */
+  | { type: 'LEARN_REVIEW'; questionId: string; correct: boolean; today: string; nowISO?: string }
   | MoneyAction
   | LearnAction
   | SocialAction
@@ -100,6 +110,20 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 }
 
 type RootAction = Exclude<AppAction, MoneyAction | LearnAction | SocialAction | InboxAction>
+
+/**
+ * Pay one learn-track grant under a deterministic id, at most once ever: the
+ * xpLog IS the persistence, so a merged peer holding the same id dedupes to
+ * one grant, and a replayed action finds the id and pays nothing.
+ */
+function grantOnce(state: AppState, id: string, action: XpAction, date: string): AppState {
+  if (state.xpLog.some((g) => g.id === id)) return state
+  return {
+    ...state,
+    xp: grantXp(state.xp, action).next,
+    xpLog: [...state.xpLog, { id, action, amount: XP_REWARDS[action], date }],
+  }
+}
 
 function rootReducer(state: AppState, action: RootAction): AppState {
   switch (action.type) {
@@ -346,6 +370,48 @@ function rootReducer(state: AppState, action: RootAction): AppState {
       const money = withPayment(state.money, { ...action.payment, txId: action.tx.id })
       if (money === state.money) return state
       return appReducer({ ...state, money }, { type: 'LOG_TX', tx: { ...action.tx, obligationId: action.payment.obligationId } })
+    }
+    case 'LEARN_QUIZ_PASS': {
+      if (nodeById(action.nodeId) === undefined) return state
+      const learn = learnReducer(state.learn, {
+        type: 'learn/quiz-passed',
+        nodeId: action.nodeId,
+        today: action.today,
+        nowISO: action.nowISO,
+      })
+      const recorded = learn === state.learn ? state : { ...state, learn }
+      // The quiz must actually be on record as passed (a bad day key is a
+      // no-op in the slice) before anything pays.
+      if (recorded.learn.progress.every((p) => p.nodeId !== action.nodeId || p.quizPassedAt === null)) {
+        return state
+      }
+      const paid = grantOnce(recorded, `quiz:${action.nodeId}`, 'quizPass', action.today)
+      // "Learn one thing today": a pass (first or a re-take) is the verified
+      // completion; COMPLETE_QUEST's own guard makes a second pass a no-op.
+      return appReducer(paid, { type: 'COMPLETE_QUEST', id: 'lesson' })
+    }
+    case 'LEARN_APPLY': {
+      const node = nodeById(action.nodeId)
+      // Verified, never self-reported: the reducer re-checks the predicate
+      // against the state it is about to change.
+      if (!node || node.apply === null || !isApplied(node.apply, state, action.today)) return state
+      const learn = learnReducer(state.learn, { type: 'learn/applied', nodeId: node.id, today: action.today })
+      if (learn === state.learn) return state
+      return grantOnce({ ...state, learn }, `apply:${node.id}`, 'nodeApplied', action.today)
+    }
+    case 'LEARN_REVIEW': {
+      const learn = learnReducer(state.learn, {
+        type: 'learn/review-answer',
+        questionId: action.questionId,
+        correct: action.correct,
+        today: action.today,
+        nowISO: action.nowISO,
+      })
+      if (learn === state.learn) return state
+      const next = { ...state, learn }
+      // A wrong answer costs nothing and pays nothing; any correct answer
+      // pays the small daily review grant once per day.
+      return action.correct ? grantOnce(next, `review:${action.today}`, 'reviewDone', action.today) : next
     }
     case 'OBLIGATION_UNPAY': {
       const p = state.money.payments.find((x) => x.id === action.paymentId)

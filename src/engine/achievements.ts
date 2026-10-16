@@ -9,6 +9,8 @@
  */
 
 import type { AchievementUnlock, AppState, Transaction } from '../state/store.ts'
+import { BRANCHES, type BranchId } from '../content/curriculum.ts'
+import { branchMastered, masteredCount } from './learn.ts'
 
 export interface PixelPet {
   emoji: string
@@ -42,6 +44,18 @@ function isPurchase(t: Transaction): boolean {
  */
 export function loggedDayCount(transactions: Transaction[]): number {
   return new Set(transactions.map((t) => t.date)).size
+}
+
+/** One companion per skill-tree branch — cosmetic, like every pet. */
+const BRANCH_PETS: Record<BranchId, PixelPet> = {
+  flow: { emoji: '🐟', name: 'Hout' },
+  save: { emoji: '🐿️', name: 'Sanjoub' },
+  borrow: { emoji: '🦔', name: 'Qanfoud' },
+  dinar: { emoji: '🐫', name: 'Jamal' },
+  earn: { emoji: '🐜', name: 'Namla' },
+  family: { emoji: '🕊️', name: 'Hamama' },
+  guard: { emoji: '🦅', name: 'Saqr' },
+  grow: { emoji: '🐞', name: 'Khanfoussa' },
 }
 
 /**
@@ -118,6 +132,23 @@ export const ACHIEVEMENTS: ReadonlyArray<Achievement> = [
     pet: { emoji: '🦁', name: 'Sultan' },
     earned: (s) => s.xp.level >= 10,
   },
+  // Learn room — mastery is read + quiz + a verified apply check (see
+  // engine/learn.ts), all persisted in the learn slice, so these merge and
+  // reload like every other badge. Ids are permanent.
+  {
+    id: 'first-mastery',
+    name: 'First Lantern',
+    hint: 'Master one lesson: read it, pass its quiz, try it for real.',
+    pet: { emoji: '🦊', name: 'Fennec' },
+    earned: (s) => masteredCount(s.learn) >= 1,
+  },
+  ...BRANCHES.map((b): Achievement => ({
+    id: `branch-${b.id}`,
+    name: `${b.title} Keeper`,
+    hint: `Master every lesson on the ${b.title} trail.`,
+    pet: BRANCH_PETS[b.id],
+    earned: (s) => branchMastered(b.id, s.learn),
+  })),
 ]
 
 /** Id roster for the sanitizer/reducer — same gatekeeping role as LESSON_IDS. */

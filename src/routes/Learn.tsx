@@ -1,39 +1,64 @@
-import { lessonForDay } from '../content/lessons.ts'
+import { useState } from 'react'
+import { nodeById } from '../content/curriculum.ts'
 import { resolveProfile } from '../engine/profile.ts'
-import { LessonCard } from '../components/LessonCard.tsx'
 import { SimCard } from '../components/SimCard.tsx'
-import { CodexCard } from '../components/CodexCard.tsx'
 import { AchievementsCard } from '../components/AchievementsCard.tsx'
+import { TodayCard } from '../components/learn/TodayCard.tsx'
+import { NodeSheet } from '../components/learn/NodeSheet.tsx'
+import { PathMap } from '../components/learn/PathMap.tsx'
+import { LearnCodex } from '../components/learn/LearnCodex.tsx'
 import type { RouteProps } from './types.ts'
+import '../components/learn/learn.css'
 
 /**
- * Learn room. Owns everything on the knowledge track: today's lesson, the
- * decision simulator, the codex and the badge shelf. The skill tree (Phase 2)
- * replaces the daily lesson here; the cards below keep their DOM contract.
+ * Learn room — a cozy, non-punitive learning game. The skill path (eight
+ * branch trails of lanterns), one node sheet at a time (lesson → scenario
+ * quiz → try it for real), spaced review, the codex, the decision simulator
+ * and the badge shelf.
+ *
+ * House rules: no hearts or lives, no streaks, no timers, no leaderboards,
+ * no loot boxes. A wrong answer explains and lets you try again. XP is the
+ * engagement track only. Nothing is gated — any lantern opens.
  */
 export function LearnRoute({ state, dispatch, today }: RouteProps) {
   // Same profile resolution useHealthDay applies, so the simulator and the
   // score never speak from different numbers.
   const { profile, isDemo } = resolveProfile(state.profile)
-  // Deterministic pick for the day — same lesson on every render, reload and
-  // tab, and stable across "Got it" (lessonForDay keeps today's own entry).
-  const todayLesson = lessonForDay(today, state.lessonsSeen)
-  const lessonReadToday = state.quests.some((q) => q.id === 'lesson' && q.done)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const openNode = openId ? nodeById(openId) : undefined
 
-  function readLesson() {
-    // Two dispatches, one tap: READ_LESSON collects into the codex (no XP),
-    // and the verified lesson quest carries the readLesson grant through
-    // COMPLETE_QUEST's atomic double-grant guard.
-    dispatch({ type: 'READ_LESSON', id: todayLesson.id, date: today })
-    dispatch({ type: 'COMPLETE_QUEST', id: 'lesson' })
+  function close() {
+    const id = openId
+    setOpenId(null)
+    // Hand focus back to the lantern that opened the sheet.
+    if (id) {
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLElement>(`.lantern[data-node="${id}"]`)?.focus(),
+      )
+    }
   }
 
   return (
     <>
-      <LessonCard lesson={todayLesson} readToday={lessonReadToday} onRead={readLesson} />
-      {/* Running a simulation genuinely completes the verified sim quest. */}
+      <TodayCard state={state} today={today} dispatch={dispatch} onOpen={setOpenId} />
+      {openNode && (
+        <NodeSheet
+          key={openNode.id}
+          node={openNode}
+          state={state}
+          today={today}
+          dispatch={dispatch}
+          onClose={close}
+          onOpenNode={setOpenId}
+        />
+      )}
+      <PathMap state={state} today={today} openId={openId} onOpen={setOpenId} />
+      {/* Hearth Month mini-game mounts here */}
+      {/* Running a simulation genuinely completes the verified sim quest.
+          On desktop the room grid packs densely, so this card rises into the
+          free column beside the Today card. */}
       <SimCard profile={profile} isDemo={isDemo} onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })} />
-      <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
+      <LearnCodex state={state} today={today} dispatch={dispatch} onOpenNode={setOpenId} />
       <AchievementsCard unlocks={state.achievements} />
     </>
   )
