@@ -16,8 +16,6 @@ export interface ProtoEntry {
 
 export const PROTOS: ProtoEntry[] = [
   { id: 'hearth', name: 'Hearth', blurb: 'Warm futurism — your home at dusk; obligations are lanterns that glow when paid.', Component: lazy(() => import('./hearth/index.tsx')) },
-  { id: 'pixelhearth', name: 'Pixelhearth', blurb: '16-bit cozy game — a tile room, a pet, a chunky dialog box for a UI.', Component: lazy(() => import('./pixelhearth/index.tsx')) },
-  { id: 'obsidian', name: 'Obsidian', blurb: 'Dark sci-fi HUD — a ship console; breathing room is a reactor gauge.', Component: lazy(() => import('./obsidian/index.tsx')) },
   { id: 'clay', name: 'Clay', blurb: 'Soft 3D toy — a shelf of squishy objects; coins are physical, bills are boxes.', Component: lazy(() => import('./clay/index.tsx')) },
 ]
 
