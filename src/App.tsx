@@ -1,13 +1,12 @@
 /**
- * App is composition only: cards live in src/components/, the day-clock +
- * health-rollover logic in useHealthDay, and the XP/toast/sound reactions in
- * useRewards — so the roadmap features (onboarding, boss battles, "I bought
- * it anyway") add modules instead of effects in one growing file.
+ * App is composition only: it owns persistence, the day clock (useHealthDay),
+ * reward reactions (useRewards) and the room switch. Each room lives in
+ * src/routes/ and owns its own cards, so features land as modules instead of
+ * effects in one growing file.
  */
 
 import { useEffect, useReducer } from 'react'
 import { RESIST_XP_DAILY_CAP } from './engine/xp.ts'
-import { resolveProfile } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
@@ -20,17 +19,11 @@ import {
 } from './state/store.ts'
 import { appReducer } from './state/reducer.ts'
 import { unlockedPets } from './engine/achievements.ts'
-import { lessonForDay } from './content/lessons.ts'
 import { HeroShell } from './components/HeroShell.tsx'
 import { HeroCard } from './components/HeroCard.tsx'
-import { LessonCard } from './components/LessonCard.tsx'
-import { CodexCard } from './components/CodexCard.tsx'
-import { AchievementsCard } from './components/AchievementsCard.tsx'
 import { XpCard } from './components/XpCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
 import { QuestCard } from './components/QuestCard.tsx'
-import { BossCard } from './components/BossCard.tsx'
-import { SimCard } from './components/SimCard.tsx'
 import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
 import { Ledger } from './components/Ledger.tsx'
 import { NeedsCard } from './components/NeedsCard.tsx'
@@ -41,7 +34,14 @@ import type { LogOutcome } from './components/LogCard.tsx'
 import { holdPurchase, shouldHold, spendVelocity } from './engine/brakes.ts'
 import { catchUpTransaction } from './engine/calm.ts'
 import { useHealthDay } from './hooks/useHealthDay.ts'
-import { useBossBattle } from './hooks/useBossBattle.ts'
+import { useRoute } from './routes/router.ts'
+import { Dock } from './components/Dock.tsx'
+import { RunwayRoute } from './routes/Runway.tsx'
+import { JarsRoute } from './routes/Jars.tsx'
+import { LearnRoute } from './routes/Learn.tsx'
+import { SocialSection } from './components/social/SocialSection.tsx'
+import { InboxSection } from './components/inbox/InboxSection.tsx'
+import type { RouteProps } from './routes/types.ts'
 import { useAchievements } from './hooks/useAchievements.ts'
 import { useRewards } from './hooks/useRewards.ts'
 import './styles/tokens.css'
@@ -70,45 +70,20 @@ export default function App() {
   }, [])
 
   const { today, health } = useHealthDay(state, dispatch)
+  const route = useRoute()
   const { support } = state
   // Pace vs. the user's own baseline (see brakes.ts). Pure over the ledger;
   // the Ledger card phrases it, and only when it has something to say.
   const velocity = spendVelocity(state.transactions, today)
-  // The hook's `today` (like logPurchase uses), so the battle week can never
-  // disagree with the day every other card believes it is. The hook also
-  // claims a just-completed winning week — the toast/fanfare react to the
-  // resulting grant in useRewards.
-  const { battle, wonLastWeek } = useBossBattle(state, dispatch, today)
   // Badge predicates run over the same state every card renders from; the
   // hook persists any newly-earned ids stamped with the hook's `today` (the
   // day every other write in this render believes it is), and the unlock
   // toast + sparkle react to the persisted change in useRewards.
   useAchievements(state, dispatch, today)
   const { toast, xpGain } = useRewards(state)
-  // Real numbers once the setup card completed, DEMO_PROFILE until then —
-  // the same resolution useHealthDay applies, so the simulator and the score
-  // can never speak from different profiles.
-  const { profile, isDemo } = resolveProfile(state.profile)
   // Computed once: the hero shell and the hero card both show the companions
   // and must always agree on the shelf.
   const pets = unlockedPets(state.achievements)
-  // Deterministic pick for the hook's day — same lesson on every render,
-  // reload, and tab of that day, and stable across "Got it" (lessonForDay
-  // keeps today's own entry in the pool on purpose).
-  const todayLesson = lessonForDay(today, state.lessonsSeen)
-  const lessonReadToday = state.quests.some((q) => q.id === 'lesson' && q.done)
-
-  function readLesson() {
-    // Two dispatches, one tap: READ_LESSON collects the lesson into the codex
-    // (no XP — see the reducer), and the verified lesson quest carries the
-    // daily readLesson grant through COMPLETE_QUEST's atomic double-grant
-    // guard, exactly like SimCard's onRun does for the sim quest. The quest
-    // blip and +XP chip come from useRewards; the codex milestone sparkle
-    // fires there too when the collection crosses a multiple of five.
-    dispatch({ type: 'READ_LESSON', id: todayLesson.id, date: today })
-    dispatch({ type: 'COMPLETE_QUEST', id: 'lesson' })
-  }
-
   function logPurchase(
     amountDA: number,
     category: string,
@@ -148,6 +123,8 @@ export default function App() {
       // same blip as any log: self-reporting against yourself is never
       // punished, and the flag is what makes IC genuine two-sided data.
       impulseFlagged,
+      // Exact time: account estimates compare it against the balance anchor.
+      at: new Date().toISOString(),
     }
     dispatch({ type: 'LOG_TX', tx })
     if (resisted) sfx.sparkle()
@@ -230,6 +207,8 @@ export default function App() {
     />
   )
 
+  const routeProps: RouteProps = { state, dispatch, today, health }
+
   return (
     // data-calm: no animation, no transitions, no visual toast (app.css).
     // The live regions still announce — calm is about surprises, not AT.
@@ -264,78 +243,68 @@ export default function App() {
         {xpGain !== null ? `+${xpGain} XP` : ''}
       </div>
 
-      {/* <main> landmark so AT users get a "jump to main content" target —
-          the card stack is the page's primary content, with the topbar and
-          foot as sibling landmarks. .main-stack carries the shell's column
-          rhythm inside the landmark. */}
-      <main className="main-stack">
-        {support.reentry && (
-          <ReentryBanner
-            reentry={support.reentry}
-            onCatchUp={catchUp}
-            onSkip={() => dispatch({ type: 'REENTRY_DISMISS' })}
-          />
-        )}
-        {support.lowEnergy && (
-          <p className="mode-strip" role="status">
-            Low-energy view: just the essentials.{' '}
-            <button
-              type="button"
-              className="btn undo-btn"
-              onClick={() => dispatch({ type: 'LOW_ENERGY_SET', on: false, nowISO: nowISO() })}
-            >
-              Show everything
-            </button>
-          </p>
-        )}
-        <HeroCard
-          stage={health.stage}
-          score={health.score}
-          pets={pets}
-          components={health.components}
-          puff={xpGain !== null}
-        />
-        {!support.lowEnergy && <XpCard xp={state.xp} gain={xpGain} />}
-        <LogCard
-          transactions={state.transactions}
-          onLog={logPurchase}
-          onUndo={undoLog}
-          resistXpCapped={
-            state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
-            RESIST_XP_DAILY_CAP
-          }
-        />
-        {/* The held queue is money in limbo — it stays visible in every mode. */}
-        {support.lowEnergy && support.held.length > 0 && brakesCard}
-        {!support.lowEnergy && (
+      {/* <main> landmark: the current room's cards. Rooms switch by hash
+          (#/home, #/runway, #/jars, #/learn, #/me) — see routes/router.ts. */}
+      <main className="main-stack" data-route={route}>
+        {route === 'home' && (
           <>
-            <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
-            <BossCard battle={battle} wonLastWeek={wonLastWeek} />
-            {/* "Got it" genuinely completes the verified lesson quest — the tap
-                lands on today's actual lesson content, so the app observes the
-                action instead of taking it on self-report. */}
-            <LessonCard lesson={todayLesson} readToday={lessonReadToday} onRead={readLesson} />
-            {/* Running a simulation genuinely completes the sim quest — a
-                daily quest the app verifies instead of taking on self-report, so
-                QuestCard renders it without a tap-to-complete button. */}
-            <SimCard
-              profile={profile}
-              isDemo={isDemo}
-              onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
+            {support.reentry && (
+              <ReentryBanner
+                reentry={support.reentry}
+                onCatchUp={catchUp}
+                onSkip={() => dispatch({ type: 'REENTRY_DISMISS' })}
+              />
+            )}
+            {support.lowEnergy && (
+              <p className="mode-strip" role="status">
+                Low-energy view: just the essentials.{' '}
+                <button
+                  type="button"
+                  className="btn undo-btn"
+                  onClick={() => dispatch({ type: 'LOW_ENERGY_SET', on: false, nowISO: nowISO() })}
+                >
+                  Show everything
+                </button>
+              </p>
+            )}
+            <HeroCard
+              stage={health.stage}
+              score={health.score}
+              pets={pets}
+              components={health.components}
+              puff={xpGain !== null}
             />
-            <ProfileCard profile={state.profile} onSave={saveProfile} />
+            {!support.lowEnergy && <XpCard xp={state.xp} gain={xpGain} />}
+            <LogCard
+              transactions={state.transactions}
+              onLog={logPurchase}
+              onUndo={undoLog}
+              resistXpCapped={
+                state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
+                RESIST_XP_DAILY_CAP
+              }
+            />
+            {/* The held queue is money in limbo — visible on Home in every mode. */}
+            {support.held.length > 0 && brakesCard}
+            {!support.lowEnergy && (
+              <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
+            )}
+            <Ledger
+              transactions={state.transactions}
+              today={today}
+              velocity={velocity}
+              trustedName={support.trusted?.name ?? null}
+            />
           </>
         )}
-        <Ledger
-          transactions={state.transactions}
-          today={today}
-          velocity={velocity}
-          trustedName={support.trusted?.name ?? null}
-        />
-        {!support.lowEnergy && (
+        {route === 'runway' && <RunwayRoute {...routeProps} />}
+        {route === 'jars' && <JarsRoute {...routeProps} />}
+        {route === 'learn' && <LearnRoute {...routeProps} />}
+        {route === 'me' && (
           <>
+            <ProfileCard profile={state.profile} onSave={saveProfile} />
             {needsCard}
-            {brakesCard}
+            {support.held.length === 0 && brakesCard}
             <TrustedCard
               trusted={support.trusted}
               input={{
@@ -347,17 +316,20 @@ export default function App() {
               }}
               onSave={(trusted) => dispatch({ type: 'TRUSTED_SET', trusted, nowISO: nowISO() })}
             />
-            <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
-            <AchievementsCard unlocks={state.achievements} />
+            <SocialSection {...routeProps} />
+            <InboxSection {...routeProps} />
+            <section className="card foot-card">
+              <h2>Your data</h2>
+              <div className="foot">
+                <button className="btn" onClick={downloadExport}>Export my data</button>
+                <span className="foot-note">Your data leaves when you do — full export, always.</span>
+              </div>
+            </section>
           </>
         )}
-        {support.lowEnergy && needsCard}
       </main>
 
-      <footer className="foot">
-        <button className="btn" onClick={downloadExport}>Export my data</button>
-        <span className="foot-note">Your data leaves when you do — full export, always.</span>
-      </footer>
+      <Dock route={route} badges={{ me: 0, home: support.held.length }} />
     </div>
   )
 }

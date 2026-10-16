@@ -16,7 +16,8 @@ export const XP_REWARDS = {
   runSimulation: 15,
   readLesson: 15,
   reviewRecent: 10,
-  // Weekly boss victory (see engine/boss.ts): paid at most once per week via
+  // RETIRED weekly boss victory: no longer granted, but the action stays in
+  // the table so grants already in users' xpLog keep validating. Was paid via
   // the deterministic `boss:{weekStart}` grant id the BOSS_VICTORY reducer
   // path checks — the xpLog IS the persistence, so a claimed week can never
   // pay twice across reloads or merged tabs.

@@ -9,7 +9,7 @@
  * values (ms since epoch / ISO strings) so every path is unit-testable.
  */
 
-import { addDaysISO } from './boss.ts'
+import { addDaysISO } from './dates.ts'
 import type { Transaction } from '../state/store.ts'
 
 export interface BrakeRule {

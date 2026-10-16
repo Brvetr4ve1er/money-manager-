@@ -15,7 +15,7 @@ import {
 import type { Stage } from '../engine/healthScore.ts'
 import { LESSON_IDS } from '../content/lessons.ts'
 // Runtime-safe despite achievements.ts importing store types: type imports
-// erase at build, so only this direction carries code (same shape as boss.ts).
+// erase at build, so only this direction carries code (same shape as brakes.ts).
 import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 import { DELAY_OPTIONS_HOURS, type BrakeRule, type HeldPurchase, type PendingRule } from '../engine/brakes.ts'
 import type { Reentry } from '../engine/calm.ts'

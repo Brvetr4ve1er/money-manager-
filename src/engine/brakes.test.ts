@@ -15,7 +15,7 @@ import {
   type BrakeRule,
   type HeldPurchase,
 } from './brakes.ts'
-import { addDaysISO } from './boss.ts'
+import { addDaysISO } from './dates.ts'
 import type { Transaction } from '../state/store.ts'
 
 const rule = (over: Partial<BrakeRule> = {}): BrakeRule => ({

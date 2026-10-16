@@ -9,7 +9,7 @@
 import type { Transaction } from '../state/store.ts'
 import type { HeldPurchase, Velocity } from './brakes.ts'
 import type { Stage } from './healthScore.ts'
-import { addDaysISO } from './boss.ts'
+import { addDaysISO } from './dates.ts'
 
 export interface SnapshotOptions {
   /** Total spent this week and the count of logs. */

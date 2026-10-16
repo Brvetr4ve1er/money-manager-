@@ -7,7 +7,6 @@
  */
 
 import { grantXp, RESIST_XP_DAILY_CAP, XP_REWARDS, xpStateFromTotal } from '../engine/xp.ts'
-import { bossGrantId } from '../engine/boss.ts'
 import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
 import type { Stage } from '../engine/healthScore.ts'
 import { LESSON_IDS } from '../content/lessons.ts'
@@ -39,7 +38,6 @@ export type AppAction =
   | { type: 'COMPLETE_QUEST'; id: string }
   | { type: 'READ_LESSON'; id: string; date: string }
   | { type: 'ROLL_DAY'; today: string; healthScore: number; healthStage: Stage }
-  | { type: 'BOSS_VICTORY'; weekStart: string; date: string }
   | { type: 'UNLOCK_ACHIEVEMENTS'; ids: string[]; date: string }
   | { type: 'HYDRATE'; incoming: AppState }
   | { type: 'TOGGLE_MUTE' }
@@ -222,24 +220,6 @@ function rootReducer(state: AppState, action: RootAction): AppState {
       if (state.support.lastOpened === action.today) return snapped
       const reentry = state.support.reentry ?? reentryFor(state.support.lastOpened, action.today)
       return withSupport(snapped, { lastOpened: action.today, reentry })
-    }
-    case 'BOSS_VICTORY': {
-      // Weekly boss win (computed by the boss engine, dispatched from
-      // useBossBattle). The xpLog is the once-per-week persistence: the
-      // deterministic per-week grant id makes this a pure state check, so a
-      // StrictMode double-dispatch, a re-fired mount effect on reload, or two
-      // tabs claiming the same week (grant logs union by id in mergeStates)
-      // all pay exactly once. No new state field — the evidence log carries it.
-      const id = bossGrantId(action.weekStart)
-      if (state.xpLog.some((g) => g.id === id)) return state
-      return {
-        ...state,
-        xp: grantXp(state.xp, 'weeklyBoss').next,
-        xpLog: [
-          ...state.xpLog,
-          { id, action: 'weeklyBoss', amount: XP_REWARDS.weeklyBoss, date: action.date },
-        ],
-      }
     }
     case 'UNLOCK_ACHIEVEMENTS': {
       // Badges pay NO XP — the toast/sparkle and the permanent shelf row are

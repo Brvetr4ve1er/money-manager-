@@ -1,5 +1,5 @@
 /**
- * Achievement unlocking, extracted from App like useBossBattle: the badge
+ * Achievement unlocking, extracted from App: the badge
  * check is pure derivation (engine/achievements.ts) and the only state
  * transition is UNLOCK_ACHIEVEMENTS, whose reducer filter makes every re-fire
  * (StrictMode, reload, peer-merge re-render) a no-op after the first. The

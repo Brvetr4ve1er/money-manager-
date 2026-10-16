@@ -34,16 +34,6 @@ export function HeroShell({
   return (
     <header className="topbar">
       <div className="hero-frame">
-        {/* Desktop-only section nav: plain anchors to the card ids, so it
-            works with keyboard, AT, and no JS scroll handling. Hidden on
-            mobile where the single column needs no jump points. */}
-        <nav className="hero-nav" aria-label="Sections">
-          <a href="#log">Log</a>
-          <a href="#quests">Quests</a>
-          <a href="#simulator">Simulator</a>
-          <a href="#codex">Codex</a>
-          <a href="#badges">Badges</a>
-        </nav>
         {/* Stage-colored glow behind the wordmark — the desktop counterpart
             of the stage badge's fill, driven by the same STAGE_META so the
             hero can never glow a color the health engine didn't assign.

@@ -23,6 +23,8 @@ export interface Achievement {
   /** Cosmetic companion this badge unlocks (see HeroCard's pet strip). */
   pet: PixelPet
   earned(state: AppState): boolean
+  /** Retired mechanic: shown only once earned, never as a locked goal. */
+  legacy?: boolean
 }
 
 /** A purchase row: money actually left — resists log a row but spend nothing. */
@@ -46,7 +48,7 @@ export function loggedDayCount(transactions: Transaction[]): number {
  * The canonical roster. Predicates read only persisted evidence, so every
  * unlock survives reload and merges identically in any tab:
  * - simulation / boss-win badges key off the xpLog (the verified sim quest is
- *   the sole runSimulation grant vehicle, BOSS_VICTORY the sole weeklyBoss
+ *   the sole runSimulation grant vehicle, the retired BOSS_VICTORY the sole weeklyBoss
  *   one — the append-only evidence log doubles as the achievement record);
  * - level badges read the xp counter, itself rebuilt from that log;
  * - the rest count transactions / codex entries directly.
@@ -97,9 +99,10 @@ export const ACHIEVEMENTS: ReadonlyArray<Achievement> = [
   {
     id: 'boss-win',
     name: 'Monster Tamer',
-    hint: 'Beat the weekly Impulse Monster.',
+    hint: 'Beat the weekly Impulse Monster (retired — kept for those who did).',
     pet: { emoji: '🐺', name: 'Dib' },
     earned: (s) => s.xpLog.some((g) => g.action === 'weeklyBoss'),
+    legacy: true,
   },
   {
     id: 'level-5',
