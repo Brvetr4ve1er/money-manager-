@@ -15,8 +15,16 @@ import {
 import type { Stage } from '../engine/healthScore.ts'
 import { LESSON_IDS } from '../content/lessons.ts'
 // Runtime-safe despite achievements.ts importing store types: type imports
-// erase at build, so only this direction carries code (same shape as boss.ts).
+// erase at build, so only this direction carries code (same shape as brakes.ts).
 import { ACHIEVEMENT_IDS } from '../engine/achievements.ts'
+import { DELAY_OPTIONS_HOURS, type BrakeRule, type HeldPurchase, type PendingRule } from '../engine/brakes.ts'
+import type { Reentry } from '../engine/calm.ts'
+import { NEED_IDS, type NeedId } from '../engine/needs.ts'
+import { DEFAULT_SNAPSHOT_OPTIONS, type SnapshotOptions } from '../engine/snapshot.ts'
+import { defaultMoney, mergeMoney, sanitizeMoney, type MoneyState } from './slices/money.ts'
+import { defaultLearn, mergeLearn, sanitizeLearn, type LearnState } from './slices/learn.ts'
+import { defaultSocial, mergeSocial, sanitizeSocial, type SocialState } from './slices/social.ts'
+import { defaultInbox, mergeInbox, sanitizeInbox, type InboxState } from './slices/inbox.ts'
 
 export interface Transaction {
   id: string
@@ -31,6 +39,14 @@ export interface Transaction {
    *  (a future "I bought it anyway" flow). Only flagged events may count
    *  against Impulse Control — ordinary planned spending never does. */
   impulseFlagged?: boolean
+  /** Money account this was paid from (money slice); absent = unassigned. */
+  accountId?: string
+  /** Original amount when it was not DA (amountDA holds the conversion). */
+  original?: { amount: number; currency: 'USD' }
+  /** ISO datetime it was logged — compared against account anchors. */
+  at?: string
+  /** Set when the row is an obligation payment (bills never fire charms). */
+  obligationId?: string
 }
 
 export interface ProfileGoal {
@@ -97,6 +113,31 @@ export interface AchievementUnlock {
   date: string
 }
 
+/**
+ * Support settings and queues — the needs-based modes. Settings (needs,
+ * brakes, pendingBrakes, lowEnergy, calm, trusted) move together under one
+ * savedAt stamp so a cross-tab merge keeps the newest edit whole instead of
+ * splicing two half-states; the queues (held) union by id; lastOpened and
+ * reentry follow their own rules (see mergeStates).
+ */
+export interface SupportState {
+  needs: NeedId[]
+  brakes: BrakeRule | null
+  pendingBrakes: PendingRule | null
+  held: HeldPurchase[]
+  lowEnergy: boolean
+  calm: boolean
+  /** Number-light mode: rounded figures, a tank visual, fewer digits. */
+  numberLight: boolean
+  /** Local day (YYYY-MM-DD) the app was last opened; '' = never. */
+  lastOpened: string
+  /** Set on a return after days away; cleared when the user dismisses it. */
+  reentry: Reentry | null
+  trusted: { name: string; options: SnapshotOptions } | null
+  /** ISO datetime of the last settings edit — newer wins in mergeStates. */
+  savedAt: string
+}
+
 export interface AppState {
   transactions: Transaction[]
   xp: XpState
@@ -115,6 +156,11 @@ export interface AppState {
   profile: ProfileData | null
   /** Earned achievement badges (ids + dates), unioned by id across tabs. */
   achievements: AchievementUnlock[]
+  support: SupportState
+  money: MoneyState
+  learn: LearnState
+  social: SocialState
+  inbox: InboxState
 }
 
 const KEY = 'ember-state-v1'
@@ -128,7 +174,7 @@ export const DEFAULT_QUESTS: Omit<Quest, 'done'>[] = [
   // dispatches completion — see App), and it is the sole XP vehicle for
   // reading: LessonCard's tap itself grants nothing extra, so one read pays
   // readLesson exactly once per day.
-  { id: 'lesson', text: "Read today's lesson", xpAction: 'readLesson', verified: true },
+  { id: 'lesson', text: 'Learn one thing today', xpAction: 'readLesson', verified: true },
   // The sim quest self-verifies the same way: running a simulation completes
   // it (see SimCard's onRun in App) — and because it is verified, QuestCard
   // renders it without a tap-to-complete button.
@@ -185,6 +231,22 @@ export function rollQuests(state: AppState, today: string): AppState {
   return { ...state, quests: freshQuests(), questsDate: today }
 }
 
+export function defaultSupport(): SupportState {
+  return {
+    needs: [],
+    brakes: null,
+    pendingBrakes: null,
+    held: [],
+    lowEnergy: false,
+    calm: false,
+    numberLight: false,
+    lastOpened: '',
+    reentry: null,
+    trusted: null,
+    savedAt: '',
+  }
+}
+
 export function defaultState(): AppState {
   return {
     transactions: [],
@@ -199,6 +261,11 @@ export function defaultState(): AppState {
     muted: false,
     profile: null,
     achievements: [],
+    support: defaultSupport(),
+    money: defaultMoney(),
+    learn: defaultLearn(),
+    social: defaultSocial(),
+    inbox: defaultInbox(),
   }
 }
 
@@ -290,7 +357,12 @@ function isTransaction(v: unknown): v is Transaction {
     isValidDayKey(v.date) &&
     (v.note === undefined || typeof v.note === 'string') &&
     isOptionalBoolean(v.resistedImpulse) &&
-    isOptionalBoolean(v.impulseFlagged)
+    isOptionalBoolean(v.impulseFlagged) &&
+    (v.accountId === undefined || typeof v.accountId === 'string') &&
+    (v.original === undefined ||
+      (isRecord(v.original) && v.original.currency === 'USD' && isFiniteNumber(v.original.amount) && v.original.amount >= 0)) &&
+    (v.at === undefined || isIsoDatetime(v.at)) &&
+    (v.obligationId === undefined || typeof v.obligationId === 'string')
   )
 }
 
@@ -351,6 +423,92 @@ export function sanitizeProfile(v: unknown): ProfileData | null {
     goal,
     savedDate: v.savedDate,
   }
+}
+
+const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+
+function isIsoDatetime(v: unknown): v is string {
+  return typeof v === 'string' && ISO_DATETIME_RE.test(v) && Number.isFinite(Date.parse(v))
+}
+
+function sanitizeBrakeRule(v: unknown): BrakeRule | null {
+  if (!isRecord(v)) return null
+  const thresholdDA = v.thresholdDA ?? null
+  if (thresholdDA !== null && !(isFiniteNumber(thresholdDA) && thresholdDA > 0)) return null
+  if (!Array.isArray(v.categories) || !v.categories.every((c) => typeof c === 'string')) return null
+  if (!DELAY_OPTIONS_HOURS.includes(v.delayHours as number)) return null
+  const categories = [...new Set(v.categories as string[])].sort()
+  if (thresholdDA === null && categories.length === 0) return null
+  return { thresholdDA, categories, delayHours: v.delayHours as number }
+}
+
+function isHeldPurchase(v: unknown): v is HeldPurchase {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    isFiniteNumber(v.amountDA) &&
+    v.amountDA > 0 &&
+    typeof v.category === 'string' &&
+    typeof v.impulseFlagged === 'boolean' &&
+    isIsoDatetime(v.heldAt) &&
+    isIsoDatetime(v.releaseAt)
+  )
+}
+
+/** Union held purchases by id in canonical (heldAt asc, id asc) order. */
+function dedupeHeld(entries: HeldPurchase[]): HeldPurchase[] {
+  const byId = new Map<string, HeldPurchase>()
+  for (const h of entries) if (!byId.has(h.id)) byId.set(h.id, h)
+  return [...byId.values()].sort((a, b) =>
+    a.heldAt !== b.heldAt ? (a.heldAt < b.heldAt ? -1 : 1) : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  )
+}
+
+function sanitizeSnapshotOptions(v: unknown): SnapshotOptions {
+  const out = { ...DEFAULT_SNAPSHOT_OPTIONS }
+  if (!isRecord(v)) return out
+  for (const key of Object.keys(out) as Array<keyof SnapshotOptions>) {
+    if (typeof v[key] === 'boolean') out[key] = v[key] as boolean
+  }
+  return out
+}
+
+/**
+ * Validate the support slice field by field over its defaults. A malformed
+ * brake rule falls back to null — losing a brake is safer than enforcing a
+ * garbage one — and held rows with impossible timestamps are dropped rather
+ * than released or stuck forever.
+ */
+export function sanitizeSupport(v: unknown): SupportState {
+  const out = defaultSupport()
+  if (!isRecord(v)) return out
+  if (Array.isArray(v.needs)) {
+    out.needs = [...new Set(v.needs.filter((n): n is NeedId => typeof n === 'string' && NEED_IDS.has(n)))].sort()
+  }
+  out.brakes = sanitizeBrakeRule(v.brakes)
+  if (isRecord(v.pendingBrakes) && isIsoDatetime(v.pendingBrakes.effectiveAt)) {
+    const rule = v.pendingBrakes.rule ?? null
+    out.pendingBrakes = { rule: rule === null ? null : sanitizeBrakeRule(rule), effectiveAt: v.pendingBrakes.effectiveAt }
+  }
+  if (Array.isArray(v.held)) out.held = dedupeHeld(v.held.filter(isHeldPurchase))
+  if (typeof v.lowEnergy === 'boolean') out.lowEnergy = v.lowEnergy
+  if (typeof v.calm === 'boolean') out.calm = v.calm
+  if (typeof v.numberLight === 'boolean') out.numberLight = v.numberLight
+  if (typeof v.lastOpened === 'string' && isValidDayKey(v.lastOpened)) out.lastOpened = v.lastOpened
+  if (
+    isRecord(v.reentry) &&
+    typeof v.reentry.since === 'string' &&
+    isValidDayKey(v.reentry.since) &&
+    isFiniteNumber(v.reentry.days) &&
+    v.reentry.days >= 0
+  ) {
+    out.reentry = { since: v.reentry.since, days: Math.floor(v.reentry.days) }
+  }
+  if (isRecord(v.trusted) && typeof v.trusted.name === 'string') {
+    out.trusted = { name: v.trusted.name, options: sanitizeSnapshotOptions(v.trusted.options) }
+  }
+  if (isIsoDatetime(v.savedAt)) out.savedAt = v.savedAt
+  return out
 }
 
 /**
@@ -488,6 +646,11 @@ export function sanitizeState(parsed: unknown): AppState {
       ),
     )
   }
+  out.support = sanitizeSupport(parsed.support)
+  out.money = sanitizeMoney(parsed.money)
+  out.learn = sanitizeLearn(parsed.learn)
+  out.social = sanitizeSocial(parsed.social)
+  out.inbox = sanitizeInbox(parsed.inbox)
   return out
 }
 
@@ -633,11 +796,68 @@ export function mergeStates(local: AppState, incoming: AppState): AppState {
     // Badge union: earned in either tab stays earned, earliest date wins on
     // duplicates — same survival + convergence rules as the codex.
     achievements: dedupeEarliestById([...local.achievements, ...incoming.achievements]),
+    support: mergeSupport(local.support, incoming.support),
+    money: mergeMoney(local.money, incoming.money),
+    learn: mergeLearn(local.learn, incoming.learn),
+    social: mergeSocial(local.social, incoming.social),
+    inbox: mergeInbox(local.inbox, incoming.inbox),
   }
   // Fixpoint short-circuit: an unchanged merge returns the SAME reference, so
   // useReducer's HYDRATE hands React an identical state, the re-render bails,
   // and the save effect never echoes an equal payload back into storage.
   return JSON.stringify(merged) === JSON.stringify(local) ? local : merged
+}
+
+/**
+ * Support merge, symmetric like every rule above. Settings travel as one
+ * block under the newer savedAt (ties: greater JSON string) — splicing a
+ * brake rule from one tab onto a pending change from the other could hand
+ * the user a rule nobody set. Held purchases union by id (a tab that never
+ * saw a hold must not release it by omission); a release/let-go in either
+ * tab wins only through the held row's absence in BOTH — the same
+ * "presence survives" rule transactions use, erring toward keeping the
+ * brake on. lastOpened takes the later day. A dismissed re-entry (null) in
+ * either tab wins: the user already read it once.
+ */
+export function mergeSupport(local: SupportState, incoming: SupportState): SupportState {
+  const settingsOf = (s: SupportState) => ({
+    needs: s.needs,
+    brakes: s.brakes,
+    pendingBrakes: s.pendingBrakes,
+    lowEnergy: s.lowEnergy,
+    calm: s.calm,
+    numberLight: s.numberLight,
+    trusted: s.trusted,
+    savedAt: s.savedAt,
+  })
+  let settings = settingsOf(local)
+  const li = settingsOf(incoming)
+  if (incoming.savedAt !== local.savedAt) {
+    if (incoming.savedAt > local.savedAt) settings = li
+  } else if (JSON.stringify(li) > JSON.stringify(settings)) {
+    settings = li
+  }
+  // Built in defaultSupport()'s key order: the fixpoint check in mergeStates
+  // compares JSON strings, so a reordered-but-equal support block would never
+  // string-equal a sanitized load (same hazard the profile merge documents).
+  return {
+    needs: settings.needs,
+    brakes: settings.brakes,
+    pendingBrakes: settings.pendingBrakes,
+    held: dedupeHeld([...local.held, ...incoming.held]),
+    lowEnergy: settings.lowEnergy,
+    calm: settings.calm,
+    numberLight: settings.numberLight,
+    lastOpened: local.lastOpened > incoming.lastOpened ? local.lastOpened : incoming.lastOpened,
+    reentry:
+      local.reentry === null || incoming.reentry === null
+        ? null
+        : local.reentry.since <= incoming.reentry.since
+          ? local.reentry
+          : incoming.reentry,
+    trusted: settings.trusted,
+    savedAt: settings.savedAt,
+  }
 }
 
 /**

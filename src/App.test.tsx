@@ -20,6 +20,7 @@ vi.mock('./audio/chiptune.ts', () => ({
 
 beforeEach(() => {
   localStorage.clear()
+  window.history.replaceState(null, '', window.location.pathname)
   if (typeof globalThis.crypto.randomUUID !== 'function') {
     Object.defineProperty(globalThis.crypto, 'randomUUID', {
       value: () => `${Math.random()}`.slice(2),
@@ -33,8 +34,26 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-const xpNow = () =>
-  Number(screen.getByRole('progressbar').getAttribute('aria-valuenow'))
+// Reads persisted XP (the save effect flushes inside fireEvent's act), so
+// it works from any room — the XP bar only lives on Home.
+const xpNow = () => {
+  const raw = localStorage.getItem('ember-state-v1')
+  return raw ? (JSON.parse(raw).xp?.totalXp ?? 0) : 0
+}
+
+/** Switch rooms the way a dock tap does: set the hash, fire hashchange. */
+const goto = (route: 'home' | 'runway' | 'jars' | 'learn' | 'me') =>
+  act(() => {
+    window.location.hash = `#/${route}`
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+  })
+
+/** Collect today's bonus card in the Learn codex — one way to "learn one
+ *  thing today" (the verified lesson quest), alongside a quiz pass. */
+const collectBonus = () => {
+  fireEvent.click(screen.getByRole('button', { name: "Open today's bonus card" }))
+  fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+}
 
 describe('quest completion', () => {
   it('never double-grants XP on a rapid double click', () => {
@@ -77,9 +96,11 @@ describe('quest completion', () => {
 
   it('completes the sim quest when a simulation actually runs (verified, not self-reported)', () => {
     render(<App />)
+    goto('learn')
     fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(xpNow()).toBe(15)
+    goto('home')
     // Done state renders on the static (never tappable) verified row.
     const row = screen.getByText('Run one decision simulation').closest('li')!
     expect(row.className).toContain('done')
@@ -91,11 +112,13 @@ describe('quest completion', () => {
       fireEvent.click(btn)
     }
     // The lesson quest is verified (no tap target on the quest row), so
-    // complete it by actually reading today's lesson…
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    // complete it by actually learning something (today's bonus card)…
+    goto('learn')
+    collectBonus()
     // …and the sim quest likewise via a real run.
     fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
+    goto('home')
     expect(screen.getByText(/All complete/)).toBeTruthy()
     expect(screen.getByRole('status', { name: 'Announcements' }).textContent).toBe(
       'All quests complete!',
@@ -262,7 +285,8 @@ describe('health explainability drawer', () => {
 describe('daily lesson + codex', () => {
   it('pays readLesson XP exactly once per day through the verified lesson quest', () => {
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    goto('learn')
+    collectBonus()
     expect(xpNow()).toBe(15)
     // The button goes inert (aria-disabled, never the disabled attribute) and
     // a second activation is a guarded no-op.
@@ -275,19 +299,23 @@ describe('daily lesson + codex', () => {
 
   it('renders the lesson quest as verified — a tap on the quest row grants nothing', () => {
     render(<App />)
-    const text = screen.getByText("Read today's lesson")
+    const text = screen.getByText('Learn one thing today')
     expect(text.closest('button')).toBeNull()
     fireEvent.click(text)
     expect(xpNow()).toBe(0)
-    // Got it marks the verified row done, like SimCard does for the sim quest.
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
-    expect(text.closest('li')!.className).toContain('done')
+    // Collecting a bonus card marks the verified row done, like SimCard does
+    // for the sim quest (a quiz pass does too — see routes/Learn.test.tsx).
+    goto('learn')
+    collectBonus()
+    goto('home')
+    expect(screen.getByText('Learn one thing today').closest('li')!.className).toContain('done')
   })
 
   it('collects the lesson into the codex and persists it', () => {
     render(<App />)
+    goto('learn')
     expect(screen.getByText('0 / 30 collected')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    collectBonus()
     expect(screen.getByText('1 / 30 collected')).toBeTruthy()
     const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
     expect(saved.lessonsSeen).toEqual([{ id: lessonForDay(todayISO(), []).id, date: todayISO() }])
@@ -304,8 +332,9 @@ describe('daily lesson + codex', () => {
       .map((l) => ({ id: l.id, date: today }))
     localStorage.setItem('ember-state-v1', JSON.stringify({ lessonsSeen: seeded }))
     render(<App />)
+    goto('learn')
     vi.mocked(sfx.sparkle).mockClear()
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    collectBonus()
     expect(screen.getByText('5 / 30 collected')).toBeTruthy()
     // The sparkle never carries the milestone alone — the toast announces it
     // through the live region.
@@ -315,9 +344,10 @@ describe('daily lesson + codex', () => {
     ).toBe('Codex: 5 / 30 lessons collected!')
   })
 
-  it('shows locked lessons as silhouettes without leaking their titles', () => {
+  it('shows uncollected bonus cards as silhouettes without leaking their titles', () => {
     render(<App />)
-    const locked = screen.getAllByLabelText('Locked lesson')
+    goto('learn')
+    const locked = screen.getAllByRole('button', { name: 'Uncollected bonus card' })
     expect(locked).toHaveLength(30)
     for (const tile of locked.slice(0, 3)) {
       expect(tile.textContent).toBe('?')
@@ -328,11 +358,13 @@ describe('daily lesson + codex', () => {
 describe('simulator honesty', () => {
   it('discloses that projections run on the demo profile', () => {
     render(<App />)
+    goto('learn')
     expect(screen.getByText(/demo profile/i).textContent).toContain('90,000 DA/mo')
   })
 
   it('rejects an Infinity amount instead of projecting nonsense', () => {
     render(<App />)
+    goto('learn')
     fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '1e999' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     expect(screen.getByRole('alert').textContent).toBe('Enter an amount first.')
@@ -341,6 +373,7 @@ describe('simulator honesty', () => {
 
   it('announces the projection through a live region, not just visually', () => {
     render(<App />)
+    goto('learn')
     // Mounted empty before the run: live regions announce content CHANGES.
     const region = screen.getByRole('status', { name: 'Simulation result' })
     expect(region.textContent).toBe('')
@@ -355,14 +388,17 @@ describe('profile setup', () => {
 
   it('flips the sim honesty note from demo numbers to your numbers after setup', () => {
     render(<App />)
+    goto('learn')
     expect(screen.getByText(/demo profile/i)).toBeTruthy()
+    goto('me')
     fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
     fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
     save()
-    expect(screen.queryByText(/demo profile/i)).toBeNull()
-    expect(screen.getByText(/your numbers/i).textContent).toContain('75,000 DA/mo')
     // The setup card flips to the saved summary…
     expect(screen.getByRole('button', { name: /Edit my numbers/ })).toBeTruthy()
+    goto('learn')
+    expect(screen.queryByText(/demo profile/i)).toBeNull()
+    expect(screen.getByText(/your numbers/i).textContent).toContain('75,000 DA/mo')
     // …and the profile persists.
     const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
     expect(saved.profile.monthlyIncome).toBe(75_000)
@@ -373,6 +409,7 @@ describe('profile setup', () => {
 
   it('shows an inline error instead of saving on invalid required numbers', () => {
     render(<App />)
+    goto('me')
     fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: 'abc' } })
     save()
     expect(screen.getByRole('alert').textContent).toContain('Monthly income')
@@ -382,6 +419,7 @@ describe('profile setup', () => {
 
   it('keeps a typed-but-invalid optional field as an error, never silently blank', () => {
     render(<App />)
+    goto('me')
     fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
     fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
     fireEvent.change(screen.getByLabelText('Emergency fund (DA)'), { target: { value: '1e999' } })
@@ -392,6 +430,7 @@ describe('profile setup', () => {
 
   it('edits reopen the form seeded with the saved numbers', () => {
     render(<App />)
+    goto('me')
     fireEvent.change(screen.getByLabelText('Monthly income (DA)'), { target: { value: '75000' } })
     fireEvent.change(screen.getByLabelText('Monthly essentials (DA)'), { target: { value: '40000' } })
     save()
@@ -565,11 +604,13 @@ describe('level-up toast lifecycle', () => {
   it('queues the level-up when the final quest completes and levels up in one commit', () => {
     vi.useFakeTimers()
     render(<App />)
+    goto('learn')
     // Sim quest (verified): +15.
     fireEvent.change(screen.getByLabelText('Purchase amount (DA)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: /Run simulation/ }))
     // Lesson quest (verified): +15 → 30.
-    fireEvent.click(screen.getByRole('button', { name: /^Got it:/ }))
+    collectBonus()
+    goto('home')
     // Log quest: +5 → 35.
     fireEvent.click(screen.getByRole('button', { name: /Mark done: Log every purchase today/ }))
     // Prime the bar just below the level-2 boundary: 12 × +5 → 95 total.
@@ -629,15 +670,15 @@ describe('resist day-source consistency', () => {
     render(<App />)
     const resist = () => screen.getByRole('button', { name: /I resisted an impulse/ })
     fireEvent.click(resist())
-    fireEvent.click(resist()) // 2 × 50 XP = level 2 exactly → bar reads 0
+    fireEvent.click(resist()) // 2 × 50 XP — the daily cap
     expect(resist().textContent).toContain('XP capped today')
-    expect(xpNow()).toBe(0)
+    expect(xpNow()).toBe(100)
     // Midnight passes, but no sync (60s interval / focus / visibility) has
     // landed yet: the label still says capped, so a tap must grant nothing —
     // the tx date and cap check use the hook's day, not a fresh clock read.
     vi.setSystemTime(new Date(2026, 7, 2, 0, 0, 30))
     fireEvent.click(resist())
-    expect(xpNow()).toBe(0)
+    expect(xpNow()).toBe(100)
   })
 })
 
@@ -671,69 +712,347 @@ describe('peer-origin rewards', () => {
   })
 })
 
-describe('weekly boss battle', () => {
-  it('shows the honest sizing-up state instead of fake numbers under two weeks of data', () => {
-    render(<App />)
-    expect(screen.getByText(/still sizing you up/)).toBeTruthy()
-    expect(screen.getByText(/no numbers on you yet/)).toBeTruthy()
-    // No invented opponent total anywhere on the card.
-    expect(screen.queryByText(/\/ 0 DA/)).toBeNull()
-  })
-
-  it('runs the battle against last week with beatable framing — never shame copy', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 7, 12, 12, 0, 0)) // Wed Aug 12; week = Aug 10–16
+describe('hold the door (brakes)', () => {
+  const seedBrakes = () =>
     localStorage.setItem(
       'ember-state-v1',
       JSON.stringify({
-        transactions: [
-          { id: 'lw', amountDA: 6_000, category: 'Fun', date: '2026-08-05' }, // last week
-          { id: 'tw', amountDA: 1_500, category: 'Other', date: '2026-08-11' }, // this week
-        ],
+        support: { brakes: { thresholdDA: 5_000, categories: ['Fun'], delayHours: 24 } },
       }),
     )
+  const saved = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
+
+  it('holds a purchase at or above the threshold — no row, no XP, a visible queue', () => {
+    seedBrakes()
     render(<App />)
-    expect(screen.getByText('1,500 / 6,000 DA')).toBeTruthy()
-    expect(screen.getByText(/Stay under that through Sunday and he goes down/)).toBeTruthy()
-    // Trust rule: the card never shames.
-    expect(screen.queryByText(/wasted/i)).toBeNull()
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '6000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(screen.getByText(/Held 6,000 DA — you decide again in 24h/)).toBeTruthy()
+    expect(xpNow()).toBe(0)
+    expect(saved().transactions).toHaveLength(0)
+    expect(saved().support.held).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Waiting (1)' })).toBeTruthy()
+    // Not releasable yet: the wait is the whole point.
+    expect((screen.getByRole('button', { name: 'Still want it' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('claims a won week exactly once — fanfare, toast, and a single persisted 150 XP grant', () => {
+  it('lets a just-held purchase go from the grace strip — nothing logged, nothing punished', () => {
+    seedBrakes()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '6000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo hold' }))
+    expect(saved().support.held).toHaveLength(0)
+    expect(saved().transactions).toHaveLength(0)
+    expect(xpNow()).toBe(0)
+  })
+
+  it('logs a purchase below the threshold and outside the held categories normally', () => {
+    seedBrakes()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '300' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(screen.getByText('Logged 300 DA')).toBeTruthy()
+    expect(xpNow()).toBe(5)
+    expect(saved().support.held).toHaveLength(0)
+  })
+
+  it('never holds a resist — resisting is the brake working', () => {
+    seedBrakes()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '9000' } })
+    fireEvent.click(screen.getByRole('button', { name: /I resisted an impulse/ }))
+    expect(xpNow()).toBe(50)
+    expect(saved().support.held).toHaveLength(0)
+  })
+
+  it('releases a held purchase into the ledger once its wait has passed', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 7, 12, 12, 0, 0)) // the week after the win
+    vi.setSystemTime(new Date(2026, 7, 1, 12, 0, 0))
     localStorage.setItem(
       'ember-state-v1',
       JSON.stringify({
-        transactions: [
-          { id: 'b', amountDA: 6_000, category: 'Fun', date: '2026-07-29' }, // opponent week
-          { id: 'w', amountDA: 4_000, category: 'Fun', date: '2026-08-05' }, // won week
-        ],
+        support: {
+          brakes: { thresholdDA: 5_000, categories: [], delayHours: 24 },
+          held: [
+            {
+              id: 'h1',
+              amountDA: 7_000,
+              category: 'Fun',
+              impulseFlagged: false,
+              heldAt: '2026-07-30T12:00:00.000Z',
+              releaseAt: '2026-07-31T12:00:00.000Z',
+            },
+          ],
+        },
       }),
     )
-    vi.mocked(sfx.fanfare).mockClear()
     render(<App />)
-    const saved = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
-    expect(saved().xpLog).toEqual([
-      { id: 'boss:2026-08-03', action: 'weeklyBoss', amount: 150, date: '2026-08-12' },
-    ])
-    expect(saved().xp.totalXp).toBe(150)
-    // +150 XP crosses the level boundary in the same commit: both toasts
-    // queue (level first, then the boss), but the fanfare plays once — two
-    // stacked fanfares would double every note's gain.
-    expect(sfx.fanfare).toHaveBeenCalledTimes(1)
-    const toast = () => screen.getByRole('status', { name: 'Announcements' })
-    expect(toast().textContent).toMatch(/^Level 2/)
-    act(() => {
-      vi.advanceTimersByTime(2600)
+    const still = screen.getByRole('button', { name: 'Still want it' }) as HTMLButtonElement
+    expect(still.disabled).toBe(false)
+    fireEvent.click(still)
+    const s = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(s.support.held).toHaveLength(0)
+    expect(s.transactions).toHaveLength(1)
+    expect(s.transactions[0].id).toBe('h1')
+    expect(s.transactions[0].amountDA).toBe(7_000)
+    expect(xpNow()).toBe(5)
+  })
+})
+
+describe('dim the house (low-energy view)', () => {
+  it('hides the engagement track and keeps logging, and offers one tap back', () => {
+    localStorage.setItem('ember-state-v1', JSON.stringify({ support: { lowEnergy: true } }))
+    render(<App />)
+    expect(screen.queryByRole('heading', { name: "Today's quests" })).toBeNull()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByRole('button', { name: /Log purchase/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Show everything' }))
+    expect(screen.getByRole('heading', { name: "Today's quests" })).toBeTruthy()
+  })
+
+  it('keeps the held queue visible in the low-energy view — money in limbo is essential', () => {
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        support: {
+          lowEnergy: true,
+          brakes: { thresholdDA: 5_000, categories: [], delayHours: 24 },
+          held: [
+            {
+              id: 'h1',
+              amountDA: 7_000,
+              category: 'Fun',
+              impulseFlagged: false,
+              heldAt: '2026-07-30T12:00:00.000Z',
+              releaseAt: '2099-07-31T12:00:00.000Z',
+            },
+          ],
+        },
+      }),
+    )
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Waiting (1)' })).toBeTruthy()
+  })
+})
+
+describe('guilt-free re-entry', () => {
+  const seedAway = () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 11, 12, 0, 0)) // Aug 11
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        healthDate: '2026-08-01',
+        questsDate: '2026-08-01',
+        support: { lastOpened: '2026-08-01' },
+      }),
+    )
+  }
+
+  it('welcomes a return after days away without a backlog, and skip dismisses it for good', () => {
+    seedAway()
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Welcome back.' })).toBeTruthy()
+    expect(screen.getByText(/It has been 10 days/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Skip, start from today' }))
+    expect(screen.queryByRole('heading', { name: 'Welcome back.' })).toBeNull()
+    const s = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(s.support.reentry).toBeNull()
+    expect(s.support.lastOpened).toBe('2026-08-11')
+    expect(s.transactions).toHaveLength(0)
+  })
+
+  it('accepts one rough catch-up number as a single dated row', () => {
+    seedAway()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Roughly, while away (DA)'), { target: { value: '4000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add it' }))
+    const s = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(s.transactions).toHaveLength(1)
+    expect(s.transactions[0].amountDA).toBe(4_000)
+    expect(s.transactions[0].date).toBe('2026-08-11')
+    expect(s.support.reentry).toBeNull()
+  })
+
+  it('does not treat a short gap as a re-entry', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 3, 12, 0, 0))
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({ healthDate: '2026-08-01', questsDate: '2026-08-01', support: { lastOpened: '2026-08-01' } }),
+    )
+    render(<App />)
+    expect(screen.queryByRole('heading', { name: 'Welcome back.' })).toBeNull()
+  })
+})
+
+describe('calm mode', () => {
+  it('saving the calm need mutes sound and marks the shell calm', () => {
+    render(<App />)
+    goto('me')
+    fireEvent.click(screen.getByLabelText(/Noise and surprises stress me/))
+    fireEvent.click(screen.getByRole('button', { name: 'Save what helps' }))
+    const s = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(s.muted).toBe(true)
+    expect(s.support.calm).toBe(true)
+    expect(document.querySelector('.shell[data-calm]')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Calm mode: on' })).toBeTruthy()
+  })
+})
+
+describe('rooms', () => {
+  it('switches rooms from the dock and marks the current one', () => {
+    render(<App />)
+    const dock = screen.getByRole('navigation', { name: 'Rooms' })
+    expect(dock.querySelector('[aria-current="page"]')!.textContent).toContain('Home')
+    goto('learn')
+    expect(screen.getByRole('heading', { name: 'Skill path' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Log purchase/ })).toBeNull()
+    expect(dock.querySelector('[aria-current="page"]')!.textContent).toContain('Learn')
+  })
+
+  it('treats an unknown hash as Home — no blank screen', () => {
+    window.location.hash = '#log'
+    render(<App />)
+    expect(screen.getByRole('button', { name: /Log purchase/ })).toBeTruthy()
+  })
+})
+
+describe('breathing room + accounts', () => {
+  const saved = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
+  const iso = (d: number, h = 9) => new Date(2026, 9, d, h).toISOString()
+
+  it('starts with a typed balance — no bank link — and shows breathing room', () => {
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Start with what you have' })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Balance now'), { target: { value: '40000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Light the hearth' }))
+    expect(saved().money.accounts).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: /Breathing room/ })).toBeTruthy()
+    expect(screen.getAllByText('40,000 DA').length).toBeGreaterThan(0)
+  })
+
+  it('refuses an empty first balance with an inline message', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Light the hearth' }))
+    expect(screen.getByRole('alert').textContent).toMatch(/rough number/)
+    expect(saved()?.money?.accounts ?? []).toHaveLength(0)
+  })
+
+  it('subtracts obligations due before payday and jar money from what you hold', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 9, 12))
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        money: {
+          accounts: [{ id: 'c', name: 'Cash', currency: 'DA', anchorBalance: 50_000, anchorAt: iso(9, 8), archived: false, updatedAt: iso(9, 8) }],
+          obligations: [{ id: 'o', name: 'Internet', amount: 3_000, currency: 'DA', kind: 'bill', cadence: 'monthly', firstDue: '2026-10-12', accountId: 'c', installment: null, nextStep: '', archived: false, updatedAt: iso(1) }],
+          jars: [{ id: 'j', name: 'Eid', emoji: '🌙', target: null, targetDate: null, locked: false, archived: false, updatedAt: iso(1) }],
+          jarMoves: [{ id: 'm', jarId: 'j', amount: 7_000, date: '2026-10-02', kind: 'topup' }],
+          settings: { fxDaPerUsd: null, paydayDay: 25, split: [], savedAt: iso(1) },
+        },
+      }),
+    )
+    render(<App />)
+    // 50,000 − 7,000 in jars − 3,000 due = 40,000; 16 days to the 25th.
+    const hero = screen.getByRole('heading', { name: /Breathing room/ }).closest('section')!
+    expect(hero.querySelector('.breathing-num')!.textContent).toBe('40,000 DA')
+    expect(hero.textContent).toContain('16 days to payday')
+  })
+
+  it('logs dollar spend to a USD account only once a rate is set, converting at that rate', () => {
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        money: {
+          accounts: [
+            { id: 'c', name: 'Cash', currency: 'DA', anchorBalance: 1000, anchorAt: iso(1), archived: false, updatedAt: iso(1) },
+            { id: 'r', name: 'RedotPay', currency: 'USD', anchorBalance: 100, anchorAt: iso(1), archived: false, updatedAt: iso(1) },
+          ],
+        },
+      }),
+    )
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: 'r' } })
+    fireEvent.change(screen.getByLabelText('Amount (USD)'), { target: { value: '12.5' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(screen.getByRole('alert').textContent).toMatch(/rate/)
+    expect(saved().transactions).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('DA per 1 USD (your rate)'), { target: { value: '240' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    const tx = saved().transactions[0]
+    expect(tx.amountDA).toBe(3_000)
+    expect(tx.original).toEqual({ amount: 12.5, currency: 'USD' })
+    expect(tx.accountId).toBe('r')
+    expect(screen.getByText('$87.50')).toBeTruthy()
+  })
+
+  it('confirming a balance re-anchors the estimate', () => {
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        money: { accounts: [{ id: 'c', name: 'Cash', currency: 'DA', anchorBalance: 1000, anchorAt: iso(1), archived: false, updatedAt: iso(1) }] },
+      }),
+    )
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm balance' }))
+    fireEvent.change(screen.getByLabelText('Balance now (DA)'), { target: { value: '2500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(saved().money.accounts[0].anchorBalance).toBe(2500)
+    expect(screen.getByText('confirmed today')).toBeTruthy()
+  })
+})
+
+describe('backup import', () => {
+  it('merges an exported backup without removing anything on this device', async () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Amount (DA)'), { target: { value: '300' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    goto('me')
+    const backup = {
+      exportedAt: '2026-10-01T00:00:00.000Z',
+      version: 1,
+      transactions: [{ id: 'old-1', amountDA: 700, category: 'Food', date: '2026-09-30' }],
+    }
+    const file = new File([JSON.stringify(backup)], 'ember-export.json', { type: 'application/json' })
+    Object.defineProperty(file, 'text', { value: () => Promise.resolve(JSON.stringify(backup)) })
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Import a backup'), { target: { files: [file] } })
     })
-    expect(toast().textContent).toBe('Impulse Monster beaten — lighter week than last!')
-    // The card carries the persistent claimed-win marker past the toast.
-    expect(screen.getByText('Beaten last week +150 XP')).toBeTruthy()
-    // A reload (remount over the persisted grant) never pays the week twice.
-    cleanup()
+    const saved = JSON.parse(localStorage.getItem('ember-state-v1')!)
+    expect(saved.transactions.map((t: Transaction) => t.amountDA).sort()).toEqual([300, 700])
+    expect(screen.getByText(/Nothing on this device was removed/)).toBeTruthy()
+  })
+
+  it('rejects a file that is not a backup, changing nothing', async () => {
     render(<App />)
-    expect(saved().xp.totalXp).toBe(150)
-    expect(saved().xpLog).toHaveLength(1)
+    goto('me')
+    const file = new File(['not json'], 'x.json')
+    Object.defineProperty(file, 'text', { value: () => Promise.resolve('not json') })
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Import a backup'), { target: { files: [file] } })
+    })
+    expect(screen.getByText(/not an Ember backup/)).toBeTruthy()
+  })
+})
+
+describe('number-light mode', () => {
+  it('swaps the arithmetic for a tank and rounded figures', () => {
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        support: { numberLight: true },
+        money: {
+          accounts: [{ id: 'c', name: 'Cash', currency: 'DA', anchorBalance: 40_932, anchorAt: new Date(2026, 0, 1).toISOString(), archived: false, updatedAt: new Date(2026, 0, 1).toISOString() }],
+        },
+      }),
+    )
+    render(<App />)
+    expect(screen.getByRole('img', { name: /percent of what you hold is free/ })).toBeTruthy()
+    expect(screen.getByText('about 41,000 DA')).toBeTruthy()
+    expect(screen.queryByText('You hold')).toBeNull()
   })
 })

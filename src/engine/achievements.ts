@@ -8,8 +8,9 @@
  * so the collection can never become an XP lever or a score input.
  */
 
-import { addDaysISO } from './boss.ts'
 import type { AchievementUnlock, AppState, Transaction } from '../state/store.ts'
+import { BRANCHES, type BranchId } from '../content/curriculum.ts'
+import { branchMastered, masteredCount } from './learn.ts'
 
 export interface PixelPet {
   emoji: string
@@ -24,6 +25,8 @@ export interface Achievement {
   /** Cosmetic companion this badge unlocks (see HeroCard's pet strip). */
   pet: PixelPet
   earned(state: AppState): boolean
+  /** Retired mechanic: shown only once earned, never as a locked goal. */
+  legacy?: boolean
 }
 
 /** A purchase row: money actually left — resists log a row but spend nothing. */
@@ -32,31 +35,34 @@ function isPurchase(t: Transaction): boolean {
 }
 
 /**
- * Longest run of consecutive local calendar days holding at least one logged
- * row. ANY row counts, resists included — the streak rewards the logging
- * habit itself (showing up), the same show-up rule the boss engine's
- * hasLogInWeek applies. Pure over the list (no wall clock): a streak once
- * built stays computable identically on every tab and reload, and the unlock
- * persists anyway, so "longest ever" needs no reference day.
+ * Number of distinct local calendar days holding at least one logged row.
+ * ANY row counts, resists included — the badge rewards showing up, the same
+ * show-up rule the boss engine's hasLogInWeek applies. Deliberately NOT a
+ * consecutive-day streak: a streak resets to zero on one missed day, which
+ * punishes exactly the people (low-energy weeks, episodes, hospital stays)
+ * the app most wants to keep. Days accumulate forever and never reset.
  */
-export function longestLogStreak(transactions: Transaction[]): number {
-  const days = [...new Set(transactions.map((t) => t.date))].sort()
-  let best = 0
-  let run = 0
-  let prev: string | null = null
-  for (const day of days) {
-    run = prev !== null && addDaysISO(prev, 1) === day ? run + 1 : 1
-    if (run > best) best = run
-    prev = day
-  }
-  return best
+export function loggedDayCount(transactions: Transaction[]): number {
+  return new Set(transactions.map((t) => t.date)).size
+}
+
+/** One companion per skill-tree branch — cosmetic, like every pet. */
+const BRANCH_PETS: Record<BranchId, PixelPet> = {
+  flow: { emoji: '🐟', name: 'Hout' },
+  save: { emoji: '🐿️', name: 'Sanjoub' },
+  borrow: { emoji: '🦔', name: 'Qanfoud' },
+  dinar: { emoji: '🐫', name: 'Jamal' },
+  earn: { emoji: '🐜', name: 'Namla' },
+  family: { emoji: '🕊️', name: 'Hamama' },
+  guard: { emoji: '🦅', name: 'Saqr' },
+  grow: { emoji: '🐞', name: 'Khanfoussa' },
 }
 
 /**
  * The canonical roster. Predicates read only persisted evidence, so every
  * unlock survives reload and merges identically in any tab:
  * - simulation / boss-win badges key off the xpLog (the verified sim quest is
- *   the sole runSimulation grant vehicle, BOSS_VICTORY the sole weeklyBoss
+ *   the sole runSimulation grant vehicle, the retired BOSS_VICTORY the sole weeklyBoss
  *   one — the append-only evidence log doubles as the achievement record);
  * - level badges read the xp counter, itself rebuilt from that log;
  * - the rest count transactions / codex entries directly.
@@ -91,11 +97,11 @@ export const ACHIEVEMENTS: ReadonlyArray<Achievement> = [
     earned: (s) => s.xpLog.some((g) => g.action === 'runSimulation'),
   },
   {
-    id: 'streak-7',
+    id: 'seven-days',
     name: 'Seven-Day Flame',
-    hint: 'Log something 7 days in a row.',
+    hint: 'Log something on 7 different days — in a row or not.',
     pet: { emoji: '🐉', name: 'Jamra' },
-    earned: (s) => longestLogStreak(s.transactions) >= 7,
+    earned: (s) => loggedDayCount(s.transactions) >= 7,
   },
   {
     id: 'codex-5',
@@ -107,9 +113,10 @@ export const ACHIEVEMENTS: ReadonlyArray<Achievement> = [
   {
     id: 'boss-win',
     name: 'Monster Tamer',
-    hint: 'Beat the weekly Impulse Monster.',
+    hint: 'Beat the weekly Impulse Monster (retired — kept for those who did).',
     pet: { emoji: '🐺', name: 'Dib' },
     earned: (s) => s.xpLog.some((g) => g.action === 'weeklyBoss'),
+    legacy: true,
   },
   {
     id: 'level-5',
@@ -125,6 +132,23 @@ export const ACHIEVEMENTS: ReadonlyArray<Achievement> = [
     pet: { emoji: '🦁', name: 'Sultan' },
     earned: (s) => s.xp.level >= 10,
   },
+  // Learn room — mastery is read + quiz + a verified apply check (see
+  // engine/learn.ts), all persisted in the learn slice, so these merge and
+  // reload like every other badge. Ids are permanent.
+  {
+    id: 'first-mastery',
+    name: 'First Lantern',
+    hint: 'Master one lesson: read it, pass its quiz, try it for real.',
+    pet: { emoji: '🦊', name: 'Fennec' },
+    earned: (s) => masteredCount(s.learn) >= 1,
+  },
+  ...BRANCHES.map((b): Achievement => ({
+    id: `branch-${b.id}`,
+    name: `${b.title} Keeper`,
+    hint: `Master every lesson on the ${b.title} trail.`,
+    pet: BRANCH_PETS[b.id],
+    earned: (s) => branchMastered(b.id, s.learn),
+  })),
 ]
 
 /** Id roster for the sanitizer/reducer — same gatekeeping role as LESSON_IDS. */

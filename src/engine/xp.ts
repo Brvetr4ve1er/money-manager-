@@ -16,11 +16,20 @@ export const XP_REWARDS = {
   runSimulation: 15,
   readLesson: 15,
   reviewRecent: 10,
-  // Weekly boss victory (see engine/boss.ts): paid at most once per week via
+  // RETIRED weekly boss victory: no longer granted, but the action stays in
+  // the table so grants already in users' xpLog keep validating. Was paid via
   // the deterministic `boss:{weekStart}` grant id the BOSS_VICTORY reducer
   // path checks — the xpLog IS the persistence, so a claimed week can never
   // pay twice across reloads or merged tabs.
   weeklyBoss: 150,
+  // Learn room (skill tree). Each pays through a deterministic grant id the
+  // root reducer checks against the xpLog, so none can pay twice:
+  // quizPass once per node ever (`quiz:{nodeId}`), nodeApplied once per node
+  // ever (`apply:{nodeId}`), reviewDone at most once per day (`review:{day}`).
+  // Engagement track only — none of these ever feeds the Health Score.
+  quizPass: 20,
+  nodeApplied: 30,
+  reviewDone: 5,
 } as const
 
 export type XpAction = keyof typeof XP_REWARDS

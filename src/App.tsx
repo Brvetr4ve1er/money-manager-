@@ -1,13 +1,12 @@
 /**
- * App is composition only: cards live in src/components/, the day-clock +
- * health-rollover logic in useHealthDay, and the XP/toast/sound reactions in
- * useRewards — so the roadmap features (onboarding, boss battles, "I bought
- * it anyway") add modules instead of effects in one growing file.
+ * App is composition only: it owns persistence, the day clock (useHealthDay),
+ * reward reactions (useRewards) and the room switch. Each room lives in
+ * src/routes/ and owns its own cards, so features land as modules instead of
+ * effects in one growing file.
  */
 
 import { useEffect, useReducer } from 'react'
 import { RESIST_XP_DAILY_CAP } from './engine/xp.ts'
-import { resolveProfile } from './engine/profile.ts'
 import * as sfx from './audio/chiptune.ts'
 import {
   loadState,
@@ -20,21 +19,37 @@ import {
 } from './state/store.ts'
 import { appReducer } from './state/reducer.ts'
 import { unlockedPets } from './engine/achievements.ts'
-import { lessonForDay } from './content/lessons.ts'
 import { HeroShell } from './components/HeroShell.tsx'
 import { HeroCard } from './components/HeroCard.tsx'
-import { LessonCard } from './components/LessonCard.tsx'
-import { CodexCard } from './components/CodexCard.tsx'
-import { AchievementsCard } from './components/AchievementsCard.tsx'
 import { XpCard } from './components/XpCard.tsx'
 import { LogCard } from './components/LogCard.tsx'
 import { QuestCard } from './components/QuestCard.tsx'
-import { BossCard } from './components/BossCard.tsx'
-import { SimCard } from './components/SimCard.tsx'
 import { ProfileCard, type ProfileDraft } from './components/ProfileCard.tsx'
 import { Ledger } from './components/Ledger.tsx'
+import { NeedsCard } from './components/NeedsCard.tsx'
+import { BrakesCard } from './components/BrakesCard.tsx'
+import { TrustedCard } from './components/TrustedCard.tsx'
+import { ReentryBanner } from './components/ReentryBanner.tsx'
+import type { LogOutcome } from './components/LogCard.tsx'
+import { holdPurchase, shouldHold, spendVelocity } from './engine/brakes.ts'
+import { catchUpTransaction } from './engine/calm.ts'
+import { accountBalance, breathingRoom, liveAccounts, nextPayday } from './engine/money.ts'
+import { socialRunwayItems } from './engine/social.ts'
+import { BreathingCard } from './components/money/BreathingCard.tsx'
+import { AccountsCard } from './components/money/AccountsCard.tsx'
+import { ImportBackup } from './components/ImportBackup.tsx'
+import { RecapCard } from './components/RecapCard.tsx'
+import { ceremonyDue } from './engine/recap.ts'
+import { RoomCard } from './components/RoomCard.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
-import { useBossBattle } from './hooks/useBossBattle.ts'
+import { useRoute } from './routes/router.ts'
+import { Dock } from './components/Dock.tsx'
+import { RunwayRoute } from './routes/Runway.tsx'
+import { JarsRoute } from './routes/Jars.tsx'
+import { LearnRoute } from './routes/Learn.tsx'
+import { SocialSection } from './components/social/SocialSection.tsx'
+import { InboxSection } from './components/inbox/InboxSection.tsx'
+import type { RouteProps } from './routes/types.ts'
 import { useAchievements } from './hooks/useAchievements.ts'
 import { useRewards } from './hooks/useRewards.ts'
 import './styles/tokens.css'
@@ -52,49 +67,70 @@ export default function App() {
     [],
   )
   useEffect(() => sfx.setMuted(state.muted), [state.muted])
+  // Brake edit-lock clock: a loosening scheduled 48h ago must land without a
+  // reload. The reducer returns the same state when nothing is due, so the
+  // minute tick is render-free almost always.
+  useEffect(() => {
+    const tick = () => dispatch({ type: 'BRAKES_TICK', nowISO: new Date().toISOString() })
+    tick()
+    const id = window.setInterval(tick, 60_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   const { today, health } = useHealthDay(state, dispatch)
-  // The hook's `today` (like logPurchase uses), so the battle week can never
-  // disagree with the day every other card believes it is. The hook also
-  // claims a just-completed winning week — the toast/fanfare react to the
-  // resulting grant in useRewards.
-  const { battle, wonLastWeek } = useBossBattle(state, dispatch, today)
+  const route = useRoute()
+  const { support } = state
+  // Pace vs. the user's own baseline (see brakes.ts). Pure over the ledger;
+  // the Ledger card phrases it, and only when it has something to say.
+  const velocity = spendVelocity(state.transactions, today)
+  // The money core's two derived views, computed once per render so every
+  // card speaks from the same numbers.
+  // Social money that leaves before payday (a tontine round, a debt falling
+  // due) counts against breathing room; payouts and money owed to you never
+  // do — a forecast does not spend money it has not received.
+  const socialOutDA = socialRunwayItems(state.social, today, nextPayday(state.money.settings, today))
+    .filter((i) => i.amountDA < 0)
+    .reduce((sum, i) => sum - i.amountDA, 0)
+  const room = breathingRoom(state.money, state.transactions, today, socialOutDA)
+  const accounts = liveAccounts(state.money)
+  const balances = accounts.map((a) => accountBalance(a, state.transactions, state.money, today))
   // Badge predicates run over the same state every card renders from; the
   // hook persists any newly-earned ids stamped with the hook's `today` (the
   // day every other write in this render believes it is), and the unlock
   // toast + sparkle react to the persisted change in useRewards.
   useAchievements(state, dispatch, today)
   const { toast, xpGain } = useRewards(state)
-  // Real numbers once the setup card completed, DEMO_PROFILE until then —
-  // the same resolution useHealthDay applies, so the simulator and the score
-  // can never speak from different profiles.
-  const { profile, isDemo } = resolveProfile(state.profile)
   // Computed once: the hero shell and the hero card both show the companions
   // and must always agree on the shelf.
   const pets = unlockedPets(state.achievements)
-  // Deterministic pick for the hook's day — same lesson on every render,
-  // reload, and tab of that day, and stable across "Got it" (lessonForDay
-  // keeps today's own entry in the pool on purpose).
-  const todayLesson = lessonForDay(today, state.lessonsSeen)
-  const lessonReadToday = state.quests.some((q) => q.id === 'lesson' && q.done)
-
-  function readLesson() {
-    // Two dispatches, one tap: READ_LESSON collects the lesson into the codex
-    // (no XP — see the reducer), and the verified lesson quest carries the
-    // daily readLesson grant through COMPLETE_QUEST's atomic double-grant
-    // guard, exactly like SimCard's onRun does for the sim quest. The quest
-    // blip and +XP chip come from useRewards; the codex milestone sparkle
-    // fires there too when the collection crosses a multiple of five.
-    dispatch({ type: 'READ_LESSON', id: todayLesson.id, date: today })
-    dispatch({ type: 'COMPLETE_QUEST', id: 'lesson' })
-  }
-
   function logPurchase(
-    amountDA: number,
+    amount: number,
     category: string,
     resisted: boolean,
     impulseFlagged: boolean,
-  ): string {
+    accountId: string | null = null,
+  ): LogOutcome {
+    // Amounts arrive in the chosen account's currency. Dollar spend is
+    // converted at the user's own rate and keeps its original amount, so the
+    // USD account's estimate moves by exactly what was spent.
+    const acct = state.money.accounts.find((a) => a.id === accountId) ?? null
+    const fx = state.money.settings.fxDaPerUsd
+    const isUSD = acct?.currency === 'USD' && fx !== null
+    const amountDA = isUSD ? Math.round(amount * fx) : amount
+    // Hold the door: a purchase matching the user's own brake is queued, not
+    // logged — no row, no XP, no score input until the wait passes and the
+    // user decides again (see brakes.ts). Resists are never held: resisting
+    // IS the brake working.
+    if (!resisted && support.brakes !== null && shouldHold(amountDA, category, support.brakes)) {
+      const held = holdPurchase(
+        { id: newId(), amountDA, category, impulseFlagged },
+        support.brakes,
+        Date.now(),
+      )
+      dispatch({ type: 'HOLD_TX', held })
+      sfx.blip()
+      return { id: held.id, heldHours: support.brakes.delayHours }
+    }
     const tx: Transaction = {
       // newId, not bare crypto.randomUUID: randomUUID is undefined outside
       // secure contexts (plain-http hosting), and a throw here would fail the
@@ -114,18 +150,35 @@ export default function App() {
       // same blip as any log: self-reporting against yourself is never
       // punished, and the flag is what makes IC genuine two-sided data.
       impulseFlagged,
+      // Exact time: account estimates compare it against the balance anchor.
+      at: new Date().toISOString(),
+      ...(acct ? { accountId: acct.id } : {}),
+      ...(isUSD ? { original: { amount, currency: 'USD' as const } } : {}),
     }
     dispatch({ type: 'LOG_TX', tx })
     if (resisted) sfx.sparkle()
     else sfx.blip()
     // The id is LogCard's undo handle for the grace window.
-    return tx.id
+    return { id: tx.id, heldHours: null }
   }
 
   function undoLog(id: string) {
     // Row and XP grant leave together (see UNDO_TX in the reducer). The blip
     // reinforces the visible change — the ledger row and undo strip vanish.
+    // A just-held purchase has no row: the same handle lets it go instead
+    // (each reducer path no-ops on an id it does not own).
     dispatch({ type: 'UNDO_TX', id })
+    dispatch({ type: 'LET_GO_HELD', id })
+    sfx.blip()
+  }
+
+  const nowISO = () => new Date().toISOString()
+
+  function catchUp(amountDA: number) {
+    // One honest lump for the days away, then the banner goes. Pays the
+    // ordinary +5 like any log — showing up after a gap is still showing up.
+    dispatch({ type: 'LOG_TX', tx: catchUpTransaction(newId(), amountDA, today) })
+    dispatch({ type: 'REENTRY_DISMISS' })
     sfx.blip()
   }
 
@@ -152,8 +205,45 @@ export default function App() {
     URL.revokeObjectURL(url)
   }
 
+  // Cards every mode shows. The low-energy view (see calm.ts) is a strict
+  // subset — what is waiting, what to log, what happened — never a
+  // different app: the same cards in the same places, with the engagement
+  // track (XP, quests, boss, lessons, badges) simply not drawn.
+  const brakesCard = (
+    <BrakesCard
+      rule={support.brakes}
+      pending={support.pendingBrakes}
+      held={support.held}
+      onRequest={(rule) => dispatch({ type: 'BRAKES_REQUEST', rule, nowISO: nowISO() })}
+      onRelease={(id) => {
+        dispatch({ type: 'RELEASE_HELD', id, date: today })
+        sfx.blip()
+      }}
+      onLetGo={(id) => {
+        dispatch({ type: 'LET_GO_HELD', id })
+        sfx.blip()
+      }}
+    />
+  )
+  const needsCard = (
+    <NeedsCard
+      needs={support.needs}
+      lowEnergy={support.lowEnergy}
+      calm={support.calm}
+      numberLight={support.numberLight}
+      onNumberLight={(on) => dispatch({ type: 'NUMBER_LIGHT_SET', on, nowISO: nowISO() })}
+      onSave={(needs) => dispatch({ type: 'NEEDS_SET', needs, nowISO: nowISO() })}
+      onLowEnergy={(on) => dispatch({ type: 'LOW_ENERGY_SET', on, nowISO: nowISO() })}
+      onCalm={(on) => dispatch({ type: 'CALM_SET', on, nowISO: nowISO() })}
+    />
+  )
+
+  const routeProps: RouteProps = { state, dispatch, today, health }
+
   return (
-    <div className="shell">
+    // data-calm: no animation, no transitions, no visual toast (app.css).
+    // The live regions still announce — calm is about surprises, not AT.
+    <div className="shell" data-calm={support.calm ? 'true' : undefined}>
       {/* The header carries the page's h1 wordmark: without it the
           accessibility outline starts at the dynamic stage label with no
           page-level heading. Mobile topbar and desktop full-viewport hero
@@ -184,51 +274,111 @@ export default function App() {
         {xpGain !== null ? `+${xpGain} XP` : ''}
       </div>
 
-      {/* <main> landmark so AT users get a "jump to main content" target —
-          the card stack is the page's primary content, with the topbar and
-          foot as sibling landmarks. .main-stack carries the shell's column
-          rhythm inside the landmark. */}
-      <main className="main-stack">
-        <HeroCard
-          stage={health.stage}
-          score={health.score}
-          pets={pets}
-          components={health.components}
-        />
-        <XpCard xp={state.xp} gain={xpGain} />
-        <LogCard
-          transactions={state.transactions}
-          onLog={logPurchase}
-          onUndo={undoLog}
-          resistXpCapped={
-            state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
-            RESIST_XP_DAILY_CAP
-          }
-        />
-        <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
-        <BossCard battle={battle} wonLastWeek={wonLastWeek} />
-        {/* "Got it" genuinely completes the verified lesson quest — the tap
-            lands on today's actual lesson content, so the app observes the
-            action instead of taking it on self-report. */}
-        <LessonCard lesson={todayLesson} readToday={lessonReadToday} onRead={readLesson} />
-        {/* Running a simulation genuinely completes the sim quest — a
-            daily quest the app verifies instead of taking on self-report, so
-            QuestCard renders it without a tap-to-complete button. */}
-        <SimCard
-          profile={profile}
-          isDemo={isDemo}
-          onRun={() => dispatch({ type: 'COMPLETE_QUEST', id: 'sim' })}
-        />
-        <ProfileCard profile={state.profile} onSave={saveProfile} />
-        <Ledger transactions={state.transactions} today={today} />
-        <CodexCard collectedIds={new Set(state.lessonsSeen.map((e) => e.id))} />
-        <AchievementsCard unlocks={state.achievements} />
+      {/* <main> landmark: the current room's cards. Rooms switch by hash
+          (#/home, #/runway, #/jars, #/learn, #/me) — see routes/router.ts. */}
+      <main className="main-stack" data-route={route}>
+        {route === 'home' && (
+          <>
+            {support.reentry && (
+              <ReentryBanner
+                reentry={support.reentry}
+                onCatchUp={catchUp}
+                onSkip={() => dispatch({ type: 'REENTRY_DISMISS' })}
+              />
+            )}
+            {support.lowEnergy && (
+              <p className="mode-strip" role="status">
+                Low-energy view: just the essentials.{' '}
+                <button
+                  type="button"
+                  className="btn undo-btn"
+                  onClick={() => dispatch({ type: 'LOW_ENERGY_SET', on: false, nowISO: nowISO() })}
+                >
+                  Show everything
+                </button>
+              </p>
+            )}
+            <BreathingCard
+              room={room}
+              dispatch={dispatch}
+              numberLight={support.numberLight}
+              usualPerDay={velocity.baselinePerDay}
+            />
+            {/* First week of a month: last month's moon ceremony greets you. */}
+            {room.hasAccounts && <RoomCard state={state} today={today} nowMs={Date.now()} />}
+            {!support.lowEnergy && ceremonyDue(state, today) !== null && (
+              <RecapCard state={state} today={today} month={ceremonyDue(state, today)!} />
+            )}
+            <HeroCard
+              stage={health.stage}
+              score={health.score}
+              pets={pets}
+              components={health.components}
+              puff={xpGain !== null}
+            />
+            {!support.lowEnergy && <XpCard xp={state.xp} gain={xpGain} />}
+            <LogCard
+              transactions={state.transactions}
+              onLog={logPurchase}
+              onUndo={undoLog}
+              accounts={accounts.map((a) => ({ id: a.id, name: a.name, currency: a.currency }))}
+              fx={state.money.settings.fxDaPerUsd}
+              resistXpCapped={
+                state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
+                RESIST_XP_DAILY_CAP
+              }
+            />
+            {/* The held queue is money in limbo — visible on Home in every mode. */}
+            {support.held.length > 0 && brakesCard}
+            {!support.lowEnergy && balances.length > 0 && (
+              <AccountsCard balances={balances} settings={state.money.settings} dispatch={dispatch} />
+            )}
+            {!support.lowEnergy && (
+              <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
+            )}
+            <Ledger
+              transactions={state.transactions}
+              today={today}
+              velocity={velocity}
+              trustedName={support.trusted?.name ?? null}
+            />
+          </>
+        )}
+        {route === 'runway' && <RunwayRoute {...routeProps} />}
+        {route === 'jars' && <JarsRoute {...routeProps} />}
+        {route === 'learn' && <LearnRoute {...routeProps} />}
+        {route === 'me' && (
+          <>
+            <ProfileCard profile={state.profile} onSave={saveProfile} />
+            {needsCard}
+            {support.held.length === 0 && brakesCard}
+            <TrustedCard
+              trusted={support.trusted}
+              input={{
+                transactions: state.transactions,
+                held: support.held,
+                velocity,
+                health: { score: health.score, stage: health.stage },
+                today,
+              }}
+              onSave={(trusted) => dispatch({ type: 'TRUSTED_SET', trusted, nowISO: nowISO() })}
+            />
+            <RecapCard state={state} today={today} />
+            <SocialSection {...routeProps} />
+            <InboxSection {...routeProps} />
+            <section className="card foot-card">
+              <h2>Your data</h2>
+              <div className="foot">
+                <button className="btn" onClick={downloadExport}>Export my data</button>
+                <span className="foot-note">Your data leaves when you do — full export, always.</span>
+              </div>
+              <ImportBackup onMerge={(incoming) => dispatch({ type: 'HYDRATE', incoming })} />
+            </section>
+          </>
+        )}
       </main>
 
-      <footer className="foot">
-        <button className="btn" onClick={downloadExport}>Export my data</button>
-        <span className="foot-note">Your data leaves when you do — full export, always.</span>
-      </footer>
+      <Dock route={route} badges={{ me: 0, home: support.held.length }} />
     </div>
   )
 }

@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import type { ComponentKey, Stage } from '../engine/healthScore.ts'
 import type { PixelPet } from '../engine/achievements.ts'
+import { Ember } from './Ember.tsx'
 
-/** Stage → accent mapping, shared with the desktop HeroShell so the hero
-    glow/badge and this card can never disagree about a stage's color. */
+/** Stage → label/stars/glow, shared with the desktop HeroShell so the hero
+    glow and this card can never disagree about a stage. The ember's warmth
+    is the stage's real visual (see Ember.tsx); `color` only tints the glow. */
 export const STAGE_META: Record<Stage, { label: string; stars: number; color: string; colorSh: string }> = {
-  ember: { label: 'Ember', stars: 1, color: 'var(--flame)', colorSh: 'var(--flame-sh)' },
-  hearth: { label: 'Hearth-fire', stars: 2, color: 'var(--gold)', colorSh: 'var(--gold-sh)' },
-  bonfire: { label: 'Bonfire', stars: 3, color: 'var(--pink)', colorSh: 'var(--pink-sh)' },
-  beacon: { label: 'Beacon', stars: 4, color: 'var(--violet)', colorSh: 'var(--violet-sh)' },
+  ember: { label: 'Ember', stars: 1, color: 'rgba(255, 122, 69, 0.55)', colorSh: 'var(--flame-sh)' },
+  hearth: { label: 'Hearth-fire', stars: 2, color: 'rgba(255, 180, 107, 0.6)', colorSh: 'var(--gold-sh)' },
+  bonfire: { label: 'Bonfire', stars: 3, color: 'rgba(255, 210, 166, 0.65)', colorSh: 'var(--pink-sh)' },
+  beacon: { label: 'Beacon', stars: 4, color: 'rgba(255, 243, 220, 0.7)', colorSh: 'var(--violet-sh)' },
 }
 
 /** Display order and names for the explainability drawer. */
@@ -25,12 +27,15 @@ export function HeroCard({
   score,
   pets,
   components,
+  puff = false,
 }: {
   stage: Stage
   score: number
   pets: PixelPet[]
   /** Per-component shrunk scores from computeHealthScore — absent = excluded. */
   components: Partial<Record<ComponentKey, number>>
+  /** True while a reward is landing: the ember squishes once (Clay spring). */
+  puff?: boolean
 }) {
   const meta = STAGE_META[stage]
   // Explainability drawer: the engine exposes its component breakdown "for
@@ -42,11 +47,11 @@ export function HeroCard({
     <section className="card hero-card">
       <div className="hero-main">
         <div className="stage-col">
-          <div
-            className="stage-badge"
-            style={{ background: meta.color, boxShadow: `6px 6px 0 ${meta.colorSh}` }}
-          >
-            <span className="stage-flame" aria-hidden="true">🔥</span>
+          {/* The hearth: the one place the health stage is shown as light.
+              Warmth is a pure function of the stage (STAGE_WARMTH), so the
+              fire can never be bought with XP. */}
+          <div className="stage-badge">
+            <Ember stage={stage} size={150} puff={puff} />
           </div>
           {/* Achievement loot: cosmetic companions BESIDE the stage badge, never
               inside it — the badge's color/stars stay a pure function of

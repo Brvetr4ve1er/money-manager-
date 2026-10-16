@@ -1,0 +1,60 @@
+/* Room objects — light as state. Ported from the Hearth prototype, unscoped
+   so any room (Runway, Home) can place one. Colour comes from the glow and
+   the flame, never from a flat fill; tokens carry light and dark. */
+
+.obj { overflow: visible; display: block; flex: none; }
+.obj-glow { opacity: 0; transform-origin: 32px 34px; transition: opacity 0.6s var(--ease); }
+.obj-body {
+  fill: var(--glass-2);
+  stroke: var(--line-2);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  transition: opacity 0.5s var(--ease);
+}
+.obj-flame { fill: var(--peach); stroke: none; opacity: 0.25; transition: opacity 0.5s var(--ease); }
+.obj-leaf { fill: #9ec49c; stroke: none; opacity: 0.7; }
+
+.obj.is-lit .obj-glow { opacity: 1; }
+.obj.is-lit .obj-flame { opacity: 1; }
+.obj.is-lit .obj-leaf { opacity: 1; }
+
+.obj.is-flicker .obj-glow { opacity: 0.55; animation: obj-flicker 2.8s ease-in-out infinite; }
+.obj.is-flicker .obj-flame { opacity: 0.7; animation: obj-flicker 2.8s ease-in-out infinite; }
+
+.obj.is-hazy .obj-glow { opacity: 0.4; filter: blur(3px); }
+.obj.is-hazy .obj-flame { opacity: 0.5; }
+.obj.is-hazy .obj-body { opacity: 0.8; }
+
+.obj.is-dim .obj-glow { opacity: 0.12; }
+
+.obj.is-out .obj-body { opacity: 0.5; }
+.obj.is-out .obj-flame,
+.obj.is-out .obj-glow { opacity: 0; }
+.obj.is-out .obj-leaf { opacity: 0.35; }
+
+.ring-track { fill: none; stroke: var(--line); stroke-width: 2; }
+.ring-fill {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s var(--ease);
+}
+
+/* Something happened (a cycle was paid): one Clay spring, then rest. */
+.obj.is-bloom { animation: obj-bloom 0.9s var(--spring); transform-origin: 50% 55%; }
+
+@keyframes obj-flicker { 0%, 100% { opacity: 0.55; } 30% { opacity: 0.8; } 45% { opacity: 0.4; } 70% { opacity: 0.7; } }
+@keyframes obj-bloom {
+  0% { transform: scale(1); filter: brightness(1); }
+  35% { transform: scale(1.2); filter: brightness(1.7) drop-shadow(0 0 14px rgba(255, 180, 107, 0.9)); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+/* tokens.css already shortens every animation under reduced motion; the
+   flicker is decorative, so here it simply holds still at its mid glow. */
+@media (prefers-reduced-motion: reduce) {
+  .obj.is-flicker .obj-glow,
+  .obj.is-flicker .obj-flame,
+  .obj.is-bloom { animation: none; }
+}

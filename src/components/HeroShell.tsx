@@ -1,6 +1,7 @@
 import type { Stage } from '../engine/healthScore.ts'
 import type { PixelPet } from '../engine/achievements.ts'
 import { STAGE_META } from './HeroCard.tsx'
+import { Ember } from './Ember.tsx'
 
 /**
  * HeroShell — the page header in both of its lives. On mobile it renders as
@@ -33,16 +34,6 @@ export function HeroShell({
   return (
     <header className="topbar">
       <div className="hero-frame">
-        {/* Desktop-only section nav: plain anchors to the card ids, so it
-            works with keyboard, AT, and no JS scroll handling. Hidden on
-            mobile where the single column needs no jump points. */}
-        <nav className="hero-nav" aria-label="Sections">
-          <a href="#log">Log</a>
-          <a href="#quests">Quests</a>
-          <a href="#simulator">Simulator</a>
-          <a href="#codex">Codex</a>
-          <a href="#badges">Badges</a>
-        </nav>
         {/* Stage-colored glow behind the wordmark — the desktop counterpart
             of the stage badge's fill, driven by the same STAGE_META so the
             hero can never glow a color the health engine didn't assign.
@@ -59,11 +50,8 @@ export function HeroShell({
                 duplicate, see app.css). Pets follow the badge exactly as on
                 the mobile card: cosmetic loot beside, never inside. */}
             <div className="hero-stage-line hero-rise" style={{ animationDelay: '400ms' }}>
-              <span
-                className="hero-stage-badge"
-                style={{ background: meta.color, boxShadow: `4px 4px 0 ${meta.colorSh}` }}
-              >
-                <span aria-hidden="true">🔥</span>
+              <span className="hero-stage-badge">
+                <Ember stage={stage} size={72} />
               </span>
               <span className="hero-stage-name">{meta.label}</span>
               {pets.length > 0 && (
