@@ -510,3 +510,23 @@ form > .profile-note { margin-top: 0.6rem; }
 .import-row { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-top: 0.8rem; }
 .import-row label.btn { cursor: pointer; }
 .import-row input:focus-visible + * , .import-row:focus-within label.btn { outline: 2px solid var(--peach); outline-offset: 3px; }
+
+/* ---- moon ceremony (monthly recap) ---- */
+.recap-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.recap-head h2 { font-size: 1.2rem; font-weight: 300; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.recap-pick .field { min-width: 0; padding: 0.4rem 0.7rem; font-size: 0.9rem; }
+.recap-highlights { list-style: none; margin: 0.4rem 0 1rem; padding: 0; display: grid; gap: 0.35rem; }
+.recap-highlights li { padding-left: 1.2rem; position: relative; animation: rise 0.5s var(--ease) both; }
+.recap-highlights li::before { content: ''; position: absolute; left: 0; top: 0.55em; width: 7px; height: 7px; border-radius: 50%; background: var(--peach); box-shadow: 0 0 10px rgba(255, 180, 107, 0.8); }
+.recap-highlights li:nth-child(2) { animation-delay: 80ms; }
+.recap-highlights li:nth-child(3) { animation-delay: 160ms; }
+.recap-highlights li:nth-child(4) { animation-delay: 240ms; }
+.recap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.8rem; margin-bottom: 0.9rem; }
+.recap-grid > div { display: grid; gap: 0.1rem; }
+.recap-k { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+.recap-v { font-size: 1.3rem; font-weight: 300; }
+.recap-s { font-size: 0.78rem; color: var(--mute); }
+.recap-cats { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; font-size: 0.85rem; }
+.recap-cats li { display: grid; grid-template-columns: 6.5rem 1fr auto; gap: 0.6rem; align-items: center; }
+.recap-bar { height: 6px; border-radius: 3px; background: var(--glass-2); overflow: hidden; }
+.recap-bar span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--flame), var(--amber)); }

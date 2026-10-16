@@ -37,6 +37,8 @@ import { accountBalance, breathingRoom, liveAccounts } from './engine/money.ts'
 import { BreathingCard } from './components/money/BreathingCard.tsx'
 import { AccountsCard } from './components/money/AccountsCard.tsx'
 import { ImportBackup } from './components/ImportBackup.tsx'
+import { RecapCard } from './components/RecapCard.tsx'
+import { ceremonyDue } from './engine/recap.ts'
 import { useHealthDay } from './hooks/useHealthDay.ts'
 import { useRoute } from './routes/router.ts'
 import { Dock } from './components/Dock.tsx'
@@ -287,6 +289,10 @@ export default function App() {
               </p>
             )}
             <BreathingCard room={room} dispatch={dispatch} />
+            {/* First week of a month: last month's moon ceremony greets you. */}
+            {!support.lowEnergy && ceremonyDue(state, today) !== null && (
+              <RecapCard state={state} today={today} month={ceremonyDue(state, today)!} />
+            )}
             <HeroCard
               stage={health.stage}
               score={health.score}
@@ -341,6 +347,7 @@ export default function App() {
               }}
               onSave={(trusted) => dispatch({ type: 'TRUSTED_SET', trusted, nowISO: nowISO() })}
             />
+            <RecapCard state={state} today={today} />
             <SocialSection {...routeProps} />
             <InboxSection {...routeProps} />
             <section className="card foot-card">
