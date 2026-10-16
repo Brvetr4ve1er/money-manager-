@@ -57,3 +57,25 @@
 .acc-row .btn { justify-self: start; margin-top: 0.3rem; }
 .acc-confirm, .acc-add { margin-top: 0.4rem; }
 .acc-settings { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--line); display: grid; gap: 0.5rem; }
+
+/* Number-light: a tank that fills, instead of sums. */
+.tank {
+  position: relative;
+  width: 84px;
+  height: 120px;
+  margin: 0.4rem auto 0.6rem;
+  border-radius: 28px 28px 24px 24px;
+  background: var(--glass-2);
+  box-shadow: inset 4px 4px 10px rgba(0, 0, 0, 0.25), inset -4px -4px 10px rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.tank-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(120% 80% at 50% 0%, var(--peach), var(--amber) 60%, var(--flame));
+  box-shadow: 0 -6px 20px rgba(255, 160, 90, 0.5);
+  transition: height 0.9s var(--spring);
+}
+.breathing-num.is-light { font-size: clamp(1.8rem, 8vw, 2.4rem); }

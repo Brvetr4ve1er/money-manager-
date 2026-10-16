@@ -8,7 +8,7 @@
 
 import type { BrakeRule } from './brakes.ts'
 
-export type NeedId = 'brakes' | 'low-energy' | 'calm' | 'second-pair'
+export type NeedId = 'brakes' | 'low-energy' | 'calm' | 'numbers' | 'second-pair'
 
 export interface Need {
   id: NeedId
@@ -33,6 +33,11 @@ export const NEEDS: ReadonlyArray<Need> = [
     hint: 'Sound off, no animation, nothing pops up. The app only speaks when you open it.',
   },
   {
+    id: 'numbers',
+    label: 'Numbers swim for me',
+    hint: 'Rounded figures, a fill-up tank instead of sums, and amounts compared to things you know.',
+  },
+  {
     id: 'second-pair',
     label: 'I want someone I trust to see a summary',
     hint: 'You build a weekly snapshot and send it yourself. Nothing is shared automatically.',
@@ -46,6 +51,7 @@ export interface NeedsDefaults {
   brakes: BrakeRule | null
   lowEnergy: boolean
   calm: boolean
+  numberLight: boolean
   wantsTrusted: boolean
 }
 
@@ -62,6 +68,7 @@ export function composeDefaults(needs: ReadonlyArray<NeedId>): NeedsDefaults {
     brakes: has('brakes') ? DEFAULT_BRAKE_RULE : null,
     lowEnergy: has('low-energy'),
     calm: has('calm'),
+    numberLight: has('numbers'),
     wantsTrusted: has('second-pair'),
   }
 }

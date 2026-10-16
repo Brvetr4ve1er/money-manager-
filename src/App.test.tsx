@@ -1030,3 +1030,21 @@ describe('backup import', () => {
     expect(screen.getByText(/not an Ember backup/)).toBeTruthy()
   })
 })
+
+describe('number-light mode', () => {
+  it('swaps the arithmetic for a tank and rounded figures', () => {
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        support: { numberLight: true },
+        money: {
+          accounts: [{ id: 'c', name: 'Cash', currency: 'DA', anchorBalance: 40_932, anchorAt: new Date(2026, 0, 1).toISOString(), archived: false, updatedAt: new Date(2026, 0, 1).toISOString() }],
+        },
+      }),
+    )
+    render(<App />)
+    expect(screen.getByRole('img', { name: /percent of what you hold is free/ })).toBeTruthy()
+    expect(screen.getByText('about 41,000 DA')).toBeTruthy()
+    expect(screen.queryByText('You hold')).toBeNull()
+  })
+})

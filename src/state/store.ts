@@ -127,6 +127,8 @@ export interface SupportState {
   held: HeldPurchase[]
   lowEnergy: boolean
   calm: boolean
+  /** Number-light mode: rounded figures, a tank visual, fewer digits. */
+  numberLight: boolean
   /** Local day (YYYY-MM-DD) the app was last opened; '' = never. */
   lastOpened: string
   /** Set on a return after days away; cleared when the user dismisses it. */
@@ -237,6 +239,7 @@ export function defaultSupport(): SupportState {
     held: [],
     lowEnergy: false,
     calm: false,
+    numberLight: false,
     lastOpened: '',
     reentry: null,
     trusted: null,
@@ -490,6 +493,7 @@ export function sanitizeSupport(v: unknown): SupportState {
   if (Array.isArray(v.held)) out.held = dedupeHeld(v.held.filter(isHeldPurchase))
   if (typeof v.lowEnergy === 'boolean') out.lowEnergy = v.lowEnergy
   if (typeof v.calm === 'boolean') out.calm = v.calm
+  if (typeof v.numberLight === 'boolean') out.numberLight = v.numberLight
   if (typeof v.lastOpened === 'string' && isValidDayKey(v.lastOpened)) out.lastOpened = v.lastOpened
   if (
     isRecord(v.reentry) &&
@@ -822,6 +826,7 @@ export function mergeSupport(local: SupportState, incoming: SupportState): Suppo
     pendingBrakes: s.pendingBrakes,
     lowEnergy: s.lowEnergy,
     calm: s.calm,
+    numberLight: s.numberLight,
     trusted: s.trusted,
     savedAt: s.savedAt,
   })
@@ -842,6 +847,7 @@ export function mergeSupport(local: SupportState, incoming: SupportState): Suppo
     held: dedupeHeld([...local.held, ...incoming.held]),
     lowEnergy: settings.lowEnergy,
     calm: settings.calm,
+    numberLight: settings.numberLight,
     lastOpened: local.lastOpened > incoming.lastOpened ? local.lastOpened : incoming.lastOpened,
     reentry:
       local.reentry === null || incoming.reentry === null

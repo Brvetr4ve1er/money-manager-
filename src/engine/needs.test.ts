@@ -7,6 +7,7 @@ describe('composeDefaults', () => {
       brakes: null,
       lowEnergy: false,
       calm: false,
+      numberLight: false,
       wantsTrusted: false,
     })
   })
@@ -15,6 +16,7 @@ describe('composeDefaults', () => {
       brakes: DEFAULT_BRAKE_RULE,
       lowEnergy: false,
       calm: false,
+      numberLight: false,
       wantsTrusted: false,
     })
     expect(DEFAULT_BRAKE_RULE).toEqual({ thresholdDA: 5_000, categories: ['Fun'], delayHours: 24 })
@@ -24,6 +26,7 @@ describe('composeDefaults', () => {
       brakes: null,
       lowEnergy: true,
       calm: false,
+      numberLight: false,
       wantsTrusted: false,
     })
   })
@@ -32,6 +35,7 @@ describe('composeDefaults', () => {
       brakes: null,
       lowEnergy: false,
       calm: true,
+      numberLight: false,
       wantsTrusted: false,
     })
   })
@@ -40,14 +44,20 @@ describe('composeDefaults', () => {
       brakes: null,
       lowEnergy: false,
       calm: false,
+      numberLight: false,
       wantsTrusted: true,
     })
+  })
+  it('numbers flips numberLight only', () => {
+    expect(composeDefaults(['numbers']).numberLight).toBe(true)
+    expect(composeDefaults(['numbers']).calm).toBe(false)
   })
   it('combines every need additively', () => {
     expect(composeDefaults(['brakes', 'low-energy', 'calm', 'second-pair'])).toEqual({
       brakes: DEFAULT_BRAKE_RULE,
       lowEnergy: true,
       calm: true,
+      numberLight: false,
       wantsTrusted: true,
     })
   })

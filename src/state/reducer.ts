@@ -56,6 +56,7 @@ export type AppAction =
   | { type: 'LET_GO_HELD'; id: string }
   | { type: 'LOW_ENERGY_SET'; on: boolean; nowISO: string }
   | { type: 'CALM_SET'; on: boolean; nowISO: string }
+  | { type: 'NUMBER_LIGHT_SET'; on: boolean; nowISO: string }
   | { type: 'REENTRY_DISMISS' }
   | { type: 'TRUSTED_SET'; trusted: SupportState['trusted']; nowISO: string }
   /** Pay one cycle of an obligation: a payment record AND a real ledger row
@@ -275,6 +276,7 @@ function rootReducer(state: AppState, action: RootAction): AppState {
             pendingBrakes: brakes.pending,
             lowEnergy: state.support.lowEnergy || d.lowEnergy,
             calm: state.support.calm || d.calm,
+            numberLight: state.support.numberLight || d.numberLight,
           },
           action.nowISO,
         ),
@@ -328,6 +330,9 @@ function rootReducer(state: AppState, action: RootAction): AppState {
     case 'LOW_ENERGY_SET':
       if (state.support.lowEnergy === action.on) return state
       return withSupport(state, { lowEnergy: action.on }, action.nowISO)
+    case 'NUMBER_LIGHT_SET':
+      if (state.support.numberLight === action.on) return state
+      return withSupport(state, { numberLight: action.on }, action.nowISO)
     case 'CALM_SET':
       if (state.support.calm === action.on) return state
       return { ...withSupport(state, { calm: action.on }, action.nowISO), muted: state.muted || action.on }

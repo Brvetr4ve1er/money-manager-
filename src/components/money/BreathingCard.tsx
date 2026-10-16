@@ -6,6 +6,7 @@ import { newId } from '../../state/store.ts'
 import type { BreathingRoom } from '../../engine/money.ts'
 import { fmtDA } from '../../engine/money.ts'
 import { shortDay } from '../../engine/dates.ts'
+import { friendlyDA, tankLevel, vsUsualDay } from '../../engine/numberLight.ts'
 import './money.css'
 
 /**
@@ -16,12 +17,40 @@ import './money.css'
 export function BreathingCard({
   room,
   dispatch,
+  numberLight = false,
+  usualPerDay = 0,
 }: {
   room: BreathingRoom
   dispatch: Dispatch<AppAction>
+  /** Rounded figures + a tank instead of the arithmetic (see numberLight.ts). */
+  numberLight?: boolean
+  /** The user's own usual daily spend, for number-light comparisons. */
+  usualPerDay?: number
 }) {
   if (!room.hasAccounts) return <FirstAccount dispatch={dispatch} />
   const tight = room.room < 0
+  if (numberLight) {
+    const level = tankLevel(room.room, room.holdingsDA)
+    const vs = vsUsualDay(room.perDay, usualPerDay)
+    return (
+      <section className="card breathing wide" aria-labelledby="breathing-title">
+        <h2 id="breathing-title">Breathing room</h2>
+        <div
+          className="tank"
+          role="img"
+          aria-label={`${Math.round(level * 100)} percent of what you hold is free until payday`}
+        >
+          <span className="tank-fill" style={{ height: `${Math.round(level * 100)}%` }} />
+        </div>
+        <p className="breathing-num is-light">{tight ? 'Tight until payday' : friendlyDA(room.room)}</p>
+        <p className="breathing-sub">
+          {tight ? 'Bills before payday need more than is free right now.' : <>{friendlyDA(Math.max(0, room.perDay))} a day{vs ? ` — ${vs}` : ''}</>}
+          <br />
+          {room.days} {room.days === 1 ? 'day' : 'days'} to payday
+        </p>
+      </section>
+    )
+  }
   return (
     <section className="card breathing wide" aria-labelledby="breathing-title">
       <h2 id="breathing-title">Breathing room · a forecast, not a verdict</h2>

@@ -222,6 +222,8 @@ export default function App() {
       needs={support.needs}
       lowEnergy={support.lowEnergy}
       calm={support.calm}
+      numberLight={support.numberLight}
+      onNumberLight={(on) => dispatch({ type: 'NUMBER_LIGHT_SET', on, nowISO: nowISO() })}
       onSave={(needs) => dispatch({ type: 'NEEDS_SET', needs, nowISO: nowISO() })}
       onLowEnergy={(on) => dispatch({ type: 'LOW_ENERGY_SET', on, nowISO: nowISO() })}
       onCalm={(on) => dispatch({ type: 'CALM_SET', on, nowISO: nowISO() })}
@@ -288,7 +290,12 @@ export default function App() {
                 </button>
               </p>
             )}
-            <BreathingCard room={room} dispatch={dispatch} />
+            <BreathingCard
+              room={room}
+              dispatch={dispatch}
+              numberLight={support.numberLight}
+              usualPerDay={velocity.baselinePerDay}
+            />
             {/* First week of a month: last month's moon ceremony greets you. */}
             {!support.lowEnergy && ceremonyDue(state, today) !== null && (
               <RecapCard state={state} today={today} month={ceremonyDue(state, today)!} />

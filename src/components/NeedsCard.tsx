@@ -11,16 +11,20 @@ export function NeedsCard({
   needs,
   lowEnergy,
   calm,
+  numberLight = false,
   onSave,
   onLowEnergy,
   onCalm,
+  onNumberLight = () => {},
 }: {
   needs: NeedId[]
   lowEnergy: boolean
   calm: boolean
+  numberLight?: boolean
   onSave: (needs: NeedId[]) => void
   onLowEnergy: (on: boolean) => void
   onCalm: (on: boolean) => void
+  onNumberLight?: (on: boolean) => void
 }) {
   const [draft, setDraft] = useState<Set<NeedId>>(() => new Set(needs))
   const [saved, setSaved] = useState(false)
@@ -77,6 +81,14 @@ export function NeedsCard({
         </button>
         <button type="button" className="btn mode-btn" aria-pressed={calm} onClick={() => onCalm(!calm)}>
           {calm ? 'Calm mode: on' : 'Calm mode: off'}
+        </button>
+        <button
+          type="button"
+          className="btn mode-btn"
+          aria-pressed={numberLight}
+          onClick={() => onNumberLight(!numberLight)}
+        >
+          {numberLight ? 'Number-light: on' : 'Number-light: off'}
         </button>
       </div>
     </section>
