@@ -276,6 +276,9 @@ export function breathingRoom(
   money: MoneyState,
   transactions: Transaction[],
   today: string,
+  /** Other committed outflows before payday in DA (tontine rounds, debts
+   *  you owe that fall due) — expected INFLOWS are never counted. */
+  extraDueDA = 0,
 ): BreathingRoom {
   const payday = nextPayday(money.settings, today)
   const fx = money.settings.fxDaPerUsd
@@ -296,6 +299,7 @@ export function breathingRoom(
     if (da === null) missingFx = true
     else dueDA += da * cycles
   }
+  dueDA += Math.max(0, extraDueDA)
   const room = holdingsDA - jarsDA - dueDA
   const days = Math.max(1, daysBetween(today, payday))
   return {

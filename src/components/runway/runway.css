@@ -181,3 +181,6 @@
   .rw-node.is-bloom .rw-body,
   .rw-confirm { animation: none; }
 }
+.rw-social-list { list-style: none; margin: 0 0 0.6rem; padding: 0; display: grid; gap: 0.4rem; font-size: 0.88rem; }
+.rw-social-list li { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.5rem 0.7rem; border-radius: 14px; border: 1px solid var(--line); background: var(--glass); }
+.rw-social-list li.is-in { border-style: dashed; color: var(--mint-ink); }

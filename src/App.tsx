@@ -33,7 +33,8 @@ import { ReentryBanner } from './components/ReentryBanner.tsx'
 import type { LogOutcome } from './components/LogCard.tsx'
 import { holdPurchase, shouldHold, spendVelocity } from './engine/brakes.ts'
 import { catchUpTransaction } from './engine/calm.ts'
-import { accountBalance, breathingRoom, liveAccounts } from './engine/money.ts'
+import { accountBalance, breathingRoom, liveAccounts, nextPayday } from './engine/money.ts'
+import { socialRunwayItems } from './engine/social.ts'
 import { BreathingCard } from './components/money/BreathingCard.tsx'
 import { AccountsCard } from './components/money/AccountsCard.tsx'
 import { ImportBackup } from './components/ImportBackup.tsx'
@@ -84,7 +85,13 @@ export default function App() {
   const velocity = spendVelocity(state.transactions, today)
   // The money core's two derived views, computed once per render so every
   // card speaks from the same numbers.
-  const room = breathingRoom(state.money, state.transactions, today)
+  // Social money that leaves before payday (a tontine round, a debt falling
+  // due) counts against breathing room; payouts and money owed to you never
+  // do — a forecast does not spend money it has not received.
+  const socialOutDA = socialRunwayItems(state.social, today, nextPayday(state.money.settings, today))
+    .filter((i) => i.amountDA < 0)
+    .reduce((sum, i) => sum - i.amountDA, 0)
+  const room = breathingRoom(state.money, state.transactions, today, socialOutDA)
   const accounts = liveAccounts(state.money)
   const balances = accounts.map((a) => accountBalance(a, state.transactions, state.money, today))
   // Badge predicates run over the same state every card renders from; the

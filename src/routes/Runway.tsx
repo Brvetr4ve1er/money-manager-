@@ -8,6 +8,7 @@ import { ObligationForm } from '../components/runway/ObligationForm.tsx'
 import { RunwayNode, type PayRequest } from '../components/runway/RunwayNode.tsx'
 import { RecurringAudit } from '../components/runway/RecurringAudit.tsx'
 import { auditSummary, dueBeforePayday, plural, timelineItems } from '../components/runway/runwayModel.ts'
+import { socialRunwayItems } from '../engine/social.ts'
 import '../components/runway/runway.css'
 import type { RouteProps } from './types.ts'
 
@@ -109,6 +110,8 @@ export function RunwayRoute({ state, dispatch, today }: RouteProps) {
     sfx.blip()
   }
 
+  const social = socialRunwayItems(state.social, today, payday)
+
   return (
     <>
       <section className="card wide rw-head" id="runway" aria-labelledby="rw-title">
@@ -201,6 +204,26 @@ export function RunwayRoute({ state, dispatch, today }: RouteProps) {
       <RecurringAudit summary={audit} />
 
       <p className="sr-only" role="status" aria-label="Runway updates">{announce}</p>
+      {social.length > 0 && (
+        <section className="card rw-social" aria-labelledby="rw-social-title">
+          <h2 id="rw-social-title">Family &amp; friends before payday</h2>
+          <ul className="rw-social-list">
+            {social.map((it) => (
+              <li key={it.id} className={it.amountDA < 0 ? 'is-out' : 'is-in'}>
+                <span>{it.label}</span>
+                <span className="mono">
+                  {it.amountDA < 0 ? '−' : '+'}
+                  {fmtDA(Math.abs(it.amountDA))} · {shortDay(it.date)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="support-lead">
+            Money going out here is counted in your breathing room. Money coming in is not counted until it
+            arrives.
+          </p>
+        </section>
+      )}
     </>
   )
 }
