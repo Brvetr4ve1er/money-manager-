@@ -22,21 +22,45 @@ export interface LogOutcome {
   heldHours: number | null
 }
 
+/** A money account the log can be charged to (see the money slice). */
+export interface LogAccount {
+  id: string
+  name: string
+  currency: 'DA' | 'USD'
+}
+
 export function LogCard({
   transactions,
   onLog,
   onUndo,
   resistXpCapped,
+  accounts = [],
+  fx = null,
 }: {
   transactions: Transaction[]
-  /** Logs (or holds) the entry and returns its id for Undo. */
-  onLog: (amountDA: number, category: string, resisted: boolean, impulseFlagged: boolean) => LogOutcome
+  /** Logs (or holds) the entry and returns its id for Undo. `amount` is in
+   *  the chosen account's currency (DA when no account). */
+  onLog: (
+    amount: number,
+    category: string,
+    resisted: boolean,
+    impulseFlagged: boolean,
+    accountId: string | null,
+  ) => LogOutcome
+  accounts?: LogAccount[]
+  /** DA per USD; null blocks logging to a USD account (never guess a rate). */
+  fx?: number | null
   /** Undoes a log — or lets a just-held purchase go. */
   onUndo: (id: string) => void
   resistXpCapped: boolean
 }) {
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(CATEGORIES[0])
+  // Default to the first DA account: cash is the everyday case.
+  const [accountId, setAccountId] = useState<string | null>(null)
+  const account =
+    accounts.find((a) => a.id === accountId) ?? accounts.find((a) => a.currency === 'DA') ?? accounts[0] ?? null
+  const isUSD = account?.currency === 'USD'
   // "I bought it anyway": the only UI that sets Transaction.impulseFlagged —
   // the yielded side of the Impulse Control ratio. Honesty is still logging,
   // so a flagged purchase pays the same +5 and the same blip as any log:
@@ -94,10 +118,15 @@ export function LogCard({
       sfx.deny()
       return
     }
+    if (isUSD && fx === null && !resisted) {
+      setError('Set your DA/USD rate on Home first — Ember never guesses one.')
+      sfx.deny()
+      return
+    }
     setError(null)
     // The flag only rides on purchases: a resisted impulse was not yielded to,
     // and deriveHealthInputs counts yielded as flagged-and-not-resisted anyway.
-    const out = onLog(validAmt ? amt : 0, category, resisted, !resisted && impulse)
+    const out = onLog(validAmt ? amt : 0, category, resisted, !resisted && impulse, account?.id ?? null)
     setLastLog({ id: out.id, text: outcomeText(out, validAmt ? amt : 0, resisted) })
     setAmount('')
     setImpulse(false)
@@ -107,7 +136,7 @@ export function LogCard({
     // Chips are habitual repeats, never impulse reports — the checkbox flag
     // stays a deliberate per-entry choice on the form.
     setError(null)
-    const out = onLog(amountDA, chipCategory, false, false)
+    const out = onLog(amountDA, chipCategory, false, false, account?.id ?? null)
     setLastLog({ id: out.id, text: outcomeText(out, amountDA, false) })
   }
 
@@ -115,17 +144,18 @@ export function LogCard({
   // not change, and the user needs to know where it went (the brakes card).
   function outcomeText(out: LogOutcome, amountDA: number, resisted: boolean): string {
     if (resisted) return 'Resist logged'
+    const unit = isUSD ? 'USD' : 'DA'
     if (out.heldHours !== null) {
-      return `Held ${amountDA.toLocaleString()} DA — you decide again in ${out.heldHours}h`
+      return `Held ${amountDA.toLocaleString()} ${unit} — you decide again in ${out.heldHours}h`
     }
-    return `Logged ${amountDA.toLocaleString()} DA`
+    return `Logged ${amountDA.toLocaleString()} ${unit}`
   }
 
   return (
     // id: hero nav / CTA anchor target (desktop).
     <section className="card" id="log">
       <h2>Log it</h2>
-      {chips.length > 0 && (
+      {chips.length > 0 && !isUSD && (
         <div className="chip-row" role="group" aria-label="Repeat a recent purchase">
           {chips.map((c) => (
             <button
@@ -157,7 +187,7 @@ export function LogCard({
               paste). Validation happens in submit(), where it can explain
               itself. */}
           <label className="field-wrap">
-            <span className="field-label">Amount (DA)</span>
+            <span className="field-label">{isUSD ? 'Amount (USD)' : 'Amount (DA)'}</span>
             <input
               className="field mono"
               type="text"
@@ -184,6 +214,22 @@ export function LogCard({
               ))}
             </select>
           </label>
+          {accounts.length > 1 && (
+            <label className="field-wrap">
+              <span className="field-label">From</span>
+              <select
+                className="field"
+                value={account?.id ?? ''}
+                onChange={(e) => setAccountId(e.target.value)}
+              >
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.currency})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         {/* Neutral phrasing on purpose — a factual self-report, never a
             confession. The whole label is the tap target (48px row). */}

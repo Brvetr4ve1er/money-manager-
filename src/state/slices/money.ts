@@ -264,7 +264,7 @@ function sanitizeCharm(v: unknown): Charm | null {
   if (!isRecord(v) || !isStr(v.id) || !CHARM_KINDS.includes(v.kind as CharmKind) || !isStr(v.jarId)) return null
   if (!isNum(v.value) || v.value <= 0 || !isValidDayKey(v.since) || !isIsoDatetime(v.updatedAt)) return null
   const kind = v.kind as CharmKind
-  const category = isStr(v.category) ? v.category : null
+  const category = isStr(v.category) && v.category.trim() !== '' ? v.category : null
   if (kind !== 'roundup' && category === null) return null
   if (kind === 'treat-tax' && v.value > 100) return null
   return {
@@ -308,9 +308,12 @@ function byId<T extends { id: string }>(a: T, b: T): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
 
-/** Newer updatedAt wins; ties keep the greater JSON (symmetric). */
+/** Newer updatedAt wins (compared as instants — ISO strings with and without
+ *  milliseconds do not sort chronologically); ties keep the greater JSON. */
 function newer<T extends { updatedAt: string }>(a: T, b: T): T {
-  if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt ? a : b
+  const ta = Date.parse(a.updatedAt)
+  const tb = Date.parse(b.updatedAt)
+  if (ta !== tb) return ta > tb ? a : b
   return JSON.stringify(a) >= JSON.stringify(b) ? a : b
 }
 
@@ -419,7 +422,9 @@ export function moneyReducer(s: MoneyState, a: MoneyAction): MoneyState {
     }
     case 'money/payment-void': {
       const p = s.payments.find((x) => x.id === a.id)
-      if (!p || p.void) return s
+      // A bad stamp would make the voided row fail the sanitizer at reload,
+      // erasing the payment entirely — reject it instead.
+      if (!p || p.void || !isIsoDatetime(a.nowISO)) return s
       return { ...s, payments: upsert(s.payments, { ...p, void: true, updatedAt: a.nowISO }) }
     }
     case 'money/jar-upsert': {

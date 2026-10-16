@@ -48,7 +48,8 @@ export function localDayOf(iso: string): string {
 
 /** Was this ledger row recorded after the account's anchor? */
 function afterAnchor(t: Transaction, anchorAt: string): boolean {
-  if (t.at) return t.at > anchorAt
+  // Instants, not strings: '…00.500Z' sorts before '…00Z' lexically.
+  if (t.at) return Date.parse(t.at) > Date.parse(anchorAt)
   // Older rows carry only a day: count them when strictly after the anchor
   // day — same-day rows are ambiguous, and the anchor the user typed that
   // day most likely already reflected them.
@@ -91,7 +92,7 @@ export function accountBalance(
     moved = true
   }
   for (const inc of money.incomes) {
-    if (inc.accountId !== account.id || inc.at <= account.anchorAt) continue
+    if (inc.accountId !== account.id || Date.parse(inc.at) <= Date.parse(account.anchorAt)) continue
     balance += inc.amount
     moved = true
   }

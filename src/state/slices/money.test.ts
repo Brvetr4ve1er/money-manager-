@@ -547,7 +547,7 @@ describe('mergeMoney', () => {
   // BUG: `newer()` compares updatedAt as strings. Both '…T08:00:00Z' and
   // '…T08:00:00.500Z' pass isIsoDatetime, but the later one sorts first
   // ('.' < 'Z'), so the older edit wins the merge.
-  it.fails('picks the chronologically newer updatedAt across ISO precisions', () => {
+  it('picks the chronologically newer updatedAt across ISO precisions', () => {
     const older = full({ accounts: [account({ name: 'old', updatedAt: '2026-10-02T08:00:00Z' })] })
     const newer = full({ accounts: [account({ name: 'new', updatedAt: '2026-10-02T08:00:00.500Z' })] })
     expect(mergeMoney(older, newer).accounts[0].name).toBe('new')
@@ -614,7 +614,7 @@ describe('moneyReducer', () => {
   // BUG: payment-void stamps nowISO without validating it. A bad stamp is
   // stored, then the sanitizer drops the whole payment on reload — the void
   // payment vanishes (and with it the record that the cycle was settled).
-  it.fails('payment-void with an invalid nowISO survives a reload', () => {
+  it('payment-void with an invalid nowISO survives a reload', () => {
     const s = state({ payments: [payment()] })
     const out = moneyReducer(s, { type: 'money/payment-void', id: 'pay-1', nowISO: 'not-a-date' })
     expect(roundTrip(out).payments).toHaveLength(1)

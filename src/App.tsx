@@ -33,6 +33,9 @@ import { ReentryBanner } from './components/ReentryBanner.tsx'
 import type { LogOutcome } from './components/LogCard.tsx'
 import { holdPurchase, shouldHold, spendVelocity } from './engine/brakes.ts'
 import { catchUpTransaction } from './engine/calm.ts'
+import { accountBalance, breathingRoom, liveAccounts } from './engine/money.ts'
+import { BreathingCard } from './components/money/BreathingCard.tsx'
+import { AccountsCard } from './components/money/AccountsCard.tsx'
 import { useHealthDay } from './hooks/useHealthDay.ts'
 import { useRoute } from './routes/router.ts'
 import { Dock } from './components/Dock.tsx'
@@ -75,6 +78,11 @@ export default function App() {
   // Pace vs. the user's own baseline (see brakes.ts). Pure over the ledger;
   // the Ledger card phrases it, and only when it has something to say.
   const velocity = spendVelocity(state.transactions, today)
+  // The money core's two derived views, computed once per render so every
+  // card speaks from the same numbers.
+  const room = breathingRoom(state.money, state.transactions, today)
+  const accounts = liveAccounts(state.money)
+  const balances = accounts.map((a) => accountBalance(a, state.transactions, state.money, today))
   // Badge predicates run over the same state every card renders from; the
   // hook persists any newly-earned ids stamped with the hook's `today` (the
   // day every other write in this render believes it is), and the unlock
@@ -85,11 +93,19 @@ export default function App() {
   // and must always agree on the shelf.
   const pets = unlockedPets(state.achievements)
   function logPurchase(
-    amountDA: number,
+    amount: number,
     category: string,
     resisted: boolean,
     impulseFlagged: boolean,
+    accountId: string | null = null,
   ): LogOutcome {
+    // Amounts arrive in the chosen account's currency. Dollar spend is
+    // converted at the user's own rate and keeps its original amount, so the
+    // USD account's estimate moves by exactly what was spent.
+    const acct = state.money.accounts.find((a) => a.id === accountId) ?? null
+    const fx = state.money.settings.fxDaPerUsd
+    const isUSD = acct?.currency === 'USD' && fx !== null
+    const amountDA = isUSD ? Math.round(amount * fx) : amount
     // Hold the door: a purchase matching the user's own brake is queued, not
     // logged — no row, no XP, no score input until the wait passes and the
     // user decides again (see brakes.ts). Resists are never held: resisting
@@ -125,6 +141,8 @@ export default function App() {
       impulseFlagged,
       // Exact time: account estimates compare it against the balance anchor.
       at: new Date().toISOString(),
+      ...(acct ? { accountId: acct.id } : {}),
+      ...(isUSD ? { original: { amount, currency: 'USD' as const } } : {}),
     }
     dispatch({ type: 'LOG_TX', tx })
     if (resisted) sfx.sparkle()
@@ -267,6 +285,7 @@ export default function App() {
                 </button>
               </p>
             )}
+            <BreathingCard room={room} dispatch={dispatch} />
             <HeroCard
               stage={health.stage}
               score={health.score}
@@ -279,6 +298,8 @@ export default function App() {
               transactions={state.transactions}
               onLog={logPurchase}
               onUndo={undoLog}
+              accounts={accounts.map((a) => ({ id: a.id, name: a.name, currency: a.currency }))}
+              fx={state.money.settings.fxDaPerUsd}
               resistXpCapped={
                 state.transactions.filter((t) => t.resistedImpulse && t.date === today).length >=
                 RESIST_XP_DAILY_CAP
@@ -286,6 +307,9 @@ export default function App() {
             />
             {/* The held queue is money in limbo — visible on Home in every mode. */}
             {support.held.length > 0 && brakesCard}
+            {!support.lowEnergy && balances.length > 0 && (
+              <AccountsCard balances={balances} settings={state.money.settings} dispatch={dispatch} />
+            )}
             {!support.lowEnergy && (
               <QuestCard quests={state.quests} onComplete={(id) => dispatch({ type: 'COMPLETE_QUEST', id })} />
             )}

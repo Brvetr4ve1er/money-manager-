@@ -268,7 +268,7 @@ describe('accountBalance', () => {
   // datetimes both with and without milliseconds, and '…T10:00:00.500Z' sorts
   // BEFORE '…T10:00:00Z' ('.' < 'Z'), so spend 0.5s after a seconds-precision
   // anchor is treated as before it.
-  it.fails('compares `at` against anchorAt chronologically across ISO precisions', () => {
+  it('compares `at` against anchorAt chronologically across ISO precisions', () => {
     const acc = account({ anchorAt: '2026-10-05T10:00:00Z' })
     const txs = [tx({ amountDA: 1_000, at: '2026-10-05T10:00:00.500Z' })]
     expect(accountBalance(acc, txs, money(), TODAY).balance).toBe(49_000)

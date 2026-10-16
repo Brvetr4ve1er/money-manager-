@@ -910,3 +910,90 @@ describe('rooms', () => {
     expect(screen.getByRole('button', { name: /Log purchase/ })).toBeTruthy()
   })
 })
+
+describe('breathing room + accounts', () => {
+  const saved = () => JSON.parse(localStorage.getItem('ember-state-v1')!)
+  const iso = (d: number, h = 9) => new Date(2026, 9, d, h).toISOString()
+
+  it('starts with a typed balance — no bank link — and shows breathing room', () => {
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Start with what you have' })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Balance now'), { target: { value: '40000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Light the hearth' }))
+    expect(saved().money.accounts).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: /Breathing room/ })).toBeTruthy()
+    expect(screen.getAllByText('40,000 DA').length).toBeGreaterThan(0)
+  })
+
+  it('refuses an empty first balance with an inline message', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Light the hearth' }))
+    expect(screen.getByRole('alert').textContent).toMatch(/rough number/)
+    expect(saved()?.money?.accounts ?? []).toHaveLength(0)
+  })
+
+  it('subtracts obligations due before payday and jar money from what you hold', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 9, 12))
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        money: {
+          accounts: [{ id: 'c', name: 'Cash', currency: 'DA', anchorBalance: 50_000, anchorAt: iso(9, 8), archived: false, updatedAt: iso(9, 8) }],
+          obligations: [{ id: 'o', name: 'Internet', amount: 3_000, currency: 'DA', kind: 'bill', cadence: 'monthly', firstDue: '2026-10-12', accountId: 'c', installment: null, nextStep: '', archived: false, updatedAt: iso(1) }],
+          jars: [{ id: 'j', name: 'Eid', emoji: '🌙', target: null, targetDate: null, locked: false, archived: false, updatedAt: iso(1) }],
+          jarMoves: [{ id: 'm', jarId: 'j', amount: 7_000, date: '2026-10-02', kind: 'topup' }],
+          settings: { fxDaPerUsd: null, paydayDay: 25, split: [], savedAt: iso(1) },
+        },
+      }),
+    )
+    render(<App />)
+    // 50,000 − 7,000 in jars − 3,000 due = 40,000; 16 days to the 25th.
+    const hero = screen.getByRole('heading', { name: /Breathing room/ }).closest('section')!
+    expect(hero.querySelector('.breathing-num')!.textContent).toBe('40,000 DA')
+    expect(hero.textContent).toContain('16 days to payday')
+  })
+
+  it('logs dollar spend to a USD account only once a rate is set, converting at that rate', () => {
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        money: {
+          accounts: [
+            { id: 'c', name: 'Cash', currency: 'DA', anchorBalance: 1000, anchorAt: iso(1), archived: false, updatedAt: iso(1) },
+            { id: 'r', name: 'RedotPay', currency: 'USD', anchorBalance: 100, anchorAt: iso(1), archived: false, updatedAt: iso(1) },
+          ],
+        },
+      }),
+    )
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: 'r' } })
+    fireEvent.change(screen.getByLabelText('Amount (USD)'), { target: { value: '12.5' } })
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    expect(screen.getByRole('alert').textContent).toMatch(/rate/)
+    expect(saved().transactions).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('DA per 1 USD (your rate)'), { target: { value: '240' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    fireEvent.click(screen.getByRole('button', { name: /Log purchase/ }))
+    const tx = saved().transactions[0]
+    expect(tx.amountDA).toBe(3_000)
+    expect(tx.original).toEqual({ amount: 12.5, currency: 'USD' })
+    expect(tx.accountId).toBe('r')
+    expect(screen.getByText('$87.50')).toBeTruthy()
+  })
+
+  it('confirming a balance re-anchors the estimate', () => {
+    localStorage.setItem(
+      'ember-state-v1',
+      JSON.stringify({
+        money: { accounts: [{ id: 'c', name: 'Cash', currency: 'DA', anchorBalance: 1000, anchorAt: iso(1), archived: false, updatedAt: iso(1) }] },
+      }),
+    )
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm balance' }))
+    fireEvent.change(screen.getByLabelText('Balance now (DA)'), { target: { value: '2500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(saved().money.accounts[0].anchorBalance).toBe(2500)
+    expect(screen.getByText('confirmed today')).toBeTruthy()
+  })
+})
