@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { nodeById } from '../content/curriculum.ts'
 import { resolveProfile } from '../engine/profile.ts'
 import { SimCard } from '../components/SimCard.tsx'
@@ -7,6 +7,7 @@ import { TodayCard } from '../components/learn/TodayCard.tsx'
 import { NodeSheet } from '../components/learn/NodeSheet.tsx'
 import { PathMap } from '../components/learn/PathMap.tsx'
 import { LearnCodex } from '../components/learn/LearnCodex.tsx'
+import { HearthMonth } from '../components/learn/HearthMonth.tsx'
 import type { RouteProps } from './types.ts'
 import '../components/learn/learn.css'
 
@@ -24,8 +25,21 @@ export function LearnRoute({ state, dispatch, today }: RouteProps) {
   // Same profile resolution useHealthDay applies, so the simulator and the
   // score never speak from different numbers.
   const { profile, isDemo } = resolveProfile(state.profile)
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(() => nodeFromHash(window.location.hash))
   const openNode = openId ? nodeById(openId) : undefined
+
+  // `#/learn?node=<id>` (Hearth Month's lesson links) opens that lantern.
+  useEffect(() => {
+    const onChange = () => {
+      const id = nodeFromHash(window.location.hash)
+      if (id) {
+        setOpenId(id)
+        window.scrollTo?.(0, 0)
+      }
+    }
+    window.addEventListener('hashchange', onChange)
+    return () => window.removeEventListener('hashchange', onChange)
+  }, [])
 
   function close() {
     const id = openId
@@ -53,7 +67,7 @@ export function LearnRoute({ state, dispatch, today }: RouteProps) {
         />
       )}
       <PathMap state={state} today={today} openId={openId} onOpen={setOpenId} />
-      {/* Hearth Month mini-game mounts here */}
+      <HearthMonth />
       {/* Running a simulation genuinely completes the verified sim quest.
           On desktop the room grid packs densely, so this card rises into the
           free column beside the Today card. */}
@@ -62,4 +76,12 @@ export function LearnRoute({ state, dispatch, today }: RouteProps) {
       <AchievementsCard unlocks={state.achievements} />
     </>
   )
+}
+
+/** The node id in a `#/learn?node=<id>` link, if it names a real node. */
+export function nodeFromHash(hash: string): string | null {
+  const q = hash.split('?')[1]
+  if (!q) return null
+  const id = new URLSearchParams(q).get('node')
+  return id && nodeById(id) ? id : null
 }

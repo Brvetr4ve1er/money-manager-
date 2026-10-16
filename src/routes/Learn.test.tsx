@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import App from '../App.tsx'
+import { nodeFromHash } from './Learn.tsx'
 import { NODES, nodeById, type QuizQuestion } from '../content/curriculum.ts'
 import { XP_REWARDS } from '../engine/xp.ts'
 
@@ -203,5 +204,14 @@ describe('Learn room — codex', () => {
     expect(screen.getAllByRole('button', { name: 'Uncollected bonus card' })).toHaveLength(29)
     // Collecting counts as learning one thing today.
     expect(xpNow()).toBe(XP_REWARDS.readLesson)
+  })
+})
+
+describe('nodeFromHash', () => {
+  it('reads a real node id from a #/learn?node= link and ignores anything else', () => {
+    const id = NODES[3].id
+    expect(nodeFromHash(`#/learn?node=${id}`)).toBe(id)
+    expect(nodeFromHash('#/learn?node=not-a-node')).toBeNull()
+    expect(nodeFromHash('#/learn')).toBeNull()
   })
 })
