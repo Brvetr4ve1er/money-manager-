@@ -1,0 +1,6 @@
+{
+  "//": "package-local only, NOT merged into WorkspaceHQ: makes main/money.js load as CommonJS (like HQ dashboard/) inside the Ember repo, whose root package.json is type:module. Run the package tests with: npm test (from this folder). tests/money.logic.test.mjs is written for its landing path in HQ and runs there.",
+  "private": true,
+  "type": "commonjs",
+  "scripts": { "test": "node --test main/*.test.mjs main/money/*.test.mjs" }
+}
