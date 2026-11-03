@@ -1,6 +1,6 @@
 # Space Port Package — `money` (from Ember)
 
-Read this first. Source app: **Ember** (`Brvetr4ve1er/money-manager-`, React 18 + Vite + TypeScript + Electron),
+**Merging? Read `MERGE-BRIEF.md` first** — the step-by-step runbook (fast path: a known-good patch). This file is the spec. Source app: **Ember** (`Brvetr4ve1er/money-manager-`, React 18 + Vite + TypeScript + Electron),
 a local-first money app for one owner in Algeria: DA cash/CCP typed by hand, a RedotPay USD card whose balance is
 estimated, bills to payday, envelope jars, and a paste-a-receipt inbox. This package re-expresses the parts that
 earn a WorkspaceHQ nav slot as an HQ space. HQ's own session merges it; nothing here touches the structure lane.
