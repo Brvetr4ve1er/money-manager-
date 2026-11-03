@@ -2,11 +2,17 @@
 
 ## Table row (the sidecar list at the top)
 
+Append to the `## Files the frontend consumes` table, after the `data/browser-activity.json` row:
+
 | File | Consumed by | Notes |
 |---|---|---|
 | `data/money/state.json` | `dashboard/money.js` only (renderer gets a derived view over `hq:money:*`) | owner money data · gitignored · frontend lane |
 
 ## Section
+
+Under `## Pending changes`, as a sibling of the other frontend-lane local stores (`### data/claude/ …`, the vault
+note formats): after the last of those (`VEEMO CORTEX/40_Resources/Prompts/<slug>.md`), before the dated
+`## 2026-10-16 · struct · …` entries.
 
 ### `data/money/` — money space (frontend lane, local only, gitignored)
 

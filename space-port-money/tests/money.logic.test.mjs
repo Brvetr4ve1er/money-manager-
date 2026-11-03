@@ -9,6 +9,9 @@ import fs from 'node:fs';
 import { moneyLogic } from './money.js';
 import { moneyVals } from '../vals/money.js';
 
+// FX() (logic/shared.js) reads window.HQFx; node has no window — give it a silent one
+globalThis.window = globalThis.window || { HQFx: { sfx() {} } };
+
 // the fake preload's fixture: the real ported engine's output on placeholder data
 const MONEY = JSON.parse(fs.readFileSync(new URL('../../tools/money.fake-views.json', import.meta.url), 'utf8'));
 

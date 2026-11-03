@@ -1,6 +1,9 @@
 # money — IPC-CONTRACT rows (write these BEFORE landing the code)
 
-New section for `docs/sync/IPC-CONTRACT.md`, same columns as the table there:
+New dated section for `docs/sync/IPC-CONTRACT.md`, placed like the latest ones (GitHub view, Connected accounts):
+just above `## Rules`, headed `## <date> — Money space (rows written before the handler lands)` with one line
+"Additive only. New file `dashboard/money.js` + `dashboard/money/*.mjs` (one hook line in `main.js`)." and then
+this table (the main invoke table's columns):
 
 | `window.hq` method | Channel | Args | Returns | Primary surface |
 |---|---|---|---|---|

@@ -14,7 +14,7 @@ One honest number — **breathing room until payday** — and the four places th
 
 | sub | what the owner sees and does |
 |---|---|
-| **today** (default) | Breathing room (holdings − money in jars − bills due before payday) and the per-day figure, labelled a forecast. Accounts as cards: DA "as typed", USD "estimated" with its DA conversion at the owner's own rate, "confirmed N days ago", a stale nudge after a week. Confirm balance (re-anchors), add, archive. Rate (DA per 1 USD) + payday day. Quick log: amount, DA/USD, category chips, account chips, note — Enter logs. Ledger: latest 15, remove a mis-log. Import an Ember export / export. |
+| **today** (default) | Breathing room (holdings − money in jars − bills due before payday) and the per-day figure, labelled a forecast. Accounts as cards, USD with its DA conversion at the owner's own rate: "as typed" right after a confirm, "estimated" once logged spending/income has moved it since (Ember's rule, any currency), "confirmed N days ago", a stale nudge after a week on an estimate. Confirm balance (re-anchors), add, archive. Rate (DA per 1 USD) + payday day. Quick log: amount, DA/USD, category chips, account chips, note — Enter logs. Ledger: latest 15, remove a mis-log. Import an Ember export / export. |
 | **runway** | Days to payday and what's likely to go out before it. Every bill / subscription / installment (n of 12) / variable bill (averages the last 3) with its next due date, coloured late / due soon / upcoming / paid off, its next step. Pay (writes a Bills ledger row on the bill's account; amount prefilled), undo today's payment, edit, archive. |
 | **jars** | Envelopes with an optional target + date → "X DA a month for N months", on/off pace against the payday split. Add / take out; an overspent jar asks to be covered from another (a move, no red shame). Presets (emergency, Eid, Ramadan, rentrée, bills). Payday split per jar; "pay landed" records the income on an account and replays the split into jars. |
 | **inbox** | Paste receipts / emails / SMS (RedotPay, Algerian bank débit SMS, BaridiMob/CCP, Jumia, Yassir, subscriptions…). Parsed locally into slips, deduped across messages and against the ledger. Each slip shows its evidence, confidence, flags. Confirm (with category + account) or reject; promos, renewal notices and already-logged purchases need a second deliberate tap; a refund goes back to a same-currency account as income, never as spending. Clear handled. |
@@ -46,7 +46,7 @@ renderer (dashboard-v5)                         main (dashboard)
 
 See `renderer/catalog.diff.md` (renderer edits + landing table), `main/preload.diff.md` (preload, main.js line,
 fake preload, landing table), `renderer/money.store.md` (store slice), `main/IPC-CONTRACT.rows.md`,
-`main/CONTRACT.rows.md`, `tests/selftest-states.md`, `tests/cdp-scenarios.md`. `package.json` here is
+`main/CONTRACT.rows.md`, `tests/selftest-states.md`, `tests/cdp-scenarios.md` (code: `tests/cdp-scenarios.mjs.snippet`). `package.json` here is
 package-local (CommonJS for `main/money.js` inside the Ember repo) — **not merged**.
 
 ## Cuts (v1) — named, so nobody looks for them
@@ -65,6 +65,6 @@ package-local (CommonJS for `main/money.js` inside the Ember repo) — **not mer
 
 ## Known limits (honest)
 
-- The USD balance is an **estimate** (last confirmed − spending logged since + income since); it drifts if spending isn't logged. The UI says "estimated" and nudges a confirm after 7 days.
+- A balance that has moved since its last confirm is an **estimate** (last confirmed − spending logged since + income since); it drifts if spending isn't logged — the RedotPay card most of all. The UI says "estimated" and nudges a confirm after 7 days.
 - The parser was tested on fixture messages, not yet on a week of the owner's real SMS/emails.
 - Breathing room is a forecast to the next payday; no payday set = end of month.

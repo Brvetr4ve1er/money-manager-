@@ -57,7 +57,7 @@ Add `refreshMoney, applyMoney, importMoney` to the returned object (the line wit
 
 ## refresh on arrival (`src/app.js` componentDidUpdate)
 
-Next to `if (moved && S.tab === 'life') this.store.refreshSocial();`:
+Next to `if (moved && S.tab === 'life') this.store.refreshSocial();` — the same line `catalog.diff.md` §3 lists; add it once:
 
 ```js
     if (moved && S.tab === 'money') this.store.refreshMoney();   // money: "today" moves on its own (due dates, payday) — re-read on arrival
