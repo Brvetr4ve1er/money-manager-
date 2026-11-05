@@ -1,5 +1,12 @@
 # MERGE BRIEF — landing the Money space in WorkspaceHQ
 
+> **STATUS 2026-11-03 — LANDED.** WorkspaceHQ's own session merged this package on the owner's PC (real Electron 32,
+> real scans) via the manual path, on branch `fe/v5-clean-pass` (commits `1c9659e` → `07ead0e`). Money is the
+> **9th destination on key 9** there (Studio had been removed; slot 0 stays free for the next port). The only code
+> change it made — a UTC+2-safe test fixture time — is synced back here and into Ember `src/`. Do not merge again;
+> what's left is merging `fe/v5-clean-pass` into WorkspaceHQ `main`.
+
+
 > **For the WorkspaceHQ Claude Code session.** This is the one document to read first: everything you need
 > to merge Ember's money core into `Brvetr4ve1er/workspace-HQ` as a space, with no back-and-forth to the
 > Ember chat. Written 2026-11-03 against WorkspaceHQ `main` @ **`76a7d1a`**.

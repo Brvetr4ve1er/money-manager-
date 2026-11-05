@@ -49,7 +49,8 @@ export const FIXTURES = [
     {
         name: 'Yassir trip receipt',
         from: 'receipts@yassir.com',
-        receivedAt: '2026-10-08T22:10:00.000Z',
+        // midday UTC (was 22:10Z): dayOfReceived uses the LOCAL day, so 22:10Z read as Oct 9 on a UTC+2 PC
+        receivedAt: '2026-10-08T12:10:00.000Z',
         text: 'Your trip receipt\nThanks for riding with Yassir.\nBab Ezzouar → Hydra\nTotal 650 DA\nPaid in cash',
         expect: { merchant: 'Yassir', amount: 650, currency: 'DA', date: '2026-10-08', flags: [], category: 'Transport' },
     },

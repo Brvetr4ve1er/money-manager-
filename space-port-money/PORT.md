@@ -1,5 +1,12 @@
 # Space Port Package — `money` (from Ember)
 
+> **STATUS 2026-11-03 — LANDED.** WorkspaceHQ's own session merged this package on the owner's PC (real Electron 32,
+> real scans) via the manual path, on branch `fe/v5-clean-pass` (commits `1c9659e` → `07ead0e`). Money is the
+> **9th destination on key 9** there (Studio had been removed; slot 0 stays free for the next port). The only code
+> change it made — a UTC+2-safe test fixture time — is synced back here and into Ember `src/`. Do not merge again;
+> what's left is merging `fe/v5-clean-pass` into WorkspaceHQ `main`.
+
+
 **Merging? Read `MERGE-BRIEF.md` first** — the step-by-step runbook (fast path: a known-good patch). This file is the spec. Source app: **Ember** (`Brvetr4ve1er/money-manager-`, React 18 + Vite + TypeScript + Electron),
 a local-first money app for one owner in Algeria: DA cash/CCP typed by hand, a RedotPay USD card whose balance is
 estimated, bills to payday, envelope jars, and a paste-a-receipt inbox. This package re-expresses the parts that
